@@ -1,0 +1,27 @@
+{
+    "name": "RPGFramework.Housing.Tests",
+    "rootNamespace": "RPGFramework.Housing.Tests",
+    "references": [
+        "RPGFramework.Housing.Runtime",
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Inventory.Runtime",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll",
+        "Moq.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

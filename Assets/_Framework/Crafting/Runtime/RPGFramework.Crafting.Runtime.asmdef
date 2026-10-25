@@ -1,0 +1,16 @@
+{
+    "name": "RPGFramework.Crafting.Runtime",
+    "rootNamespace": "RPGFramework.Crafting",
+    "references": [
+        "RPGFramework.ECS.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

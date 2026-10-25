@@ -1,0 +1,16 @@
+{
+    "name": "RPGFramework.Tools.Runtime",
+    "rootNamespace": "RPGFramework.Tools",
+    "references": [
+        "RPGFramework.ECS.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

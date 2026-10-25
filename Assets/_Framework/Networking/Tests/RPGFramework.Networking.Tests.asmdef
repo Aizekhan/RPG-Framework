@@ -1,0 +1,26 @@
+{
+    "name": "RPGFramework.Networking.Tests",
+    "rootNamespace": "RPGFramework.Networking.Tests",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "RPGFramework.Networking.Runtime",
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Serialization.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

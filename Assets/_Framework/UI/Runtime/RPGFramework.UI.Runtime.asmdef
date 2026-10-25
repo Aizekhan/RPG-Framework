@@ -1,0 +1,21 @@
+{
+    "name": "RPGFramework.UI.Runtime",
+    "rootNamespace": "RPGFramework.UI",
+    "references": [
+        "RPGFramework.Core.Runtime",
+        "RPGFramework.Items.Runtime",
+        "RPGFramework.Inventory.Runtime",
+        "RPGFramework.Quests.Runtime",
+        "RPGFramework.Loot.Runtime",
+        "RPGFramework.Characters.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

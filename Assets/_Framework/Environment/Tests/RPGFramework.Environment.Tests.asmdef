@@ -1,0 +1,21 @@
+{
+    "name": "RPGFramework.Environment.Tests",
+    "rootNamespace": "RPGFramework.Environment.Tests",
+    "references": [
+        "RPGFramework.Environment.Runtime",
+        "RPGFramework.ECS.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

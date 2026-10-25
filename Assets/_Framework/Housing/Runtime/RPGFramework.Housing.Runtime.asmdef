@@ -1,0 +1,17 @@
+{
+    "name": "RPGFramework.Housing.Runtime",
+    "rootNamespace": "RPGFramework.Housing",
+    "references": [
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Inventory.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

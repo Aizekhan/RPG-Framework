@@ -1,0 +1,27 @@
+{
+    "name": "RPGFramework.Quests.Tests",
+    "rootNamespace": "RPGFramework.Quests.Tests",
+    "references": [
+        "RPGFramework.Quests.Runtime",
+        "RPGFramework.ECS.Runtime",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll",
+        "Moq.dll",
+        "Castle.Core.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

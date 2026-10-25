@@ -1,0 +1,22 @@
+{
+    "name": "RPGFramework.DI.Tests",
+    "rootNamespace": "RPGFramework.DI.Tests",
+    "references": [
+        "RPGFramework.DI.Runtime",
+        "RPGFramework.Logging.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

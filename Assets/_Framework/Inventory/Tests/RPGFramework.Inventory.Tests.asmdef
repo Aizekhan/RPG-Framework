@@ -1,0 +1,26 @@
+{
+    "name": "RPGFramework.Inventory.Tests",
+    "rootNamespace": "RPGFramework.Inventory.Tests",
+    "references": [
+        "RPGFramework.Inventory.Runtime",
+        "RPGFramework.Core.Runtime",
+        "RPGFramework.ECS.Runtime",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,21 @@
+{
+    "name": "RPGFramework.ECS.Runtime.Tests",
+    "rootNamespace": "RPGFramework.ECS.Tests",
+    "references": [
+        "RPGFramework.ECS.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

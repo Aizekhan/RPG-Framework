@@ -1,0 +1,17 @@
+{
+    "name": "RPGFramework.Items.Runtime",
+    "rootNamespace": "RPGFramework.Items",
+    "references": [
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Stats.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

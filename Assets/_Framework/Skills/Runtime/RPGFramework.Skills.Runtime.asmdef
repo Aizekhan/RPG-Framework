@@ -1,0 +1,16 @@
+{
+    "name": "RPGFramework.Skills.Runtime",
+    "rootNamespace": "RPGFramework.Skills",
+    "references": [
+        "RPGFramework.ECS.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

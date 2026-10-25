@@ -1,0 +1,14 @@
+{
+    "name": "RPGFramework.Loot.Runtime",
+    "rootNamespace": "RPGFramework.Loot",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

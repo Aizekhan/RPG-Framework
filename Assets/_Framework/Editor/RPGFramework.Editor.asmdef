@@ -1,0 +1,33 @@
+{
+    "name": "RPGFramework.Editor",
+    "rootNamespace": "RPGFramework.Editor",
+    "references": [
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "RPGFramework.Combat.Runtime",
+        "RPGFramework.Stats.Runtime",
+        "RPGFramework.Inventory.Runtime",
+        "RPGFramework.Items.Runtime",
+        "RPGFramework.Loot.Runtime",
+        "RPGFramework.Abilities.Runtime",
+        "RPGFramework.Progression.Runtime",
+        "RPGFramework.Skills.Runtime",
+        "RPGFramework.StatusEffects.Runtime",
+        "RPGFramework.Quests.Runtime",
+        "RPGFramework.Dialogue.Runtime",
+        "RPGFramework.Trading.Runtime",
+        "RPGFramework.Crafting.Runtime",
+        "RPGFramework.Factions.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

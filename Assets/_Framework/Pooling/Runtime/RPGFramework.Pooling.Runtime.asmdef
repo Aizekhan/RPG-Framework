@@ -1,0 +1,16 @@
+{
+    "name": "RPGFramework.Pooling.Runtime",
+    "rootNamespace": "RPGFramework.Pooling",
+    "references": [
+        "RPGFramework.Logging.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

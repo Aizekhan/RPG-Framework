@@ -1,0 +1,16 @@
+{
+    "name": "RPGFramework.DI.Runtime",
+    "rootNamespace": "RPGFramework.DI",
+    "references": [
+        "RPGFramework.Logging.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

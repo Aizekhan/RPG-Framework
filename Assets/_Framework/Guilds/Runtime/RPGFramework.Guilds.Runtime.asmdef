@@ -1,0 +1,17 @@
+{
+    "name": "RPGFramework.Guilds.Runtime",
+    "rootNamespace": "RPGFramework.Guilds.Runtime",
+    "references": [
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Factions.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

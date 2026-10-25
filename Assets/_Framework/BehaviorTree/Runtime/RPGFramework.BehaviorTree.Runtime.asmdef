@@ -1,0 +1,14 @@
+{
+    "name": "RPGFramework.BehaviorTree.Runtime",
+    "rootNamespace": "RPGFramework.BehaviorTree",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}
