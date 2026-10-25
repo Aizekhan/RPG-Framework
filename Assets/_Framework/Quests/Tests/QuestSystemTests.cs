@@ -3,7 +3,7 @@ using RPGFramework.Quests;
 using RPGFramework.ECS;
 using System;
 using System.Collections.Generic;
-// using Moq; // TODO: Add Moq package for mocking tests
+using Moq;
 
 namespace RPGFramework.Quests.Tests
 {
@@ -20,12 +20,11 @@ namespace RPGFramework.Quests.Tests
         /// <summary>
         /// Create a mock IEntityManager for ECS testing.
         /// </summary>
-        // TODO: Uncomment when Moq package is added
-        // private Mock<IEntityManager> CreateMockEntityManager()
-        // {
-        //     var mock = new Mock<IEntityManager>();
-        //     return mock;
-        // }
+        private Mock<IEntityManager> CreateMockEntityManager()
+        {
+            var mock = new Mock<IEntityManager>();
+            return mock;
+        }
 
         /// <summary>
         /// Create a simple test objective.

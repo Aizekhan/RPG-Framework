@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System;
-using RPGFramework.Characters;
+// using RPGFramework.Characters; // TODO: Game layer should provide character interface
 
 namespace RPGFramework.UI.Panels
 {
@@ -45,7 +45,7 @@ namespace RPGFramework.UI.Panels
         [Header("Equipment Bonuses")]
         [SerializeField] protected TextMeshProUGUI equipmentBonusText;
 
-        protected ICharacter character;
+        // protected ICharacter character; // TODO: Game layer provides character interface
 
         protected override void Awake()
         {
@@ -57,12 +57,13 @@ namespace RPGFramework.UI.Panels
 
         /// <summary>
         /// Initializes panel with character data.
+        /// TODO: Game layer provides character interface and implements this method
         /// </summary>
-        public virtual void Initialize(ICharacter character)
-        {
-            this.character = character;
-            RefreshStats();
-        }
+        // public virtual void Initialize(ICharacter character)
+        // {
+        //     this.character = character;
+        //     RefreshStats();
+        // }
 
         /// <summary>
         /// Refreshes all stat displays.

@@ -221,10 +221,10 @@ namespace RPGFramework.Stats
                 .Where(m => m.ModifierType == StatModifierType.Additive)
                 .OrderBy(m => m.Priority);
 
-            dynamic currentValue = baseValue;
+            double currentValue = Convert.ToDouble(baseValue);
             foreach (var modifier in additiveModifiers)
             {
-                currentValue += (dynamic)modifier.Value;
+                currentValue += Convert.ToDouble(modifier.Value);
             }
 
             // Apply Multiplicative modifiers
@@ -236,10 +236,10 @@ namespace RPGFramework.Stats
             {
                 // Multiplicative formula: value * (1 + modifier)
                 // Example: 100 * (1 + 0.1) = 110 (10% increase)
-                currentValue *= (1 + (dynamic)modifier.Value);
+                currentValue *= (1 + Convert.ToDouble(modifier.Value));
             }
 
-            return (TValue)currentValue;
+            return (TValue)Convert.ChangeType(currentValue, typeof(TValue));
         }
 
         // Serialization
