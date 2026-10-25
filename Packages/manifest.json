@@ -1,7 +1,7 @@
 {
   "dependencies": {
     "com.unity.inputsystem": "1.11.2",
-    "com.unity.test-framework": "2.0.1-pre.18",
+    "com.unity.test-framework": "1.5.1",
     "com.unity.textmeshpro": "3.2.0-pre.10",
     "com.unity.ugui": "3.0.0",
     "com.unity.modules.ai": "1.0.0",

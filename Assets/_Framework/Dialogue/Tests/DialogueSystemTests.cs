@@ -3,7 +3,7 @@ using RPGFramework.Dialogue;
 using RPGFramework.ECS;
 using System;
 using System.Collections.Generic;
-using Moq;
+// using Moq; // TODO: Add Moq package for mocking tests
 
 namespace RPGFramework.Dialogue.Tests
 {
@@ -20,16 +20,18 @@ namespace RPGFramework.Dialogue.Tests
         /// <summary>
         /// Create a mock IEntityManager for ECS testing.
         /// </summary>
-        private Mock<IEntityManager> CreateMockEntityManager()
-        {
-            var mock = new Mock<IEntityManager>();
-            return mock;
-        }
+        // TODO: Uncomment when Moq package is added
+        // private Mock<IEntityManager> CreateMockEntityManager()
+        // {
+        //     var mock = new Mock<IEntityManager>();
+        //     return mock;
+        // }
 
         /// <summary>
         /// Create a mock IDialogueContext for condition testing.
         /// </summary>
-        private Mock<IDialogueContext> CreateMockDialogueContext(
+        // TODO: Uncomment when Moq package is added
+        /* private Mock<IDialogueContext> CreateMockDialogueContext(
             int entityId = 1,
             string currentNodeId = "node_001",
             Dictionary<string, int> variables = null)
@@ -43,6 +45,7 @@ namespace RPGFramework.Dialogue.Tests
             mock.Setup(c => c.GetStatValue(It.IsAny<string>())).Returns(0);
             return mock;
         }
+        */
 
         /// <summary>
         /// Create a simple test dialogue choice.

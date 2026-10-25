@@ -3,7 +3,7 @@ using RPGFramework.Crafting;
 using RPGFramework.ECS;
 using System;
 using System.Collections.Generic;
-using Moq;
+// using Moq; // TODO: Add Moq package for mocking tests
 
 namespace RPGFramework.Crafting.Tests
 {
@@ -20,11 +20,12 @@ namespace RPGFramework.Crafting.Tests
         /// <summary>
         /// Create a mock IEntityManager for ECS testing.
         /// </summary>
-        private Mock<IEntityManager> CreateMockEntityManager()
-        {
-            var mock = new Mock<IEntityManager>();
-            return mock;
-        }
+        // TODO: Uncomment when Moq package is added
+        // private Mock<IEntityManager> CreateMockEntityManager()
+        // {
+        //     var mock = new Mock<IEntityManager>();
+        //     return mock;
+        // }
 
         /// <summary>
         /// Create a simple test ingredient.

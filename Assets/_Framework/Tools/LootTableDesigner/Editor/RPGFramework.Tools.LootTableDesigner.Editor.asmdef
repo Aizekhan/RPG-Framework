@@ -2,7 +2,8 @@
     "name": "RPGFramework.Tools.LootTableDesigner.Editor",
     "rootNamespace": "RPGFramework.Tools.LootTableDesigner.Editor",
     "references": [
-        "RPGFramework.Loot.Runtime"
+        "RPGFramework.Loot.Runtime",
+        "RPGFramework.Tools.LootTableDesigner.Runtime"
     ],
     "includePlatforms": [
         "Editor"
