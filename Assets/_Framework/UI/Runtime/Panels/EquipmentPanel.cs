@@ -18,14 +18,14 @@ namespace RPGFramework.UI.Panels
         [SerializeField] protected Button closeButton;
 
         [Header("Equipment Slots")]
-        [SerializeField] protected EquipmentSlotUI headSlot;
-        [SerializeField] protected EquipmentSlotUI chestSlot;
-        [SerializeField] protected EquipmentSlotUI legsSlot;
-        [SerializeField] protected EquipmentSlotUI feetSlot;
-        [SerializeField] protected EquipmentSlotUI mainHandSlot;
-        [SerializeField] protected EquipmentSlotUI offHandSlot;
-        [SerializeField] protected EquipmentSlotUI accessory1Slot;
-        [SerializeField] protected EquipmentSlotUI accessory2Slot;
+        [SerializeField] protected ItemSlotUI headSlot;
+        [SerializeField] protected ItemSlotUI chestSlot;
+        [SerializeField] protected ItemSlotUI legsSlot;
+        [SerializeField] protected ItemSlotUI feetSlot;
+        [SerializeField] protected ItemSlotUI mainHandSlot;
+        [SerializeField] protected ItemSlotUI offHandSlot;
+        [SerializeField] protected ItemSlotUI accessory1Slot;
+        [SerializeField] protected ItemSlotUI accessory2Slot;
 
         [Header("Stat Bonuses")]
         [SerializeField] protected TextMeshProUGUI totalHealthBonusText;
@@ -46,7 +46,7 @@ namespace RPGFramework.UI.Panels
         public event Action<EquipmentSlotType, IItem> OnEquipmentChanged;
         public event Action<IItem> OnItemUnequipped;
 
-        protected Dictionary<EquipmentSlotType, EquipmentSlotUI> equipmentSlots = new Dictionary<EquipmentSlotType, EquipmentSlotUI>();
+        protected Dictionary<EquipmentSlotType, ItemSlotUI> equipmentSlots = new Dictionary<EquipmentSlotType, ItemSlotUI>();
 
         protected override void Awake()
         {
@@ -70,7 +70,7 @@ namespace RPGFramework.UI.Panels
             if (accessory2Slot != null) RegisterSlot(EquipmentSlotType.Accessory2, accessory2Slot);
         }
 
-        protected virtual void RegisterSlot(EquipmentSlotType slotType, EquipmentSlotUI slotUI)
+        protected virtual void RegisterSlot(EquipmentSlotType slotType, ItemSlotUI slotUI)
         {
             equipmentSlots[slotType] = slotUI;
 
@@ -222,71 +222,5 @@ namespace RPGFramework.UI.Panels
         OffHand,
         Accessory1,
         Accessory2
-    }
-
-    /// <summary>
-    /// UI component for individual equipment slot.
-    /// Attach to slot GameObject in scene.
-    /// </summary>
-    public class EquipmentSlotUI : MonoBehaviour
-    {
-        [SerializeField] private Image itemIcon;
-        [SerializeField] private GameObject emptyIndicator;
-        [SerializeField] private Button slotButton;
-
-        public IItem CurrentItem { get; private set; }
-
-        public event Action OnSlotClicked;
-        public event Action<IItem> OnSlotHoverEnter;
-        public event Action OnSlotHoverExit;
-
-        private void Awake()
-        {
-            if (slotButton != null)
-                slotButton.onClick.AddListener(() => OnSlotClicked?.Invoke());
-        }
-
-        public void SetItem(IItem item)
-        {
-            CurrentItem = item;
-
-            if (item != null)
-            {
-                if (itemIcon != null)
-                {
-                    itemIcon.enabled = true;
-                    // Set icon sprite (override to implement)
-                }
-
-                if (emptyIndicator != null)
-                    emptyIndicator.SetActive(false);
-            }
-            else
-            {
-                ClearSlot();
-            }
-        }
-
-        public void ClearSlot()
-        {
-            CurrentItem = null;
-
-            if (itemIcon != null)
-                itemIcon.enabled = false;
-
-            if (emptyIndicator != null)
-                emptyIndicator.SetActive(true);
-        }
-
-        public void OnPointerEnter()
-        {
-            if (CurrentItem != null)
-                OnSlotHoverEnter?.Invoke(CurrentItem);
-        }
-
-        public void OnPointerExit()
-        {
-            OnSlotHoverExit?.Invoke();
-        }
     }
 }

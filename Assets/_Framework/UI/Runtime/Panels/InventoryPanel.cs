@@ -3,14 +3,15 @@ using UnityEngine.UI;
 using TMPro;
 using System;
 using System.Collections.Generic;
-using RPGFramework.Inventory;
+using RPGFramework.Inventory.Runtime;
 using RPGFramework.Items;
 
 namespace RPGFramework.UI.Panels
 {
     /// <summary>
-    /// Generic inventory panel for displaying items and equipment.
-    /// Can be extended/customized for game-specific needs.
+    /// Generic inventory panel: shows the items of an <see cref="IInventoryContainer{TItem}"/> in a grid of
+    /// <see cref="ItemSlotUI"/> slots, with tooltips and click events. Override the virtual methods for
+    /// game-specific layouts (weight, gold, sorting).
     /// Keyboard shortcut: I
     /// </summary>
     public class InventoryPanel : UIViewBase
@@ -42,7 +43,7 @@ namespace RPGFramework.UI.Panels
         public event Action<IItem> OnItemDropped;
 
         protected List<GameObject> itemSlots = new List<GameObject>();
-        protected object inventoryManager; // Game layer provides concrete type
+        protected IInventoryContainer<IItem> inventory;
 
         protected override void Awake()
         {
@@ -55,12 +56,11 @@ namespace RPGFramework.UI.Panels
         }
 
         /// <summary>
-        /// Initializes panel with inventory manager.
-        /// Game layer casts to concrete inventory manager type.
+        /// Binds the panel to an inventory and shows its items.
         /// </summary>
-        public virtual void Initialize(object inventoryManager)
+        public virtual void Initialize(IInventoryContainer<IItem> inventory)
         {
-            this.inventoryManager = inventoryManager;
+            this.inventory = inventory;
             RefreshInventory();
         }
 
@@ -69,7 +69,7 @@ namespace RPGFramework.UI.Panels
         /// </summary>
         public virtual void RefreshInventory()
         {
-            if (inventoryManager == null) return;
+            if (inventory == null) return;
 
             ClearSlots();
             DisplayItems();
@@ -86,17 +86,36 @@ namespace RPGFramework.UI.Panels
                 var slot = Instantiate(itemSlotPrefab, inventoryGrid.transform);
                 slot.name = $"ItemSlot_{i}";
                 itemSlots.Add(slot);
+
+                var slotUI = slot.GetComponent<ItemSlotUI>();
+                if (slotUI != null)
+                {
+                    slotUI.OnSlotClicked += () => { if (slotUI.CurrentItem != null) OnItemClicked(slotUI.CurrentItem); };
+                    slotUI.OnSlotHoverEnter += ShowTooltip;
+                    slotUI.OnSlotHoverExit += HideTooltip;
+                }
             }
         }
 
         protected virtual void ClearSlots()
         {
-            // Override to clear slot contents
+            foreach (var slot in itemSlots)
+            {
+                var slotUI = slot != null ? slot.GetComponent<ItemSlotUI>() : null;
+                if (slotUI != null)
+                    slotUI.ClearSlot();
+            }
         }
 
         protected virtual void DisplayItems()
         {
-            // Override to display items from inventory
+            var items = inventory.GetAllItems();
+            for (int i = 0; i < itemSlots.Count; i++)
+            {
+                var slotUI = itemSlots[i] != null ? itemSlots[i].GetComponent<ItemSlotUI>() : null;
+                if (slotUI != null)
+                    slotUI.SetItem(i < items.Count ? items[i] : null);
+            }
         }
 
         protected virtual void UpdateInfo()
