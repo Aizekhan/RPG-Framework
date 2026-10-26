@@ -4,6 +4,7 @@
     "references": [
         "RPGFramework.UINavigation.Runtime",
         "RPGFramework.UINavigation.Unity",
+        "RPGFramework.UINavigation.TestSupport",
         "RPGFramework.AssetManagement.Runtime",
         "RPGFramework.Events.Runtime",
         "RPGFramework.Logging.Runtime",
