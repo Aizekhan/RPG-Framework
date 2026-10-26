@@ -192,13 +192,15 @@ namespace RPGFramework.AssetManagement
             {
                 entry = new Entry(_generation) { RefCount = 1 };
                 _entries.Add(key, entry);
-                entry.Loading = LoadFromProvidersAsync<T>(key, entry).Preserve();
+                // A completion source (unlike a preserved UniTask) supports many awaiters while still pending
+                entry.Completion = new UniTaskCompletionSource<object>();
+                CompleteEntryAsync<T>(key, entry).Forget();
             }
 
             object asset;
             try
             {
-                asset = await entry.Loading.AttachExternalCancellation(cancellationToken);
+                asset = await entry.Completion.Task.AttachExternalCancellation(cancellationToken);
             }
             catch
             {
@@ -264,6 +266,18 @@ namespace RPGFramework.AssetManagement
                     SafeRelease(pair.Key, pair.Value);
             }
             _entries.Clear();
+        }
+
+        private async UniTaskVoid CompleteEntryAsync<T>(string key, Entry entry) where T : class
+        {
+            try
+            {
+                entry.Completion.TrySetResult(await LoadFromProvidersAsync<T>(key, entry));
+            }
+            catch (Exception ex)
+            {
+                entry.Completion.TrySetException(ex);
+            }
         }
 
         private async UniTask<object> LoadFromProvidersAsync<T>(string key, Entry entry) where T : class
@@ -357,7 +371,7 @@ namespace RPGFramework.AssetManagement
             }
 
             public int Generation { get; }
-            public UniTask<object> Loading;
+            public UniTaskCompletionSource<object> Completion;
             public object Asset;
             public IAssetProvider Provider;
             public int RefCount;
