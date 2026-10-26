@@ -11,11 +11,12 @@
 
 | Gate | Result | SHA |
 |---|---|---|
-| Clean-checkout compile (`unity test`, fresh worktree) | ✅ 0 `error CS` | `6335b9d` |
-| EditMode tests | ✅ **1228 / 1228 passed** | `6335b9d` |
-| PlayMode tests (GoblinValley scene played) | ✅ **1 / 1 passed** | `6335b9d` |
-| `.meta` integrity (CI `meta-check`) | ✅ 0 problems | `ff70d11` |
-| CI Unity tests on GitHub (GameCI) | ✅ **1170 / 1170 passed**, run `40337490738` | `ebaa00e` + CI fix |
+| Clean-checkout compile (`unity test`, fresh worktree) | ✅ 0 `error CS` | `ef8beeb` |
+| EditMode tests | ✅ **1250 / 1250 passed** | `ef8beeb` |
+| PlayMode tests (Goblin Valley scene, assets-only action RPG, save/reload) | ✅ **4 / 4 passed** | `ef8beeb` |
+| `.meta` integrity | ✅ 0 problems (1271 metas) | `ef8beeb` |
+| CI on GitHub (meta check, EditMode, PlayMode) | ✅ green (run `40367197669`) | `ef8beeb` |
+| Fresh Unity 6 project + UniTask + package → New Game → tests → Play | ✅ 14/14 generated tests, played (screenshots) | `675b521` |
 
 Earlier "~5 compilation errors" and "100% pass rate" claims were unverified. In reality HEAD `e348e10` did not compile from a clean clone, and ~150 tests (Guilds, Quests, Dialogue, Crafting) were silently not running.
 
@@ -69,12 +70,13 @@ Not ported on purpose in phase 9: a persistent event store (the `EventRecorder` 
 |---|---|---|---|
 | 1 | Framework shipped as UPM package `com.aizekhan.rpg-framework` 0.1.0 (README, CHANGELOG, LICENSE; meta check covers embedded packages) | `ad978e6` | 1184/1184 EditMode |
 | 3 | **Game Kit (AI Kit).** Game architecture rules GA01–GA10 (`GameArchitectureRules` over `GameCodebase`) with a `GameArchitectureTests` base fixture; New Game / New Feature generators (`Templates~`, menu window + batch mode) producing Core/runtime/test assemblies, composition, host, scene and tests with metas; `AIGuidance` installs a CLAUDE.md block, `Docs/RPGFramework` guide + 9 recipes and a CI workflow. ReferenceGame rules moved to `ReferenceGame.Core` (noEngineReferences) and pass the rules | `6335b9d` | 1228/1228 EditMode, 1/1 PlayMode. Also proven in the verify worktree: generated `SampleQuest` + `Shop` feature compile and pass 16 tests (1244 total); injected singleton, `FindObjectOfType` and engine-enabled Core fail GA06, GA05, GA03 with fix hints |
+| 4 | **Action RPG from the inspector.** `ActionRpg` module: `Character` and `Game Setup` assets (player, enemies, waves, items, loot, quests, validation in plain words), engine-free `ActorWorld`/`ActionRpgModule`, `ActionRpgHost` that runs any prefab (controls, AI, strike, health bar added when missing; placeholder capsule without a prefab), camera follow, HUD with character sheet/backpack (I/Tab), progress saved between sessions. Game Kit **New Game** now produces a playable game with starter content | `bbaa32d`, `fcde87f`, `5136445`, `675b521`, `ef8beeb` | 1250/1250 EditMode, 4/4 PlayMode; generated game 14/14; fresh-project install proven |
 | 2 | **Playable 3D Goblin Valley.** Framework `Presentation` module (`EntityViewRegistry`). Game: spawn/despawn/wave events, `GoblinWaveSystem`, inspector-tunable `GoblinValleyConfig` + `PrefabCatalog`, presenter spawning prefabs through `PrefabSpawner` (goblins pooled), `HeroController` (Input System: keyboard, mouse, gamepad), `GoblinBrain`, health bars, UGUI HUD, `CameraFollow`. `GoblinValleyBuilder` generates placeholder art, prefabs, config and scene (menu or batch mode). CI runs EditMode + PlayMode | `de2498e` | 1196/1196 EditMode, 1/1 PlayMode |
 
 Roadmap, in order (agreed with the user 2026-10-26):
 3. ~~AI Kit~~ done (`6335b9d`).
-4. Content as ScriptableObjects (enemies, items, quests, loot) built with the AI Kit; visual identity (icons, prefabs) in the same definitions.
-5. New-game template (`Samples~`): import the package, create a game, get rules, tests and CI.
+4. ~~Content as ScriptableObjects~~ done (`ActionRpg`, milestone 4).
+5. ~~New-game template~~ done: New Game creates a playable game; install in a fresh project proven.
 
 ## Cleanup after the migration (2026-10-26)
 
@@ -115,12 +117,13 @@ Not committed (they duplicated migrated modules; the backup folder was deleted o
 - Modules without tests: DeltaCompression, Editor, Tools
 - Loot `LootGeneratedEvent`/`LootDroppedEvent` are not `IEvent`s and nothing raises them
 - ReferenceGame art is generated placeholders (primitives); `Scripts/Characters/SimpleMovement` (old Input) is superseded by `HeroController`
-- ReferenceGame content (stats, items, quest) is still defined in C# (`GoblinValleyContent`), not in assets (roadmap 4)
+- ReferenceGame (Goblin Valley) duplicates what `ActionRpg` now provides and keeps content in C#; migrating it onto `ActionRpg` deletes ~15 obsolete files, waiting for the user's confirmation
 - CI: the license file is bound to another machine, so GameCI falls back to email/password activation (works)
 
 ## Next steps
 
-1. Content as ScriptableObjects (roadmap 4), with a Game Kit generator for content definitions.
-2. New-game template sample (roadmap 5): mostly covered by Game Kit New Game; add a playable starter (views, presenter) to it.
-3. Tests for Tools (and DeltaCompression); loot events as bus events (or remove them); re-enable or delete the three `#if FALSE` editor windows.
-4. `StatContainer` performance and int rounding, after a benchmark.
+1. Goblin Valley onto `ActionRpg` (after the user confirms the deletions).
+2. Item icons in the backpack; diagnostics overlay toggle in `ActionRpgHost`.
+3. Networking: only contracts, `MessageAuthority` and a mock transport exist; decide on a transport (e.g. Netcode for GameObjects / Mirror adapter) before any multiplayer work.
+4. Tests for Tools (and DeltaCompression); loot events as bus events (or remove them); re-enable or delete the three `#if FALSE` editor windows.
+5. `StatContainer` performance and int rounding, after a benchmark.

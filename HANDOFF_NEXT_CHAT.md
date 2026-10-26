@@ -8,13 +8,10 @@
 
 ## Where things stand
 
-- Last code-verified SHA: **`6335b9d`**: clean-checkout compile 0 errors, **1228/1228 EditMode**, **1/1 PlayMode** (the GoblinValley scene played).
-- The framework is the UPM package `Packages/com.aizekhan.rpg-framework`. Goblin Valley is a playable 3D game (STATUS.md "Product milestones").
-- Game Kit is done (`GameKit/`, `Documentation~/AI/`): architecture rules for games, New Game / New Feature generators, AI guidance installer. **Next: content as ScriptableObjects** (STATUS.md roadmap 4).
-- Proving a generator end to end: in the verify worktree run `...GameScaffold.NewGameFromCommandLine -game SampleQuest`, then `NewFeatureFromCommandLine -game SampleQuest -feature Shop`, then `unity test` (then `git clean` the worktree).
-- **The MythHunter core migration (phases 1–9) is complete**, and so is the follow-up cleanup (persistence sidecar, duplicate types, UI component files, architecture tests, EPIC 25 integration). No uncommitted framework work remains. Next candidates: STATUS.md "Next steps".
-- CI (`.github/workflows/ci.yml`): `.meta` integrity and GameCI EditMode tests both run on every push (license secrets set 2026-10-26; first green run `40337490738`, 1170/1170).
-- `main` protection blocks force pushes and branch deletion only. Direct commits to `main` work (per CLAUDE.md).
+- Last code-verified SHA: **`ef8beeb`**: clean-checkout compile 0 errors, **1250/1250 EditMode**, **4/4 PlayMode**.
+- The user story is delivered: create a Unity project, add the package, **RPG Framework > Game Kit > New Game**, Play: a hero walks and fights goblin waves with a HUD, character sheet (I/Tab) and saved progress. New enemies/items/quests are assets (`Character`, `Game Setup`, Item, Loot Table, Quest Asset); code only for unique rules (`ActionRpgHost.ConfigureGameModules`, events on the bus).
+- Proven in a fresh project `D:/RPG-Fresh` (manifest points at the package in `D:/RPG-Framework-verify`, so its contents follow that worktree).
+- The user's own uncommitted files in the main tree must stay untouched: `Assets/SampleQuest/` (+ .meta), root `CLAUDE.md` edit, `Docs/`, `.github/workflows/unity-tests.yml` (left over from an old New Game run).
 
 ## What was done
 
@@ -52,7 +49,7 @@ Create the worktree with `git worktree add --detach D:/RPG-Framework-verify <sha
 ## Gotchas learned
 
 - Batch-mode Unity exits with code 2 when any test fails. Read the NUnit XML, not the exit code.
-- A test assembly whose plugin fails to load reports **0 tests, not an error**. Compare totals between runs (expected: 1228 EditMode, 1 PlayMode).
+- A test assembly whose plugin fails to load reports **0 tests, not an error**. Compare totals between runs (expected: 1250 EditMode, 4 PlayMode).
 - The verify worktree gets NuGetForUnity files generated on import; remove them there before `checkout`, or checkout aborts and the old commit is tested. Check the SHA the run actually used.
 - A MonoBehaviour must live in a file of its own name (enforced by `FrameworkArchitectureTests`). Test MonoBehaviours go in a `*.TestSupport` runtime assembly.
 - Test assemblies that construct `EventBus` need `RPGFramework.Logging.Runtime` (CS0012 otherwise).
@@ -76,4 +73,5 @@ Create the worktree with `git worktree add --detach D:/RPG-Framework-verify <sha
 
 ## Decisions waiting for the user
 
-- None. (Addressables settings committed on 2026-10-26 at the user's request.)
+- Migrate Goblin Valley (`Assets/ReferenceGame`) onto `ActionRpg`: deletes ~15 obsolete files with their metas, so it needs explicit confirmation (CLAUDE.md).
+- Whether to remove the leftover `Assets/SampleQuest`, `Docs/` and `.github/workflows/unity-tests.yml` from the main tree (user files; not touched).
