@@ -197,7 +197,7 @@ namespace RPGFramework.Quests
             {
                 EntityId = entityId,
                 QuestId = questId,
-                CompletedAt = new DateTime(questProgress.CompletedAtTicks, DateTimeKind.Utc),
+                CompletedAt = new DateTime(questProgress.CompletedAtTicks.Value, DateTimeKind.Utc),
                 Rewards = quest.Rewards != null ? new List<IQuestReward>(quest.Rewards) : new List<IQuestReward>()
             });
             return true;
