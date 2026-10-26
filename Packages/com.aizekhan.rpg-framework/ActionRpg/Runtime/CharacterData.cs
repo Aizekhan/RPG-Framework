@@ -1,0 +1,60 @@
+using System;
+
+namespace RPGFramework.ActionRpg
+{
+    /// <summary>
+    /// What a kind of character is: its stats, how it grows and what killing it gives. Engine-free; the Unity
+    /// <c>CharacterDefinition</c> asset produces it.
+    /// </summary>
+    [Serializable]
+    public sealed class CharacterData
+    {
+        /// <summary>
+        /// Unique id; also the prefab key and the target id of Kill quest objectives ("goblin").
+        /// </summary>
+        public string Id = "character";
+
+        public string DisplayName = "Character";
+
+        public float MaxHealth = 100f;
+        public float Attack = 10f;
+        public float Defense = 2f;
+
+        /// <summary>
+        /// Stat gained per level above 1 (used for the player).
+        /// </summary>
+        public float HealthPerLevel;
+
+        public float AttackPerLevel;
+        public float DefensePerLevel;
+
+        /// <summary>
+        /// Experience the killer gets.
+        /// </summary>
+        public long ExperienceReward;
+
+        /// <summary>
+        /// Loot table rolled for the killer; empty for none.
+        /// </summary>
+        public string LootTableId = "";
+
+        public float StatAt(ActorStat stat, int level)
+        {
+            int above = Math.Max(0, level - 1);
+            switch (stat)
+            {
+                case ActorStat.MaxHealth: return MaxHealth + HealthPerLevel * above;
+                case ActorStat.Attack: return Attack + AttackPerLevel * above;
+                case ActorStat.Defense: return Defense + DefensePerLevel * above;
+                default: throw new ArgumentOutOfRangeException(nameof(stat), stat, null);
+            }
+        }
+    }
+
+    public enum ActorStat
+    {
+        MaxHealth,
+        Attack,
+        Defense
+    }
+}

@@ -1,0 +1,30 @@
+{
+    "name": "RPGFramework.ActionRpg.PlayTests",
+    "rootNamespace": "RPGFramework.ActionRpg.PlayTests",
+    "references": [
+        "RPGFramework.ActionRpg.Runtime",
+        "RPGFramework.ActionRpg.Unity",
+        "RPGFramework.Presentation.Unity",
+        "RPGFramework.Cameras.Unity",
+        "RPGFramework.Bootstrap.Runtime",
+        "RPGFramework.Bootstrap.Unity",
+        "RPGFramework.DI.Runtime",
+        "RPGFramework.Combat.Runtime",
+        "RPGFramework.Tools.LootTableDesigner.Runtime",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

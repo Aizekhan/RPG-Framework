@@ -1,0 +1,25 @@
+{
+    "name": "RPGFramework.ActionRpg.Editor",
+    "rootNamespace": "RPGFramework.ActionRpg.Editor",
+    "references": [
+        "RPGFramework.ActionRpg.Runtime",
+        "RPGFramework.ActionRpg.Unity",
+        "RPGFramework.Items.Runtime",
+        "RPGFramework.Loot.Runtime",
+        "RPGFramework.Quests.Runtime",
+        "RPGFramework.Tools.ItemDatabaseManager.Runtime",
+        "RPGFramework.Tools.LootTableDesigner.Runtime",
+        "RPGFramework.Tools.QuestEditor.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
