@@ -92,7 +92,10 @@ namespace RPGFramework.ActionRpg.Coop
                         Despawn(change.Id);
                         var character = Settings.FindCharacter(change.CharacterId)
                                         ?? new CharacterData { Id = change.CharacterId, DisplayName = change.CharacterId };
-                        _actors[change.Id] = new Actor(change.Id, character, change.IsPlayer);
+                        _actors[change.Id] = new Actor(change.Id, character, change.IsPlayer)
+                        {
+                            PlayerName = string.IsNullOrEmpty(change.Name) ? null : change.Name, Seat = change.Seat
+                        };
                         _bus.Publish(new ActorSpawnedEvent(change.Id, change.CharacterId, change.IsPlayer));
                         break;
                     case CoopWorldMessage.ChangeKind.Despawn:

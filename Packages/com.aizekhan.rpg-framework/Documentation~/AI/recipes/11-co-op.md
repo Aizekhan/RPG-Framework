@@ -6,6 +6,7 @@ Every game built on `ActionRpgHost` can already be played together; there is not
 |---|---|
 | Play together | One player presses **F2 > Host a game**; the panel shows the address friends type. The others press **F2**, type that address and **Join**. Up to 4 players. |
 | From the command line | `MyGame.exe -host` (optional port after it) and `MyGame.exe -join 192.168.1.20`. Two builds on one PC: `-host` in one, `-join 127.0.0.1` in the other. |
+| Names and colours | Each player types a name in F2 (remembered). It shows above their head with a ring in their party colour: host inspector > **Party Colors**, by seat (host first, then friends in the order they joined). |
 | Port, or no co-op at all | Host inspector > **Co-op**: untick it to hide F2, or change **Coop Port** (7777). Players allow it through the firewall the first time. |
 | Code | `host.HostGame()`, `host.JoinGame(address)`, `host.LeaveGame()`; `host.Role`, `host.CoopStatus` (why a join failed, or "The host left the game."). |
 

@@ -40,6 +40,11 @@ namespace RPGFramework.ActionRpg.Coop
         public const int MotionId = 1103;
         public const int IntentId = 1104;
 
+        /// <summary>
+        /// Changes whenever the messages change, so older and newer builds refuse each other instead of misreading.
+        /// </summary>
+        public const int Version = 2;
+
         public const int DefaultPort = 7777;
         public const int DefaultMaxPlayers = 4;
 
@@ -77,7 +82,7 @@ namespace RPGFramework.ActionRpg.Coop
         /// </summary>
         public static string Fingerprint(ActionRpgSettings settings, ActionRpgContent content)
         {
-            var text = new StringBuilder();
+            var text = new StringBuilder().Append(Version).Append('|');
             // Invariant numbers: "1.5" must not become "1,5" on a machine with another language
             void Number(double value) => text.Append(value.ToString("R", CultureInfo.InvariantCulture)).Append(',');
             void Character(CharacterData c)
@@ -123,9 +128,22 @@ namespace RPGFramework.ActionRpg.Coop
         public override int MessageTypeId => CoopProtocol.HelloId;
         public string Fingerprint = "";
 
-        public void Write(BinaryWriter writer) => writer.Write(Fingerprint ?? "");
+        /// <summary>
+        /// The name the player wants to be seen by.
+        /// </summary>
+        public string Name = "";
 
-        public void Read(BinaryReader reader) => Fingerprint = reader.ReadString();
+        public void Write(BinaryWriter writer)
+        {
+            writer.Write(Fingerprint ?? "");
+            writer.Write(Name ?? "");
+        }
+
+        public void Read(BinaryReader reader)
+        {
+            Fingerprint = reader.ReadString();
+            Name = reader.ReadString();
+        }
     }
 
     /// <summary>
@@ -194,6 +212,8 @@ namespace RPGFramework.ActionRpg.Coop
             public int Id;
             public string CharacterId;
             public bool IsPlayer;
+            public string Name;
+            public int Seat;
             public int AttackerId;
             public float Amount;
             public float HealthLeft;
@@ -222,6 +242,8 @@ namespace RPGFramework.ActionRpg.Coop
                     case ChangeKind.Spawn:
                         writer.Write(change.CharacterId ?? "");
                         writer.Write(change.IsPlayer);
+                        writer.Write(change.Name ?? "");
+                        writer.Write(change.Seat);
                         break;
                     case ChangeKind.Hit:
                         writer.Write(change.AttackerId);
@@ -255,6 +277,8 @@ namespace RPGFramework.ActionRpg.Coop
                     case ChangeKind.Spawn:
                         change.CharacterId = reader.ReadString();
                         change.IsPlayer = reader.ReadBoolean();
+                        change.Name = reader.ReadString();
+                        change.Seat = reader.ReadInt32();
                         break;
                     case ChangeKind.Hit:
                         change.AttackerId = reader.ReadInt32();

@@ -118,14 +118,17 @@ namespace RPGFramework.ActionRpg.Tests
             _logger.Dispose();
         }
 
-        private Guest Join(ActionRpgSettings settings = null)
+        private Guest Join(ActionRpgSettings settings = null, string name = "")
         {
             var guest = new Guest { Bus = new EventBus(), Motion = new Motion() };
             guest.Bus.Subscribe<ActorSpawnedEvent>(guest.Spawned.Add);
             guest.Bus.Subscribe<ActorDespawnedEvent>(guest.Despawned.Add);
             guest.Bus.Subscribe<ActorDamagedEvent>(guest.Damaged.Add);
             guest.Network = CoopProtocol.CreateNetwork(_network.CreateTransport());
-            guest.Client = new CoopClient(settings ?? Settings(), Content(), guest.Bus, guest.Network, guest.Motion);
+            guest.Client = new CoopClient(settings ?? Settings(), Content(), guest.Bus, guest.Network, guest.Motion)
+            {
+                PlayerName = name
+            };
             _guests.Add(guest);
             guest.Client.Join("127.0.0.1", Port);
             Pump();
@@ -314,6 +317,60 @@ namespace RPGFramework.ActionRpg.Tests
 
             Assert.That(guest.Client.State, Is.EqualTo(CoopClientState.Ended));
             Assert.That(guest.Client.EndReason, Does.Contain("10.0.0.9"));
+        }
+
+        [Test]
+        public void NamesAndSeats_ReachEveryone_AndNamesStayUnique()
+        {
+            World.SetPlayerName(World.PlayerId, "Maks");
+            var first = Join(name: "Oleh");
+            var second = Join(name: "oleh");
+
+            Assert.That(World.Player.DisplayName, Is.EqualTo("Maks"));
+            Assert.That(World.Get(first.World.PlayerId).DisplayName, Is.EqualTo("Oleh"));
+            Assert.That(World.Get(second.World.PlayerId).DisplayName, Is.EqualTo("oleh 2"));
+            Assert.That(World.Log, Has.Some.EqualTo("Oleh joins the party"));
+
+            foreach (var guest in new[] { first, second })
+            {
+                var seen = guest.World.Actors.Where(a => a.IsPlayer).OrderBy(a => a.Seat)
+                    .Select(a => (a.Seat, a.DisplayName)).ToList();
+                Assert.That(seen, Is.EqualTo(new[] { (0, "Maks"), (1, "Oleh"), (2, "oleh 2") }));
+            }
+            Assert.That(first.World.Player.DisplayName, Is.EqualTo("Oleh"));
+            Assert.That(first.World.LivingEnemies, Is.Empty);
+        }
+
+        [Test]
+        public void Seats_StayWhileOthersLeave_AndAFreedSeatIsReused()
+        {
+            var first = Join(name: "A");
+            var second = Join(name: "B");
+            var third = Join(name: "C");
+            int secondId = second.World.PlayerId, thirdId = third.World.PlayerId;
+
+            first.Client.Leave();
+            Pump();
+            var fourth = Join(name: "D");
+
+            Assert.That(World.Get(secondId).Seat, Is.EqualTo(2));
+            Assert.That(World.Get(thirdId).Seat, Is.EqualTo(3));
+            Assert.That(World.Get(fourth.World.PlayerId).Seat, Is.EqualTo(1));
+            Assert.That(World.Player.Seat, Is.EqualTo(0));
+            Assert.That(second.World.Get(fourth.World.PlayerId).Seat, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void Names_AreCleaned_AndAnEmptyNameGetsANumber()
+        {
+            var noName = Join(name: "   ");
+            var longName = Join(name: " \tA very long name that goes on\n");
+
+            Assert.That(World.Get(noName.World.PlayerId).DisplayName, Is.EqualTo("Player 2"));
+            string cleaned = World.Get(longName.World.PlayerId).DisplayName;
+            Assert.That(cleaned, Is.EqualTo("A very long name"));
+            Assert.That(cleaned.Length, Is.LessThanOrEqualTo(ActorWorld.MaxNameLength));
+            Assert.That(World.Player.DisplayName, Is.EqualTo("Hero"), "playing alone the first player has the character's name");
         }
 
         [Test]

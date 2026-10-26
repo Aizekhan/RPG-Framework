@@ -32,7 +32,21 @@ namespace RPGFramework.ActionRpg
         /// </summary>
         public string CharacterId => Character.Id;
 
-        public string DisplayName => Character.DisplayName;
+        /// <summary>
+        /// The name shown for it: a co-op player's own name, otherwise the character's.
+        /// </summary>
+        public string DisplayName => PlayerName ?? Character.DisplayName;
+
+        /// <summary>
+        /// A player's own name in co-op; null uses the character's name.
+        /// </summary>
+        public string PlayerName { get; internal set; }
+
+        /// <summary>
+        /// A player's place in the party (0 = the first player, then 1, 2, 3), for their colour; -1 for enemies.
+        /// Kept for as long as the player stays.
+        /// </summary>
+        public int Seat { get; internal set; } = -1;
 
         public float Health { get; private set; }
         public float MaxHealth => _stats.GetFinalStat(ActorStat.MaxHealth);

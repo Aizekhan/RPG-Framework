@@ -19,6 +19,7 @@ namespace RPGFramework.ActionRpg
 
         private ActionRpgHost _host;
         private string _address = "";
+        private string _name;
         private string _localAddress;
         private GUIStyle _text;
         private GUIStyle _title;
@@ -61,7 +62,7 @@ namespace RPGFramework.ActionRpg
             {
                 _text = new GUIStyle(GUI.skin.label) { fontSize = 16, wordWrap = true };
                 _title = new GUIStyle(_text) { fontSize = 20, fontStyle = FontStyle.Bold };
-                _centered = new GUIStyle(_text) { alignment = TextAnchor.MiddleCenter };
+                _centered = new GUIStyle(_text) { alignment = TextAnchor.MiddleCenter, richText = true };
                 _rich = new GUIStyle(_text) { richText = true };
             }
 
@@ -104,6 +105,13 @@ namespace RPGFramework.ActionRpg
                 return;
             }
             GUILayout.Label("Play together with friends on the same network: one hosts, up to three join.", _text);
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Your name", _text, GUILayout.Width(100f));
+            _name = _name ?? _host.PlayerName;
+            _name = GUILayout.TextField(_name, ActorWorld.MaxNameLength, GUILayout.Height(28f));
+            GUILayout.EndHorizontal();
+            if (GUI.changed && ActorWorld.CleanName(_name) != null && ActorWorld.CleanName(_name) != _host.PlayerName)
+                _host.PlayerName = _name;
             if (GUILayout.Button("Host a game", GUILayout.Height(34f)))
                 _host.HostGame();
             GUILayout.Space(10f);
@@ -120,7 +128,7 @@ namespace RPGFramework.ActionRpg
             _localAddress = _localAddress ?? LocalAddress();
             string at = _localAddress.Length > 0 ? _localAddress : "this computer's IP address";
             GUILayout.Label($"Friends join at  <b>{at}</b>  (port {_host.HostingPort})", _rich);
-            GUILayout.Label($"Players  {_host.CoopHost.PlayerCount} / {_host.CoopHost.MaxPlayers}", _text);
+            GUILayout.Label($"Players  {_host.CoopHost.PlayerCount} / {_host.CoopHost.MaxPlayers}:  {Party()}", _rich);
             if (GUILayout.Button("Stop hosting", GUILayout.Height(34f)))
                 _host.LeaveGame();
         }
@@ -129,20 +137,36 @@ namespace RPGFramework.ActionRpg
         {
             var client = _host.CoopClient;
             GUILayout.Label(client.State == CoopClientState.Playing
-                ? $"Playing in a friend's game  ({client.World.LivingPlayers.Count()} standing)"
-                : "Connecting...", _text);
+                ? $"Playing in a friend's game:  {Party()}"
+                : "Connecting...", _rich);
             if (GUILayout.Button("Leave", GUILayout.Height(34f)))
                 _host.LeaveGame();
         }
+
+        /// <summary>
+        /// Everyone in the party, each name in their colour.
+        /// </summary>
+        public string Party()
+        {
+            var world = _host.CurrentWorld;
+            if (world == null)
+                return "";
+            var names = world.Actors.Where(a => a.IsPlayer).OrderBy(a => a.Seat)
+                .Select(a => $"<color=#{ColorUtility.ToHtmlStringRGB(_host.ColorOfSeat(a.Seat))}>{Escape(a.DisplayName)}</color>");
+            return string.Join("  ", names);
+        }
+
+        // Names come from other players: keep them from opening rich-text tags of their own
+        private static string Escape(string name) => name.Replace("<", "‹").Replace(">", "›");
 
         private string Summary()
         {
             switch (_host.Role)
             {
                 case CoopRole.Hosting:
-                    return $"Hosting  {_host.CoopHost.PlayerCount}/{_host.CoopHost.MaxPlayers} players   (F2)";
+                    return $"{Party()}   (F2)";
                 case CoopRole.Joined:
-                    return _host.CoopClient.State == CoopClientState.Playing ? "In a friend's game   (F2)" : "Connecting...   (F2)";
+                    return _host.CoopClient.State == CoopClientState.Playing ? $"{Party()}   (F2)" : "Connecting...   (F2)";
                 default:
                     return "";
             }

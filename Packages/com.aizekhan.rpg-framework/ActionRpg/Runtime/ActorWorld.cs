@@ -26,6 +26,11 @@ namespace RPGFramework.ActionRpg
         private const string Category = "ActionRpg";
         private const int MaxLogLines = 12;
 
+        /// <summary>
+        /// Longest player name kept.
+        /// </summary>
+        public const int MaxNameLength = 16;
+
         private readonly ActionRpgSettings _settings;
         private readonly IEntityManager _entities;
         private readonly ILifeStateManager _lifeStates;
@@ -142,7 +147,7 @@ namespace RPGFramework.ActionRpg
             PlayerId = _entities.CreateEntity();
             Inventory = new InventoryContainer<IItem>(_settings.InventoryCapacity, _bus, PlayerId, "Backpack");
             _party.Add(PlayerId);
-            Add(new Actor(PlayerId, _settings.Player, isPlayer: true));
+            Add(new Actor(PlayerId, _settings.Player, isPlayer: true) { Seat = 0 });
             _progression.SetLevel(PlayerId, 1);
 
             foreach (var questId in _settings.StartingQuests)
@@ -156,18 +161,69 @@ namespace RPGFramework.ActionRpg
         }
 
         /// <summary>
-        /// A player joins the party (co-op): a new player character at the party's level.
+        /// A player joins the party (co-op): a new player character at the party's level, in the first free seat.
         /// </summary>
         /// <param name="character">Their character; null plays the same character as the first player.</param>
-        public int AddPlayer(CharacterData character = null)
+        /// <param name="name">Their name (cleaned, made unique in the party); empty gives "Player 2" and so on.</param>
+        public int AddPlayer(CharacterData character = null, string name = null)
         {
             ThrowIfNotStarted();
             character = character ?? _settings.Player;
+            int seat = 0;
+            while (_party.Any(id => Get(id)?.Seat == seat))
+                seat++;
             int id = _entities.CreateEntity();
             _party.Add(id);
-            Add(new Actor(id, character, isPlayer: true, level: Level));
-            Write($"{character.DisplayName} joins the party");
+            var player = new Actor(id, character, isPlayer: true, level: Level) { Seat = seat };
+            player.PlayerName = UniqueName(CleanName(name) ?? $"Player {seat + 1}", id);
+            Add(player);
+            Write($"{player.DisplayName} joins the party");
             return id;
+        }
+
+        /// <summary>
+        /// Names a player (the first player gets the character's name until named).
+        /// </summary>
+        /// <returns>The name given: cleaned, and made unique in the party ("Sam 2").</returns>
+        public string SetPlayerName(int playerId, string name)
+        {
+            var player = _party.Contains(playerId) ? Get(playerId) : null;
+            if (player == null)
+                throw new ArgumentException($"{playerId} is not a player in the party", nameof(playerId));
+            string clean = CleanName(name);
+            player.PlayerName = clean == null ? null : UniqueName(clean, playerId);
+            return player.DisplayName;
+        }
+
+        /// <summary>
+        /// A name as others may see it: one line, no control characters, at most <see cref="MaxNameLength"/> long;
+        /// null when nothing is left.
+        /// </summary>
+        public static string CleanName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return null;
+            var clean = new string(name.Where(c => !char.IsControl(c)).ToArray()).Trim();
+            if (clean.Length > MaxNameLength)
+                clean = clean.Substring(0, MaxNameLength).TrimEnd();
+            return clean.Length > 0 ? clean : null;
+        }
+
+        private string UniqueName(string name, int playerId)
+        {
+            bool Taken(string candidate) => _party.Any(id => id != playerId
+                && string.Equals(Get(id)?.DisplayName, candidate, StringComparison.OrdinalIgnoreCase));
+            if (!Taken(name))
+                return name;
+            for (int number = 2; ; number++)
+            {
+                string suffix = " " + number;
+                string candidate = (name.Length + suffix.Length > MaxNameLength
+                    ? name.Substring(0, MaxNameLength - suffix.Length)
+                    : name) + suffix;
+                if (!Taken(candidate))
+                    return candidate;
+            }
         }
 
         /// <summary>

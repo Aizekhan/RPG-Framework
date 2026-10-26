@@ -178,7 +178,7 @@ namespace RPGFramework.ActionRpg.Coop
                 return;
             }
 
-            guest.PlayerId = _world.AddPlayer();
+            guest.PlayerId = _world.AddPlayer(name: hello.Name);
             _network.Send(connectionId, new CoopWelcomeMessage { Accepted = true, PlayerId = guest.PlayerId });
             PlayerJoined?.Invoke(guest.PlayerId);
         }
@@ -334,7 +334,7 @@ namespace RPGFramework.ActionRpg.Coop
             message.Changes.Add(new CoopWorldMessage.Change
             {
                 Kind = CoopWorldMessage.ChangeKind.Spawn, Id = actor.EntityId, CharacterId = actor.CharacterId,
-                IsPlayer = actor.IsPlayer
+                IsPlayer = actor.IsPlayer, Name = actor.PlayerName, Seat = actor.Seat
             });
         }
 

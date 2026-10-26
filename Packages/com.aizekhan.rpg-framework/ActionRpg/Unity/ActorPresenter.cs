@@ -60,6 +60,11 @@ namespace RPGFramework.ActionRpg
         public IEntityViewRegistry Views => _views;
 
         /// <summary>
+        /// Players' colours by party seat, for their <see cref="PlayerTagView"/>; null keeps the tag's own.
+        /// </summary>
+        public Color[] PartyColors { get; set; }
+
+        /// <summary>
         /// Registers the prefabs, shows everyone already in the world (the player spawns while the game starts)
         /// and follows from then on.
         /// </summary>
@@ -137,6 +142,13 @@ namespace RPGFramework.ActionRpg
 
             instance.name = $"{definition.DisplayName} #{entityId}";
             AddMissingParts(instance, actor.IsPlayer, DrivenHere(actor));
+            if (actor.IsPlayer)
+            {
+                // After the health bar, so its hit flash leaves the ring alone
+                if (!instance.TryGetComponent(out PlayerTagView tag))
+                    tag = instance.AddComponent<PlayerTagView>();
+                tag.Palette = PartyColors;
+            }
             _views.Bind(entityId, instance);
             foreach (var part in instance.GetComponentsInChildren<ActorView>(true))
                 part.Bind(_world, _views, definition, entityId);

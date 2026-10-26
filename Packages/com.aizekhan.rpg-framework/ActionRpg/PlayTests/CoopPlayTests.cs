@@ -70,6 +70,8 @@ namespace RPGFramework.ActionRpg.PlayTests
         [UnityTest]
         public IEnumerator FriendJoins_PlaysInTheHostsGame_AndIsBackAloneWhenTheHostStops()
         {
+            _first.UsePlayerName("Maks");
+            _second.UsePlayerName("Oleh");
             Assert.That(_first.HostGame(), Is.True, _first.CoopStatus);
             Assert.That(_first.Role, Is.EqualTo(CoopRole.Hosting));
 
@@ -92,6 +94,16 @@ namespace RPGFramework.ActionRpg.PlayTests
             Assert.That(friendOnHost.GetComponent<RemoteMotion>().enabled, Is.True);
             Assert.That(friendOnHost.GetComponent<PlayerController>() == null || !friendOnHost.GetComponent<PlayerController>().enabled, Is.True);
             Assert.That(friendOnFriend.GetComponent<PlayerController>().enabled, Is.True);
+
+            // Names above heads and party colours, the same on both screens
+            EntityView hostOnFriend = null;
+            yield return WaitUntil(() => _second.Views.TryGetView(host.PlayerId, out hostOnFriend)
+                                         && friendOnHost.GetComponent<PlayerTagView>().ShownName == "Oleh"
+                                         && hostOnFriend.GetComponent<PlayerTagView>().ShownName == "Maks", "name tags");
+            Assert.That(friendOnHost.GetComponent<PlayerTagView>().ShownColor, Is.EqualTo(_first.ColorOfSeat(1)));
+            Assert.That(hostOnFriend.GetComponent<PlayerTagView>().ShownColor, Is.EqualTo(_second.ColorOfSeat(0)));
+            Assert.That(friendOnFriend.GetComponent<PlayerTagView>().ShownColor, Is.EqualTo(_second.ColorOfSeat(1)));
+            Assert.That(_first.ColorOfSeat(0), Is.Not.EqualTo(_first.ColorOfSeat(1)));
 
             // The friend walks; the host sees it
             friendOnFriend.transform.position = new Vector3(4f, 0f, 3f);
@@ -123,7 +135,10 @@ namespace RPGFramework.ActionRpg.PlayTests
             Assert.That(host.Players, Has.Count.EqualTo(1));
             yield return WaitUntil(() => _second.Role == CoopRole.Solo && _second.World != null, "the friend back in a game of their own");
             Assert.That(_second.CoopStatus, Does.Contain("host left"));
-            yield return WaitUntil(() => _second.Views.TryGetView(_second.World.PlayerId, out _), "the friend's own player");
+            EntityView alone = null;
+            yield return WaitUntil(() => _second.Views.TryGetView(_second.World.PlayerId, out alone), "the friend's own player");
+            yield return null;
+            Assert.That(alone.GetComponent<PlayerTagView>().ShownName, Is.Empty, "no name tags when playing alone");
         }
 
         [UnityTest]

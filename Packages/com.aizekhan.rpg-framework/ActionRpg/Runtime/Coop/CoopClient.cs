@@ -58,6 +58,11 @@ namespace RPGFramework.ActionRpg.Coop
         public CoopClientState State { get; private set; } = CoopClientState.Idle;
 
         /// <summary>
+        /// The name others see; set before <see cref="Join"/>. The host cleans it and makes it unique.
+        /// </summary>
+        public string PlayerName { get; set; } = "";
+
+        /// <summary>
         /// Why the game ended (refused, host gone, unreachable), for the player to read.
         /// </summary>
         public string EndReason { get; private set; } = "";
@@ -137,7 +142,7 @@ namespace RPGFramework.ActionRpg.Coop
         }
 
         private void OnConnected(int connectionId) =>
-            _network.SendToServer(new CoopHelloMessage { Fingerprint = _fingerprint });
+            _network.SendToServer(new CoopHelloMessage { Fingerprint = _fingerprint, Name = PlayerName });
 
         private void OnDisconnected(int connectionId)
         {

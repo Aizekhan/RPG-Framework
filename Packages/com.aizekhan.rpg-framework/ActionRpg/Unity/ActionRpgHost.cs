@@ -60,6 +60,15 @@ namespace RPGFramework.ActionRpg
 
         [SerializeField, Range(1024, 65535)] private int _coopPort = CoopProtocol.DefaultPort;
 
+        [Tooltip("Players' colours by party seat: the host, then each friend in the order they joined")]
+        [SerializeField] private Color[] _partyColors =
+        {
+            new Color(0.25f, 0.55f, 1f), new Color(1f, 0.6f, 0.15f), new Color(0.35f, 0.85f, 0.35f), new Color(0.8f, 0.35f, 0.95f)
+        };
+
+        private const string PlayerNameKey = "RPGFramework.Coop.PlayerName";
+        private string _playerName;
+
         private ActionRpgModule _module;
         private ActionRpgSettings _settings;
         private ActionRpgContent _content;
@@ -137,6 +146,38 @@ namespace RPGFramework.ActionRpg
         /// The latest co-op news for the player ("The host left the game.").
         /// </summary>
         public string CoopStatus { get; private set; } = "";
+
+        /// <summary>
+        /// The name others see in co-op. Remembered on this machine; starts as the computer's user name.
+        /// Changes take effect the next time this player hosts or joins.
+        /// </summary>
+        public string PlayerName
+        {
+            get
+            {
+                if (_playerName == null)
+                {
+                    string saved = PlayerPrefs.GetString(PlayerNameKey, "");
+                    _playerName = ActorWorld.CleanName(saved) ?? ActorWorld.CleanName(Environment.UserName) ?? "Player";
+                }
+                return _playerName;
+            }
+            set
+            {
+                UsePlayerName(value);
+                PlayerPrefs.SetString(PlayerNameKey, _playerName);
+            }
+        }
+
+        /// <summary>
+        /// Sets the co-op name for this run only, without remembering it (tests, several games on one machine).
+        /// </summary>
+        public void UsePlayerName(string name) => _playerName = ActorWorld.CleanName(name) ?? "Player";
+
+        /// <summary>
+        /// A party seat's colour (<see cref="Actor.Seat"/>), from 'Party Colors'.
+        /// </summary>
+        public Color ColorOfSeat(int seat) => PlayerTagView.ColorOf(seat, _partyColors);
 
         /// <summary>
         /// The co-op role is changing: the game restarts at the next frame.
@@ -226,6 +267,7 @@ namespace RPGFramework.ActionRpg
                 // A friend's strike is checked against where this machine sees them, with slack for lag
                 MaxAttackDistance = _setup.Player.AttackRange + 1.5f
             };
+            World.SetPlayerName(World.PlayerId, PlayerName);
             try
             {
                 _coopHost.Open(port);
@@ -233,6 +275,7 @@ namespace RPGFramework.ActionRpg
             catch (InvalidOperationException exception)
             {
                 StopNetwork();
+                World.SetPlayerName(World.PlayerId, null);
                 CoopStatus = exception.Message;
                 return false;
             }
@@ -306,7 +349,7 @@ namespace RPGFramework.ActionRpg
             {
                 _transport = new UnityNetworkTransport();
                 _coopClient = new CoopClient(_settings, _content, Host.Container.Resolve<IEventBus>(),
-                    CoopProtocol.CreateNetwork(_transport, Host.Logger), null, Host.Logger);
+                    CoopProtocol.CreateNetwork(_transport, Host.Logger), null, Host.Logger) { PlayerName = PlayerName };
                 _coopClient.Ended += ReturnToSolo;
             }
             else if (World == null)
@@ -326,6 +369,7 @@ namespace RPGFramework.ActionRpg
             _spawner = new PrefabSpawner(logger: Host.Logger);
             _presenter = new ActorPresenter(CurrentWorld, _setup, Host.Container.Resolve<IEventBus>(), _spawner,
                 new EntityViewRegistry(), _charactersRoot, Host.Logger, enemiesDrivenElsewhere: _coopClient != null);
+            _presenter.PartyColors = _partyColors;
             _presenter.ViewShown += OnViewShown;
             _presenter.Start();
 
