@@ -100,7 +100,8 @@ namespace RPGFramework.UINavigation.Unity
 
             var instance = Object.Instantiate(prefab, ParentFor(config), false);
             instance.name = prefab.name;
-            if (!instance.TryGetComponent(out INavigableView view))
+            var view = instance.GetComponent<INavigableView>();
+            if (view == null)
             {
                 DestroyObject(instance);
                 handle?.Dispose();

@@ -44,6 +44,7 @@ namespace RPGFramework.UINavigation.Tests
         private GameObject Prefab<TView>(string name) where TView : Component
         {
             var prefab = Track(new GameObject(name, typeof(RectTransform), typeof(TView)));
+            Assert.That(prefab.GetComponent<TView>(), Is.Not.Null, $"{typeof(TView).Name} was not added");
             prefab.SetActive(false);
             return prefab;
         }
