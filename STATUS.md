@@ -11,8 +11,9 @@
 
 | Gate | Result | SHA |
 |---|---|---|
-| Clean-checkout compile (`unity test`, fresh worktree) | ✅ 0 `error CS` | `7671fb8` |
-| EditMode tests | ✅ **1184 / 1184 passed** | `7671fb8` |
+| Clean-checkout compile (`unity test`, fresh worktree) | ✅ 0 `error CS` | `de2498e` |
+| EditMode tests | ✅ **1196 / 1196 passed** | `de2498e` |
+| PlayMode tests (GoblinValley scene played) | ✅ **1 / 1 passed** | `de2498e` |
 | `.meta` integrity (CI `meta-check`) | ✅ 0 problems | `ff70d11` |
 | CI Unity tests on GitHub (GameCI) | ✅ **1170 / 1170 passed**, run `40337490738` | `ebaa00e` + CI fix |
 
@@ -20,7 +21,8 @@ Earlier "~5 compilation errors" and "100% pass rate" claims were unverified. In 
 
 ## Codebase (committed, from `git ls-files`)
 
-- **46 module folders** in `Assets/_Framework`. Added since the audit: AssetManagement, Bootstrap, Cameras, Diagnostics, Events, Integration, Scenes, Spawning, Systems, Timers, UINavigation
+- The framework is the embedded UPM package `Packages/com.aizekhan.rpg-framework` (moved from `Assets/_Framework` in `ad978e6`, GUIDs kept); install in other projects by git URL (see its README).
+- **47 module folders** (Presentation added in `de2498e`). Added since the audit: AssetManagement, Bootstrap, Cameras, Diagnostics, Events, Integration, Scenes, Spawning, Systems, Timers, UINavigation
 - **106 asmdef**, **718 .cs files**, **~76,500 C# lines**
 - `Assets/ReferenceGame`: sample game (Goblin Valley) built only on framework assemblies
 - `Assets/_Tests/Editor/FrameworkArchitectureTests.cs`: framework-wide rules (no game references, no editor code in player builds, no assembly cycles, `RPGFramework.*` namespaces, every MonoBehaviour/ScriptableObject in a file of its own name)
@@ -61,6 +63,18 @@ Not ported on purpose in phase 9: a persistent event store (the `EventRecorder` 
 - Addressables 2.4.6 installed; `AssetManagement.Addressables` (`AddressablesAssetProvider`, compiled only when the package is present) has no automated test: Addressables needs a built catalog/settings, which the project does not have yet.
 - `ParallelSystemRegistry` not ported. Unity API is main-thread only and there is no proven need.
 
+## Product milestones (2026-10-26)
+
+| # | Milestone | SHA | Proof |
+|---|---|---|---|
+| 1 | Framework shipped as UPM package `com.aizekhan.rpg-framework` 0.1.0 (README, CHANGELOG, LICENSE; meta check covers embedded packages) | `ad978e6` | 1184/1184 EditMode |
+| 2 | **Playable 3D Goblin Valley.** Framework `Presentation` module (`EntityViewRegistry`). Game: spawn/despawn/wave events, `GoblinWaveSystem`, inspector-tunable `GoblinValleyConfig` + `PrefabCatalog`, presenter spawning prefabs through `PrefabSpawner` (goblins pooled), `HeroController` (Input System: keyboard, mouse, gamepad), `GoblinBrain`, health bars, UGUI HUD, `CameraFollow`. `GoblinValleyBuilder` generates placeholder art, prefabs, config and scene (menu or batch mode). CI runs EditMode + PlayMode | `de2498e` | 1196/1196 EditMode, 1/1 PlayMode |
+
+Roadmap, in order (agreed with the user 2026-10-26):
+3. **AI Kit**: CLAUDE.md template and recipes for game projects, menu/batch generators (module, content definition, entity view), architecture tests for game projects + CI template.
+4. Content as ScriptableObjects (enemies, items, quests, loot) built with the AI Kit; visual identity (icons, prefabs) in the same definitions.
+5. New-game template (`Samples~`): import the package, create a game, get rules, tests and CI.
+
 ## Cleanup after the migration (2026-10-26)
 
 | SHA | Change |
@@ -91,7 +105,6 @@ Not committed (they duplicated migrated modules; the backup folder was deleted o
 ## Open issues
 
 **Medium**
-- Events still without a producer: `StatIncreasedEvent` (Progression), `TreasuryDeposit/WithdrawEvent` (Guilds treasury has no publisher); Combat `DeathEvent` is a C# event on `ILifeStateManager`, not a bus event
 - UI panels are thin defaults (EquipmentPanel hard-codes 8 slot types; game layers override). The earlier "listeners never removed" note was wrong: they are on the panel's own child buttons and die with it
 - `StatContainer`: LINQ + boxing on every recalculation; `Convert.ChangeType` banker's rounding for int stats
 - 3 Editor windows wrapped in `#if FALSE` (Quest, DialogueGraph, FactionRelationshipMap)
@@ -100,13 +113,13 @@ Not committed (they duplicated migrated modules; the backup folder was deleted o
 **Low**
 - Modules without tests: DeltaCompression, Editor, Tools
 - Loot `LootGeneratedEvent`/`LootDroppedEvent` are not `IEvent`s and nothing raises them
-- ReferenceGame is a logic-level demo (OnGUI HUD, no visuals or input actions); not yet run in PlayMode by CI
+- ReferenceGame art is generated placeholders (primitives); `Scripts/Characters/SimpleMovement` (old Input) is superseded by `HeroController`
+- ReferenceGame content (stats, items, quest) is still defined in C# (`GoblinValleyContent`), not in assets (roadmap 4)
 - CI: the license file is bound to another machine, so GameCI falls back to email/password activation (works)
 
 ## Next steps
 
-1. Tests for Tools (and DeltaCompression).
-2. PlayMode smoke test of the GoblinValley scene in CI; goblin/hero visuals spawned through `PrefabSpawner`, panels through `UINavigation`.
-3. Loot events as bus events (or remove them).
+1. AI Kit (roadmap 3).
+2. Content as ScriptableObjects (roadmap 4).
+3. Tests for Tools (and DeltaCompression); loot events as bus events (or remove them); re-enable or delete the three `#if FALSE` editor windows.
 4. `StatContainer` performance and int rounding, after a benchmark.
-5. Re-enable or delete the three `#if FALSE` editor windows.

@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- `Presentation`: `EntityView` and `EntityViewRegistry` link entities to the GameObjects that show them (pooled views can be rebound)
+
 ## [0.1.0] - 2026-10-26
 
 First packaged release. The framework moved from `Assets/_Framework` into the embedded package
