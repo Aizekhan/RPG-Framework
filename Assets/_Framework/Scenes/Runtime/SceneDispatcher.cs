@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using RPGFramework.Core.Async;
 using RPGFramework.Events;
 using RPGFramework.Logging;
 
@@ -117,8 +118,7 @@ namespace RPGFramework.Scenes
         private readonly ILogger _logger;
         private readonly List<ISceneTransitionHandler> _handlers = new List<ISceneTransitionHandler>();
         private readonly Dictionary<string, object> _payloads = new Dictionary<string, object>(StringComparer.Ordinal);
-        private readonly Queue<UniTaskCompletionSource> _waiting = new Queue<UniTaskCompletionSource>();
-        private bool _running;
+        private readonly AsyncSerialQueue _queue = new AsyncSerialQueue();
 
         public SceneDispatcher(ISceneBackend backend, IEventPublisher events = null, ILogger logger = null)
         {
@@ -128,8 +128,8 @@ namespace RPGFramework.Scenes
         }
 
         public string ActiveScene => _backend.ActiveScene;
-        public bool IsBusy => _running;
-        public int PendingOperations => _waiting.Count;
+        public bool IsBusy => _queue.IsBusy;
+        public int PendingOperations => _queue.PendingCount;
 
         public bool IsLoaded(string sceneName) => _backend.IsLoaded(sceneName);
 
@@ -169,15 +169,7 @@ namespace RPGFramework.Scenes
             if (string.IsNullOrEmpty(sceneName))
                 throw new ArgumentException("Scene name is required", nameof(sceneName));
 
-            await EnterAsync(cancellationToken);
-            try
-            {
-                await ExecuteAsync(kind, sceneName, payload, progress, cancellationToken);
-            }
-            finally
-            {
-                Exit();
-            }
+            await _queue.RunAsync(() => ExecuteAsync(kind, sceneName, payload, progress, cancellationToken), cancellationToken);
         }
 
         private async UniTask ExecuteAsync(SceneOperationKind kind, string sceneName, object payload, IProgress<float> progress,
@@ -252,40 +244,6 @@ namespace RPGFramework.Scenes
 
             _logger.LogInfo($"{kind} '{sceneName}' completed in {stopwatch.Elapsed.TotalSeconds:F2}s", Category);
             _events?.Publish(new SceneOperationCompleted(transition, stopwatch.Elapsed.TotalSeconds));
-        }
-
-        private async UniTask EnterAsync(CancellationToken cancellationToken)
-        {
-            if (!_running)
-            {
-                _running = true;
-                return;
-            }
-
-            var turn = new UniTaskCompletionSource();
-            _waiting.Enqueue(turn);
-            try
-            {
-                await turn.Task.AttachExternalCancellation(cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                // Our turn may already have been granted: pass it on so the queue does not stall
-                if (!turn.TrySetCanceled())
-                    Exit();
-                throw;
-            }
-        }
-
-        private void Exit()
-        {
-            while (_waiting.Count > 0)
-            {
-                // Skip waiters that cancelled before their turn came
-                if (_waiting.Dequeue().TrySetResult())
-                    return;
-            }
-            _running = false;
         }
     }
 }

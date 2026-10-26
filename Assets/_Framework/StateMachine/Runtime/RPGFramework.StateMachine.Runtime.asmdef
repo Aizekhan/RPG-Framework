@@ -2,6 +2,7 @@
     "name": "RPGFramework.StateMachine.Runtime",
     "rootNamespace": "RPGFramework.StateMachine",
     "references": [
+        "RPGFramework.Core.Runtime",
         "RPGFramework.Logging.Runtime",
         "UniTask"
     ],

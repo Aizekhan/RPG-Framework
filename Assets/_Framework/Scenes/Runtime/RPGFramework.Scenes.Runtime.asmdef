@@ -2,6 +2,7 @@
     "name": "RPGFramework.Scenes.Runtime",
     "rootNamespace": "RPGFramework.Scenes",
     "references": [
+        "RPGFramework.Core.Runtime",
         "RPGFramework.Events.Runtime",
         "RPGFramework.Logging.Runtime",
         "UniTask"

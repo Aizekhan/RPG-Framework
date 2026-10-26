@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using RPGFramework.Core.Async;
 using RPGFramework.Logging;
 
 namespace RPGFramework.StateMachine
@@ -83,10 +84,9 @@ namespace RPGFramework.StateMachine
 
         private readonly Dictionary<TStateId, IAsyncState<TStateId>> _states = new Dictionary<TStateId, IAsyncState<TStateId>>();
         private readonly Dictionary<TStateId, HashSet<TStateId>> _allowed = new Dictionary<TStateId, HashSet<TStateId>>();
-        private readonly Queue<UniTaskCompletionSource> _waiting = new Queue<UniTaskCompletionSource>();
+        private readonly AsyncSerialQueue _queue = new AsyncSerialQueue();
         private readonly ILogger _logger;
         private IAsyncState<TStateId> _current;
-        private bool _transitioning;
 
         public AsyncStateMachine(ILogger logger = null)
         {
@@ -97,7 +97,7 @@ namespace RPGFramework.StateMachine
 
         public TStateId CurrentStateId => _current != null ? _current.Id : default;
 
-        public bool IsTransitioning => _transitioning;
+        public bool IsTransitioning => _queue.IsBusy;
 
         /// <summary>
         /// Raised after a transition completes (the new state has been entered).
@@ -151,15 +151,7 @@ namespace RPGFramework.StateMachine
             if (!_states.ContainsKey(to))
                 throw new InvalidOperationException($"State {to} is not registered");
 
-            await EnterQueueAsync(cancellationToken);
-            try
-            {
-                await TransitionAsync(to, payload, reenter, cancellationToken);
-            }
-            finally
-            {
-                ExitQueue();
-            }
+            await _queue.RunAsync(() => TransitionAsync(to, payload, reenter, cancellationToken), cancellationToken);
         }
 
         /// <summary>
@@ -167,7 +159,7 @@ namespace RPGFramework.StateMachine
         /// </summary>
         public void Update(float deltaTime)
         {
-            if (_transitioning || _current == null)
+            if (_queue.IsBusy || _current == null)
                 return;
 
             try
@@ -226,38 +218,6 @@ namespace RPGFramework.StateMachine
 
             _current = target;
             StateChanged?.Invoke(transition);
-        }
-
-        private async UniTask EnterQueueAsync(CancellationToken cancellationToken)
-        {
-            if (!_transitioning)
-            {
-                _transitioning = true;
-                return;
-            }
-
-            var turn = new UniTaskCompletionSource();
-            _waiting.Enqueue(turn);
-            try
-            {
-                await turn.Task.AttachExternalCancellation(cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                if (!turn.TrySetCanceled())
-                    ExitQueue();
-                throw;
-            }
-        }
-
-        private void ExitQueue()
-        {
-            while (_waiting.Count > 0)
-            {
-                if (_waiting.Dequeue().TrySetResult())
-                    return;
-            }
-            _transitioning = false;
         }
     }
 }
