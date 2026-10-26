@@ -30,6 +30,8 @@
         "RPGFramework.Tools.ItemDatabaseManager.Runtime",
         "RPGFramework.Tools.LootTableDesigner.Runtime",
         "RPGFramework.Tools.QuestEditor.Runtime",
+        "RPGFramework.Diagnostics.Runtime",
+        "RPGFramework.Diagnostics.Unity",
         "UniTask",
         "Unity.InputSystem",
         "UnityEngine.UI"

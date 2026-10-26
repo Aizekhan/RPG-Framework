@@ -3,6 +3,8 @@ using System.IO;
 using RPGFramework.Bootstrap.Unity;
 using RPGFramework.Cameras;
 using RPGFramework.Core.Composition;
+using RPGFramework.Diagnostics;
+using RPGFramework.Diagnostics.Unity;
 using RPGFramework.Events;
 using RPGFramework.Logging;
 using RPGFramework.Presentation;
@@ -33,11 +35,22 @@ namespace RPGFramework.ActionRpg
         [Tooltip("Keep the player's level, backpack and quests between sessions (saved on level-up, finished quests and quit)")]
         [SerializeField] private bool _saveProgress;
 
+        [Tooltip("In the Editor and development builds, F3 shows systems, events and frame times (off in release builds)")]
+        [SerializeField] private bool _diagnostics = true;
+
         private ActionRpgModule _module;
         private PrefabSpawner _spawner;
         private ActorPresenter _presenter;
         private ActionRpgSaves _saves;
         private readonly SubscriptionBag _saveTriggers = new SubscriptionBag();
+        private DiagnosticsOverlay _overlay;
+
+        /// <summary>
+        /// The F3 diagnostics panel (null when diagnostics are off or in a release build).
+        /// </summary>
+        public DiagnosticsOverlay Diagnostics => _overlay;
+
+        private bool DiagnosticsEnabled => _diagnostics && Debug.isDebugBuild;
 
         public GameSetup Setup => _setup;
 
@@ -93,6 +106,8 @@ namespace RPGFramework.ActionRpg
             }
 
             _module = ActionRpgComposition.Configure(builder, _setup.BuildSettings(), _setup.BuildContent());
+            if (DiagnosticsEnabled)
+                builder.UseModule(new DiagnosticsModule());
             ConfigureGameModules(builder);
         }
 
@@ -120,8 +135,18 @@ namespace RPGFramework.ActionRpg
             _presenter.ViewShown += OnViewShown;
             _presenter.Start();
 
+            if (DiagnosticsEnabled)
+                StartDiagnostics();
+
             if (_showHud)
-                gameObject.AddComponent<ActionRpgHud>().Bind(World);
+                gameObject.AddComponent<ActionRpgHud>().Bind(World, _setup.IconOf);
+        }
+
+        private void StartDiagnostics()
+        {
+            _overlay = gameObject.AddComponent<DiagnosticsOverlay>();
+            _overlay.Hub = Host.Container.Resolve<DiagnosticsHub>();
+            _overlay.Visible = false;
         }
 
         private void StartSaving()

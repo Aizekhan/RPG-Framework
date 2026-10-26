@@ -12,7 +12,12 @@
         "RPGFramework.Combat.Runtime",
         "RPGFramework.Tools.LootTableDesigner.Runtime",
         "UnityEngine.TestRunner",
-        "UnityEditor.TestRunner"
+        "UnityEditor.TestRunner",
+        "RPGFramework.Items.Runtime",
+        "RPGFramework.Tools.ItemDatabaseManager.Runtime",
+        "RPGFramework.Diagnostics.Unity",
+        "RPGFramework.Diagnostics.Runtime",
+        "UnityEngine.UI"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

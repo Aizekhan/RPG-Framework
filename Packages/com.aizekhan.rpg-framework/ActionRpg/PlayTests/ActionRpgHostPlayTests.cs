@@ -4,8 +4,11 @@ using System.Linq;
 using NUnit.Framework;
 using RPGFramework.Cameras;
 using RPGFramework.Combat;
+using RPGFramework.Items;
+using RPGFramework.Tools.ItemDatabaseManager;
 using UnityEngine;
 using UnityEngine.TestTools;
+using UnityEngine.UI;
 using Object = UnityEngine.Object;
 
 namespace RPGFramework.ActionRpg.PlayTests
@@ -22,6 +25,8 @@ namespace RPGFramework.ActionRpg.PlayTests
         private GameObject _camera;
         private ActionRpgHost _host;
         private GameSetup _setup;
+        private ItemAsset _gem;
+        private Sprite _gemIcon;
 
         [SetUp]
         public void SetUp()
@@ -35,6 +40,14 @@ namespace RPGFramework.ActionRpg.PlayTests
             _setup = GameSetup.Create(hero, new[] { goblin },
                 new WaveSettings { FirstWaveDelay = 0.2f, FirstWaveSize = 2, DelayBetweenWaves = 60f });
             _setup.SetSeed(5);
+            _gem = ScriptableObject.CreateInstance<ItemAsset>();
+            _gem.itemId = "gem";
+            _gem.itemName = "Blue Gem";
+            _gem.itemType = ItemType.Crafting;
+            _gem.maxStackSize = 10;
+            _gemIcon = Sprite.Create(Texture2D.whiteTexture, new Rect(0f, 0f, 4f, 4f), Vector2.one * 0.5f);
+            _gem.icon = _gemIcon;
+            _setup.Items.Add(_gem);
 
             var hostObject = new GameObject("Game");
             hostObject.SetActive(false);
@@ -54,6 +67,8 @@ namespace RPGFramework.ActionRpg.PlayTests
             foreach (var character in _setup.Characters.ToList())
                 Object.Destroy(character);
             Object.Destroy(_setup);
+            Object.Destroy(_gem);
+            Object.Destroy(_gemIcon);
         }
 
         [UnityTest]
@@ -99,11 +114,21 @@ namespace RPGFramework.ActionRpg.PlayTests
             Assert.That(world.Kills, Is.EqualTo(2));
             Assert.That(world.TotalExperience, Is.EqualTo(80));
 
-            // The character sheet opens and fills without errors
+            // The character sheet opens and shows the backpack with item icons
+            Assert.That(world.GiveItem("gem", 2), Is.True);
             var hud = _host.GetComponent<ActionRpgHud>();
             hud.ToggleSheet();
             yield return null;
             Assert.That(hud.IsSheetOpen, Is.True);
+            Assert.That(hud.GetComponentsInChildren<Image>().Any(image => image.sprite == _gemIcon && image.enabled), Is.True,
+                "the gem shows its icon");
+            Assert.That(hud.GetComponentsInChildren<Text>().Any(text => text.text.Contains("Blue Gem") && text.text.Contains("x2")), Is.True);
+
+            // Diagnostics are ready behind F3
+            Assert.That(_host.Diagnostics, Is.Not.Null);
+            Assert.That(_host.Diagnostics.Visible, Is.False);
+            _host.Diagnostics.Refresh();
+            Assert.That(_host.Diagnostics.Text, Does.Contain("Systems").And.Contain("Events"));
         }
 
         [UnityTest]

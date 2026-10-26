@@ -38,7 +38,9 @@ Games that reference prefabs directly (prefab catalogs, view configs) never need
      `PlayerController`, `EnemyBrain`, `StrikeAnimator` or `HealthBarView` to the prefab yourself to tune them.
      With an Animator, set the strike's trigger name to play your attack clip.
    - Items, loot tables and quests are the framework's **Item**, **Loot Table** and **Quest Asset** assets
-     (Create > RPG Framework).
+     (Create > RPG Framework). Drag a sprite into an item's **Icon** to show it in the backpack.
+   - **F3** in play mode shows the diagnostics panel (systems, events, frame times); untick **Diagnostics** on the
+     host to leave it out. Release builds never include it.
 4. Rules the inspector cannot express go in code: `Scripts/Core/MyGameSession.cs`, or **New Feature** for a module of
    their own. They react to events (`ActorSpawnedEvent`, `ActorDamagedEvent`, `WaveStartedEvent`, `DeathEvent`,
    `QuestCompletedEvent`, `LevelUpEvent`) and act through `ActorWorld`.

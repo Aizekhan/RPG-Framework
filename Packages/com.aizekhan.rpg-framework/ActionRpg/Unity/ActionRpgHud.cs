@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using RPGFramework.Items;
@@ -14,6 +16,9 @@ namespace RPGFramework.ActionRpg
     /// </summary>
     public sealed class ActionRpgHud : MonoBehaviour
     {
+        private const int BackpackRows = 7;
+        private const float RowHeight = 58f;
+
         [SerializeField] private int _fontSize = 26;
         [SerializeField] private Color _textColor = new Color(1f, 0.97f, 0.9f);
         [SerializeField] private Color _panelColor = new Color(0f, 0f, 0f, 0.55f);
@@ -32,6 +37,9 @@ namespace RPGFramework.ActionRpg
         private RectTransform _sheet;
         private Text _character;
         private Text _backpack;
+        private RectTransform _backpackBox;
+        private readonly List<BackpackRow> _rows = new List<BackpackRow>();
+        private Func<string, Sprite> _iconOf;
         private InputAction _toggleSheet;
 
         /// <summary>
@@ -39,9 +47,12 @@ namespace RPGFramework.ActionRpg
         /// </summary>
         public bool IsSheetOpen => _sheet != null && _sheet.gameObject.activeSelf;
 
-        public void Bind(ActorWorld world)
+        /// <param name="iconOf">The picture of an item by id (e.g. <see cref="GameSetup.IconOf"/>); null or no
+        /// picture shows the item's initials.</param>
+        public void Bind(ActorWorld world, Func<string, Sprite> iconOf = null)
         {
             _world = world;
+            _iconOf = iconOf;
             if (_status == null)
                 Build();
         }
@@ -131,23 +142,95 @@ namespace RPGFramework.ActionRpg
             _character.text = _text.ToString();
 
             var inventory = _world.Inventory;
-            _text.Clear().Append("<b>Backpack</b>  ").Append(inventory.Count).Append(" / ").Append(inventory.Capacity).Append("\n\n");
             var stacks = inventory.GetAllItems().Where(i => i != null).GroupBy(i => i.ItemId)
                 .Select(g => (Item: g.First(), Count: g.Count()))
-                .OrderByDescending(stack => stack.Item.Rarity).ThenBy(stack => stack.Item.Name);
-            bool any = false;
-            foreach (var (item, count) in stacks)
-            {
-                any = true;
-                _text.Append("<color=#").Append(ColorUtility.ToHtmlStringRGB(RarityColor(item.Rarity))).Append('>')
-                    .Append(item.Name).Append("</color>");
-                if (count > 1)
-                    _text.Append("  x").Append(count);
-                _text.Append('\n');
-            }
-            if (!any)
+                .OrderByDescending(stack => stack.Item.Rarity).ThenBy(stack => stack.Item.Name)
+                .ToList();
+
+            _text.Clear().Append("<b>Backpack</b>  ").Append(inventory.Count).Append(" / ").Append(inventory.Capacity).Append("\n\n");
+            if (stacks.Count == 0)
                 _text.Append("Empty. Slay enemies for loot.");
             _backpack.text = _text.ToString();
+
+            // The last row says how many kinds did not fit
+            bool overflow = stacks.Count > BackpackRows;
+            int shown = overflow ? BackpackRows - 1 : stacks.Count;
+            for (int i = 0; i < BackpackRows; i++)
+            {
+                var row = Row(i);
+                row.Root.gameObject.SetActive(i < shown || (overflow && i == shown));
+                if (i < shown)
+                    row.Show(stacks[i].Item, stacks[i].Count, RarityColor(stacks[i].Item.Rarity), _iconOf?.Invoke(stacks[i].Item.ItemId));
+                else if (overflow && i == shown)
+                    row.ShowMore(stacks.Count - shown);
+            }
+        }
+
+        private BackpackRow Row(int index)
+        {
+            while (_rows.Count <= index)
+            {
+                int i = _rows.Count;
+                var root = Box(_backpackBox, $"Slot{i}", new Vector2(0f, 1f), new Vector2(8f, -64f - i * RowHeight),
+                    new Vector2(460f, RowHeight - 6f), Color.clear);
+                var frame = Box(root, "Frame", new Vector2(0f, 0.5f), Vector2.zero, new Vector2(RowHeight - 6f, RowHeight - 6f),
+                    Color.white);
+                var plate = Box(frame, "Plate", new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(RowHeight - 12f, RowHeight - 12f),
+                    new Color(0.12f, 0.12f, 0.14f, 1f));
+                var icon = Box(plate, "Icon", new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(RowHeight - 16f, RowHeight - 16f),
+                    Color.white).GetComponent<Image>();
+                icon.preserveAspect = true;
+                var initials = Label(plate, "Initials", TextAnchor.MiddleCenter, _fontSize - 6);
+                var label = Label(Box(root, "Name", new Vector2(0f, 0.5f), new Vector2(RowHeight + 6f, 0f),
+                    new Vector2(400f, RowHeight - 6f), Color.clear), "Text", TextAnchor.MiddleLeft, _fontSize - 2);
+                label.supportRichText = true;
+                _rows.Add(new BackpackRow(root, frame.GetComponent<Image>(), icon, initials, label));
+            }
+            return _rows[index];
+        }
+
+        private sealed class BackpackRow
+        {
+            public readonly RectTransform Root;
+            private readonly Image _frame;
+            private readonly Image _icon;
+            private readonly Text _initials;
+            private readonly Text _label;
+
+            public BackpackRow(RectTransform root, Image frame, Image icon, Text initials, Text label)
+            {
+                Root = root;
+                _frame = frame;
+                _icon = icon;
+                _initials = initials;
+                _label = label;
+            }
+
+            public void Show(IItem item, int count, Color rarity, Sprite icon)
+            {
+                _frame.gameObject.SetActive(true);
+                _frame.color = rarity;
+                _icon.sprite = icon;
+                _icon.enabled = icon != null;
+                _initials.enabled = icon == null;
+                _initials.text = Initials(item.Name);
+                _initials.color = rarity;
+                _label.text = count > 1
+                    ? $"<color=#{ColorUtility.ToHtmlStringRGB(rarity)}>{item.Name}</color>  x{count}"
+                    : $"<color=#{ColorUtility.ToHtmlStringRGB(rarity)}>{item.Name}</color>";
+            }
+
+            public void ShowMore(int kinds)
+            {
+                _frame.gameObject.SetActive(false);
+                _label.text = $"+{kinds} more kinds";
+            }
+
+            private static string Initials(string name)
+            {
+                var words = (name ?? "?").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                return words.Length == 0 ? "?" : string.Concat(words.Take(2).Select(w => char.ToUpperInvariant(w[0])));
+            }
         }
 
         private static Color RarityColor(ItemRarity rarity)
@@ -210,8 +293,8 @@ namespace RPGFramework.ActionRpg
                 new Color(0.05f, 0.05f, 0.07f, 0.92f));
             _character = Label(Box(_sheet, "Character", new Vector2(0f, 1f), new Vector2(30f, -30f), new Vector2(440f, 500f), Color.clear),
                 "Text", TextAnchor.UpperLeft, _fontSize);
-            _backpack = Label(Box(_sheet, "Backpack", new Vector2(1f, 1f), new Vector2(-30f, -30f), new Vector2(480f, 500f), Color.clear),
-                "Text", TextAnchor.UpperLeft, _fontSize - 2);
+            _backpackBox = Box(_sheet, "Backpack", new Vector2(1f, 1f), new Vector2(-30f, -30f), new Vector2(480f, 500f), Color.clear);
+            _backpack = Label(_backpackBox, "Text", TextAnchor.UpperLeft, _fontSize - 2);
             _character.supportRichText = _backpack.supportRichText = true;
             _sheet.gameObject.SetActive(false);
 

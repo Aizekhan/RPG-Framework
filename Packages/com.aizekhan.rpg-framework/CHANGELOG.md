@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- `ActionRpg`: the backpack shows each item with its icon (new **Icon** sprite on Item assets; initials in a rarity-coloured frame when there is none). `ActionRpgHost` **Diagnostics** (on by default, Editor and development builds only): F3 shows systems, events and frame times
+- `Diagnostics`: `DiagnosticsOverlay`'s toggle key works with the Input System (it needed the legacy input manager before)
 - `ActionRpg`: `HealthBarView` tints a mesh fill (not only a UI image) with the player or enemy color
 - Recipes point at the package's `ActorPresenter`, `PlayerController` and `WaveSystem` instead of Goblin Valley classes
 - `ActionRpg`: the player's progress is saved between sessions (level, experience, kills, backpack, quest progress, finished quests; rewards are not paid twice on load). `ActionRpgSaves` over the framework's `SaveGameCoordinator`; `ActionRpgHost` **Save Progress** (on in new games) saves on level-up, finished quests and quit, with a **Delete Saved Progress** context menu

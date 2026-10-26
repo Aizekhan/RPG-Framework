@@ -65,6 +65,11 @@ namespace RPGFramework.ActionRpg
 
         public CharacterDefinition FindCharacter(string id) => Characters.FirstOrDefault(c => c.Id == id);
 
+        /// <summary>
+        /// The icon of an item in the setup's item list (null when it has none).
+        /// </summary>
+        public Sprite IconOf(string itemId) => _items.FirstOrDefault(i => i != null && i.itemId == itemId)?.icon;
+
         public static GameSetup Create(CharacterDefinition player, IEnumerable<CharacterDefinition> enemies, WaveSettings waves = null)
         {
             var setup = CreateInstance<GameSetup>();

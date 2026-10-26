@@ -24,6 +24,9 @@ namespace RPGFramework.Tools.ItemDatabaseManager
         [Tooltip("Icon identifier for UI rendering")]
         public string iconId = "icon_default";
 
+        [Tooltip("Picture shown in the backpack; empty shows the item's initials")]
+        public Sprite icon;
+
         [Header("Item Properties")]
         [Tooltip("Category of this item")]
         public ItemType itemType = ItemType.Equipment;
