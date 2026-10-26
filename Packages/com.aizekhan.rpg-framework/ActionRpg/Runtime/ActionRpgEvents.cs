@@ -37,6 +37,25 @@ namespace RPGFramework.ActionRpg
     }
 
     /// <summary>
+    /// An enemy was killed, published before it leaves the world (bounties, combo counters, achievements).
+    /// </summary>
+    public readonly struct ActorKilledEvent : IEvent
+    {
+        public ActorKilledEvent(int entityId, string characterId, int killerId, bool byPlayer)
+        {
+            EntityId = entityId;
+            CharacterId = characterId;
+            KillerId = killerId;
+            ByPlayer = byPlayer;
+        }
+
+        public int EntityId { get; }
+        public string CharacterId { get; }
+        public int KillerId { get; }
+        public bool ByPlayer { get; }
+    }
+
+    /// <summary>
     /// A hit landed (hit effects, damage numbers).
     /// </summary>
     public readonly struct ActorDamagedEvent : IEvent

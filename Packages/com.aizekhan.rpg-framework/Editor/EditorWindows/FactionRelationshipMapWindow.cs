@@ -17,7 +17,7 @@ namespace RPGFramework.Editor.EditorWindows
         private Vector2 scrollPosition;
         private Faction selectedFaction;
 
-        [MenuItem("Tools/RPG Framework/Faction Relationship Map", false, 4)]
+        [MenuItem("RPG Framework/Tools/Faction Relationship Map", false, 4)]
         public static void ShowWindow()
         {
             FactionRelationshipMapWindow window = GetWindow<FactionRelationshipMapWindow>("Faction Relationships");

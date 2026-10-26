@@ -26,7 +26,7 @@ namespace RPGFramework.Tools.ItemDatabaseManager.Editor
             QuestItem
         }
 
-        [MenuItem("Tools/RPG Framework/Item Creation Wizard")]
+        [MenuItem("RPG Framework/Tools/Item Creation Wizard")]
         public static void ShowWindow()
         {
             var window = GetWindow<ItemCreationWizard>("Item Wizard");

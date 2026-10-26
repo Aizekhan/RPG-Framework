@@ -18,7 +18,7 @@ namespace RPGFramework.Editor.EditorWindows
         private List<QuestData> availableQuests = new List<QuestData>();
         private string searchFilter = "";
 
-        [MenuItem("Tools/RPG Framework/Quest Editor", false, 1)]
+        [MenuItem("RPG Framework/Tools/Quest Editor", false, 1)]
         public static void ShowWindow()
         {
             QuestEditorWindow window = GetWindow<QuestEditorWindow>("Quest Editor");

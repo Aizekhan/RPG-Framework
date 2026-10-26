@@ -15,7 +15,7 @@ namespace RPGFramework.Editor.EditorWindows
         private Object selectedLootTable;
         private string searchFilter = "";
 
-        [MenuItem("Tools/RPG Framework/Loot Table Editor", false, 5)]
+        [MenuItem("RPG Framework/Tools/Loot Table Editor", false, 5)]
         public static void ShowWindow()
         {
             LootTableEditorWindow window = GetWindow<LootTableEditorWindow>("Loot Table Editor");

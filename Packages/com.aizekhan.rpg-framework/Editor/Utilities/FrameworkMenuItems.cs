@@ -10,7 +10,7 @@ namespace RPGFramework.Editor.Utilities
     /// </summary>
     public static class FrameworkMenuItems
     {
-        private const string MENU_ROOT = "Tools/RPG Framework/";
+        private const string MENU_ROOT = "RPG Framework/Tools/";
 
         // ===== Framework Manager =====
 

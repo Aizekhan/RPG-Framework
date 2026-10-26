@@ -28,7 +28,7 @@ namespace RPGFramework.Tools.LootTableDesigner.Editor
             ResourceNode
         }
 
-        [MenuItem("Tools/RPG Framework/Loot Table Wizard")]
+        [MenuItem("RPG Framework/Tools/Loot Table Wizard")]
         public static void ShowWindow()
         {
             var window = GetWindow<LootTableCreationWizard>("Loot Table Wizard");

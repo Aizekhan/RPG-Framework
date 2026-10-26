@@ -26,7 +26,7 @@ namespace RPGFramework.Tools.QuestEditor.Editor
             ExploreLocation
         }
 
-        [MenuItem("Tools/RPG Framework/Quest Creation Wizard")]
+        [MenuItem("RPG Framework/Tools/Quest Creation Wizard")]
         public static void ShowWindow()
         {
             var window = GetWindow<QuestCreationWizard>("Quest Wizard");

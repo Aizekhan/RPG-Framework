@@ -20,7 +20,7 @@ namespace RPGFramework.Editor.EditorWindows
 
         private List<DialogueData> availableDialogues = new List<DialogueData>();
 
-        [MenuItem("Tools/RPG Framework/Dialogue Graph Editor", false, 2)]
+        [MenuItem("RPG Framework/Tools/Dialogue Graph Editor", false, 2)]
         public static void ShowWindow()
         {
             DialogueGraphEditorWindow window = GetWindow<DialogueGraphEditorWindow>("Dialogue Graph Editor");

@@ -68,6 +68,11 @@ namespace RPGFramework.ActionRpg
         public long TotalExperience => IsStarted ? _progression.GetTotalXP(PlayerId) : 0;
 
         /// <summary>
+        /// Total experience at which the player reaches the next level.
+        /// </summary>
+        public long ExperienceForNextLevel => IsStarted ? _progression.GetXPRequiredForLevel(Level + 1) : 0;
+
+        /// <summary>
         /// Number of the last wave started (0 before the first one).
         /// </summary>
         public int CurrentWave { get; private set; }
@@ -221,6 +226,8 @@ namespace RPGFramework.ActionRpg
             }
 
             Kills++;
+            _bus.Publish(new ActorKilledEvent(victim.EntityId, victim.CharacterId, death.KillerEntityId,
+                death.KillerEntityId == PlayerId));
             Remove(death.EntityId);
             if (death.KillerEntityId != PlayerId)
                 return;
@@ -298,13 +305,18 @@ namespace RPGFramework.ActionRpg
                 Write($"+{added.Quantity} {added.Item.Name}");
         }
 
-        private void GiveItem(string itemId, int quantity)
+        /// <summary>
+        /// Puts items into the player's backpack.
+        /// </summary>
+        /// <returns>False when the item is unknown or the backpack filled up.</returns>
+        public bool GiveItem(string itemId, int quantity = 1)
         {
+            ThrowIfNotStarted();
             var item = _items.GetItem(itemId);
             if (item == null)
             {
                 _logger?.LogError($"Unknown item '{itemId}'", Category);
-                return;
+                return false;
             }
 
             for (int i = 0; i < quantity; i++)
@@ -312,10 +324,16 @@ namespace RPGFramework.ActionRpg
                 if (!Inventory.Add(item))
                 {
                     Write("Backpack is full");
-                    return;
+                    return false;
                 }
             }
+            return true;
         }
+
+        /// <summary>
+        /// Adds a line to the log the HUD shows (for game rules: "Bounty paid", "Boss enraged").
+        /// </summary>
+        public void Announce(string line) => Write(line);
 
         private void Write(string line)
         {

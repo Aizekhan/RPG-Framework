@@ -1,12 +1,15 @@
+using System.Linq;
 using System.Text;
+using RPGFramework.Items;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace RPGFramework.ActionRpg
 {
     /// <summary>
     /// Screen HUD of an action RPG: player health and level, quests with progress, wave, the event log and the
-    /// controls. Builds its own canvas so the scene needs no UI setup; colours and font size are tunable in the
+    /// controls; I / Tab / gamepad Select opens the character and backpack panel. Builds its own canvas so the scene needs no UI setup; colours and font size are tunable in the
     /// inspector. Turn it off on the host to use your own UI.
     /// </summary>
     public sealed class ActionRpgHud : MonoBehaviour
@@ -26,12 +29,47 @@ namespace RPGFramework.ActionRpg
         private Text _log;
         private Text _quests;
         private Text _banner;
+        private RectTransform _sheet;
+        private Text _character;
+        private Text _backpack;
+        private InputAction _toggleSheet;
+
+        /// <summary>
+        /// The character and backpack panel is open.
+        /// </summary>
+        public bool IsSheetOpen => _sheet != null && _sheet.gameObject.activeSelf;
 
         public void Bind(ActorWorld world)
         {
             _world = world;
             if (_status == null)
                 Build();
+        }
+
+        public void ToggleSheet()
+        {
+            if (_sheet != null)
+                _sheet.gameObject.SetActive(!_sheet.gameObject.activeSelf);
+        }
+
+        private void Awake()
+        {
+            _toggleSheet = new InputAction("Character Sheet", InputActionType.Button);
+            _toggleSheet.AddBinding("<Keyboard>/i");
+            _toggleSheet.AddBinding("<Keyboard>/tab");
+            _toggleSheet.AddBinding("<Gamepad>/select");
+        }
+
+        private void OnEnable() => _toggleSheet.Enable();
+
+        private void OnDisable() => _toggleSheet.Disable();
+
+        private void OnDestroy() => _toggleSheet.Dispose();
+
+        private void Update()
+        {
+            if (_toggleSheet.WasPressedThisFrame())
+                ToggleSheet();
         }
 
         private void LateUpdate()
@@ -74,6 +112,55 @@ namespace RPGFramework.ActionRpg
             }
 
             _banner.enabled = !hero.IsAlive();
+
+            if (IsSheetOpen)
+                FillSheet(hero);
+        }
+
+        private void FillSheet(Actor hero)
+        {
+            _text.Clear()
+                .Append("<b>").Append(hero.DisplayName).Append("</b>\n\n")
+                .Append("Level ").Append(_world.Level).Append('\n')
+                .Append("Experience ").Append(_world.TotalExperience).Append(" / ").Append(_world.ExperienceForNextLevel).Append('\n')
+                .Append("Health ").Append(hero.Health.ToString("F0")).Append(" / ").Append(hero.MaxHealth.ToString("F0")).Append('\n')
+                .Append("Attack ").Append(hero.Attack.ToString("F0")).Append('\n')
+                .Append("Defense ").Append(hero.Defense.ToString("F0")).Append("\n\n")
+                .Append("Kills ").Append(_world.Kills).Append("   Wave ").Append(_world.CurrentWave).Append('\n')
+                .Append("Quests done ").Append(_world.CompletedQuests.Count);
+            _character.text = _text.ToString();
+
+            var inventory = _world.Inventory;
+            _text.Clear().Append("<b>Backpack</b>  ").Append(inventory.Count).Append(" / ").Append(inventory.Capacity).Append("\n\n");
+            var stacks = inventory.GetAllItems().Where(i => i != null).GroupBy(i => i.ItemId)
+                .Select(g => (Item: g.First(), Count: g.Count()))
+                .OrderByDescending(stack => stack.Item.Rarity).ThenBy(stack => stack.Item.Name);
+            bool any = false;
+            foreach (var (item, count) in stacks)
+            {
+                any = true;
+                _text.Append("<color=#").Append(ColorUtility.ToHtmlStringRGB(RarityColor(item.Rarity))).Append('>')
+                    .Append(item.Name).Append("</color>");
+                if (count > 1)
+                    _text.Append("  x").Append(count);
+                _text.Append('\n');
+            }
+            if (!any)
+                _text.Append("Empty. Slay enemies for loot.");
+            _backpack.text = _text.ToString();
+        }
+
+        private static Color RarityColor(ItemRarity rarity)
+        {
+            switch (rarity)
+            {
+                case ItemRarity.Uncommon: return new Color(0.4f, 0.9f, 0.4f);
+                case ItemRarity.Rare: return new Color(0.35f, 0.6f, 1f);
+                case ItemRarity.Epic: return new Color(0.75f, 0.45f, 1f);
+                case ItemRarity.Legendary: return new Color(1f, 0.65f, 0.2f);
+                case ItemRarity.Mythic: return new Color(1f, 0.3f, 0.3f);
+                default: return new Color(0.92f, 0.9f, 0.85f);
+            }
         }
 
         private void Build()
@@ -114,9 +201,19 @@ namespace RPGFramework.ActionRpg
             _log.enabled = _showLog;
 
             // Bottom right: controls
-            var help = Label(Box(root, "Controls", new Vector2(1f, 0f), new Vector2(-24f, 24f), new Vector2(560f, 110f), Color.clear),
+            var help = Label(Box(root, "Controls", new Vector2(1f, 0f), new Vector2(-24f, 24f), new Vector2(560f, 140f), Color.clear),
                 "Lines", TextAnchor.LowerRight, _fontSize - 6);
-            help.text = "Move  WASD / arrows / left stick\nAttack  Space / left click / A\nRespawn  R / Start";
+            help.text = "Move  WASD / arrows / left stick\nAttack  Space / left click / A\nCharacter  I / Tab / Select\nRespawn  R / Start";
+
+            // Centre: character sheet and backpack (hidden until toggled)
+            _sheet = Box(root, "Character Sheet", new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1000f, 560f),
+                new Color(0.05f, 0.05f, 0.07f, 0.92f));
+            _character = Label(Box(_sheet, "Character", new Vector2(0f, 1f), new Vector2(30f, -30f), new Vector2(440f, 500f), Color.clear),
+                "Text", TextAnchor.UpperLeft, _fontSize);
+            _backpack = Label(Box(_sheet, "Backpack", new Vector2(1f, 1f), new Vector2(-30f, -30f), new Vector2(480f, 500f), Color.clear),
+                "Text", TextAnchor.UpperLeft, _fontSize - 2);
+            _character.supportRichText = _backpack.supportRichText = true;
+            _sheet.gameObject.SetActive(false);
 
             _banner = Label(Box(root, "Banner", new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900f, 120f), Color.clear),
                 "Text", TextAnchor.MiddleCenter, _fontSize * 2);

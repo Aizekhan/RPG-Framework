@@ -98,6 +98,12 @@ namespace RPGFramework.ActionRpg.PlayTests
             Assert.That(_host.Views.Count, Is.EqualTo(1));
             Assert.That(world.Kills, Is.EqualTo(2));
             Assert.That(world.TotalExperience, Is.EqualTo(80));
+
+            // The character sheet opens and fills without errors
+            var hud = _host.GetComponent<ActionRpgHud>();
+            hud.ToggleSheet();
+            yield return null;
+            Assert.That(hud.IsSheetOpen, Is.True);
         }
 
         [UnityTest]

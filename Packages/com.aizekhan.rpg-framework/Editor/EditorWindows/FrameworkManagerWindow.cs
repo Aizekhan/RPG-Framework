@@ -13,7 +13,7 @@ namespace RPGFramework.Editor.EditorWindows
         private int selectedTab = 0;
         private readonly string[] tabs = { "Overview", "Systems", "Tools", "Documentation" };
 
-        [MenuItem("Tools/RPG Framework/Framework Manager", false, 0)]
+        [MenuItem("RPG Framework/Tools/Framework Manager", false, 0)]
         public static void ShowWindow()
         {
             FrameworkManagerWindow window = GetWindow<FrameworkManagerWindow>("RPG Framework Manager");

@@ -18,7 +18,7 @@ namespace RPGFramework.Editor.EditorWindows
         private ItemRarity filterRarity = (ItemRarity)(-1);
         private Object selectedItem;
 
-        [MenuItem("Tools/RPG Framework/Item Database", false, 3)]
+        [MenuItem("RPG Framework/Tools/Item Database", false, 3)]
         public static void ShowWindow()
         {
             ItemDatabaseWindow window = GetWindow<ItemDatabaseWindow>("Item Database");

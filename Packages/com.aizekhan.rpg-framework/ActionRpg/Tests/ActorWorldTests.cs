@@ -128,6 +128,33 @@ namespace RPGFramework.ActionRpg.Tests
         }
 
         [Test]
+        public void Kill_IsAnnouncedWithTheCharacterAndKiller()
+        {
+            StartGame();
+            var killed = new List<ActorKilledEvent>();
+            _host.Container.Resolve<IEventBus>().Subscribe<ActorKilledEvent>(killed.Add);
+            int goblin = World.SpawnEnemy(Goblin);
+
+            Slay(goblin);
+
+            Assert.That(killed.Count, Is.EqualTo(1));
+            Assert.That(killed[0].EntityId, Is.EqualTo(goblin));
+            Assert.That(killed[0].CharacterId, Is.EqualTo(Goblin));
+            Assert.That(killed[0].ByPlayer, Is.True);
+        }
+
+        [Test]
+        public void GiveItem_FillsTheBackpackAndRefusesUnknownItems()
+        {
+            StartGame();
+
+            Assert.That(World.GiveItem(Ear, 3), Is.True);
+            Assert.That(World.Inventory.Count, Is.EqualTo(3));
+            Assert.That(World.GiveItem("nothing"), Is.False);
+            Assert.That(World.ExperienceForNextLevel, Is.GreaterThan(World.TotalExperience));
+        }
+
+        [Test]
         public void FinishedQuest_IsTurnedInAndRewarded()
         {
             StartGame();

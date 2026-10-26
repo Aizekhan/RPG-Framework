@@ -67,7 +67,7 @@ Assets/_Framework/Editor/
   - Ability cast ranges
 
 ### Utilities (3 files)
-1. **FrameworkMenuItems.cs** - Menu items under "Tools/RPG Framework/"
+1. **FrameworkMenuItems.cs** - Menu items under "RPG Framework/Tools/"
 2. **FrameworkValidation.cs** - Data integrity validation
 3. **FrameworkEditorUtility.cs** - General editor utility methods
 
