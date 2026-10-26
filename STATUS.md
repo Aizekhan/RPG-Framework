@@ -11,9 +11,9 @@
 
 | Gate | Result | SHA |
 |---|---|---|
-| Clean-checkout compile (`unity test`, fresh worktree) | ✅ 0 `error CS` | `de2498e` |
-| EditMode tests | ✅ **1196 / 1196 passed** | `de2498e` |
-| PlayMode tests (GoblinValley scene played) | ✅ **1 / 1 passed** | `de2498e` |
+| Clean-checkout compile (`unity test`, fresh worktree) | ✅ 0 `error CS` | `6335b9d` |
+| EditMode tests | ✅ **1228 / 1228 passed** | `6335b9d` |
+| PlayMode tests (GoblinValley scene played) | ✅ **1 / 1 passed** | `6335b9d` |
 | `.meta` integrity (CI `meta-check`) | ✅ 0 problems | `ff70d11` |
 | CI Unity tests on GitHub (GameCI) | ✅ **1170 / 1170 passed**, run `40337490738` | `ebaa00e` + CI fix |
 
@@ -68,10 +68,11 @@ Not ported on purpose in phase 9: a persistent event store (the `EventRecorder` 
 | # | Milestone | SHA | Proof |
 |---|---|---|---|
 | 1 | Framework shipped as UPM package `com.aizekhan.rpg-framework` 0.1.0 (README, CHANGELOG, LICENSE; meta check covers embedded packages) | `ad978e6` | 1184/1184 EditMode |
+| 3 | **Game Kit (AI Kit).** Game architecture rules GA01–GA10 (`GameArchitectureRules` over `GameCodebase`) with a `GameArchitectureTests` base fixture; New Game / New Feature generators (`Templates~`, menu window + batch mode) producing Core/runtime/test assemblies, composition, host, scene and tests with metas; `AIGuidance` installs a CLAUDE.md block, `Docs/RPGFramework` guide + 9 recipes and a CI workflow. ReferenceGame rules moved to `ReferenceGame.Core` (noEngineReferences) and pass the rules | `6335b9d` | 1228/1228 EditMode, 1/1 PlayMode. Also proven in the verify worktree: generated `SampleQuest` + `Shop` feature compile and pass 16 tests (1244 total); injected singleton, `FindObjectOfType` and engine-enabled Core fail GA06, GA05, GA03 with fix hints |
 | 2 | **Playable 3D Goblin Valley.** Framework `Presentation` module (`EntityViewRegistry`). Game: spawn/despawn/wave events, `GoblinWaveSystem`, inspector-tunable `GoblinValleyConfig` + `PrefabCatalog`, presenter spawning prefabs through `PrefabSpawner` (goblins pooled), `HeroController` (Input System: keyboard, mouse, gamepad), `GoblinBrain`, health bars, UGUI HUD, `CameraFollow`. `GoblinValleyBuilder` generates placeholder art, prefabs, config and scene (menu or batch mode). CI runs EditMode + PlayMode | `de2498e` | 1196/1196 EditMode, 1/1 PlayMode |
 
 Roadmap, in order (agreed with the user 2026-10-26):
-3. **AI Kit**: CLAUDE.md template and recipes for game projects, menu/batch generators (module, content definition, entity view), architecture tests for game projects + CI template.
+3. ~~AI Kit~~ done (`6335b9d`).
 4. Content as ScriptableObjects (enemies, items, quests, loot) built with the AI Kit; visual identity (icons, prefabs) in the same definitions.
 5. New-game template (`Samples~`): import the package, create a game, get rules, tests and CI.
 
@@ -119,7 +120,7 @@ Not committed (they duplicated migrated modules; the backup folder was deleted o
 
 ## Next steps
 
-1. AI Kit (roadmap 3).
-2. Content as ScriptableObjects (roadmap 4).
+1. Content as ScriptableObjects (roadmap 4), with a Game Kit generator for content definitions.
+2. New-game template sample (roadmap 5): mostly covered by Game Kit New Game; add a playable starter (views, presenter) to it.
 3. Tests for Tools (and DeltaCompression); loot events as bus events (or remove them); re-enable or delete the three `#if FALSE` editor windows.
 4. `StatContainer` performance and int rounding, after a benchmark.

@@ -8,9 +8,10 @@
 
 ## Where things stand
 
-- Last code-verified SHA: **`de2498e`**: clean-checkout compile 0 errors, **1196/1196 EditMode**, **1/1 PlayMode** (the GoblinValley scene played).
+- Last code-verified SHA: **`6335b9d`**: clean-checkout compile 0 errors, **1228/1228 EditMode**, **1/1 PlayMode** (the GoblinValley scene played).
 - The framework is the UPM package `Packages/com.aizekhan.rpg-framework`. Goblin Valley is a playable 3D game (STATUS.md "Product milestones").
-- **Next: AI Kit** (STATUS.md roadmap 3), then content as ScriptableObjects, then the new-game template.
+- Game Kit is done (`GameKit/`, `Documentation~/AI/`): architecture rules for games, New Game / New Feature generators, AI guidance installer. **Next: content as ScriptableObjects** (STATUS.md roadmap 4).
+- Proving a generator end to end: in the verify worktree run `...GameScaffold.NewGameFromCommandLine -game SampleQuest`, then `NewFeatureFromCommandLine -game SampleQuest -feature Shop`, then `unity test` (then `git clean` the worktree).
 - **The MythHunter core migration (phases 1–9) is complete**, and so is the follow-up cleanup (persistence sidecar, duplicate types, UI component files, architecture tests, EPIC 25 integration). No uncommitted framework work remains. Next candidates: STATUS.md "Next steps".
 - CI (`.github/workflows/ci.yml`): `.meta` integrity and GameCI EditMode tests both run on every push (license secrets set 2026-10-26; first green run `40337490738`, 1170/1170).
 - `main` protection blocks force pushes and branch deletion only. Direct commits to `main` work (per CLAUDE.md).
@@ -51,7 +52,7 @@ Create the worktree with `git worktree add --detach D:/RPG-Framework-verify <sha
 ## Gotchas learned
 
 - Batch-mode Unity exits with code 2 when any test fails. Read the NUnit XML, not the exit code.
-- A test assembly whose plugin fails to load reports **0 tests, not an error**. Compare totals between runs (expected: 1196 EditMode, 1 PlayMode).
+- A test assembly whose plugin fails to load reports **0 tests, not an error**. Compare totals between runs (expected: 1228 EditMode, 1 PlayMode).
 - The verify worktree gets NuGetForUnity files generated on import; remove them there before `checkout`, or checkout aborts and the old commit is tested. Check the SHA the run actually used.
 - A MonoBehaviour must live in a file of its own name (enforced by `FrameworkArchitectureTests`). Test MonoBehaviours go in a `*.TestSupport` runtime assembly.
 - Test assemblies that construct `EventBus` need `RPGFramework.Logging.Runtime` (CS0012 otherwise).
@@ -68,6 +69,9 @@ Create the worktree with `git worktree add --detach D:/RPG-Framework-verify <sha
 - NuGetForUnity regenerates `Assets/NuGet.config` and `packages.config` on import.
 
 - `EditorSceneManager.OpenScene(..., Single)` unloads unused assets: reload asset references created before it.
+- `verify.sh` checks out before cleaning: files copied into the worktree by hand block the checkout. Run `git checkout -- . && git clean -fdq -e Library` there first.
+- Folders ending in `~` (`Templates~`, `Documentation~`) are not imported by Unity and need no metas; `gen_meta.py` skips them.
+- Large bash heredocs with apostrophes fail to parse in this environment; write files with the Write tool.
 - Logging extension methods (`LogError`, ...) need `using RPGFramework.Logging;`.
 
 ## Decisions waiting for the user
