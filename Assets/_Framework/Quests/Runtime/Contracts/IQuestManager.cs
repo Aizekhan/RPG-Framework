@@ -50,6 +50,15 @@ namespace RPGFramework.Quests
         bool AbandonQuest(int entityId, string questId);
 
         /// <summary>
+        /// Fail an active quest (timer ran out, escort died, ...). It leaves the active list and can be accepted again.
+        /// </summary>
+        /// <param name="entityId">Entity ID</param>
+        /// <param name="questId">Quest ID to fail</param>
+        /// <param name="reason">Game-defined failure reason</param>
+        /// <returns>True if quest was failed</returns>
+        bool FailQuest(int entityId, string questId, string reason = null);
+
+        /// <summary>
         /// Get progress for a specific quest.
         /// </summary>
         /// <param name="entityId">Entity ID</param>

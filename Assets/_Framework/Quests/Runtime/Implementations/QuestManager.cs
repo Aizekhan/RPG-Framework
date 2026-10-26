@@ -2,22 +2,26 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using RPGFramework.ECS;
+using RPGFramework.Events;
 
 namespace RPGFramework.Quests
 {
     /// <summary>
     /// Implementation of IQuestManager.
     /// ECS-based manager for quest progression and state.
+    /// With an event publisher, raises QuestAccepted/ObjectiveProgressed/QuestCompleted/QuestAbandoned/QuestFailed.
     /// </summary>
     public class QuestManager : IQuestManager
     {
         private readonly IEntityManager _entityManager;
         private readonly IQuestRegistry _questRegistry;
+        private readonly IEventPublisher _events;
 
-        public QuestManager(IEntityManager entityManager, IQuestRegistry questRegistry)
+        public QuestManager(IEntityManager entityManager, IQuestRegistry questRegistry, IEventPublisher events = null)
         {
             _entityManager = entityManager;
             _questRegistry = questRegistry;
+            _events = events;
         }
 
         /// <summary>
@@ -94,6 +98,12 @@ namespace RPGFramework.Quests
             activeQuests.ActiveQuests[questId] = progressData;
             _entityManager.AddComponent(entityId, activeQuests);
 
+            _events?.Publish(new QuestAcceptedEvent
+            {
+                EntityId = entityId,
+                QuestId = questId,
+                AcceptedAt = DateTime.UtcNow
+            });
             return true;
         }
 
@@ -127,6 +137,18 @@ namespace RPGFramework.Quests
             activeQuests.ActiveQuests[questId] = questProgress;
             _entityManager.AddComponent(entityId, activeQuests);
 
+            if (newProgress != currentProgress)
+            {
+                _events?.Publish(new ObjectiveProgressedEvent
+                {
+                    EntityId = entityId,
+                    QuestId = questId,
+                    ObjectiveId = objectiveId,
+                    CurrentProgress = newProgress,
+                    RequiredProgress = objective.RequiredCount,
+                    IsCompleted = newProgress >= objective.RequiredCount
+                });
+            }
             return true;
         }
 
@@ -171,6 +193,13 @@ namespace RPGFramework.Quests
 
             _entityManager.AddComponent(entityId, activeQuests);
 
+            _events?.Publish(new QuestCompletedEvent
+            {
+                EntityId = entityId,
+                QuestId = questId,
+                CompletedAt = new DateTime(questProgress.CompletedAtTicks, DateTimeKind.Utc),
+                Rewards = quest.Rewards != null ? new List<IQuestReward>(quest.Rewards) : new List<IQuestReward>()
+            });
             return true;
         }
 
@@ -189,6 +218,25 @@ namespace RPGFramework.Quests
             activeQuests.ActiveQuests.Remove(questId);
             _entityManager.AddComponent(entityId, activeQuests);
 
+            _events?.Publish(new QuestAbandonedEvent { EntityId = entityId, QuestId = questId });
+            return true;
+        }
+
+        /// <summary>
+        /// Fail an active quest.
+        /// </summary>
+        public bool FailQuest(int entityId, string questId, string reason = null)
+        {
+            if (!_entityManager.TryGetComponent<ActiveQuestsData>(entityId, out var activeQuests))
+                return false;
+
+            if (activeQuests.ActiveQuests == null || !activeQuests.ActiveQuests.ContainsKey(questId))
+                return false;
+
+            activeQuests.ActiveQuests.Remove(questId);
+            _entityManager.AddComponent(entityId, activeQuests);
+
+            _events?.Publish(new QuestFailedEvent { EntityId = entityId, QuestId = questId, FailureReason = reason });
             return true;
         }
 

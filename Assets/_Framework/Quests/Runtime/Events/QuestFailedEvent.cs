@@ -1,6 +1,8 @@
+using RPGFramework.Events;
+
 namespace RPGFramework.Quests
 {
-    public struct QuestFailedEvent
+    public struct QuestFailedEvent : IEvent
     {
         public int EntityId;
         public string QuestId;

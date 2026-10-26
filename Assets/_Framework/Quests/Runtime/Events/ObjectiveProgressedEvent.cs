@@ -1,6 +1,8 @@
+using RPGFramework.Events;
+
 namespace RPGFramework.Quests
 {
-    public struct ObjectiveProgressedEvent
+    public struct ObjectiveProgressedEvent : IEvent
     {
         public int EntityId;
         public string QuestId;

@@ -4,6 +4,8 @@
     "references": [
         "RPGFramework.Quests.Runtime",
         "RPGFramework.ECS.Runtime",
+        "RPGFramework.Events.Runtime",
+        "UniTask",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],
