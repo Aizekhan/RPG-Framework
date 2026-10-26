@@ -59,6 +59,18 @@ namespace RPGFramework.Quests
         bool FailQuest(int entityId, string questId, string reason = null);
 
         /// <summary>
+        /// Report something that happened in the world (a kill, a pickup, a visited area) and advance every matching
+        /// objective of the entity's active quests: same type, and same target id (an objective with no target id
+        /// accepts any target).
+        /// </summary>
+        /// <param name="entityId">Entity whose quests progress</param>
+        /// <param name="type">Objective type</param>
+        /// <param name="targetId">Game-defined target id (enemy type, item id, area id)</param>
+        /// <param name="amount">Progress to add</param>
+        /// <returns>Number of objectives that advanced</returns>
+        int ReportProgress(int entityId, ObjectiveType type, string targetId, int amount = 1);
+
+        /// <summary>
         /// Get progress for a specific quest.
         /// </summary>
         /// <param name="entityId">Entity ID</param>

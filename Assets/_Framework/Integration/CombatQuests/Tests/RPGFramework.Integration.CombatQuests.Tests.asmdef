@@ -1,0 +1,30 @@
+{
+    "name": "RPGFramework.Integration.CombatQuests.Tests",
+    "rootNamespace": "RPGFramework.Integration.CombatQuests.Tests",
+    "references": [
+        "RPGFramework.Integration.CombatQuests.Runtime",
+        "RPGFramework.Combat.Runtime",
+        "RPGFramework.Quests.Runtime",
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "UniTask",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

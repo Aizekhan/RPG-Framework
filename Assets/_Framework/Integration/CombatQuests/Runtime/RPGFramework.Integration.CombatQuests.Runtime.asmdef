@@ -1,0 +1,19 @@
+{
+    "name": "RPGFramework.Integration.CombatQuests.Runtime",
+    "rootNamespace": "RPGFramework.Integration.CombatQuests",
+    "references": [
+        "RPGFramework.Combat.Runtime",
+        "RPGFramework.Quests.Runtime",
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Events.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

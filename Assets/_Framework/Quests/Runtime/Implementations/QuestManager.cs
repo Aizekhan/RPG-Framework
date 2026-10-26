@@ -241,6 +241,44 @@ namespace RPGFramework.Quests
         }
 
         /// <summary>
+        /// Advance every matching objective of the entity's active quests.
+        /// </summary>
+        public int ReportProgress(int entityId, ObjectiveType type, string targetId, int amount = 1)
+        {
+            if (amount <= 0)
+                return 0;
+
+            if (!_entityManager.TryGetComponent<ActiveQuestsData>(entityId, out var activeQuests) ||
+                activeQuests.ActiveQuests == null || activeQuests.ActiveQuests.Count == 0)
+                return 0;
+
+            int advanced = 0;
+            // Snapshot: handlers of the progress events may accept, complete or abandon quests
+            foreach (var questId in activeQuests.ActiveQuests.Keys.ToList())
+            {
+                var quest = _questRegistry.GetQuest(questId);
+                if (quest == null)
+                    continue;
+
+                foreach (var objective in quest.Objectives)
+                {
+                    if (objective.Type != type ||
+                        (!string.IsNullOrEmpty(objective.TargetId) && objective.TargetId != targetId))
+                        continue;
+
+                    var progress = GetQuestProgress(entityId, questId);
+                    if (progress == null ||
+                        (progress.ObjectiveProgress.TryGetValue(objective.Id, out var current) && current >= objective.RequiredCount))
+                        continue;
+
+                    if (UpdateObjectiveProgress(entityId, questId, objective.Id, amount))
+                        advanced++;
+                }
+            }
+            return advanced;
+        }
+
+        /// <summary>
         /// Get progress for a specific quest.
         /// </summary>
         public IQuestProgress? GetQuestProgress(int entityId, string questId)
