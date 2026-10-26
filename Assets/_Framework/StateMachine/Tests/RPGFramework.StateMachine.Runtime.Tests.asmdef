@@ -3,6 +3,8 @@
     "rootNamespace": "RPGFramework.StateMachine.Tests",
     "references": [
         "RPGFramework.StateMachine.Runtime",
+        "UniTask",
+        "RPGFramework.Logging.Runtime",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],
