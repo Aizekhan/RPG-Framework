@@ -35,6 +35,17 @@ namespace RPGFramework.Networking
         NetworkConfig Config { get; }
 
         /// <summary>
+        /// Server: a client connected (its connection id). Client: the connection to the server is up.
+        /// Raised from <see cref="Update"/>.
+        /// </summary>
+        event Action<int> PeerConnected;
+
+        /// <summary>
+        /// Server: a client left (its connection id). Client: the server is gone. Raised from <see cref="Update"/>.
+        /// </summary>
+        event Action<int> PeerDisconnected;
+
+        /// <summary>
         /// Start as server.
         /// </summary>
         void StartServer(int port);

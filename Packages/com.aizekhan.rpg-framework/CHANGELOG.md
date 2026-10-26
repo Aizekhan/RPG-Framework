@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- `Networking`: a real transport, `UnityNetworkTransport` over Unity Transport (UDP; reliable-ordered and unreliable pipelines with fragmentation); `LoopbackNetwork` / `LoopbackTransport` for tests and in-process play; game messages with their own fields (`INetworkPayload`); `PeerConnected` / `PeerDisconnected` events on `INetworkManager`. The package now depends on `com.unity.transport`
 - `ActionRpg`: the backpack shows each item with its icon (new **Icon** sprite on Item assets; initials in a rarity-coloured frame when there is none). `ActionRpgHost` **Diagnostics** (on by default, Editor and development builds only): F3 shows systems, events and frame times
 - `Diagnostics`: `DiagnosticsOverlay`'s toggle key works with the Input System (it needed the legacy input manager before)
 - `ActionRpg`: `HealthBarView` tints a mesh fill (not only a UI image) with the player or enemy color

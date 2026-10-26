@@ -31,6 +31,10 @@ namespace RPGFramework.Networking
             RegisterMessageType<TransformSyncMessage>(MessageType.TransformSync);
         }
 
+        /// <summary>
+        /// Registers a message type by id; game messages (ids from <see cref="MessageType.GameSpecificStart"/>)
+        /// implement <see cref="INetworkPayload"/> to write and read their fields.
+        /// </summary>
         public void RegisterMessageType<T>(int messageTypeId) where T : INetworkMessage
         {
             _messageTypes[messageTypeId] = typeof(T);
@@ -144,6 +148,13 @@ namespace RPGFramework.Networking
                     writer.Write(transform.Velocity.Y);
                     writer.Write(transform.Velocity.Z);
                     break;
+
+                default:
+                    if (!(message is INetworkPayload payload))
+                        throw new NotSupportedException(
+                            $"{message.GetType().Name} (type {message.MessageTypeId}) is not a built-in message and does not implement INetworkPayload");
+                    payload.Write(writer);
+                    break;
             }
         }
 
@@ -239,7 +250,13 @@ namespace RPGFramework.Networking
                     };
 
                 default:
-                    throw new NotSupportedException($"Message type {messageTypeId} is not supported");
+                    if (!_messageTypes.TryGetValue(messageTypeId, out var type) || !typeof(INetworkPayload).IsAssignableFrom(type))
+                        throw new NotSupportedException($"Message type {messageTypeId} is not registered");
+                    var custom = Activator.CreateInstance(type);
+                    if (custom is NetworkMessage withTime)
+                        withTime.Timestamp = timestamp;
+                    ((INetworkPayload)custom).Read(reader);
+                    return custom;
             }
         }
     }

@@ -31,6 +31,9 @@ namespace RPGFramework.Networking
         /// </summary>
         public NetworkAuthority Authority { get; set; }
 
+        public event Action<int> PeerConnected;
+        public event Action<int> PeerDisconnected;
+
         public NetworkManager(INetworkTransport transport, INetworkSerializer serializer, NetworkConfig config, ILogger logger = null)
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
@@ -221,6 +224,11 @@ namespace RPGFramework.Networking
                 _connections[connectionId] = connection;
                 _connectionsReadOnly.Add(connection);
             }
+            else
+            {
+                return;
+            }
+            PeerConnected?.Invoke(connectionId);
         }
 
         private void HandleDisconnected(int connectionId, string reason)
@@ -230,11 +238,13 @@ namespace RPGFramework.Networking
                 connection.SetState(ConnectionState.Disconnected);
                 _connections.Remove(connectionId);
                 _connectionsReadOnly.Remove(connection);
+                PeerDisconnected?.Invoke(connectionId);
             }
-
-            if (Role == NetworkRole.Client && connectionId == LocalConnectionId)
+            else if (Role == NetworkRole.Client && (connectionId == LocalConnectionId || !IsConnected))
             {
+                // Lost the server, or never reached it
                 IsConnected = false;
+                PeerDisconnected?.Invoke(connectionId);
             }
         }
 
