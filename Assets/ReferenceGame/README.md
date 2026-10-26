@@ -1,181 +1,50 @@
-# Reference Game - RPG Framework Demo
+# Reference Game: Goblin Valley
 
-## Overview
+A small game built only on framework assemblies. It shows how a game is composed and proves, in automated tests,
+that the framework modules work together.
 
-Reference Game demonstrates how to create a complete RPG using the RPG Framework. This is a **minimal viable game** that showcases Framework's core features without any game-specific dependencies.
+## Composition
 
-## Purpose
+`GoblinValleyComposition.Configure` adds the modules to `GameHost`. The scene host and the tests share it:
 
-1. **Validate Framework Independence** - Prove Framework can create games without MythHunter dependencies
-2. **Developer Template** - Provide starting point for new RPG projects
-3. **Framework Showcase** - Demonstrate all Framework systems working together
-4. **Best Practices** - Show proper Framework integration patterns
+| Module | Gives the game |
+|---|---|
+| `FrameworkCoreModule` (added by `GameHost`) | event bus, entities, systems, timers, world |
+| `CombatModule` | `ILifeStateManager` (deaths/resurrections on the bus), `IDamageCalculator` |
+| `ProgressionModule` | `IProgressionTracker`, `IStatGrowthFormula`; level-ups publish `StatIncreasedEvent` |
+| `QuestsModule` | `IQuestRegistry`, `IQuestManager` |
+| `ItemsModule`, `LootModule` | item registry, loot tables and generator |
+| `CombatQuestsModule` | kills advance Kill objectives |
+| `GoblinValleyModule` | the game's content and rules (`GoblinValleyGame`) |
 
-## Current Implementation Status
+## Rules are bus subscriptions
 
-### ✅ Phase 1: Foundation (COMPLETE)
+| Event | Rule |
+|---|---|
+| `DeathEvent` (goblin) | kill XP and a loot roll for the killer; the goblin is despawned |
+| `ObjectiveProgressedEvent` (completed) | the quest is turned in |
+| `QuestCompletedEvent` | XP and item rewards |
+| `StatIncreasedEvent` | the new stat value is applied to the hero's `StatContainer` |
+| `LevelUpEvent` | the hero is healed |
+| `ItemAddedEvent<IItem>` | the HUD log |
 
-**Game-Specific Classes:**
-- `PlayerStats` - Concrete stats implementation extending Framework's `IStats`
-- `ReferenceGamePlayer` - Player character extending Framework's `CharacterBase`
-- `SimpleMovement` - Basic WASD movement controller
-- `GameManager` - Game initialization and testing
+## Play
 
-**Framework Integration:**
-- ✅ Stats System - Health, Mana, Attributes (STR/AGI/INT/VIT)
-- ✅ Characters System - Player character with Framework base class
-- ✅ Combat System - Damage/Heal functionality
-- ✅ Debug UI - OnGUI stats display
+Open `Scenes/GoblinValley.unity` and press Play. The scene object `GoblinValleyHost` starts the game with three goblins.
 
-**Files Created:**
-```
-ReferenceGame/
-├── Scripts/
-│   ├── Stats/
-│   │   └── PlayerStats.cs          (76 lines)
-│   ├── Characters/
-│   │   ├── ReferenceGamePlayer.cs  (74 lines)
-│   │   └── SimpleMovement.cs       (62 lines)
-│   └── GameManager.cs               (87 lines)
-├── Scenes/
-│   └── GoblinValley.unity
-└── ReferenceGame.asmdef
-```
+- **Space**: attack the nearest goblin
+- **N**: spawn a goblin
+- **R**: revive the hero
 
-### 🚧 Phase 2: Core Systems (NEXT)
+## Tests
 
-- [ ] Create Player GameObject prefab
-- [ ] Test in PlayMode
-- [ ] Add ground plane for movement
-- [ ] Inventory System integration
-- [ ] Progression System integration (XP/Leveling)
+`Tests/GoblinValleyTests` boots the game through `GameHost` and checks:
 
-### 📋 Phase 3: Extended Features (FUTURE)
+- every module is registered;
+- clearing the valley runs the whole chain: death → quest → turn-in → XP → level-up → stat growth, plus loot into the backpack;
+- the world ticks without errors;
+- a failing event handler is logged and the game keeps running;
+- a missing module fails the start loudly;
+- shutdown is clean.
 
-- [ ] Enemy AI (simple goblin)
-- [ ] Quest System integration
-- [ ] Loot System integration
-- [ ] Equipment System
-- [ ] UI Panels (using Framework UI)
-
-## How to Use
-
-### Setup in Unity Editor:
-
-1. **Open Scene:**
-   - Navigate to `Assets/ReferenceGame/Scenes/GoblinValley.unity`
-   - Double-click to open
-
-2. **Create Player GameObject:**
-   ```
-   - Create Empty GameObject named "Player"
-   - Add ReferenceGamePlayer component
-   - Add CharacterController component
-   - Add SimpleMovement component
-   - Position at (0, 1, 0)
-   ```
-
-3. **Create GameManager:**
-   ```
-   - Create Empty GameObject named "GameManager"
-   - Add GameManager component
-   - Assign Player reference in Inspector
-   ```
-
-4. **Create Ground:**
-   ```
-   - Create 3D Object > Plane
-   - Position at (0, 0, 0)
-   - Scale to (10, 1, 10)
-   ```
-
-5. **Press Play!**
-
-### Controls:
-
-- **WASD** - Move player
-- **Space** - Test damage (15 HP)
-- **H** - Heal (20 HP)
-
-### Expected Behavior:
-
-- Player spawns with full health/mana
-- Stats displayed in top-left corner (OnGUI)
-- Controls shown in top-right corner
-- Console shows initialization logs
-- Framework integration verified ✓
-
-## Architecture Patterns
-
-### Marker Interface Pattern
-
-**Framework provides:**
-```csharp
-public interface IStats { } // Marker interface
-```
-
-**Game implements:**
-```csharp
-public class PlayerStats : IStats
-{
-    public float CurrentHealth { get; private set; }
-    public float MaxHealth { get; private set; }
-    // ... concrete properties
-}
-```
-
-### Inheritance Pattern
-
-**Framework provides:**
-```csharp
-public abstract class CharacterBase : MonoBehaviour, ICharacter
-{
-    protected IStats stats;
-    // ... base functionality
-}
-```
-
-**Game extends:**
-```csharp
-public class ReferenceGamePlayer : CharacterBase
-{
-    private PlayerStats playerStats;
-    public override string Name => "Hero";
-    // ... game-specific logic
-}
-```
-
-## Compilation Status
-
-**✅ 0 Compilation Errors**
-**✅ Clean Framework Integration**
-**✅ No Game-to-Framework Coupling**
-
-## Next Steps
-
-1. Test in PlayMode
-2. Add more Framework systems (Inventory, Progression)
-3. Create simple enemy for combat testing
-4. Integrate Quest system
-5. Add UI panels from Framework
-
-## Code Statistics
-
-- **Total Lines:** 299 lines of game code
-- **Framework Dependencies:** 2 assemblies (Characters, Stats)
-- **Compilation Time:** ~3 seconds
-- **Integration Complexity:** Very Low ✅
-
-## Success Criteria
-
-- [x] Framework compiles with game code
-- [x] No circular dependencies
-- [x] Game extends Framework without modifying it
-- [x] Clean separation of concerns
-- [ ] Playable in Unity Editor
-- [ ] All Framework systems demonstrated
-
----
-
-**Status:** Foundation Complete ✅
-**Next:** Runtime Testing in Unity Editor
+`GoblinValleySceneTests` checks that the scene has its host and no missing scripts.

@@ -11,8 +11,8 @@
 
 | Gate | Result | SHA |
 |---|---|---|
-| Clean-checkout compile (`unity test`, fresh worktree) | ✅ 0 `error CS` | `a968867` |
-| EditMode tests | ✅ **1172 / 1172 passed** | `a968867` (CI green on `ff70d11`) |
+| Clean-checkout compile (`unity test`, fresh worktree) | ✅ 0 `error CS` | `7671fb8` |
+| EditMode tests | ✅ **1184 / 1184 passed** | `7671fb8` |
 | `.meta` integrity (CI `meta-check`) | ✅ 0 problems | `ff70d11` |
 | CI Unity tests on GitHub (GameCI) | ✅ **1170 / 1170 passed**, run `40337490738` | `ebaa00e` + CI fix |
 
@@ -69,6 +69,7 @@ Not ported on purpose in phase 9: a persistent event store (the `EventRecorder` 
 | `24274c0` | Duplicate types removed: Combat's own status-effect system (StatusEffects is the single module); Tools `QuestObjectiveEntry`/`QuestRewardEntry`/`ItemStatModifierEntry`; UI `EquipmentSlotType` |
 | `55db5f2` | **UI bug:** `EquipmentSlotUI`, `AbilitySlotUI`, `AbilitySlotHUD` were declared in other classes' files, so Unity could not attach them to any prefab. Own files now (`ItemSlotUI` is the general slot). `InventoryPanel` takes `IInventoryContainer<IItem>` instead of `object` |
 | `162efbf`, `91aee01` | Framework-wide architecture tests; test asmdef hygiene (DI, ECS, Logging, Environment); `com.unity.textmeshpro` stub removed, `ugui` pinned to the 2.0.0 Unity resolves |
+| `fd6da39`, `ccbf327`, `7671fb8` | Bus integration: Combat `DeathEvent`/`ResurrectionEvent` published on the bus; `StatGrowthPublisher` (level-up → `StatIncreasedEvent`); `GuildTreasury` publishes deposits/withdrawals; `ILifeStateManager` exposes entity registration. `Bootstrap.Gameplay` feature modules (Combat, Progression, Quests, Items, Loot, CombatQuests). ReferenceGame rebuilt as Goblin Valley: composed in `GameHost`, every rule a bus subscription, end-to-end tests (only `7671fb8` compiles; the two before it do not) |
 | `a968867`, `ff70d11` | Addressables provider + package; `Spawning` (`PrefabSpawner`: spawn by key, optional pooling/prewarm/release; `PrefabCatalog`); legacy `UISystem`/`IView`/`ViewId` enum removed (duplicated UINavigation, unused): `UIViewBase` derives from `NavigableView`, `Close()` goes back through navigation; UI and Spawning tests |
 | `a60ab53`, `e6b70cc` | EPIC 25 leftovers: `Cameras` (CameraFollow), `Timers.Unity` (`TimeScaleController`: pause, slow motion), `DebugDraw` in `Diagnostics.Unity`; Characters tests; ReferenceGame; `activeInputHandler` Both; NuGetForUnity config; empty `Core/Installers` removed |
 
@@ -98,13 +99,14 @@ Not committed (they duplicated migrated modules; the backup folder was deleted o
 
 **Low**
 - Modules without tests: DeltaCompression, Editor, Tools
-- The event bus has publishers (24 of 27 events) but no runtime subscribers in the framework or ReferenceGame; the Combat→Quests bridge uses the C# `ILifeStateManager` event
+- Loot `LootGeneratedEvent`/`LootDroppedEvent` are not `IEvent`s and nothing raises them
+- ReferenceGame is a logic-level demo (OnGUI HUD, no visuals or input actions); not yet run in PlayMode by CI
 - CI: the license file is bound to another machine, so GameCI falls back to email/password activation (works)
 
 ## Next steps
 
-1. Run ReferenceGame end to end: modules register, systems tick, errors surface; subscribe its game logic to the bus.
-2. Missing publishers (Progression stats, Guild treasury), a bus relay for Combat death, and integration tests proving publish → handle.
-3. Tests for Tools (and DeltaCompression).
+1. Tests for Tools (and DeltaCompression).
+2. PlayMode smoke test of the GoblinValley scene in CI; goblin/hero visuals spawned through `PrefabSpawner`, panels through `UINavigation`.
+3. Loot events as bus events (or remove them).
 4. `StatContainer` performance and int rounding, after a benchmark.
 5. Re-enable or delete the three `#if FALSE` editor windows.
