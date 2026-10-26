@@ -2,7 +2,9 @@
     "name": "RPGFramework.Tools.ItemDatabaseManager.Editor",
     "rootNamespace": "RPGFramework.Tools.ItemDatabaseManager.Editor",
     "references": [
-        "RPGFramework.Items.Runtime"
+        "RPGFramework.Core.Runtime",
+        "RPGFramework.Items.Runtime",
+        "RPGFramework.Tools.ItemDatabaseManager.Runtime"
     ],
     "includePlatforms": [
         "Editor"

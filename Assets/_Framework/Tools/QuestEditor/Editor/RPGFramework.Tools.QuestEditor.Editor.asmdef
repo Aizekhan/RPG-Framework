@@ -2,7 +2,9 @@
     "name": "RPGFramework.Tools.QuestEditor.Editor",
     "rootNamespace": "RPGFramework.Tools.QuestEditor.Editor",
     "references": [
-        "RPGFramework.Quests.Runtime"
+        "RPGFramework.Core.Runtime",
+        "RPGFramework.Quests.Runtime",
+        "RPGFramework.Tools.QuestEditor.Runtime"
     ],
     "includePlatforms": [
         "Editor"

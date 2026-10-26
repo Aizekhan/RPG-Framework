@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEditor;
 using RPGFramework.Tools.LootTableDesigner;
+using RPGFramework.Loot;
 using System.Linq;
 
 namespace RPGFramework.Tools.LootTableDesigner.Editor
@@ -268,7 +269,9 @@ namespace RPGFramework.Tools.LootTableDesigner.Editor
             if (GUILayout.Button("Test Roll"))
             {
                 var lootTableInterface = lootTable.ToLootTable();
-                var generator = new LootGenerator();
+                // Create a simple registry for testing (empty, since we're passing the table directly)
+                var registry = new LootTableRegistry();
+                var generator = new LootGenerator(registry);
                 var result = generator.GenerateLoot(lootTableInterface, 1);
 
                 Debug.Log($"Loot Roll Result ({result.Drops.Count} items):\n" +

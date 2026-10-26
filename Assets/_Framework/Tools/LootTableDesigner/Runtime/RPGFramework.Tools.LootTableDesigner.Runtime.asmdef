@@ -1,0 +1,17 @@
+{
+    "name": "RPGFramework.Tools.LootTableDesigner.Runtime",
+    "rootNamespace": "RPGFramework.Tools.LootTableDesigner",
+    "references": [
+        "RPGFramework.Core.Runtime",
+        "RPGFramework.Loot.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

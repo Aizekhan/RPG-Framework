@@ -1,0 +1,17 @@
+{
+    "name": "RPGFramework.Tools.QuestEditor.Runtime",
+    "rootNamespace": "RPGFramework.Tools.QuestEditor",
+    "references": [
+        "RPGFramework.Core.Runtime",
+        "RPGFramework.Quests.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

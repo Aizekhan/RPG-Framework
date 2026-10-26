@@ -1,0 +1,17 @@
+{
+    "name": "RPGFramework.Tools.ItemDatabaseManager.Runtime",
+    "rootNamespace": "RPGFramework.Tools.ItemDatabaseManager",
+    "references": [
+        "RPGFramework.Core.Runtime",
+        "RPGFramework.Items.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
