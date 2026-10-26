@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using RPGFramework.Logging;
 
 namespace RPGFramework.Systems
@@ -84,6 +85,7 @@ namespace RPGFramework.Systems
         private bool _dirty;
         private bool _disposed;
         private IPhaseProvider _phaseProvider;
+        private ISystemProfiler _profiler;
 
         public SystemGroup(string name, ILogger logger = null)
         {
@@ -112,6 +114,23 @@ namespace RPGFramework.Systems
                 {
                     if (entry.System is SystemGroup child && child.PhaseProvider == null)
                         child.PhaseProvider = value;
+                }
+            }
+        }
+
+        /// <summary>
+        /// When set, every system call is timed and reported (nested groups inherit it). Null costs nothing.
+        /// </summary>
+        public ISystemProfiler Profiler
+        {
+            get => _profiler;
+            set
+            {
+                _profiler = value;
+                foreach (var entry in _entries)
+                {
+                    if (entry.System is SystemGroup child && child.Profiler == null)
+                        child.Profiler = value;
                 }
             }
         }
@@ -155,8 +174,13 @@ namespace RPGFramework.Systems
                 }
             }
 
-            if (system is SystemGroup childGroup && childGroup.PhaseProvider == null)
-                childGroup.PhaseProvider = PhaseProvider;
+            if (system is SystemGroup childGroup)
+            {
+                if (childGroup.PhaseProvider == null)
+                    childGroup.PhaseProvider = PhaseProvider;
+                if (childGroup.Profiler == null)
+                    childGroup.Profiler = Profiler;
+            }
 
             if (system is IPhaseFilteredSystem && PhaseProvider == null)
                 Logger.LogWarning($"{NameOf(system)} is phase-filtered but '{Name}' has no PhaseProvider; it will run in every phase", Category);
@@ -272,6 +296,8 @@ namespace RPGFramework.Systems
             {
                 if (entry.System is IUpdateSystem system && CanRun(entry))
                 {
+                    var profiler = _profiler;
+                    long start = profiler != null ? Stopwatch.GetTimestamp() : 0;
                     try
                     {
                         system.Update(deltaTime);
@@ -281,6 +307,8 @@ namespace RPGFramework.Systems
                     {
                         OnSystemError(entry, "Update", ex);
                     }
+                    if (profiler != null)
+                        Report(profiler, entry, SystemStage.Update, start);
                 }
             }
         }
@@ -291,6 +319,8 @@ namespace RPGFramework.Systems
             {
                 if (entry.System is IFixedUpdateSystem system && CanRun(entry))
                 {
+                    var profiler = _profiler;
+                    long start = profiler != null ? Stopwatch.GetTimestamp() : 0;
                     try
                     {
                         system.FixedUpdate(fixedDeltaTime);
@@ -300,6 +330,8 @@ namespace RPGFramework.Systems
                     {
                         OnSystemError(entry, "FixedUpdate", ex);
                     }
+                    if (profiler != null)
+                        Report(profiler, entry, SystemStage.FixedUpdate, start);
                 }
             }
         }
@@ -310,6 +342,8 @@ namespace RPGFramework.Systems
             {
                 if (entry.System is ILateUpdateSystem system && CanRun(entry))
                 {
+                    var profiler = _profiler;
+                    long start = profiler != null ? Stopwatch.GetTimestamp() : 0;
                     try
                     {
                         system.LateUpdate(deltaTime);
@@ -319,6 +353,8 @@ namespace RPGFramework.Systems
                     {
                         OnSystemError(entry, "LateUpdate", ex);
                     }
+                    if (profiler != null)
+                        Report(profiler, entry, SystemStage.LateUpdate, start);
                 }
             }
         }
@@ -368,6 +404,19 @@ namespace RPGFramework.Systems
                 return filtered.IsActiveInPhase(PhaseProvider.CurrentPhaseId);
 
             return true;
+        }
+
+        private static void Report(ISystemProfiler profiler, Entry entry, SystemStage stage, long start)
+        {
+            double milliseconds = (Stopwatch.GetTimestamp() - start) * 1000.0 / Stopwatch.Frequency;
+            try
+            {
+                profiler.Record(entry.Name, stage, milliseconds);
+            }
+            catch
+            {
+                // A broken profiler must never affect the game loop
+            }
         }
 
         private void InitializeEntry(Entry entry)

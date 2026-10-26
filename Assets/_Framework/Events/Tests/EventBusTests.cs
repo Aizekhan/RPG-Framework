@@ -672,6 +672,24 @@ namespace RPGFramework.Events.Tests
             recorder.Clear();
 
             Assert.That(recorder.Snapshot(), Is.Empty);
+            Assert.That(recorder.GetTypeCounts(), Is.Empty);
+        }
+
+        [Test]
+        public void TypeCounts_IncludeEvictedEvents_MostFrequentFirst()
+        {
+            var bus = new EventBus();
+            var recorder = new EventRecorder(bus, capacity: 1);
+
+            bus.Publish(new OtherEvent());
+            bus.Publish(new TestEvent(1));
+            bus.Publish(new TestEvent(2));
+
+            var counts = recorder.GetTypeCounts();
+            Assert.That(counts.Count, Is.EqualTo(2));
+            Assert.That(counts[0].Key, Is.EqualTo(typeof(TestEvent)));
+            Assert.That(counts[0].Value, Is.EqualTo(2));
+            Assert.That(counts[1].Value, Is.EqualTo(1));
         }
     }
 }

@@ -34,6 +34,7 @@ namespace RPGFramework.Events
         private readonly RecordedEvent[] _buffer;
         private readonly IDisposable _observer;
         private readonly Func<Type, bool> _filter;
+        private readonly Dictionary<Type, long> _typeCounts = new Dictionary<Type, long>();
         private int _start;
         private int _count;
         private long _sequence;
@@ -76,10 +77,25 @@ namespace RPGFramework.Events
             }
         }
 
+        /// <summary>
+        /// Events recorded per type since creation or the last <see cref="Clear"/>, most frequent first
+        /// (counts include events already evicted from the buffer).
+        /// </summary>
+        public IReadOnlyList<KeyValuePair<Type, long>> GetTypeCounts()
+        {
+            lock (_gate)
+            {
+                var result = new List<KeyValuePair<Type, long>>(_typeCounts);
+                result.Sort((a, b) => b.Value.CompareTo(a.Value));
+                return result;
+            }
+        }
+
         public void Clear()
         {
             lock (_gate)
             {
+                _typeCounts.Clear();
                 Array.Clear(_buffer, 0, _buffer.Length);
                 _start = 0;
                 _count = 0;
@@ -96,6 +112,8 @@ namespace RPGFramework.Events
             lock (_gate)
             {
                 var entry = new RecordedEvent(++_sequence, DateTime.UtcNow, eventType, payload);
+                _typeCounts.TryGetValue(eventType, out var typeCount);
+                _typeCounts[eventType] = typeCount + 1;
                 int index = (_start + _count) % _buffer.Length;
                 _buffer[index] = entry;
                 if (_count < _buffer.Length)
