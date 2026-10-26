@@ -102,6 +102,15 @@ namespace RPGFramework.Networking.UnityTransport
             _ids[connection] = ServerConnectionId;
         }
 
+        /// <summary>
+        /// Runs the driver without taking its events, e.g. while waiting for a relay to accept this machine.
+        /// </summary>
+        public void Update()
+        {
+            if (_driver.IsCreated)
+                _driver.ScheduleUpdate().Complete();
+        }
+
         public void Disconnect()
         {
             if (!_driver.IsCreated)

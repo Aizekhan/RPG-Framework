@@ -1,0 +1,44 @@
+{
+    "name": "RPGFramework.Networking.UnityRelay.Tests",
+    "rootNamespace": "RPGFramework.Networking.UnityRelay.Tests",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "RPGFramework.Networking.Runtime",
+        "RPGFramework.Networking.UnityTransport",
+        "RPGFramework.Networking.UnityRelay",
+        "RPGFramework.ActionRpg.Runtime",
+        "RPGFramework.Bootstrap.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "RPGFramework.Core.Runtime",
+        "RPGFramework.DI.Runtime",
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Systems.Runtime",
+        "Unity.Networking.Transport",
+        "Unity.Services.Multiplayer",
+        "UniTask"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS",
+        "RPG_MULTIPLAYER_SERVICES"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.services.multiplayer",
+            "expression": "2.4.1",
+            "define": "RPG_MULTIPLAYER_SERVICES"
+        }
+    ],
+    "noEngineReferences": false
+}

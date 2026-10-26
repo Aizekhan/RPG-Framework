@@ -1,4 +1,4 @@
-# Recipe: co-op (2-8 players on one network)
+# Recipe: co-op (2-8 players, local network or internet)
 
 Every game built on `ActionRpgHost` can already be played together; there is nothing to switch on.
 
@@ -9,7 +9,8 @@ Every game built on `ActionRpgHost` can already be played together; there is not
 | Names and colours | Each player types a name in F2 (remembered). It shows above their head with a ring in their party colour: host inspector > **Party Colors**, by seat (host first, then friends in the order they joined). |
 | Port, or no co-op at all | Host inspector > **Co-op**: untick it to hide F2, or change **Coop Port** (7777). Players allow it through the firewall the first time. |
 | Code | `host.HostGame()`, `host.JoinGame(code)`, `host.LeaveGame()`; `host.Role`, `host.JoinCode`, `host.CoopStatus` (why a join failed, or "The host left the game."). |
-| Another way to connect | Set `host.SessionProvider` (an `INetworkSessionProvider`: relay service, platform lobbies) before hosting or joining. The default is `LanSessionProvider`. |
+| Over the internet (Unity Relay) | Install **Multiplayer Services** (`com.unity.services.multiplayer` 2.4.1+) in Package Manager; nothing else in code. F2 then offers **Local network / Internet (Unity Relay)**: the host gets a short code, friends type it. The project must be linked to a Unity Gaming Services project: **Edit > Project Settings > Services** (anonymous sign-in on, the default); until then F2 says so. Check Unity's current Relay pricing and free tier before shipping. Command line: `-provider unity-relay -host`, `-provider unity-relay -join ABC123`. |
+| Another way to connect | Set `host.SessionProvider` (an `INetworkSessionProvider`: platform lobbies, your own server) before hosting or joining, or register one in `NetworkSessionProviders` from its own module so every game offers it. The default is `LanSessionProvider`. |
 
 How it works, so new rules stay co-op ready:
 

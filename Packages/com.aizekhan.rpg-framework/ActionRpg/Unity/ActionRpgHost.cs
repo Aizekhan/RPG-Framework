@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using RPGFramework.ActionRpg.Coop;
 using RPGFramework.Bootstrap.Unity;
@@ -35,8 +36,9 @@ namespace RPGFramework.ActionRpg
     /// Put this on one GameObject in the scene, drag a <see cref="GameSetup"/> into it and press Play: the player
     /// spawns here, enemies come in waves, the camera follows and a HUD shows health, quests and loot.
     /// Derive from it and override <see cref="ConfigureGameModules"/> to add rules of your own.
-    /// Co-op (F2, or <c>-host</c> / <c>-join &lt;ip&gt;</c> on the command line): one player hosts, up to three friends
-    /// on the same network join; the host's machine runs the rules and the others see and play its game.
+    /// Co-op (F2, or <c>-host</c> / <c>-join &lt;code&gt;</c> on the command line): one player hosts, friends join (up to
+    /// Max Players) on the same network, or over the internet when a session module such as Unity Relay is installed;
+    /// the host's machine runs the rules and the others see and play its game.
     /// </summary>
     public class ActionRpgHost : GameHostBehaviour
     {
@@ -83,6 +85,8 @@ namespace RPGFramework.ActionRpg
         private ActionRpgHud _hud;
         private Transform _charactersRoot;
         private INetworkSessionProvider _sessions;
+        private LanSessionProvider _lan;
+        private List<INetworkSessionProvider> _providers;
         private INetworkTransport _transport;
         private int _generation;
         private bool _opening;
@@ -148,9 +152,56 @@ namespace RPGFramework.ActionRpg
         /// </summary>
         public INetworkSessionProvider SessionProvider
         {
-            get => _sessions ?? (_sessions = new LanSessionProvider(_coopPort));
+            get => _sessions ?? Lan;
             set => _sessions = value;
         }
+
+        /// <summary>
+        /// The ways to play together this game offers (F2 lets the player pick): the local network, then one for each
+        /// installed session module (<see cref="NetworkSessionProviders"/>), e.g. Unity Relay once the Multiplayer
+        /// Services SDK is in the project. No game code is needed for them to appear.
+        /// </summary>
+        public IReadOnlyList<INetworkSessionProvider> SessionProviders
+        {
+            get
+            {
+                if (_providers == null)
+                {
+                    _providers = new List<INetworkSessionProvider> { Lan };
+                    foreach (var entry in NetworkSessionProviders.Available)
+                        _providers.Add(entry.Create());
+                }
+                if (_sessions != null && !_providers.Contains(_sessions))
+                    _providers.Add(_sessions);
+                return _providers;
+            }
+        }
+
+        /// <summary>
+        /// Picks how to play together by id: "lan", or a module's id such as "unity-relay" (also <c>-provider &lt;id&gt;</c>
+        /// on the command line).
+        /// </summary>
+        /// <returns>False when no such provider is installed (the choice stays as it was).</returns>
+        public bool UseSessionProvider(string id)
+        {
+            if (string.Equals(id, "lan", StringComparison.OrdinalIgnoreCase))
+            {
+                SessionProvider = Lan;
+                return true;
+            }
+            var available = NetworkSessionProviders.Available;
+            for (int i = 0; i < available.Count; i++)
+            {
+                if (string.Equals(available[i].Id, id, StringComparison.OrdinalIgnoreCase))
+                {
+                    SessionProvider = SessionProviders[i + 1];
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private LanSessionProvider Lan => _lan ?? (_lan = new LanSessionProvider(_coopPort));
 
         /// <summary>
         /// Most players in the games this machine hosts, the host included (2 to <see cref="CoopProtocol.MaxSupportedPlayers"/>).
@@ -230,8 +281,8 @@ namespace RPGFramework.ActionRpg
         public void UseCoopPort(int port)
         {
             _coopPort = port;
-            if (_sessions is LanSessionProvider lan)
-                lan.Port = port;
+            if (_lan != null)
+                _lan.Port = port;
         }
 
         protected sealed override void ConfigureModules(IGameCompositionBuilder builder)
@@ -383,6 +434,8 @@ namespace RPGFramework.ActionRpg
             {
                 if (args[i] == "-port" && int.TryParse(args[i + 1], out int port))
                     UseCoopPort(port);
+                else if (args[i] == "-provider" && !UseSessionProvider(args[i + 1]))
+                    CoopStatus = $"'{args[i + 1]}' is not an installed way to play together; using {SessionProvider.DisplayName}.";
             }
             for (int i = 0; i < args.Length; i++)
             {

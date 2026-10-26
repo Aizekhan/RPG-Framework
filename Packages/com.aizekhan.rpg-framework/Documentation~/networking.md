@@ -14,7 +14,8 @@ Status on 2026-10-26. **Action RPGs made with this package can be played in co-o
 | Action RPG co-op (`ActionRpg/Runtime/Coop`): `CoopHost`, `CoopClient`, `RemoteWorld`, the party in `ActorWorld` | done, tested over loopback (EditMode) and UDP (PlayMode) |
 | `ActionRpgHost` co-op: F2 panel, `-host` / `-join`, smooth movement of others (`RemoteMotion`) | done, PlayMode test with two hosts |
 | `ReplicationSystem`, `NetworkEntity`, `NetworkTransform`, `DeltaCompression` (generic entity replication) | older, tested on a mock transport; the action RPG does not use them |
-| Internet play without a VPN (Unity Relay, NAT punch-through), lobby / matchmaking, host migration, client-side prediction | **missing** |
+| Internet play without a VPN: `RPGFramework.Networking.UnityRelay` (compiled only with the Multiplayer Services SDK) | **built and tested against a fake room service; not yet proven between two real networks** |
+| Lobby browser / matchmaking, host migration, client-side prediction | missing |
 
 ## How the action RPG co-op works
 
@@ -46,7 +47,7 @@ INetworkSessionProvider            HostAsync(options) -> HostedSession { Transpo
                                    JoinAsync(joinCode) -> Transport (connecting)
   LanSessionProvider               UDP on the local network / a VPN; the code is "IP" or "IP:port"     (done)
   LoopbackSessionProvider          in memory, for tests                                                 (done)
-  Unity Relay provider             room code from Unity Relay, traffic through Unity's relays           (proposed)
+  UnityRelaySessionProvider        room code from Unity Multiplayer Services, traffic through Unity Relay (module, needs the SDK)
   Steam / EOS providers            lobbies, friend invites, the platform's relays                       (later)
 NetworkManager.StartServer() / StartClient()   take over a transport the provider already opened
 ActionRpgHost.SessionProvider                  LAN by default; set another before hosting or joining
@@ -83,7 +84,7 @@ Sources: [Unity Gaming Services pricing](https://unity.com/products/gaming-servi
 [EOS plugin for Unity](https://github.com/EOS-Contrib/eos_plugin_for_unity/blob/stable/com.playeveryware.eos/README.md),
 [Photon pricing](https://doc.photonengine.com/photon/current/pricing).
 
-## Unity Relay: compatibility check and adaptation plan (2026-10-26, nothing integrated yet)
+## Unity Relay: compatibility check, adaptation plan and module (2026-10-26)
 
 **Verdict: compatible.** Our `UnityNetworkTransport` already is a Unity Transport `NetworkDriver`; Relay is a setting
 of that driver, not another transport. The protocol, the messages, `CoopHost` / `CoopClient` and the game rules do
@@ -133,6 +134,22 @@ Plan, in order (each step proven by tests before the next):
    machines on different networks), optionally a nightly job if the project's credentials are added as CI secrets.
 6. **Panel:** F2 offers "Local network" and "Internet (Unity Relay)" when the module is present; the LAN provider stays
    the default.
+
+**Step 3 status: module built.** `Networking/UnityRelay` (assembly `RPGFramework.Networking.UnityRelay`, define
+`RPG_MULTIPLAYER_SERVICES` set by `versionDefines` when `com.unity.services.multiplayer` 2.4.1+ is installed):
+`IRelayService` (the cloud side; `MultiplayerRelayService` is the real one: anonymous sign-in, private session, Relay
+over DTLS, our `INetworkHandler`), `UnityRelaySessionProvider` (host waits until the relay accepts it, codes are
+case- and dash-insensitive, failed starts close the driver and the room), `RelaySessionTransport` (closing the game
+leaves the room; a host's room closes for everyone), `RelayErrors` (service errors in plain words). The provider
+registers itself in `NetworkSessionProviders`; `ActionRpgHost` lists registered providers next to the local network
+and F2 lets the player choose. The main project now has the SDK, so CI runs the relay tests.
+
+What the tests prove, and what they do not: `UnityRelaySessionProviderTests` run the provider against a **fake** room
+service over the in-memory network: create, code, join, connect, co-op plays, a different game version is refused,
+wrong code, full room, empty code, project not set up, leaving, a transport that cannot open, and the real Unity
+Transport host giving up when no relay answers. They prove the integration logic. They do **not** prove that two
+players on different networks can play: that needs Unity's servers, a linked UGS project and a manual test (host on
+one network, friend on another: code, join, both see movement, combat, then the host leaves and the friend is told).
 
 What it needs from the owner: a Unity Gaming Services project linked to this Unity project. Check the current
 Relay pricing and free tier first (the figures in the table above are from 2023). Steps 1-2 need no account.

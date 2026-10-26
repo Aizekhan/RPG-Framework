@@ -195,6 +195,41 @@ namespace RPGFramework.ActionRpg.PlayTests
         }
 
         [UnityTest]
+        public IEnumerator AnInstalledSessionModule_IsOffered_AndTheGamePlaysThroughIt()
+        {
+            // What an installed module (Unity Relay, ...) does: register itself; the game's code does not change
+            var network = new Networking.LoopbackNetwork();
+            Networking.NetworkSessionProviders.Register("test-rooms", "Test rooms", () => new Networking.LoopbackSessionProvider(network, 5000));
+            try
+            {
+                var first = StartGame("Host via module");
+                var second = StartGame("Friend via module");
+                _more.Add(first);
+                _more.Add(second);
+                yield return null;
+
+                var offered = first.SessionProviders.Select(p => p.DisplayName).ToList();
+                Assert.That(offered[0], Is.EqualTo("Local network"));
+                Assert.That(first.SessionProviders.OfType<Networking.LoopbackSessionProvider>().Count(), Is.EqualTo(1),
+                    "the registered module is offered (other installed ones, such as Unity Relay, may be too)");
+                Assert.That(first.SessionProvider.DisplayName, Is.EqualTo("Local network"), "the local network stays the default");
+                Assert.That(first.UseSessionProvider("test-rooms"), Is.True);
+                Assert.That(second.UseSessionProvider("test-rooms"), Is.True);
+                Assert.That(first.UseSessionProvider("not-installed"), Is.False);
+
+                Assert.That(first.HostGame(), Is.True, first.CoopStatus);
+                yield return WaitUntil(() => first.Role == CoopRole.Hosting && first.JoinCode != "", "hosting through the module");
+                second.JoinGame(first.JoinCode);
+                yield return WaitUntil(() => second.CoopClient?.State == Coop.CoopClientState.Playing, () => "joining through the module: " + second.CoopStatus);
+                Assert.That(first.World.Players, Has.Count.EqualTo(2));
+            }
+            finally
+            {
+                Networking.NetworkSessionProviders.Unregister("test-rooms");
+            }
+        }
+
+        [UnityTest]
         public IEnumerator NobodyHosting_TheFriendIsToldAndPlaysAlone()
         {
             // A documentation-only address (TEST-NET-1): nothing answers there, on any machine

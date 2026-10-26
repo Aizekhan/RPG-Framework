@@ -84,6 +84,22 @@ namespace RPGFramework.ActionRpg
                 GUILayout.Label("Switching...", _text);
                 return;
             }
+            var providers = _host.SessionProviders;
+            if (providers.Count > 1)
+            {
+                // Local network or an installed online service (Unity Relay, ...)
+                int current = 0;
+                var names = new string[providers.Count];
+                for (int i = 0; i < providers.Count; i++)
+                {
+                    names[i] = providers[i].DisplayName;
+                    if (providers[i] == _host.SessionProvider)
+                        current = i;
+                }
+                int chosen = GUILayout.Toolbar(current, names, GUILayout.Height(28f));
+                if (chosen != current)
+                    _host.SessionProvider = providers[chosen];
+            }
             GUILayout.Label($"Play together ({_host.SessionProvider.DisplayName}): one hosts, up to {_host.MaxPlayers - 1} join.", _text);
             GUILayout.BeginHorizontal();
             GUILayout.Label("Your name", _text, GUILayout.Width(100f));

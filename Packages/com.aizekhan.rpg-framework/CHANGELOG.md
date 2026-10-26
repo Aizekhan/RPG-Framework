@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- **Internet co-op module `RPGFramework.Networking.UnityRelay`** (compiled only when `com.unity.services.multiplayer` 2.4.1+ is installed; the package does not depend on it): `UnityRelaySessionProvider` (room code from Unity Multiplayer Services, traffic through Unity Relay over DTLS), `IRelayService` / `MultiplayerRelayService`, `RelaySessionTransport`, `RelayErrors`. Tested against a fake room service; not yet proven between two real networks
+- `NetworkSessionProviders`: modules register the ways to play together they bring; `ActionRpgHost.SessionProviders` / `UseSessionProvider(id)` / `-provider <id>`, and F2 lets the player choose (local network stays the default)
+- `UnityNetworkTransport.Update()` runs the driver without taking events (waiting for a relay)
 - `ActionRpgHost` **Max Players** (2-8, default 4) in the inspector and as a property; it sets the hosted session and `CoopHost.MaxPlayers`. Eight players are tested over loopback (EditMode) and over real UDP with eight games (PlayMode). `CoopProtocol.MaxSupportedPlayers`
 - Party colours: seats past 'Party Colors' get generated colours, each the bright hue least like those before it, so no two players share one. `PlayerTagView.DefaultPalette()`
 - Friends appear in a ring around the start instead of inside each other

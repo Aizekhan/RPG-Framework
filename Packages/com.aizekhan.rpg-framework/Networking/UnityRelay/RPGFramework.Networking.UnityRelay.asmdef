@@ -1,0 +1,30 @@
+{
+    "name": "RPGFramework.Networking.UnityRelay",
+    "rootNamespace": "RPGFramework.Networking.UnityRelay",
+    "references": [
+        "RPGFramework.Networking.Runtime",
+        "RPGFramework.Networking.UnityTransport",
+        "Unity.Networking.Transport",
+        "Unity.Services.Multiplayer",
+        "Unity.Services.Core",
+        "Unity.Services.Authentication",
+        "UniTask"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "RPG_MULTIPLAYER_SERVICES"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.services.multiplayer",
+            "expression": "2.4.1",
+            "define": "RPG_MULTIPLAYER_SERVICES"
+        }
+    ],
+    "noEngineReferences": false
+}
