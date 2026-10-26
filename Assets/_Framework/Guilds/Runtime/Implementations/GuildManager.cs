@@ -66,10 +66,11 @@ namespace RPGFramework.Guilds.Runtime
             if (guild == null)
                 throw new InvalidOperationException($"Guild '{guildId}' not found");
 
-            // Remove all members
+            // Remove all members, including the leader (RemoveMember refuses the leader while others remain)
             foreach (var member in guild.GetMembers().ToList())
             {
-                RemoveMember(guildId, member.EntityId);
+                ((Guild)guild).RemoveMemberInternal(member.EntityId);
+                ClearMembership(member.EntityId);
             }
 
             // Unregister guild
@@ -153,11 +154,7 @@ namespace RPGFramework.Guilds.Runtime
             // Remove from guild
             ((Guild)guild).RemoveMemberInternal(entityId);
 
-            // Clear entity component
-            var memberData = GuildMemberData.Create(string.Empty);
-            memberData.Clear();
-            _entityManager.AddComponent(entityId, memberData);
-            _entityToGuildMap.Remove(entityId);
+            ClearMembership(entityId);
 
             // If this was the last member, disband the guild
             if (guild.MemberCount == 0)
@@ -278,6 +275,14 @@ namespace RPGFramework.Guilds.Runtime
             }
 
             return false;
+        }
+
+        private void ClearMembership(int entityId)
+        {
+            var memberData = GuildMemberData.Create(string.Empty);
+            memberData.Clear();
+            _entityManager.AddComponent(entityId, memberData);
+            _entityToGuildMap.Remove(entityId);
         }
     }
 }
