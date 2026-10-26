@@ -65,14 +65,20 @@ namespace RPGFramework.Networking
         void Broadcast(INetworkMessage message, bool reliable = true);
 
         /// <summary>
-        /// Register a message handler.
+        /// Adds a handler for messages of type T. Several handlers may listen to one type; each runs in
+        /// registration order and an exception in one does not stop the others. Dispose the result to remove it.
         /// </summary>
-        void RegisterMessageHandler<T>(Action<int, T> handler) where T : INetworkMessage;
+        IDisposable RegisterMessageHandler<T>(Action<int, T> handler) where T : INetworkMessage;
 
         /// <summary>
-        /// Unregister a message handler.
+        /// Removes every handler for messages of type T.
         /// </summary>
         void UnregisterMessageHandler<T>() where T : INetworkMessage;
+
+        /// <summary>
+        /// Removes one handler; returns false if it was not registered.
+        /// </summary>
+        bool UnregisterMessageHandler<T>(Action<int, T> handler) where T : INetworkMessage;
 
         /// <summary>
         /// Process incoming messages. Call this regularly (e.g., every frame).

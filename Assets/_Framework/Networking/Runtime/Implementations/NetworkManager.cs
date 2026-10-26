@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using RPGFramework.Logging;
 
 namespace RPGFramework.Networking
 {
@@ -11,7 +12,10 @@ namespace RPGFramework.Networking
         private readonly INetworkTransport _transport;
         private readonly INetworkSerializer _serializer;
         private readonly Dictionary<int, NetworkConnection> _connections;
-        private readonly Dictionary<int, Action<int, INetworkMessage>> _messageHandlers;
+        private const string LogCategory = "Network";
+
+        private readonly Dictionary<int, List<HandlerEntry>> _messageHandlers;
+        private readonly ILogger _logger;
         private readonly List<INetworkConnection> _connectionsReadOnly;
         private NetworkStats _stats;
         private float _timeSinceLastPing;
@@ -22,14 +26,20 @@ namespace RPGFramework.Networking
         public IReadOnlyList<INetworkConnection> Connections => _connectionsReadOnly;
         public NetworkConfig Config { get; private set; }
 
-        public NetworkManager(INetworkTransport transport, INetworkSerializer serializer, NetworkConfig config)
+        /// <summary>
+        /// Optional per-message authority rules; null disables the checks.
+        /// </summary>
+        public NetworkAuthority Authority { get; set; }
+
+        public NetworkManager(INetworkTransport transport, INetworkSerializer serializer, NetworkConfig config, ILogger logger = null)
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
             _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
             Config = config;
 
             _connections = new Dictionary<int, NetworkConnection>();
-            _messageHandlers = new Dictionary<int, Action<int, INetworkMessage>>();
+            _messageHandlers = new Dictionary<int, List<HandlerEntry>>();
+            _logger = logger;
             _connectionsReadOnly = new List<INetworkConnection>();
             Role = NetworkRole.None;
             LocalConnectionId = -1;
@@ -67,6 +77,7 @@ namespace RPGFramework.Networking
 
         public void Send(int connectionId, INetworkMessage message, bool reliable = true)
         {
+            EnsureCanSend(message);
             if (!IsConnected || Role != NetworkRole.Server)
                 return;
 
@@ -80,6 +91,7 @@ namespace RPGFramework.Networking
 
         public void SendToServer(INetworkMessage message, bool reliable = true)
         {
+            EnsureCanSend(message);
             if (!IsConnected || Role != NetworkRole.Client)
                 return;
 
@@ -91,6 +103,7 @@ namespace RPGFramework.Networking
 
         public void Broadcast(INetworkMessage message, bool reliable = true)
         {
+            EnsureCanSend(message);
             if (!IsConnected || Role != NetworkRole.Server)
                 return;
 
@@ -100,20 +113,39 @@ namespace RPGFramework.Networking
             _stats.TotalBytesSent += data.Length * _connections.Count;
         }
 
-        public void RegisterMessageHandler<T>(Action<int, T> handler) where T : INetworkMessage
+        public IDisposable RegisterMessageHandler<T>(Action<int, T> handler) where T : INetworkMessage
         {
-            var message = Activator.CreateInstance<T>();
-            int messageTypeId = message.MessageTypeId;
+            if (handler == null)
+                throw new ArgumentNullException(nameof(handler));
 
-            _messageHandlers[messageTypeId] = (connectionId, msg) => handler(connectionId, (T)msg);
+            int messageTypeId = TypeIdOf<T>();
+            if (!_messageHandlers.TryGetValue(messageTypeId, out var handlers))
+            {
+                handlers = new List<HandlerEntry>();
+                _messageHandlers.Add(messageTypeId, handlers);
+            }
+
+            var entry = new HandlerEntry(handler, (connectionId, msg) => handler(connectionId, (T)msg));
+            handlers.Add(entry);
+            return new HandlerRegistration(this, messageTypeId, entry);
         }
 
         public void UnregisterMessageHandler<T>() where T : INetworkMessage
         {
-            var message = Activator.CreateInstance<T>();
-            int messageTypeId = message.MessageTypeId;
+            _messageHandlers.Remove(TypeIdOf<T>());
+        }
 
-            _messageHandlers.Remove(messageTypeId);
+        public bool UnregisterMessageHandler<T>(Action<int, T> handler) where T : INetworkMessage
+        {
+            int messageTypeId = TypeIdOf<T>();
+            if (handler == null || !_messageHandlers.TryGetValue(messageTypeId, out var handlers))
+                return false;
+
+            int index = handlers.FindIndex(h => h.Original.Equals(handler));
+            if (index < 0)
+                return false;
+            RemoveHandler(messageTypeId, handlers[index]);
+            return true;
         }
 
         public void Update(float deltaTime)
@@ -227,23 +259,45 @@ namespace RPGFramework.Networking
                     return;
                 }
 
-                // Invoke registered handlers
-                if (_messageHandlers.TryGetValue(messageTypeId, out var handler))
+                if (Authority != null && !Authority.CanReceive(messageTypeId, Role))
                 {
-                    handler(connectionId, (INetworkMessage)message);
+                    _stats.RejectedMessages++;
+                    _logger.LogWarning($"Rejected message type {messageTypeId} from connection {connectionId}: not allowed from that side", LogCategory);
+                    return;
                 }
+
+                Dispatch(connectionId, messageTypeId, (INetworkMessage)message);
             }
             catch (Exception ex)
             {
-                // Log error (in production, use proper logging)
-                Console.WriteLine($"Error deserializing message: {ex.Message}");
+                _stats.DroppedPackets++;
+                _logger.LogError($"Could not deserialize message from connection {connectionId}", LogCategory, ex);
+            }
+        }
+
+        private void Dispatch(int connectionId, int messageTypeId, INetworkMessage message)
+        {
+            if (!_messageHandlers.TryGetValue(messageTypeId, out var handlers) || handlers.Count == 0)
+                return;
+
+            // Snapshot: handlers may (un)register while handling
+            foreach (var entry in handlers.ToArray())
+            {
+                try
+                {
+                    entry.Invoke(connectionId, message);
+                }
+                catch (Exception ex)
+                {
+                    _stats.HandlerErrors++;
+                    _logger.LogError($"Handler for message type {messageTypeId} failed", LogCategory, ex);
+                }
             }
         }
 
         private void HandleError(int connectionId, string error)
         {
-            // Log error
-            Console.WriteLine($"Network error on connection {connectionId}: {error}");
+            _logger.LogError($"Network error on connection {connectionId}: {error}", LogCategory);
         }
 
         private void HandlePing(int connectionId, PingMessage ping)
@@ -297,6 +351,55 @@ namespace RPGFramework.Networking
         private void UpdateConnectionTimeouts(float deltaTime)
         {
             // TODO: Implement connection timeout tracking
+        }
+
+        private void EnsureCanSend(INetworkMessage message)
+        {
+            if (message == null)
+                throw new ArgumentNullException(nameof(message));
+            if (Authority != null && !Authority.CanSend(message.MessageTypeId, Role))
+                throw new InvalidOperationException(
+                    $"{message.GetType().Name} has {Authority.Get(message.MessageTypeId)} authority and cannot be sent as {Role}");
+        }
+
+        private static int TypeIdOf<T>() where T : INetworkMessage => Activator.CreateInstance<T>().MessageTypeId;
+
+        private void RemoveHandler(int messageTypeId, HandlerEntry entry)
+        {
+            if (_messageHandlers.TryGetValue(messageTypeId, out var handlers) && handlers.Remove(entry) && handlers.Count == 0)
+                _messageHandlers.Remove(messageTypeId);
+        }
+
+        private sealed class HandlerEntry
+        {
+            public HandlerEntry(Delegate original, Action<int, INetworkMessage> invoke)
+            {
+                Original = original;
+                Invoke = invoke;
+            }
+
+            public Delegate Original { get; }
+            public Action<int, INetworkMessage> Invoke { get; }
+        }
+
+        private sealed class HandlerRegistration : IDisposable
+        {
+            private NetworkManager _owner;
+            private readonly int _messageTypeId;
+            private readonly HandlerEntry _entry;
+
+            public HandlerRegistration(NetworkManager owner, int messageTypeId, HandlerEntry entry)
+            {
+                _owner = owner;
+                _messageTypeId = messageTypeId;
+                _entry = entry;
+            }
+
+            public void Dispose()
+            {
+                _owner?.RemoveHandler(_messageTypeId, _entry);
+                _owner = null;
+            }
         }
 
         private int EstimateMessageSize(INetworkMessage message)
