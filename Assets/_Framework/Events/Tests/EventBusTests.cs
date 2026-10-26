@@ -635,7 +635,7 @@ namespace RPGFramework.Events.Tests
                 bus.Publish(new TestEvent(3));
 
                 var snapshot = recorder.Snapshot();
-                Assert.That(snapshot, Has.Count.EqualTo(2));
+                Assert.That(snapshot.Count, Is.EqualTo(2));
                 Assert.That(((TestEvent)snapshot[0].Payload).Value, Is.EqualTo(2));
                 Assert.That(((TestEvent)snapshot[1].Payload).Value, Is.EqualTo(3));
                 Assert.That(snapshot[1].Sequence, Is.EqualTo(3));
@@ -658,7 +658,7 @@ namespace RPGFramework.Events.Tests
             bus.Publish(new TestEvent(3));
 
             var snapshot = recorder.Snapshot();
-            Assert.That(snapshot, Has.Count.EqualTo(1));
+            Assert.That(snapshot.Count, Is.EqualTo(1));
             Assert.That(snapshot[0].EventType, Is.EqualTo(typeof(TestEvent)));
         }
 
