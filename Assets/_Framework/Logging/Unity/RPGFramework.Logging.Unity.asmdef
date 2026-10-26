@@ -1,0 +1,16 @@
+{
+    "name": "RPGFramework.Logging.Unity",
+    "rootNamespace": "RPGFramework.Logging.Unity",
+    "references": [
+        "RPGFramework.Logging.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
