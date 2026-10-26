@@ -9,6 +9,7 @@
         "RPGFramework.ECS.Runtime",
         "RPGFramework.Serialization.Runtime",
         "RPGFramework.Networking.UnityTransport",
+        "Unity.Networking.Transport",
         "UniTask"
     ],
     "includePlatforms": [

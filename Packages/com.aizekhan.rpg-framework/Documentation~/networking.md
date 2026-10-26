@@ -65,15 +65,15 @@ the framework never depends on one.
 | Option | Cost | What players do | Needs | Size of the work here |
 |---|---|---|---|---|
 | LAN / VPN (done) | free | type the host's IP; between homes install Tailscale or ZeroTier | nothing | done |
-| **Unity Relay** | free up to an average of 50 concurrent players a month and 3 GiB per player (150 GiB max), then $0.16 per average CCU and $0.09/GiB (US/EU); figures Unity published in 2023, confirm before launch | host shares a short join code | a Unity Gaming Services project linked to the Unity project; packages `com.unity.services.relay` (+ authentication, anonymous sign-in) | small: the transport already is Unity Transport, Relay plugs into its settings. About 1-2 days with tests |
+| **Unity Relay** | free up to an average of 50 concurrent players a month and 3 GiB per player (150 GiB max), then $0.16 per average CCU and $0.09/GiB (US/EU); figures Unity published in 2023, confirm before launch | host shares a short join code | a Unity Gaming Services project linked to the Unity project; the Multiplayer Services SDK `com.unity.services.multiplayer` (sessions + Relay; authentication with anonymous sign-in) | small: the transport already is Unity Transport, Relay plugs into its settings. About 1-2 days with tests |
 | Steam (Steam Networking Sockets + lobbies) | free relays (Valve's network, hides IPs); $100 Steam Direct fee per game | invite from the Steam friends list, or join a lobby | the game on Steam (app id), Steamworks.NET or Facepunch.Steamworks; players need Steam | medium: a new transport over Steam sockets plus a lobby provider. About 3-5 days |
 | Epic Online Services (P2P + lobbies) | free (no fees for P2P, lobbies, accounts) | invite or lobby; works on any store | an Epic developer account, the PlayEveryWare EOS plugin, a login per player (device id is enough) | medium-large: new transport over EOS P2P, big plugin. About 4-6 days |
 | Photon (Realtime / Fusion) | 20 CCU free for development only; 100 CCU free only for Fusion/Quantum games; paid plans above | room name or code | Photon account and SDK; its own networking model | poor fit: Photon wants to be the whole netcode, competing with `ActorWorld` replication |
 | Own relay + lobby server | a small VPS (a few dollars a month) plus our time | room code | a server we run, update and keep secure | large: 1-2 weeks, then operations |
 
 Recommendation: **Unity Relay next**, as `RPGFramework.Networking.UnityRelay` (compiled only when the Relay package is
-installed, like the Addressables provider). It is the smallest step, store-independent and free at a co-op game's
-scale. Steam and EOS stay possible later as providers of their own, for a game that ships there; nothing in the
+installed, like the Addressables provider). It is the smallest step and store-independent. Unity has offered a free tier
+for Relay; whether it still exists and its limits must be checked against Unity's current terms before a game ships. Steam and EOS stay possible later as providers of their own, for a game that ships there; nothing in the
 co-op changes for them. To start it, the project needs a Unity Gaming Services project (Edit > Project Settings >
 Services), which is the owner's decision and account.
 
@@ -107,10 +107,17 @@ handler (`SessionOptions.WithRelayNetwork().WithNetworkHandler(handler)`). The S
 (client) are exactly what the driver settings above need. The session's short code becomes our join code.
 
 Plan, in order (each step proven by tests before the next):
-1. **Transport opening** (framework core, no new dependency): `UnityNetworkTransport(Action<NetworkSettings>)` and
-   `Connect(NetworkEndpoint)`. Test: the same UDP tests through the new entry points; LAN tests unchanged.
-2. **Unity Transport 2.7.4:** installing the SDK raises Unity Transport from 2.5.3 to 2.7.4 in the project. Run all
-   networking and co-op tests (EditMode and the UDP PlayMode tests) on 2.7.4 before anything else.
+1. **Unity Transport 2.7.4** (done 2026-10-26): installing the SDK raises Unity Transport from 2.5.3 to 2.7.4 in
+   the project (with Collections 2.6.8, Burst 1.8.29). With those pinned in a copy of the project, the whole suite
+   passed unchanged at `069458d`: EditMode 1285/1285, PlayMode 7/7 (co-op over real UDP, eight games), no
+   obsolete-API warnings in our code. The package keeps requiring 2.5.3 as its minimum; nothing forces 2.7.4 on
+   projects without the SDK.
+2. **Transport opening** (done; framework core, no new dependency, `RelayServerData` is part of Unity Transport):
+   `new UnityNetworkTransport(DriverSettings)` adds to the driver settings; `Connect(NetworkEndpoint)`;
+   `UnityNetworkTransport.ThroughRelay(RelayServerData)`; `RelayStatus` (NotUsingRelay / NotEstablished /
+   Established / AllocationInvalid) so a provider can wait for the relay to accept the host. Tests on 2.5.3 and
+   2.7.4: extra settings reach every driver and UDP works as before; a relay transport uses the relay and waits
+   for its acceptance (no relay at a TEST-NET address, so it stays NotEstablished). LAN tests unchanged.
 3. **Module `RPGFramework.Networking.UnityRelay`** (own assembly, compiled only when `com.unity.services.multiplayer`
    is installed, like the Addressables provider): `UnityRelaySessionProvider : INetworkSessionProvider`.
    `HostAsync` signs in anonymously, creates a session (max players from `SessionOptions`, DTLS) and returns the
@@ -127,8 +134,8 @@ Plan, in order (each step proven by tests before the next):
 6. **Panel:** F2 offers "Local network" and "Internet (Unity Relay)" when the module is present; the LAN provider stays
    the default.
 
-What it needs from the owner: a Unity Gaming Services project linked to this Unity project (free at co-op scale, see
-the table above). Until then steps 1-2 can be done and verified.
+What it needs from the owner: a Unity Gaming Services project linked to this Unity project. Check the current
+Relay pricing and free tier first (the figures in the table above are from 2023). Steps 1-2 need no account.
 
 Sources: [Network connection management (Multiplayer Services)](https://docs.unity.com/ugs/en-us/manual/mps-sdk/manual/manage-session-network-connection),
 [`INetworkHandler`](https://docs.unity3d.com/Packages/com.unity.services.multiplayer@2.4/api/Unity.Services.Multiplayer.INetworkHandler.html),

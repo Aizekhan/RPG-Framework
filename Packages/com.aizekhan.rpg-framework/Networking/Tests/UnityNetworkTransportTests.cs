@@ -4,12 +4,16 @@ using System.IO;
 using System.Threading;
 using NUnit.Framework;
 using RPGFramework.Networking.UnityTransport;
+using Unity.Networking.Transport;
+using Unity.Networking.Transport.Relay;
+using Unity.Networking.Transport.Utilities;
 
 namespace RPGFramework.Networking.Tests
 {
     /// <summary>
     /// Real UDP on this machine through Unity Transport: a client connects, messages go both ways (a large one is
-    /// fragmented), and leaving is heard on the other side.
+    /// fragmented), and leaving is heard on the other side. Driver settings can be extended (how relays plug in) without
+    /// changing any of that.
     /// </summary>
     public sealed class UnityNetworkTransportTests
     {
@@ -104,6 +108,60 @@ namespace RPGFramework.Networking.Tests
 
             Assert.That(() => transport.Connect("my-friends-pc", 7777),
                 Throws.ArgumentException.With.Message.Contains("not an IP address"));
+        }
+
+        [Test]
+        public void ExtraDriverSettings_ApplyToEveryDriver_AndUdpWorksAsBefore()
+        {
+            int configured = 0;
+            UnityNetworkTransport.DriverSettings configure = (ref NetworkSettings settings) =>
+            {
+                configured++;
+                settings.WithReliableStageParameters(windowSize: 32);
+            };
+            var serverTransport = new UnityNetworkTransport(configure);
+            var clientTransport = new UnityNetworkTransport(configure);
+            _transports.Add(serverTransport);
+            _transports.Add(clientTransport);
+            var serializer = new NetworkSerializer();
+            var server = new NetworkManager(serverTransport, serializer, new NetworkConfig { PingInterval = 0 });
+            var client = new NetworkManager(clientTransport, new NetworkSerializer(), new NetworkConfig { PingInterval = 0 });
+
+            server.StartServer(0);
+            clientTransport.Connect(NetworkEndpoint.LoopbackIpv4.WithPort((ushort)serverTransport.ListeningPort));
+            client.StartClient();
+            PumpUntil("connection through an endpoint", () => client.IsConnected && server.Connections.Count == 1, server, client);
+
+            Assert.That(configured, Is.EqualTo(2));
+            Assert.That(serverTransport.RelayStatus, Is.EqualTo(RelayConnectionStatus.NotUsingRelay));
+        }
+
+        [Test]
+        public void ThroughRelay_TheDriverUsesTheRelay_AndWaitsForItsAcceptance()
+        {
+            // A documentation-only address (TEST-NET-1): no relay answers there, so the relay never accepts us
+            var allocationId = new byte[RelayAllocationId.k_Length];
+            for (int i = 0; i < allocationId.Length; i++)
+                allocationId[i] = (byte)(i + 1); // an empty id means "no allocation" to Unity Transport
+            var relay = new RelayServerData("192.0.2.1", 7777, allocationId,
+                new byte[RelayConnectionData.k_Length], new byte[RelayConnectionData.k_Length], new byte[RelayHMACKey.k_Length],
+                isSecure: false);
+            var transport = UnityNetworkTransport.ThroughRelay(relay);
+            _transports.Add(transport);
+            Assert.That(transport.RelayStatus, Is.EqualTo(RelayConnectionStatus.NotUsingRelay), "nothing before it starts");
+
+            transport.Connect(relay.Endpoint);
+            var until = DateTime.UtcNow.AddSeconds(0.5);
+            while (DateTime.UtcNow < until)
+            {
+                while (transport.Poll(out _))
+                {
+                }
+                Thread.Sleep(5);
+            }
+
+            Assert.That(transport.IsActive, Is.True);
+            Assert.That(transport.RelayStatus, Is.EqualTo(RelayConnectionStatus.NotEstablished));
         }
     }
 }

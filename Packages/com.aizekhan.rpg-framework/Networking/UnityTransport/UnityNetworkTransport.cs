@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Networking.Transport;
+using Unity.Networking.Transport.Relay;
 using Unity.Networking.Transport.Utilities;
 using UtpConnection = Unity.Networking.Transport.NetworkConnection;
 
@@ -12,9 +13,16 @@ namespace RPGFramework.Networking.UnityTransport
     /// fragmenting pipeline; unreliable ones through a fragmenting pipeline only. A client sees the server as
     /// connection 0; a server numbers its clients from 1. Call <see cref="Dispose"/> when done (native memory).
     /// Addresses are IPv4 or IPv6 literals ("192.168.1.20"), not host names.
+    /// The same transport runs through a Unity Relay server (<see cref="ThroughRelay"/>): only the driver settings and
+    /// the endpoint change, never the messages.
     /// </summary>
     public sealed class UnityNetworkTransport : INetworkTransport, IDisposable
     {
+        /// <summary>
+        /// Adds to the driver settings after the transport's own (pipelines, timeouts), e.g. relay parameters.
+        /// </summary>
+        public delegate void DriverSettings(ref NetworkSettings settings);
+
         private const int ServerConnectionId = 0;
         private const int MaxMessageSize = 64 * 1024;
         private const int ConnectTimeoutMs = 1000;
@@ -28,8 +36,34 @@ namespace RPGFramework.Networking.UnityTransport
         private NetworkPipeline _unreliable;
         private bool _isServer;
         private int _nextClientId = 1;
+        private readonly DriverSettings _configure;
+
+        public UnityNetworkTransport()
+        {
+        }
+
+        /// <param name="configure">Runs on the settings of every driver this transport creates.</param>
+        public UnityNetworkTransport(DriverSettings configure)
+        {
+            _configure = configure;
+        }
+
+        /// <summary>
+        /// A transport whose traffic goes through a Unity Relay server. A host calls <c>StartServer(0)</c>; a player
+        /// calls <see cref="Connect(NetworkEndpoint)"/> with <c>relay.Endpoint</c>. The relay data comes from the
+        /// relay service (an allocation for the host, a join allocation for players).
+        /// </summary>
+        public static UnityNetworkTransport ThroughRelay(RelayServerData relay) =>
+            new UnityNetworkTransport((ref NetworkSettings settings) => settings.WithRelayParameters(ref relay));
 
         public bool IsActive => _driver.IsCreated;
+
+        /// <summary>
+        /// Whether the relay server has accepted this machine (<see cref="RelayConnectionStatus.NotUsingRelay"/>
+        /// without a relay or before starting).
+        /// </summary>
+        public RelayConnectionStatus RelayStatus =>
+            _driver.IsCreated ? _driver.GetRelayConnectionStatus() : RelayConnectionStatus.NotUsingRelay;
 
         /// <summary>
         /// The port the server listens on (useful with port 0, which picks a free one).
@@ -53,7 +87,14 @@ namespace RPGFramework.Networking.UnityTransport
             if (!NetworkEndpoint.TryParse(address, (ushort)port, out var endpoint)
                 && !NetworkEndpoint.TryParse(address, (ushort)port, out endpoint, NetworkFamily.Ipv6))
                 throw new ArgumentException($"'{address}' is not an IP address", nameof(address));
+            Connect(endpoint);
+        }
 
+        /// <summary>
+        /// Connects to an endpoint: a host's address, or a relay server's (<c>RelayServerData.Endpoint</c>).
+        /// </summary>
+        public void Connect(NetworkEndpoint endpoint)
+        {
             CreateDriver();
             _isServer = false;
             var connection = _driver.Connect(endpoint);
@@ -119,6 +160,7 @@ namespace RPGFramework.Networking.UnityTransport
             settings.WithReliableStageParameters(windowSize: 64);
             // Give up on an address nobody answers at after about 5 seconds, not a minute
             settings.WithNetworkConfigParameters(connectTimeoutMS: ConnectTimeoutMs, maxConnectAttempts: ConnectAttempts);
+            _configure?.Invoke(ref settings);
             _driver = NetworkDriver.Create(settings);
             _reliable = _driver.CreatePipeline(typeof(FragmentationPipelineStage), typeof(ReliableSequencedPipelineStage));
             _unreliable = _driver.CreatePipeline(typeof(FragmentationPipelineStage));

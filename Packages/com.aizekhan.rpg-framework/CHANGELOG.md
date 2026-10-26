@@ -8,6 +8,7 @@
 - **Fix:** `JoinGame` called before the game had started (a host created in code, a join on launch) dropped back to solo with "You left the game.": the restart closed the new connection as if the player had left
 - The co-op panel says how many can join instead of a fixed "up to three"
 - `networking.md`: Unity Relay compatibility check and adaptation plan (nothing integrated yet)
+- `UnityNetworkTransport`: extra driver settings (`DriverSettings` constructor), `Connect(NetworkEndpoint)`, `ThroughRelay(RelayServerData)` and `RelayStatus`, the opening a Unity Relay provider needs. Whole suite verified on Unity Transport 2.5.3 and 2.7.4 (what the Multiplayer Services SDK brings)
 
 ## [0.2.0] - 2026-10-26
 
