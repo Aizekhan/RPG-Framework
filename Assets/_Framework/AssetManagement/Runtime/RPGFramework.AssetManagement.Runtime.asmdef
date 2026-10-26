@@ -1,0 +1,17 @@
+{
+    "name": "RPGFramework.AssetManagement.Runtime",
+    "rootNamespace": "RPGFramework.AssetManagement",
+    "references": [
+        "RPGFramework.Logging.Runtime",
+        "UniTask"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
