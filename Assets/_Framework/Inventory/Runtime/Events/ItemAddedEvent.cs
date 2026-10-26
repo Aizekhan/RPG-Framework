@@ -1,12 +1,14 @@
 // Assets/_Framework/Inventory/Runtime/Events/ItemAddedEvent.cs
 
+using RPGFramework.Events;
+
 namespace RPGFramework.Inventory.Runtime
 {
     /// <summary>
     /// Event raised when an item is added to a container.
     /// </summary>
     /// <typeparam name="TItem">Type of item added</typeparam>
-    public struct ItemAddedEvent<TItem>
+    public struct ItemAddedEvent<TItem> : IEvent
     {
         /// <summary>
         /// ID of the entity that owns the container.

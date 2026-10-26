@@ -2,7 +2,9 @@
     "name": "RPGFramework.Inventory.Runtime",
     "rootNamespace": "RPGFramework.Inventory.Runtime",
     "references": [
-        "RPGFramework.ECS.Runtime"
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Events.Runtime",
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -12,5 +14,5 @@
     "autoReferenced": true,
     "defineConstraints": [],
     "versionDefines": [],
-    "noEngineReferences": true
+    "noEngineReferences": false
 }

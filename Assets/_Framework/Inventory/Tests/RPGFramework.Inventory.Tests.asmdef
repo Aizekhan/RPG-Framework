@@ -5,6 +5,9 @@
         "RPGFramework.Inventory.Runtime",
         "RPGFramework.Core.Runtime",
         "RPGFramework.ECS.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "UniTask",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],
