@@ -4,7 +4,7 @@
     "references": [
         "RPGFramework.Guilds.Runtime",
         "RPGFramework.Factions.Runtime",
-        "RPGFramework.ECS",
+        "RPGFramework.ECS.Runtime",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],
