@@ -423,7 +423,9 @@ namespace RPGFramework.Systems
         }
 
         private static string NameOf(ISystem system) =>
-            system is SystemGroup group ? $"{group.GetType().Name}:{group.Name}" : system.GetType().Name;
+            system is SystemGroup group ? $"{group.GetType().Name}:{group.Name}"
+            : system is ActionSystem action ? $"ActionSystem:{action.Name}"
+            : system.GetType().Name;
 
         private sealed class Entry
         {

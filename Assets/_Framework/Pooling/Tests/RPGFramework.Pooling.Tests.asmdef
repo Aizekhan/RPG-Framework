@@ -3,6 +3,7 @@
     "rootNamespace": "RPGFramework.Pooling.Tests",
     "references": [
         "RPGFramework.Pooling.Runtime",
+        "RPGFramework.Pooling.Unity",
         "RPGFramework.Logging.Runtime",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"

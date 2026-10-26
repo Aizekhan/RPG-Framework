@@ -1,36 +1,44 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using RPGFramework.Logging;
 
 namespace RPGFramework.Pooling
 {
     /// <summary>
-    /// Generic object pool implementation with lifecycle callbacks and statistics tracking.
-    /// Thread-safe for single-threaded use (typical game engine pattern).
+    /// Generic object pool implementation with configurable lifecycle callbacks.
+    /// Tracks every object it hands out: releasing an object twice, or one that did not come from this pool,
+    /// is rejected with a warning instead of corrupting the counters. Active objects carry an activation
+    /// timestamp for leak detection (<see cref="FindLeaks"/>) and average-lifetime statistics.
     /// </summary>
     /// <typeparam name="T">Type of objects to pool (must be class)</typeparam>
-    public class ObjectPool<T> : IObjectPool<T> where T : class
+    public class ObjectPool<T> : IManagedPool, IObjectPool<T> where T : class
     {
+        private static readonly Stopwatch DefaultClockSource = Stopwatch.StartNew();
+
         private readonly Stack<T> _pool;
+        private readonly Dictionary<T, double> _activeSince = new Dictionary<T, double>(ReferenceComparer.Instance);
         private readonly Func<T> _createFunc;
         private readonly Action<T> _onGet;
         private readonly Action<T> _onRelease;
         private readonly Action<T> _onDestroy;
         private readonly int _maxSize;
+        private readonly int _initialSize;
         private readonly ILogger _logger;
         private readonly string _poolName;
 
-        private int _activeCount;
         private int _totalCreated;
         private int _createdOnDemand; // Objects created during Get() calls (not pre-warming)
         private long _totalGetCount;
         private long _totalReturnCount;
         private int _peakActiveCount;
+        private double _totalActiveSeconds;
+        private int _rejectedReleaseCount;
 
         /// <summary>
         /// Number of active (in-use) objects.
         /// </summary>
-        public int CountActive => _activeCount;
+        public int CountActive => _activeSince.Count;
 
         /// <summary>
         /// Number of inactive (available) objects in the pool.
@@ -40,7 +48,22 @@ namespace RPGFramework.Pooling
         /// <summary>
         /// Total pool size (active + inactive).
         /// </summary>
-        public int TotalSize => _activeCount + _pool.Count;
+        public int TotalSize => CountActive + _pool.Count;
+
+        public string Name => _poolName;
+
+        public Type ItemType => typeof(T);
+
+        /// <summary>
+        /// Releases rejected because the object was not active in this pool (double release / foreign object).
+        /// </summary>
+        public int RejectedReleaseCount => _rejectedReleaseCount;
+
+        /// <summary>
+        /// Seconds used for activation timestamps; defaults to a monotonic stopwatch. Replace for tests
+        /// or to follow game time.
+        /// </summary>
+        public Func<double> Clock { get; set; } = () => DefaultClockSource.Elapsed.TotalSeconds;
 
         /// <summary>
         /// Creates a new object pool with specified factory and lifecycle callbacks.
@@ -70,13 +93,14 @@ namespace RPGFramework.Pooling
             _maxSize = maxSize > 0 ? maxSize : throw new ArgumentOutOfRangeException(nameof(maxSize), "Max size must be positive");
             _logger = logger;
             _poolName = poolName ?? typeof(T).Name;
+            _initialSize = Math.Max(0, initialSize);
 
-            _pool = new Stack<T>(initialSize);
+            _pool = new Stack<T>(_initialSize);
 
             // Pre-warm pool
-            if (initialSize > 0)
+            if (_initialSize > 0)
             {
-                PreWarm(initialSize);
+                PreWarm(_initialSize);
             }
         }
 
@@ -118,13 +142,13 @@ namespace RPGFramework.Pooling
             }
 
             _onGet?.Invoke(obj);
-            _activeCount++;
+            _activeSince[obj] = Clock();
             _totalGetCount++;
 
             // Update peak tracking
-            if (_activeCount > _peakActiveCount)
+            if (_activeSince.Count > _peakActiveCount)
             {
-                _peakActiveCount = _activeCount;
+                _peakActiveCount = _activeSince.Count;
             }
 
             return obj;
@@ -143,6 +167,16 @@ namespace RPGFramework.Pooling
                 return;
             }
 
+            if (!_activeSince.TryGetValue(instance, out double since))
+            {
+                _rejectedReleaseCount++;
+                LogWarning("Rejected release of an object that is not active in this pool (released twice or from another pool)");
+                return;
+            }
+
+            _activeSince.Remove(instance);
+            _totalActiveSeconds += Math.Max(0d, Clock() - since);
+
             _onRelease?.Invoke(instance);
             _totalReturnCount++;
 
@@ -156,12 +190,11 @@ namespace RPGFramework.Pooling
                 _onDestroy?.Invoke(instance);
                 LogTrace($"Destroyed object (pool full at {_maxSize})");
             }
-
-            _activeCount--;
         }
 
         /// <summary>
         /// Clears the pool, destroying all pooled objects.
+        /// Objects that are still active are forgotten: they are no longer tracked and releasing them later is rejected.
         /// </summary>
         public void Clear()
         {
@@ -174,7 +207,7 @@ namespace RPGFramework.Pooling
             }
 
             _pool.Clear();
-            _activeCount = 0;
+            _activeSince.Clear();
 
             LogInfo("Pool cleared");
         }
@@ -191,12 +224,7 @@ namespace RPGFramework.Pooling
                 throw new ArgumentOutOfRangeException(nameof(newSize), "Pool size cannot be negative");
             }
 
-            // Remove excess objects
-            while (_pool.Count > newSize)
-            {
-                var obj = _pool.Pop();
-                _onDestroy?.Invoke(obj);
-            }
+            TrimExcess(newSize);
 
             // Add new objects if needed
             while (_pool.Count < newSize)
@@ -210,6 +238,46 @@ namespace RPGFramework.Pooling
         }
 
         /// <summary>
+        /// Destroys inactive objects above <paramref name="maxInactive"/>.
+        /// </summary>
+        /// <returns>Number of objects destroyed.</returns>
+        public int TrimExcess(int maxInactive)
+        {
+            int removed = 0;
+            while (_pool.Count > Math.Max(0, maxInactive))
+            {
+                var obj = _pool.Pop();
+                _onDestroy?.Invoke(obj);
+                removed++;
+            }
+            return removed;
+        }
+
+        /// <summary>
+        /// Active objects held for longer than <paramref name="thresholdSeconds"/>, oldest first.
+        /// </summary>
+        public IReadOnlyList<PoolLeak> FindLeaks(double thresholdSeconds)
+        {
+            double now = Clock();
+            var leaks = new List<PoolLeak>();
+            foreach (var pair in _activeSince)
+            {
+                double age = now - pair.Value;
+                if (age >= thresholdSeconds)
+                    leaks.Add(new PoolLeak(_poolName, pair.Key, age));
+            }
+            leaks.Sort((a, b) => b.ActiveSeconds.CompareTo(a.ActiveSeconds));
+            return leaks;
+        }
+
+        public bool IsActive(T instance) => instance != null && _activeSince.ContainsKey(instance);
+
+        /// <summary>
+        /// Stops tracking an active object without returning it (it was destroyed or handed off elsewhere).
+        /// </summary>
+        public bool Forget(T instance) => instance != null && _activeSince.Remove(instance);
+
+        /// <summary>
         /// Gets current pool statistics.
         /// </summary>
         public PoolStatistics GetStatistics()
@@ -218,15 +286,15 @@ namespace RPGFramework.Pooling
             {
                 PoolKey = _poolName,
                 PoolType = typeof(T).Name,
-                InitialSize = 0, // Not tracked in current implementation
-                ActiveCount = _activeCount,
+                InitialSize = _initialSize,
+                ActiveCount = CountActive,
                 InactiveCount = _pool.Count,
                 TotalCreated = _totalCreated,
                 CreatedOnDemand = _createdOnDemand,
                 TotalGetCount = _totalGetCount,
                 TotalReturnCount = _totalReturnCount,
                 PeakActiveCount = _peakActiveCount,
-                AverageActiveTime = 0f // Not tracked without timestamp data
+                AverageActiveTime = _totalReturnCount > 0 ? (float)(_totalActiveSeconds / _totalReturnCount) : 0f
             };
         }
 
@@ -248,5 +316,14 @@ namespace RPGFramework.Pooling
         }
 
         #endregion
+
+        private sealed class ReferenceComparer : IEqualityComparer<T>
+        {
+            public static readonly ReferenceComparer Instance = new ReferenceComparer();
+
+            public bool Equals(T x, T y) => ReferenceEquals(x, y);
+
+            public int GetHashCode(T obj) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj);
+        }
     }
 }

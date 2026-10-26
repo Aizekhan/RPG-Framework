@@ -128,4 +128,33 @@ namespace RPGFramework.Systems
             _batcher?.FlushAll();
         }
     }
+
+    /// <summary>
+    /// Adapts a plain per-frame callback (e.g. a service's Update method) into an <see cref="IUpdateSystem"/>,
+    /// so services do not need to depend on the Systems module to be ticked.
+    /// </summary>
+    public sealed class ActionSystem : IUpdateSystem
+    {
+        private readonly Action<float> _update;
+        private readonly Action _dispose;
+
+        public ActionSystem(string name, Action<float> update, Action dispose = null)
+        {
+            Name = string.IsNullOrWhiteSpace(name) ? throw new ArgumentException("Name is required", nameof(name)) : name;
+            _update = update ?? throw new ArgumentNullException(nameof(update));
+            _dispose = dispose;
+        }
+
+        public string Name { get; }
+
+        public void Initialize()
+        {
+        }
+
+        public void Update(float deltaTime) => _update(deltaTime);
+
+        public void Dispose() => _dispose?.Invoke();
+
+        public override string ToString() => $"ActionSystem '{Name}'";
+    }
 }
