@@ -8,7 +8,8 @@
 
 ## Where things stand
 
-- Last code-verified SHA: **`b0fa412`**: compile 0 errors, **1266/1266 EditMode**, **6/6 PlayMode**, CI green (run `40380874239`).
+- Last code-verified SHA: **`11c9de6`**: compile 0 errors, **1283/1283 EditMode**, **6/6 PlayMode**, CI green (run `40385148480`).
+- User's co-op plan (2026-10-26): stage 1 names and colours (done, `8948d16`); stage 2 play between homes: providers architecture done (`11c9de6`, `INetworkSessionProvider`), service choice researched in `networking.md`, waiting for the user (Unity Relay recommended, needs their UGS project); stage 3 reliability: not started. Principle from the user: network core never depends on a provider; each service is a separate module.
 - **Co-op works** (user approved 2-4 players): any `ActionRpgHost` game, F2 > Host a game / Join an IP, or `-host` / `-join <ip>`. Host-authoritative: the host's `ActorWorld` runs the rules with everyone in one party; joined machines restart into a core-only `GameHost` and mirror the world (`RemoteWorld`). Code: `ActionRpg/Runtime/Coop`, `ActionRpg/Unity/{ActionRpgHost,CoopPanel,RemoteMotion,ActorPresenter}.cs`, `Networking/UnityTransport`. Docs: `Documentation~/networking.md`, recipe 11.
 - Goblin Valley (`Assets/ReferenceGame`) is now an `ActionRpg` game: assets in `Content/`, one coded rule (`KillStreak`), rebuilt by `GoblinValleyBuilder` in batch mode.
 - The user story is delivered: create a Unity project, add the package, **RPG Framework > Game Kit > New Game**, Play: a hero walks and fights goblin waves with a HUD, character sheet (I/Tab) and saved progress. New enemies/items/quests are assets (`Character`, `Game Setup`, Item, Loot Table, Quest Asset); code only for unique rules (`ActionRpgHost.ConfigureGameModules`, events on the bus).
@@ -52,7 +53,7 @@ Create the worktree with `git worktree add --detach D:/RPG-Framework-verify <sha
 ## Gotchas learned
 
 - Batch-mode Unity exits with code 2 when any test fails. Read the NUnit XML, not the exit code.
-- A test assembly whose plugin fails to load reports **0 tests, not an error**. Compare totals between runs (expected: 1266 EditMode, 6 PlayMode).
+- A test assembly whose plugin fails to load reports **0 tests, not an error**. Compare totals between runs (expected: 1283 EditMode, 6 PlayMode).
 - The verify worktree gets NuGetForUnity files generated on import; remove them there before `checkout`, or checkout aborts and the old commit is tested. Check the SHA the run actually used.
 - A MonoBehaviour must live in a file of its own name (enforced by `FrameworkArchitectureTests`). Test MonoBehaviours go in a `*.TestSupport` runtime assembly.
 - Test assemblies that construct `EventBus` need `RPGFramework.Logging.Runtime` (CS0012 otherwise).
@@ -78,4 +79,5 @@ Create the worktree with `git worktree add --detach D:/RPG-Framework-verify <sha
 
 ## Decisions waiting for the user
 
-- Co-op over the internet without a VPN (Unity Relay, join codes): wanted? It needs a Unity Gaming Services project.
+- Which internet provider first (Unity Relay recommended; Steam / EOS later as separate modules)? Unity Relay needs a Unity Gaming Services project linked in Project Settings > Services.
+- Stage 3 (reliability) after the provider, or before?
