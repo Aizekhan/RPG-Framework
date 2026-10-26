@@ -3,6 +3,7 @@
     "rootNamespace": "RPGFramework.Timers.Tests",
     "references": [
         "RPGFramework.Timers.Runtime",
+        "RPGFramework.Timers.Unity",
         "RPGFramework.Logging.Runtime",
         "UniTask",
         "UnityEngine.TestRunner",

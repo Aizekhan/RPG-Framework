@@ -1,0 +1,17 @@
+{
+    "name": "ReferenceGame",
+    "rootNamespace": "ReferenceGame",
+    "references": [
+        "RPGFramework.Characters.Runtime",
+        "RPGFramework.Stats.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

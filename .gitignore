@@ -63,3 +63,7 @@ Thumbs.db
 # Test results
 *.xml
 TestResults/
+
+# NuGetForUnity restores packages here from Assets/packages.config
+/Assets/Packages/
+/Assets/Packages.meta

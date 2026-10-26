@@ -1,0 +1,14 @@
+{
+    "name": "RPGFramework.Timers.Unity",
+    "rootNamespace": "RPGFramework.Timers.Unity",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
