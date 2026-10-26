@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
+using UnityEditor.Compilation;
+using Assembly = System.Reflection.Assembly;
 using UnityEngine;
 
 namespace RPGFramework.Tests.Editor
@@ -19,7 +22,9 @@ namespace RPGFramework.Tests.Editor
         // the third-party packages the framework depends on. Anything else (a game assembly) is a violation.
         private static readonly string[] AllowedReferencePrefixes =
         {
-            "RPGFramework.", "UnityEngine", "Unity.", "System", "mscorlib", "netstandard", "Microsoft.", "UniTask"
+            "RPGFramework.", "UnityEngine", "Unity.", "System", "mscorlib", "netstandard", "Microsoft.", "UniTask",
+            // Editor builds of runtime assemblies see #if UNITY_EDITOR code; PlayerAssemblies_* checks it stays there
+            "UnityEditor"
         };
 
         private static List<Assembly> FrameworkAssemblies() =>
@@ -67,15 +72,41 @@ namespace RPGFramework.Tests.Editor
             Assert.That(violations, Is.Empty, "Framework runtime must not depend on game code:\n" + string.Join("\n", violations));
         }
 
+        /// <summary>
+        /// Editor-built assemblies always may reference UnityEditor, so this reads the sources of the player build
+        /// and flags UnityEditor uses that are not inside <c>#if UNITY_EDITOR</c>: those break player builds.
+        /// </summary>
         [Test]
-        public void RuntimeAssemblies_DoNotReferenceUnityEditor()
+        public void PlayerAssemblies_UseUnityEditorOnlyInsideEditorBlocks()
         {
-            var violations = (from assembly in RuntimeAssemblies()
-                              from reference in assembly.GetReferencedAssemblies()
-                              where reference.Name.StartsWith("UnityEditor", StringComparison.Ordinal)
-                              select $"{assembly.GetName().Name} -> {reference.Name}").ToList();
+            var violations = new List<string>();
+            foreach (var assembly in CompilationPipeline.GetAssemblies(AssembliesType.Player))
+            {
+                if (!assembly.name.StartsWith("RPGFramework.", StringComparison.Ordinal))
+                    continue;
+                foreach (var file in assembly.sourceFiles)
+                {
+                    var lines = File.ReadAllLines(file);
+                    var editorBlocks = new Stack<bool>();
+                    for (int i = 0; i < lines.Length; i++)
+                    {
+                        var line = lines[i].Trim();
+                        if (line.StartsWith("#if", StringComparison.Ordinal))
+                            editorBlocks.Push(line.Contains("UNITY_EDITOR") && !line.Contains("!UNITY_EDITOR"));
+                        else if (line.StartsWith("#el", StringComparison.Ordinal) && editorBlocks.Count > 0)
+                            editorBlocks.Push(editorBlocks.Pop() ? false : line.Contains("UNITY_EDITOR") && !line.Contains("!UNITY_EDITOR"));
+                        else if (line.StartsWith("#endif", StringComparison.Ordinal) && editorBlocks.Count > 0)
+                            editorBlocks.Pop();
+                        else if (!line.StartsWith("//", StringComparison.Ordinal) && line.Contains("UnityEditor") &&
+                                 !editorBlocks.Contains(true))
+                            violations.Add($"{file}:{i + 1}: {line}");
+                    }
+                }
+            }
 
-            Assert.That(violations, Is.Empty, "Runtime assemblies must build without the editor:\n" + string.Join("\n", violations));
+            Assert.That(violations, Is.Empty, "Wrap editor-only code in #if UNITY_EDITOR:
+" + string.Join("
+", violations));
         }
 
         [Test]
