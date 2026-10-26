@@ -64,7 +64,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 73bfae45ed9438b48a12c90f526b4801, type: 2}
+  - {fileID: 2100000, guid: 7b12d9788b6cfc74bb6b2cb34d8db329, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -682,9 +682,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 510553313363260383}
-  - component: {fileID: 3433308084828819942}
-  - component: {fileID: 7584793916976950173}
-  - component: {fileID: 2931334249145821669}
+  - component: {fileID: 2643757735678452707}
+  - component: {fileID: 2378209395449373586}
   m_Layer: 0
   m_Name: Goblin
   m_TagString: Untagged
@@ -709,7 +708,7 @@ Transform:
   - {fileID: 8660350601516399807}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &3433308084828819942
+--- !u!114 &2643757735678452707
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -718,13 +717,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 5552498531113214754}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2ff257295e5921649be72fae2e64c3d6, type: 3}
+  m_Script: {fileID: 11500000, guid: 149b863b51084bf9b25f72330b4e8afb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   _model: {fileID: 5937258508247281728}
+  _animatorTrigger: 
   _distance: 0.45
   _duration: 0.18
---- !u!114 &7584793916976950173
+--- !u!114 &2378209395449373586
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -733,24 +733,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 5552498531113214754}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ef3990a91725ae242a142787478d6209, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  _moveSpeed: 3.2
-  _turnSpeed: 540
-  _attackRange: 1.6
-  _attackCooldown: 1.2
-  _personalSpace: 1.1
---- !u!114 &2931334249145821669
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5552498531113214754}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 70c34de1c45bf2f4fa08935dcae30bca, type: 3}
+  m_Script: {fileID: 11500000, guid: 752b4f30c4b6413abebd6ceecacc3a60, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   _bar: {fileID: 8660350601516399807}
@@ -760,6 +743,8 @@ MonoBehaviour:
   - {fileID: 2708682346187876158}
   - {fileID: 4320215130288371441}
   - {fileID: 5363334227883249975}
+  _playerColor: {r: 0.3, g: 0.85, b: 0.35, a: 1}
+  _enemyColor: {r: 0.9, g: 0.2, b: 0.2, a: 1}
   _flashColor: {r: 1, g: 1, b: 1, a: 1}
   _flashDuration: 0.12
 --- !u!1 &5919788178979504077

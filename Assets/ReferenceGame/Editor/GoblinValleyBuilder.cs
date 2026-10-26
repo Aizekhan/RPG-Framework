@@ -1,6 +1,12 @@
+using System.Collections.Generic;
 using System.IO;
+using RPGFramework.ActionRpg;
 using RPGFramework.Cameras;
-using RPGFramework.Spawning;
+using RPGFramework.Items;
+using RPGFramework.Quests;
+using RPGFramework.Tools.ItemDatabaseManager;
+using RPGFramework.Tools.LootTableDesigner;
+using RPGFramework.Tools.QuestEditor;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -9,10 +15,11 @@ using UnityEngine.Rendering;
 namespace ReferenceGame.Editor
 {
     /// <summary>
-    /// Generates the placeholder art of Goblin Valley (materials, Hero and Goblin prefabs), its config assets and
-    /// the scene layout. Prefabs are rebuilt every run; materials, the prefab catalog and the config are created
-    /// only when missing, so tuning done in the inspector survives. Swap the placeholder models for real ones by
-    /// editing the prefabs (or pointing the catalog at other prefabs) and stop rebuilding.
+    /// Generates Goblin Valley: placeholder art (materials; Hero, Goblin and Brute prefabs), the content assets
+    /// (characters, items, loot, quests, the Game Setup) and the scene layout. Prefabs are rebuilt every run;
+    /// materials and content are created only when missing, so tuning done in the inspector survives. Swap the
+    /// placeholder models for real ones by editing the prefabs (or dragging other prefabs into the characters) and
+    /// stop rebuilding.
     /// Batch mode: <c>Unity -batchmode -quit -projectPath . -executeMethod ReferenceGame.Editor.GoblinValleyBuilder.Rebuild</c>
     /// </summary>
     public static class GoblinValleyBuilder
@@ -20,28 +27,29 @@ namespace ReferenceGame.Editor
         private const string Root = "Assets/ReferenceGame";
         private const string MaterialsFolder = Root + "/Art/Materials";
         private const string PrefabsFolder = Root + "/Prefabs";
-        private const string ConfigFolder = Root + "/Config";
+        private const string ContentFolder = Root + "/Content";
         private const string ScenePath = Root + "/Scenes/GoblinValley.unity";
 
         public const string HeroPrefabPath = PrefabsFolder + "/Hero.prefab";
         public const string GoblinPrefabPath = PrefabsFolder + "/Goblin.prefab";
-        public const string CatalogPath = ConfigFolder + "/GoblinValleyPrefabs.asset";
-        public const string ConfigPath = ConfigFolder + "/GoblinValleyConfig.asset";
+        public const string BrutePrefabPath = PrefabsFolder + "/GoblinBrute.prefab";
+        public const string SetupPath = ContentFolder + "/GoblinValleySetup.asset";
 
         [MenuItem("RPG Framework/Reference Game/Rebuild Goblin Valley")]
         public static void Rebuild()
         {
             EnsureFolder(MaterialsFolder);
             EnsureFolder(PrefabsFolder);
-            EnsureFolder(ConfigFolder);
+            foreach (var folder in new[] { "Characters", "Items", "Loot", "Quests" })
+                EnsureFolder($"{ContentFolder}/{folder}");
 
             var hero = BuildHero();
-            var goblin = BuildGoblin();
-            var catalog = LoadOrCreateCatalog(hero, goblin);
-            var config = LoadOrCreateConfig(catalog);
+            var goblin = BuildGoblin("Goblin", GoblinPrefabPath, 1f, "Goblin", new Color(0.38f, 0.62f, 0.2f), "Rags", new Color(0.45f, 0.3f, 0.2f));
+            var brute = BuildGoblin("GoblinBrute", BrutePrefabPath, 1.45f, "BruteSkin", new Color(0.3f, 0.48f, 0.18f), "BruteArmor", new Color(0.3f, 0.3f, 0.34f));
+            LoadOrCreateContent(hero, goblin, brute);
             AssetDatabase.SaveAssets();
 
-            BuildScene(config);
+            BuildScene();
             AssetDatabase.SaveAssets();
             Debug.Log("Goblin Valley rebuilt");
         }
@@ -64,20 +72,20 @@ namespace ReferenceGame.Editor
             Part(model, PrimitiveType.Cube, "Shield", new Vector3(-0.55f, 1.05f, 0.15f), new Vector3(0.1f, 0.75f, 0.6f),
                 Material("Wood", new Color(0.55f, 0.36f, 0.18f)));
 
-            var strike = root.AddComponent<StrikeAnimator>();
-            Set(strike, "_model", model);
-            root.AddComponent<HeroController>();
-            AddHealthBar(root, 2.7f, new Color(0.3f, 0.85f, 0.35f), torso, head);
+            Set(root.AddComponent<StrikeAnimator>(), "_model", model);
+            AddHealthBar(root, 2.7f, torso, head);
             return Save(root, HeroPrefabPath);
         }
 
-        private static GameObject BuildGoblin()
+        private static GameObject BuildGoblin(string name, string path, float size, string skinMaterial, Color skinColor,
+            string clothMaterial, Color clothColor)
         {
-            var root = new GameObject("Goblin");
+            var root = new GameObject(name);
             var model = Child(root.transform, "Model", Vector3.zero);
-            var skin = Material("Goblin", new Color(0.38f, 0.62f, 0.2f));
+            model.localScale = Vector3.one * size;
+            var skin = Material(skinMaterial, skinColor);
             var torso = Part(model, PrimitiveType.Capsule, "Body", new Vector3(0f, 0.62f, 0f), new Vector3(0.7f, 0.62f, 0.7f),
-                Material("Rags", new Color(0.45f, 0.3f, 0.2f)));
+                Material(clothMaterial, clothColor));
             var head = Part(model, PrimitiveType.Sphere, "Head", new Vector3(0f, 1.42f, 0.05f), Vector3.one * 0.62f, skin);
             var leftEar = Part(model, PrimitiveType.Cube, "EarL", new Vector3(-0.38f, 1.5f, 0f), new Vector3(0.36f, 0.08f, 0.14f), skin);
             var rightEar = Part(model, PrimitiveType.Cube, "EarR", new Vector3(0.38f, 1.5f, 0f), new Vector3(0.36f, 0.08f, 0.14f), skin);
@@ -88,20 +96,19 @@ namespace ReferenceGame.Editor
             Part(model, PrimitiveType.Cylinder, "Club", new Vector3(0.45f, 0.75f, 0.4f), new Vector3(0.12f, 0.45f, 0.12f),
                 Material("Wood", new Color(0.55f, 0.36f, 0.18f))).localRotation = Quaternion.Euler(60f, 0f, 0f);
 
-            var strike = root.AddComponent<StrikeAnimator>();
-            Set(strike, "_model", model);
-            root.AddComponent<GoblinBrain>();
-            AddHealthBar(root, 2.1f, new Color(0.9f, 0.22f, 0.18f), torso, head, leftEar, rightEar);
-            return Save(root, GoblinPrefabPath);
+            Set(root.AddComponent<StrikeAnimator>(), "_model", model);
+            AddHealthBar(root, 2.1f * size, torso, head, leftEar, rightEar);
+            return Save(root, path);
         }
 
-        private static void AddHealthBar(GameObject root, float height, Color fillColor, params Transform[] body)
+        private static void AddHealthBar(GameObject root, float height, params Transform[] body)
         {
             var bar = Child(root.transform, "HealthBar", new Vector3(0f, height, 0f));
             Part(bar, PrimitiveType.Cube, "Back", Vector3.zero, new Vector3(1.2f, 0.16f, 0.02f),
                 Material("BarBack", new Color(0.08f, 0.08f, 0.08f)), shadows: false);
+            // White fill: the bar tints it with the player or enemy color
             var fill = Part(bar, PrimitiveType.Cube, "Fill", new Vector3(0f, 0f, -0.02f), new Vector3(1.16f, 0.12f, 0.02f),
-                Material(fillColor.g > fillColor.r ? "BarHero" : "BarEnemy", fillColor), shadows: false);
+                Material("BarFill", Color.white), shadows: false);
 
             var view = root.AddComponent<HealthBarView>();
             var serialized = new SerializedObject(view);
@@ -114,44 +121,120 @@ namespace ReferenceGame.Editor
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        private static PrefabCatalog LoadOrCreateCatalog(GameObject hero, GameObject goblin)
+        private static void LoadOrCreateContent(GameObject heroPrefab, GameObject goblinPrefab, GameObject brutePrefab)
         {
-            var catalog = AssetDatabase.LoadAssetAtPath<PrefabCatalog>(CatalogPath);
-            if (catalog != null)
-                return catalog;
+            var ear = LoadOrCreate($"{ContentFolder}/Items/GoblinEar.asset",
+                () => Item("goblin_ear", "Goblin Ear", "Proof of a slain goblin", ItemType.Crafting, ItemRarity.Common, 99));
+            var dagger = LoadOrCreate($"{ContentFolder}/Items/RustyDagger.asset",
+                () => Item("rusty_dagger", "Rusty Dagger", "Better than nothing", ItemType.Equipment, ItemRarity.Common, 1));
+            var tusk = LoadOrCreate($"{ContentFolder}/Items/BruteTusk.asset",
+                () => Item("brute_tusk", "Brute Tusk", "Heavy, and still warm", ItemType.Crafting, ItemRarity.Uncommon, 20));
+            var medal = LoadOrCreate($"{ContentFolder}/Items/ValleyMedal.asset",
+                () => Item("valley_medal", "Valley Medal", "Awarded for clearing Goblin Valley", ItemType.Quest, ItemRarity.Rare, 1));
 
-            catalog = PrefabCatalog.Create(new[]
+            var goblinLoot = LoadOrCreate($"{ContentFolder}/Loot/GoblinLoot.asset",
+                () => Loot("goblin", "Goblin", ear, 0, 1, (dagger, 0.25f)));
+            var bruteLoot = LoadOrCreate($"{ContentFolder}/Loot/BruteLoot.asset",
+                () => Loot("goblin_brute", "Goblin Brute", tusk, 1, 1, (dagger, 0.5f)));
+
+            var hero = LoadOrCreate($"{ContentFolder}/Characters/Hero.asset", () =>
             {
-                new PrefabCatalog.Entry { Key = GoblinValleyContent.PlayerKind, Prefab = hero },
-                new PrefabCatalog.Entry
-                {
-                    Key = GoblinValleyContent.GoblinKind, Prefab = goblin, Pooled = true, PrewarmCount = 8, MaxPoolSize = 32
-                }
+                var character = CharacterDefinition.Create("hero", "Hero", 100f, 12f, 5f);
+                character.SetGrowth(20f, 3f, 2f);
+                character.SetMovement(6f, 2.4f, 0.4f);
+                return character;
             });
-            AssetDatabase.CreateAsset(catalog, CatalogPath);
-            return catalog;
+            var goblin = LoadOrCreate($"{ContentFolder}/Characters/Goblin.asset", () =>
+            {
+                var character = CharacterDefinition.Create("goblin", "Goblin", 30f, 6f, 2f, 40, loot: goblinLoot);
+                character.SetMovement(3.2f, 1.6f, 1.2f);
+                return character;
+            });
+            var brute = LoadOrCreate($"{ContentFolder}/Characters/GoblinBrute.asset", () =>
+            {
+                var character = CharacterDefinition.Create("goblin_brute", "Goblin Brute", 70f, 11f, 4f, 90, loot: bruteLoot);
+                character.SetMovement(2.4f, 2f, 1.8f);
+                return character;
+            });
+            Set(hero, "_prefab", heroPrefab);
+            Set(goblin, "_prefab", goblinPrefab);
+            Set(brute, "_prefab", brutePrefab);
+
+            var clear = LoadOrCreate($"{ContentFolder}/Quests/ClearTheValley.asset", () => KillQuest("clear_the_valley",
+                "Clear the Valley", "Goblins overran the valley. Slay five of them.", goblin.Id, 5,
+                new QuestRewardEntry { type = RewardType.Experience, rewardId = "xp", amount = 150 },
+                new QuestRewardEntry { type = RewardType.Item, rewardId = medal.itemId, amount = 1 }));
+            var bruteHunt = LoadOrCreate($"{ContentFolder}/Quests/BruteForce.asset", () => KillQuest("brute_force",
+                "Brute Force", "The brutes lead the raids. Bring two of them down.", brute.Id, 2,
+                new QuestRewardEntry { type = RewardType.Experience, rewardId = "xp", amount = 250 }));
+
+            LoadOrCreate(SetupPath, () =>
+            {
+                var setup = GameSetup.Create(hero, new[] { goblin, brute }, new WaveSettings
+                {
+                    FirstWaveDelay = 1f, DelayBetweenWaves = 3f, FirstWaveSize = 2, AddedPerWave = 1, MaxWaveSize = 8
+                });
+                setup.Items.AddRange(new[] { ear, dagger, tusk, medal });
+                setup.StartingQuests.Add(clear);
+                setup.StartingQuests.Add(bruteHunt);
+                var serialized = new SerializedObject(setup);
+                serialized.FindProperty("_cameraOffset").vector3Value = new Vector3(0f, 12f, -9f);
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+                return setup;
+            });
         }
 
-        private static GoblinValleyConfig LoadOrCreateConfig(PrefabCatalog catalog)
+        private static ItemAsset Item(string id, string name, string description, ItemType type, ItemRarity rarity, int stack)
         {
-            var config = AssetDatabase.LoadAssetAtPath<GoblinValleyConfig>(ConfigPath);
-            if (config == null)
-            {
-                config = GoblinValleyConfig.Create(catalog);
-                AssetDatabase.CreateAsset(config, ConfigPath);
-            }
-            else if (config.Prefabs == null)
-            {
-                Set(config, "_prefabs", catalog);
-            }
-            return config;
+            var item = ScriptableObject.CreateInstance<ItemAsset>();
+            item.itemId = id;
+            item.itemName = name;
+            item.description = description;
+            item.itemType = type;
+            item.rarity = rarity;
+            item.maxStackSize = stack;
+            return item;
         }
 
-        private static void BuildScene(GoblinValleyConfig config)
+        private static LootTableAsset Loot(string id, string name, ItemAsset guaranteed, int minDrops, int maxDrops,
+            params (ItemAsset Item, float Chance)[] entries)
+        {
+            var loot = ScriptableObject.CreateInstance<LootTableAsset>();
+            loot.tableId = id;
+            loot.tableName = name;
+            loot.minDrops = minDrops;
+            loot.maxDrops = maxDrops;
+            loot.guaranteedDrops = new List<string> { guaranteed.itemId };
+            loot.entries = new List<LootEntryData>();
+            foreach (var (item, chance) in entries)
+                loot.entries.Add(new LootEntryData { itemId = item.itemId, weight = 100, dropChance = chance });
+            return loot;
+        }
+
+        private static QuestAsset KillQuest(string id, string title, string description, string target, int count,
+            params QuestRewardEntry[] rewards)
+        {
+            var quest = ScriptableObject.CreateInstance<QuestAsset>();
+            quest.questId = id;
+            quest.title = title;
+            quest.description = description;
+            quest.objectives = new[]
+            {
+                new QuestObjectiveEntry
+                {
+                    objectiveId = "slay", type = ObjectiveType.Kill, targetId = target, requiredCount = count,
+                    description = description
+                }
+            };
+            quest.rewards = rewards;
+            return quest;
+        }
+
+        private static void BuildScene()
         {
             var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
-            // Opening a scene unloads unused assets; the reference from before may now point at a destroyed object
-            config = AssetDatabase.LoadAssetAtPath<GoblinValleyConfig>(ConfigPath);
+            // Opening a scene unloads unused assets; load the setup after it
+            var setup = AssetDatabase.LoadAssetAtPath<GameSetup>(SetupPath);
 
             foreach (var old in scene.GetRootGameObjects())
             {
@@ -168,7 +251,7 @@ namespace ReferenceGame.Editor
             }
             camera.clearFlags = CameraClearFlags.Skybox;
             camera.fieldOfView = 50f;
-            var offset = new Vector3(0f, 12f, -9f);
+            var offset = setup.CameraOffset;
             camera.transform.SetPositionAndRotation(offset, Quaternion.Euler(53f, 0f, 0f));
             var follow = camera.GetComponent<CameraFollow>();
             if (follow == null)
@@ -194,8 +277,9 @@ namespace ReferenceGame.Editor
             if (host == null)
                 host = new GameObject("GoblinValleyHost").AddComponent<GoblinValleyHost>();
             var serialized = new SerializedObject(host);
-            serialized.FindProperty("_config").objectReferenceValue = config;
+            serialized.FindProperty("_setup").objectReferenceValue = setup;
             serialized.FindProperty("_camera").objectReferenceValue = follow;
+            serialized.FindProperty("_saveProgress").boolValue = true;
             serialized.ApplyModifiedPropertiesWithoutUndo();
 
             EditorSceneManager.MarkSceneDirty(scene);
@@ -235,6 +319,16 @@ namespace ReferenceGame.Editor
                     rock.gameObject.isStatic = true;
                 }
             }
+        }
+
+        private static T LoadOrCreate<T>(string path, System.Func<T> create) where T : Object
+        {
+            var asset = AssetDatabase.LoadAssetAtPath<T>(path);
+            if (asset != null)
+                return asset;
+            asset = create();
+            AssetDatabase.CreateAsset(asset, path);
+            return asset;
         }
 
         private static GameObject Save(GameObject root, string path)
@@ -292,6 +386,7 @@ namespace ReferenceGame.Editor
             var serialized = new SerializedObject(target);
             serialized.FindProperty(field).objectReferenceValue = value;
             serialized.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(target);
         }
 
         private static void EnsureFolder(string path)

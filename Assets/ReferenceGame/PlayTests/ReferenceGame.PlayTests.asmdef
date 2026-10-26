@@ -11,7 +11,10 @@
         "RPGFramework.DI.Runtime",
         "RPGFramework.Combat.Runtime",
         "UnityEngine.TestRunner",
-        "UnityEditor.TestRunner"
+        "UnityEditor.TestRunner",
+        "RPGFramework.ActionRpg.Runtime",
+        "RPGFramework.ActionRpg.Unity",
+        "RPGFramework.ECS.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

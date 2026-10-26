@@ -1,45 +1,39 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using RPGFramework.ActionRpg;
 using RPGFramework.Bootstrap;
-using RPGFramework.Bootstrap.Gameplay;
-using RPGFramework.Combat;
 using RPGFramework.Events;
-using RPGFramework.Inventory.Runtime;
 using RPGFramework.Items;
 using RPGFramework.Logging;
-using RPGFramework.Progression;
-using RPGFramework.Quests;
+using UnityEditor;
 
 namespace ReferenceGame.Tests
 {
     /// <summary>
-    /// Boots the whole reference game through <see cref="GameHost"/> (the same composition the scene uses) and plays it,
-    /// proving that the modules register, the systems tick, events are published and handled across modules,
-    /// and that failures reach the log instead of disappearing.
+    /// Goblin Valley boots from its Game Setup asset the way the scene does, plays a wave, and runs its own rule:
+    /// kills in a row without being hurt earn bonus loot.
     /// </summary>
     public sealed class GoblinValleyTests
     {
-        private const int Seed = 1234;
+        public const string SetupPath = "Assets/ReferenceGame/Content/GoblinValleySetup.asset";
 
-        private MemoryLogSink _logSink;
+        private MemoryLogSink _log;
         private Logger _logger;
         private GameHost _host;
-        private GoblinValleyModule _module;
-        private EventBus _bus;
+        private ActionRpgModule _actionRpg;
+        private readonly List<KillStreakRewardedEvent> _rewards = new List<KillStreakRewardedEvent>();
 
-        private GoblinValleyGame Game => _module.Game;
-
-        private IEnumerable<LogEntry> Problems =>
-            _logSink.Snapshot().Where(entry => entry.Severity >= LogSeverity.Error);
+        private ActorWorld World => _actionRpg.World;
+        private KillStreak Streak => _host.Container.Resolve<KillStreak>();
 
         [SetUp]
         public void SetUp()
         {
-            _logSink = new MemoryLogSink(4096);
-            _logger = new Logger(LogSeverity.Debug, _logSink);
+            _log = new MemoryLogSink(1024);
+            _logger = new Logger(LogSeverity.Debug, _log);
             _host = new GameHost(_logger);
+            _rewards.Clear();
         }
 
         [TearDown]
@@ -49,136 +43,102 @@ namespace ReferenceGame.Tests
             _logger.Dispose();
         }
 
-        private void StartGame()
+        private void StartFromSetup(KillStreakSettings killStreak = null)
         {
-            _host.Start(builder => _module = GoblinValleyComposition.Configure(builder, Seed));
-            _bus = (EventBus)_host.Container.Resolve<IEventBus>();
+            var setup = AssetDatabase.LoadAssetAtPath<GameSetup>(SetupPath);
+            Assert.That(setup, Is.Not.Null, $"{SetupPath} is missing; run RPG Framework > Reference Game > Rebuild Goblin Valley");
+            Assert.That(setup.Validate(), Is.Empty, "the Game Setup has problems");
+            var settings = setup.BuildSettings();
+            settings.Seed = 11;
+            _host.Start(builder => _actionRpg = GoblinValleyComposition.ConfigureWithActionRpg(builder, settings,
+                setup.BuildContent(), killStreak));
+            _host.Container.Resolve<IEventBus>().Subscribe<KillStreakRewardedEvent>(_rewards.Add);
         }
 
-        private void KillEveryGoblin()
+        private void Tick(float seconds)
         {
-            for (int round = 0; round < 200 && Game.LivingGoblins.Any(); round++)
-            {
-                Assert.That(Game.PlayerAttacksNearestGoblin(), Is.True, "the hero died before clearing the valley");
+            for (float time = 0f; time < seconds; time += 0.1f)
                 _host.Update(0.1f);
-            }
-            Assert.That(Game.LivingGoblins, Is.Empty);
+        }
+
+        private void Slay(int enemy)
+        {
+            for (int hit = 0; hit < 100 && World.Get(enemy) != null; hit++)
+                World.Attack(World.PlayerId, enemy);
+        }
+
+        private int ItemCount(string itemId) =>
+            World.Inventory.GetAllItems().Count(item => item != null && item.ItemId == itemId);
+
+        [Test]
+        public void Setup_HasTheHeroTwoKindsOfGoblinsAndTwoQuests()
+        {
+            var setup = AssetDatabase.LoadAssetAtPath<GameSetup>(SetupPath);
+
+            Assert.That(setup.Player.Id, Is.EqualTo("hero"));
+            Assert.That(setup.Enemies.Select(e => e.Id), Is.EquivalentTo(new[] { "goblin", "goblin_brute" }));
+            Assert.That(setup.Characters.All(c => c.Prefab != null), Is.True, "every character has its model prefab");
+            Assert.That(setup.StartingQuests.Select(q => q.questId), Is.EquivalentTo(new[] { "clear_the_valley", "brute_force" }));
         }
 
         [Test]
-        public void Start_RegistersEveryModuleAndStartsTheGame()
+        public void Game_StartsAndAWaveComesAndDies()
         {
-            StartGame();
+            StartFromSetup();
+            Tick(World.Settings.Waves.FirstWaveDelay + 0.5f);
+            Assert.That(World.LivingEnemies, Is.Not.Empty, "the first wave did not come");
+
+            foreach (int enemy in World.LivingEnemies.ToList())
+                Slay(enemy);
 
             Assert.That(_host.State, Is.EqualTo(GameHostState.Running));
-            Assert.That(_host.Composition.Modules.Select(m => m.Name), Is.SupersetOf(new[]
-            {
-                FrameworkCoreModule.ModuleName, CombatModule.ModuleName, ProgressionModule.ModuleName, QuestsModule.ModuleName,
-                ItemsModule.ModuleName, LootModule.ModuleName, CombatQuestsModule.ModuleName, GoblinValleyModule.ModuleName
-            }));
-            Assert.That(Game.IsStarted, Is.True);
-            Assert.That(Game.Level, Is.EqualTo(1));
-            Assert.That(Game.Player.MaxHealth, Is.EqualTo(100f));
-            var quests = _host.Container.Resolve<IQuestManager>();
-            Assert.That(quests.GetActiveQuests(Game.PlayerId).Select(q => q.QuestId), Has.Member(GoblinValleyContent.ClearTheValley));
-            Assert.That(Problems, Is.Empty);
+            Assert.That(World.Kills, Is.GreaterThan(0));
+            Assert.That(World.TotalExperience, Is.GreaterThan(0));
+            Assert.That(ItemCount("goblin_ear") + ItemCount("brute_tusk"), Is.GreaterThan(0), "slain goblins drop loot");
+            Assert.That(_log.Snapshot().Where(entry => entry.Severity >= LogSeverity.Error), Is.Empty);
         }
 
         [Test]
-        public void ClearingTheValley_RunsTheWholeEventChain()
+        public void ThreeKillsInARow_GiveBonusLoot()
         {
-            StartGame();
-            var deaths = new List<DeathEvent>();
-            var progress = new List<ObjectiveProgressedEvent>();
-            var completed = new List<QuestCompletedEvent>();
-            var levelUps = new List<LevelUpEvent>();
-            var statGrowth = new List<StatIncreasedEvent>();
-            var itemsAdded = new List<ItemAddedEvent<IItem>>();
-            _bus.Subscribe<DeathEvent>(deaths.Add);
-            _bus.Subscribe<ObjectiveProgressedEvent>(progress.Add);
-            _bus.Subscribe<QuestCompletedEvent>(completed.Add);
-            _bus.Subscribe<LevelUpEvent>(levelUps.Add);
-            _bus.Subscribe<StatIncreasedEvent>(statGrowth.Add);
-            _bus.Subscribe<ItemAddedEvent<IItem>>(itemsAdded.Add);
+            StartFromSetup(new KillStreakSettings { KillsForBonus = 3, BonusItemId = "valley_medal", BonusQuantity = 1 });
 
-            for (int i = 0; i < GoblinValleyContent.GoblinsToClear; i++)
-                Game.SpawnGoblin();
-            KillEveryGoblin();
+            for (int i = 0; i < 3; i++)
+                Slay(World.SpawnEnemy("goblin"));
 
-            // Combat → bus
-            Assert.That(deaths, Has.Count.EqualTo(GoblinValleyContent.GoblinsToClear));
-            Assert.That(deaths.All(d => d.KillerEntityId == Game.PlayerId), Is.True);
-            // Combat → KillObjectiveBridge → Quests
-            Assert.That(progress.Select(p => p.CurrentProgress), Is.EqualTo(new[] { 1, 2, 3 }));
-            // Objective done → the game turns the quest in → rewards
-            Assert.That(completed.Select(c => c.QuestId), Is.EqualTo(new[] { GoblinValleyContent.ClearTheValley }));
-            Assert.That(Game.QuestCompleted, Is.True);
-            // Kill XP + quest XP → Progression level-up → StatGrowthPublisher → the game applies the stats
-            Assert.That(Game.TotalXp, Is.EqualTo(GoblinValleyContent.GoblinKillXp * GoblinValleyContent.GoblinsToClear + GoblinValleyContent.QuestXp));
-            Assert.That(levelUps, Is.Not.Empty);
-            Assert.That(Game.Level, Is.EqualTo(levelUps.Last().NewLevel).And.GreaterThan(1));
-            Assert.That(statGrowth.Select(s => s.StatId), Is.SupersetOf(new[] { "MaxHealth", "Attack", "Defense" }));
-            Assert.That(Game.Player.MaxHealth, Is.EqualTo(100f + 20f * (Game.Level - 1)));
-            // Loot and quest rewards → Inventory → bus
-            var backpack = Game.Inventory.GetAllItems().Select(item => item.ItemId).ToList();
-            Assert.That(backpack.Count(id => id == GoblinValleyContent.GoblinEar), Is.EqualTo(GoblinValleyContent.GoblinsToClear));
-            Assert.That(backpack, Has.Member(GoblinValleyContent.ValleyMedal));
-            Assert.That(itemsAdded, Has.Count.EqualTo(backpack.Count));
-
-            Assert.That(_bus.HandlerErrorCount, Is.EqualTo(0));
-            Assert.That(Problems, Is.Empty);
+            Assert.That(Streak.Current, Is.EqualTo(3));
+            Assert.That(_rewards.Select(r => r.Streak), Is.EqualTo(new[] { 3 }));
+            Assert.That(ItemCount("valley_medal"), Is.EqualTo(1));
+            Assert.That(World.Log, Has.Some.Contains("Kill streak x3"));
         }
 
         [Test]
-        public void HostTicksTheWorldWithoutErrors()
+        public void BeingHurt_BreaksTheStreak()
         {
-            StartGame();
+            StartFromSetup(new KillStreakSettings { KillsForBonus = 3, BonusItemId = "valley_medal" });
+            Slay(World.SpawnEnemy("goblin"));
+            Slay(World.SpawnEnemy("goblin"));
 
-            for (int frame = 0; frame < 30; frame++)
-            {
-                _host.Update(1f / 30f);
-                _host.FixedUpdate(1f / 50f);
-                _host.LateUpdate(1f / 30f);
-            }
+            int goblin = World.SpawnEnemy("goblin");
+            World.Attack(goblin, World.PlayerId);
+            Slay(goblin);
 
-            Assert.That(_host.World.Systems.Systems.Count, Is.GreaterThan(0));
-            Assert.That(Problems, Is.Empty);
+            Assert.That(Streak.Current, Is.EqualTo(1));
+            Assert.That(Streak.Best, Is.EqualTo(2));
+            Assert.That(_rewards, Is.Empty);
+            Assert.That(ItemCount("valley_medal"), Is.Zero);
         }
 
         [Test]
-        public void FailingHandler_IsLoggedAndTheGameKeepsRunning()
+        public void ZeroKillsForBonus_TurnsTheRuleOff()
         {
-            StartGame();
-            _bus.Subscribe<DeathEvent>(_ => throw new InvalidOperationException("broken listener"));
-            Game.SpawnGoblin();
+            StartFromSetup(new KillStreakSettings { KillsForBonus = 0 });
 
-            KillEveryGoblin();
+            for (int i = 0; i < 4; i++)
+                Slay(World.SpawnEnemy("goblin"));
 
-            Assert.That(_bus.HandlerErrorCount, Is.EqualTo(1));
-            Assert.That(Problems.Single().Exception?.Message, Is.EqualTo("broken listener"));
-            Assert.That(Game.GoblinsKilled, Is.EqualTo(1), "the game's own death rule still ran");
-        }
-
-        [Test]
-        public void MissingModule_FailsTheStartLoudly()
-        {
-            Assert.Throws(Is.InstanceOf<Exception>(), () => _host.Start(builder => builder.UseModule(new GoblinValleyModule(new GoblinValleyOptions { Seed = Seed }))));
-
-            Assert.That(_host.State, Is.EqualTo(GameHostState.Failed));
-            Assert.That(_logSink.Snapshot().Any(entry => entry.Severity == LogSeverity.Critical), Is.True);
-        }
-
-        [Test]
-        public void Shutdown_StopsTheGameCleanly()
-        {
-            StartGame();
-            Game.SpawnGoblin();
-
-            _host.Dispose();
-
-            Assert.That(_host.State, Is.EqualTo(GameHostState.Stopped));
-            Assert.That(_module.Game, Is.Null);
-            Assert.That(Problems, Is.Empty);
+            Assert.That(Streak.Current, Is.EqualTo(4));
+            Assert.That(_rewards, Is.Empty);
         }
     }
 }

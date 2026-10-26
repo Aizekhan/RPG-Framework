@@ -7,7 +7,15 @@
         "RPGFramework.Bootstrap.Unity",
         "RPGFramework.Spawning.Unity",
         "RPGFramework.Cameras.Unity",
-        "RPGFramework.Presentation.Unity"
+        "RPGFramework.Presentation.Unity",
+        "RPGFramework.ActionRpg.Runtime",
+        "RPGFramework.ActionRpg.Unity",
+        "RPGFramework.Tools.ItemDatabaseManager.Runtime",
+        "RPGFramework.Tools.LootTableDesigner.Runtime",
+        "RPGFramework.Tools.QuestEditor.Runtime",
+        "RPGFramework.Items.Runtime",
+        "RPGFramework.Quests.Runtime",
+        "RPGFramework.Loot.Runtime"
     ],
     "includePlatforms": [
         "Editor"

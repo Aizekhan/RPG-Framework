@@ -29,7 +29,9 @@
         "RPGFramework.Pooling.Unity",
         "RPGFramework.Cameras.Unity",
         "Unity.InputSystem",
-        "UnityEngine.UI"
+        "UnityEngine.UI",
+        "RPGFramework.ActionRpg.Runtime",
+        "RPGFramework.ActionRpg.Unity"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

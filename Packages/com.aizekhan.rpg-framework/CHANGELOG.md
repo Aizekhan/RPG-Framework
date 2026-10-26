@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- `ActionRpg`: `HealthBarView` tints a mesh fill (not only a UI image) with the player or enemy color
+- Recipes point at the package's `ActorPresenter`, `PlayerController` and `WaveSystem` instead of Goblin Valley classes
 - `ActionRpg`: the player's progress is saved between sessions (level, experience, kills, backpack, quest progress, finished quests; rewards are not paid twice on load). `ActionRpgSaves` over the framework's `SaveGameCoordinator`; `ActionRpgHost` **Save Progress** (on in new games) saves on level-up, finished quests and quit, with a **Delete Saved Progress** context menu
 - `Persistence`: writing a save recreates the save folder if it was deleted while the game ran
 - `ActionRpg`: character and backpack panel in the HUD (I / Tab / gamepad Select); `ActorKilledEvent`, public `ActorWorld.GiveItem`, `Announce` and `ExperienceForNextLevel` for game rules

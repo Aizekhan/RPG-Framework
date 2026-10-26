@@ -1,5 +1,7 @@
 using System.Linq;
 using NUnit.Framework;
+using RPGFramework.ActionRpg;
+using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -11,7 +13,7 @@ namespace ReferenceGame.Tests
         private const string ScenePath = "Assets/ReferenceGame/Scenes/GoblinValley.unity";
 
         [Test]
-        public void Scene_HasExactlyOneHostWithItsScript()
+        public void Scene_HasOneHostWiredToTheSetupAndACamera()
         {
             var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Additive);
             try
@@ -26,14 +28,11 @@ namespace ReferenceGame.Tests
                 Assert.That(hosts, Has.Count.EqualTo(1));
                 Assert.That(missingScripts, Is.EqualTo(0));
 
-                // Wired by GoblinValleyBuilder: rules and prefabs, and a camera to follow the hero
-                var host = new UnityEditor.SerializedObject(hosts[0]);
-                var config = host.FindProperty("_config").objectReferenceValue as GoblinValleyConfig;
-                Assert.That(config, Is.Not.Null);
-                Assert.That(config.Prefabs, Is.Not.Null);
-                var keys = config.Prefabs.Entries.Where(e => e.Prefab != null).Select(e => e.Key);
-                Assert.That(keys, Is.SupersetOf(new[] { GoblinValleyContent.PlayerKind, GoblinValleyContent.GoblinKind }));
+                // Wired by GoblinValleyBuilder
+                Assert.That(hosts[0].Setup, Is.SameAs(AssetDatabase.LoadAssetAtPath<GameSetup>(GoblinValleyTests.SetupPath)));
+                var host = new SerializedObject(hosts[0]);
                 Assert.That(host.FindProperty("_camera").objectReferenceValue, Is.Not.Null);
+                Assert.That(host.FindProperty("_saveProgress").boolValue, Is.True);
             }
             finally
             {

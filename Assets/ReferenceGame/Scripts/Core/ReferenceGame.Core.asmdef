@@ -18,7 +18,8 @@
         "RPGFramework.Loot.Runtime",
         "RPGFramework.Stats.Runtime",
         "RPGFramework.Serialization.Runtime",
-        "UniTask"
+        "UniTask",
+        "RPGFramework.ActionRpg.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 025775c71ad9707438abcc9aa198e949, type: 3}
+  m_Name: ClearTheValley
+  m_EditorClassIdentifier: 
+  questId: clear_the_valley
+  title: Clear the Valley
+  description: Goblins overran the valley. Slay five of them.
+  prerequisiteQuests: []
+  minimumLevel: 1
+  isRepeatable: 0
+  objectives:
+  - objectiveId: slay
+    type: 0
+    targetId: goblin
+    requiredCount: 5
+    description: Goblins overran the valley. Slay five of them.
+    isOptional: 0
+  rewards:
+  - type: 1
+    rewardId: xp
+    amount: 150
+  - type: 0
+    rewardId: valley_medal
+    amount: 1

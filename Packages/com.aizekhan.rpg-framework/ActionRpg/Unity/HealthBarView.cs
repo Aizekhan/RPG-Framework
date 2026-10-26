@@ -48,8 +48,21 @@ namespace RPGFramework.ActionRpg
             _lastHealth = actor?.Health ?? 0f;
             _flash = 0f;
             ApplyFlash(false);
-            if (_fill != null && _fill.TryGetComponent<Image>(out var image) && actor != null)
-                image.color = actor.IsPlayer ? _playerColor : _enemyColor;
+            if (_fill == null || actor == null)
+                return;
+            var color = actor.IsPlayer ? _playerColor : _enemyColor;
+            if (_fill.TryGetComponent<Image>(out var image))
+            {
+                image.color = color;
+            }
+            else if (_fill.TryGetComponent<Renderer>(out var fillRenderer))
+            {
+                // A mesh bar (e.g. a cube) is tinted without touching its shared material
+                var block = new MaterialPropertyBlock();
+                block.SetColor(ColorId, color);
+                block.SetColor(BaseColorId, color);
+                fillRenderer.SetPropertyBlock(block);
+            }
         }
 
         protected override void OnUnbound() => ApplyFlash(false);

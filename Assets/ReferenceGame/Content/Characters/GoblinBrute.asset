@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3ca4419384c54b0fb328096c3a6f673a, type: 3}
+  m_Name: GoblinBrute
+  m_EditorClassIdentifier: 
+  _id: goblin_brute
+  _displayName: Goblin Brute
+  _prefab: {fileID: 1324138920412006105, guid: a0526167a9ddc58439f26eff31755765, type: 3}
+  _placeholderColor: {r: 0.8, g: 0.3, b: 0.25, a: 1}
+  _maxHealth: 70
+  _attack: 11
+  _defense: 4
+  _healthPerLevel: 20
+  _attackPerLevel: 3
+  _defensePerLevel: 2
+  _moveSpeed: 2.4
+  _attackRange: 2
+  _attackCooldown: 1.8
+  _experience: 90
+  _loot: {fileID: 11400000, guid: 04e3ecd456bafc74daebc22d4552e0fe, type: 2}

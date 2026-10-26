@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2e19375f907a4f1dbe2eadf11b9d77ad, type: 3}
+  m_Name: GoblinValleySetup
+  m_EditorClassIdentifier: 
+  _player: {fileID: 11400000, guid: 348507315d637954ba7fc6fa9cd95def, type: 2}
+  _enemies:
+  - {fileID: 11400000, guid: 31dbd2a88e82a1948a18fb1e857b87bf, type: 2}
+  - {fileID: 11400000, guid: 40ffa7623de046d4e848ce70d1df7ef3, type: 2}
+  _waves:
+    Enabled: 1
+    FirstWaveDelay: 1
+    DelayBetweenWaves: 3
+    FirstWaveSize: 2
+    AddedPerWave: 1
+    MaxWaveSize: 8
+  _spawnRadius: 9
+  _items:
+  - {fileID: 11400000, guid: b0a6d42659f09804397ba4908705a798, type: 2}
+  - {fileID: 11400000, guid: 0a77cbab5e8e9854c9931a2de5d2d472, type: 2}
+  - {fileID: 11400000, guid: af67525dc87f27c4e8db7409814acc59, type: 2}
+  - {fileID: 11400000, guid: 9714ce74c3fd42c45a7f9b17d5b11a1d, type: 2}
+  _lootTables: []
+  _startingQuests:
+  - {fileID: 11400000, guid: d6e7cfbf002da21479308f781996f81a, type: 2}
+  - {fileID: 11400000, guid: 4802a8f5030c07b4195735416e87c04e, type: 2}
+  _otherQuests: []
+  _completeQuestsAutomatically: 1
+  _inventoryCapacity: 40
+  _seed: 0
+  _cameraOffset: {x: 0, y: 12, z: -9}

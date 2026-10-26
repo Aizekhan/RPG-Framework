@@ -26,7 +26,12 @@
         "RPGFramework.Serialization.Runtime",
         "UniTask",
         "UnityEngine.TestRunner",
-        "UnityEditor.TestRunner"
+        "UnityEditor.TestRunner",
+        "RPGFramework.ActionRpg.Runtime",
+        "RPGFramework.ActionRpg.Unity",
+        "RPGFramework.Tools.ItemDatabaseManager.Runtime",
+        "RPGFramework.Tools.LootTableDesigner.Runtime",
+        "RPGFramework.Tools.QuestEditor.Runtime"
     ],
     "includePlatforms": [
         "Editor"
