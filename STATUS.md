@@ -11,13 +11,13 @@
 
 | Gate | Result | SHA |
 |---|---|---|
-| Clean-checkout compile (`unity test`, verify worktree) | ✅ 0 `error CS` | `555f079` |
-| EditMode tests (Multiplayer Services SDK 2.4.1 installed, so the Unity Relay module and its tests compile) | ✅ **1322 / 1322 passed** (incl. co-op over `LoopbackNetwork` with 8 players, lost links and reconnecting, session providers, real UDP incl. a crashed client, Relay provider over a fake service, game rules GA01-GA12) | `555f079` |
-| PlayMode tests (Goblin Valley scene, assets-only action RPG, save/reload, **co-op: two hosts over UDP, eight games over UDP**, unreachable address, installed session module offered, **a friend whose link is cut reconnects by itself into the same seat**) | ✅ **9 / 9 passed** | `555f079` |
+| Clean-checkout compile (`unity test`, verify worktree) | ✅ 0 `error CS` | `5dcc822` |
+| EditMode tests (Multiplayer Services SDK 2.4.1 installed, so the Unity Relay module and its tests compile) | ✅ **1359 / 1359 passed** (incl. save versioning and recovery, the JSON serializer, co-op over `LoopbackNetwork` with 8 players, lost links and reconnecting, session providers, real UDP incl. a crashed client, Relay provider over a fake service, game rules GA01-GA12) | `5dcc822` |
+| PlayMode tests (Goblin Valley scene, assets-only action RPG, save/reload, **co-op: two hosts over UDP, eight games over UDP**, unreachable address, installed session module offered, **a friend whose link is cut reconnects by itself into the same seat**) | ✅ **9 / 9 passed** | `5dcc822` |
 | Unity Relay module, clean install (`D:/RPG-Release020`): without the SDK 0 errors and 15/15; with the SDK 0 errors, 15/15, Relay registered with no game code | ✅ | `451afe3` |
 | **Claude Code starter** `START-NEW-GAME.md` run end to end in an empty folder (`D:/RPG-Starter-Test`): project, git, package, New Game + AI guidance, 14/14 EditMode. A planted cut corner (`class Quest`, unrecorded `framework-gap`) fails GA11 and GA12; after recording the gap it is green (16/16) | ✅ | `ed1aaf7` |
-| `.meta` integrity | ✅ 0 problems | `555f079` |
-| CI on GitHub (meta check, EditMode, PlayMode) | ✅ green (run `40408792604`) | `555f079` |
+| `.meta` integrity | ✅ 0 problems | `5dcc822` |
+| CI on GitHub (meta check, EditMode, PlayMode) | ✅ green (run `40412738517`) | `5dcc822` |
 | Fresh Unity 6 project + UniTask + package → New Game → tests → Play | ✅ 14/14 generated tests, played (screenshots) | `675b521` |
 | **Release `v0.2.0`**: fresh Unity 6 project installs the package by git URL `#v0.2.0` (resolves to `01f5af8`), 0 `error CS`, New Game → 14/14 generated tests | ✅ CI green (run `40386565078`) | `01f5af8` |
 
@@ -82,6 +82,8 @@ Not ported on purpose in phase 9: a persistent event store (the `EventRecorder` 
 | 7 | **Co-op names, session providers, up to 8 players.** Names above heads and party colours; `INetworkSessionProvider` (LAN, loopback; the core never depends on a service); release `v0.2.0`; `ActionRpgHost` **Max Players** 2-8 with generated colours past the palette, friends spawn in a ring; fix: a join before the game started fell back to solo. Unity Relay: compatibility checked; suite green on Unity Transport 2.7.4; `UnityNetworkTransport` opened for relays (`DriverSettings`, `ThroughRelay`, `RelayStatus`); optional module `RPGFramework.Networking.UnityRelay` (compiled only with `com.unity.services.multiplayer`, registers itself in `NetworkSessionProviders`, offered in the F2 panel and by `-provider unity-relay`). Proven with a fake service only; **not yet tested against real Unity Relay** | `8948d16`, `11c9de6`, `01f5af8`, `d345bf6`, `9d08fd4`, `451afe3` | 1301/1301 EditMode, 8/8 PlayMode |
 | 8 | **Claude Code starter and the never-cut-the-corner protocol.** `START-NEW-GAME.md`: one file for an empty folder, Claude Code walks the developer from tools to a playable game, a GAME.md interview and a milestone plan. GA11 (a game must not redeclare framework types), GA12 (every `// framework-gap: <id>` stand-in is described in `FRAMEWORK-GAPS.md`); AI guidance creates `GAME.md`, `FRAMEWORK-GAPS.md`, `DEVLOG.md` once; every rule is a test in every game (guard test) | `ed1aaf7` | 1308/1308 EditMode; starter run end to end |
 | 9 | **Co-op stage 3: bad links.** `NetworkManager` connection timeout (was a TODO) and bad-message limit with `PeerDropped`; `INetworkPeerDisconnect`; protocol v3 with rejoin tokens: the host keeps a lost player's seat, name and health for 2 minutes (also when they return before it noticed), the joined game reconnects by itself (3 tries), F2 shows unstable links; impossible counts and non-finite positions refused; host autosave every 60 s | `555f079` | 1322/1322 EditMode (loopback + real UDP crash), 9/9 PlayMode (cut cable → reconnect) |
+| 10 | **Saves outlive their build.** Section versions with `Upgrade` (older upgraded, pre-version saves as v1, newer refused before any change); previous save kept and loaded when the latest is damaged or unusable; unreadable saves set aside, newer-build saves never saved over; games add their own state (`ActionRpgSaves.Register`, `ActionRpgHost.ConfigureSaves`). **Fix:** JSON serializer rewritten (proven broken: quotes/backslashes at string ends, literal `
+`, `:` in keys, stack overflow on `DateTime`/`Guid`, truncated text loaded). Recipe 12 | `5dcc822` | 1359/1359 EditMode, 9/9 PlayMode |
 | 2 | **Playable 3D Goblin Valley.** Framework `Presentation` module (`EntityViewRegistry`). Game: spawn/despawn/wave events, `GoblinWaveSystem`, inspector-tunable `GoblinValleyConfig` + `PrefabCatalog`, presenter spawning prefabs through `PrefabSpawner` (goblins pooled), `HeroController` (Input System: keyboard, mouse, gamepad), `GoblinBrain`, health bars, UGUI HUD, `CameraFollow`. `GoblinValleyBuilder` generates placeholder art, prefabs, config and scene (menu or batch mode). CI runs EditMode + PlayMode | `de2498e` | 1196/1196 EditMode, 1/1 PlayMode |
 
 Roadmap, in order (agreed with the user 2026-10-26):
@@ -143,7 +145,7 @@ Checked before moving the old plans to `Docs/archive/` (2026-10-26). Ideas that 
 
 Agreed with the user (2026-10-26): finish the plan before releasing; **no v0.3.0 release yet** (the starter picks the latest tag, so it stays on v0.2.0 until then).
 1. ~~Network reliability (co-op stage 3)~~ done (`555f079`). Still open: the live Relay test across two networks when the owner provides a UGS project (host creates → friend joins by code → both see and interact → disconnect handled); no host migration (by design for now).
-2. Weak spots: save versioning and migration; benchmarks, then `StatContainer` performance and int rounding; tests for Tools and DeltaCompression; the three `#if FALSE` editor windows (re-enable or delete); loot events as bus events (or remove them).
+2. Weak spots: ~~save versioning and migration~~ done (`5dcc822`); benchmarks, then `StatContainer` performance and int rounding; tests for Tools and DeltaCompression; the three `#if FALSE` editor windows (re-enable or delete); loot events as bus events (or remove them).
 3. PvP as game modes: teams via factions, server-checked movement, duel/arena rules.
 4. Editor tools, a second genre sample.
 5. Release 1.0; the owner decides the licence/selling model.
