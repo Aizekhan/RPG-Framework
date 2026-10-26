@@ -9,6 +9,7 @@
         "RPGFramework.Events.Runtime",
         "RPGFramework.Systems.Runtime",
         "RPGFramework.ECS.Runtime",
+        "RPGFramework.Timers.Runtime",
         "UniTask",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"

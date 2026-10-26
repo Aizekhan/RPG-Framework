@@ -8,6 +8,7 @@ using RPGFramework.ECS;
 using RPGFramework.Events;
 using RPGFramework.Logging;
 using RPGFramework.Systems;
+using RPGFramework.Timers;
 
 namespace RPGFramework.Bootstrap.Tests
 {
@@ -137,6 +138,19 @@ namespace RPGFramework.Bootstrap.Tests
             Assert.That(c.Resolve<ILogger>(), Is.SameAs(_host.Logger));
             Assert.That(_host.World.State, Is.EqualTo(WorldState.Initialized));
             Assert.That(_host.World.Systems.Get<EventPumpSystem>(), Is.Not.Null);
+        }
+
+        [Test]
+        public void TimerService_IsTickedByTheWorld()
+        {
+            _host.Start(null);
+            int fired = 0;
+            _host.Container.Resolve<ITimerService>().Schedule(1f, () => fired++);
+
+            _host.Update(0.5f);
+            _host.Update(0.5f);
+
+            Assert.That(fired, Is.EqualTo(1));
         }
 
         [Test]
