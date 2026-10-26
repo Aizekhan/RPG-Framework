@@ -60,7 +60,7 @@ Each row was verified on a fresh worktree at the SHA shown (0 `error CS`, all Ed
 Not ported on purpose in phase 9: a persistent event store (the `EventRecorder` ring buffer covers debugging; no proven need for event sourcing).
 
 **Not done on purpose:**
-- Addressables 2.4.6 installed; `AssetManagement.Addressables` (`AddressablesAssetProvider`, compiled only when the package is present) has no automated test: Addressables needs a built catalog/settings, which the project does not have yet.
+- Addressables 2.4.6 installed; `AssetManagement.Addressables` (`AddressablesAssetProvider`, compiled only when the package is present) has no automated test yet. Default Addressables settings (`Assets/AddressableAssetsData`, one empty Default Local Group) are committed; nothing is addressable yet, prefabs are referenced directly through `PrefabCatalog`.
 - `ParallelSystemRegistry` not ported. Unity API is main-thread only and there is no proven need.
 
 ## Product milestones (2026-10-26)

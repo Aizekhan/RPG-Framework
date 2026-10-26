@@ -72,4 +72,4 @@ Create the worktree with `git worktree add --detach D:/RPG-Framework-verify <sha
 
 ## Decisions waiting for the user
 
-- Whether to commit the Addressables settings the user created in the Editor (`Assets/AddressableAssetsData`, `ProjectSettings/EditorBuildSettings.asset`); left uncommitted in the main tree.
+- None. (Addressables settings committed on 2026-10-26 at the user's request.)
