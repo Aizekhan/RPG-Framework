@@ -14,7 +14,7 @@
 | Clean-checkout compile (`unity test`, fresh worktree) | ✅ 0 `error CS` | `35a1dbb` |
 | EditMode tests | ✅ **1170 / 1170 passed** | `35a1dbb` |
 | `.meta` integrity (CI `meta-check`) | ✅ green on every push | `35a1dbb` |
-| CI Unity tests on GitHub | ⚠️ **skipped**: secrets `UNITY_LICENSE`, `UNITY_EMAIL`, `UNITY_PASSWORD` not set | — |
+| CI Unity tests on GitHub (GameCI) | ✅ **1170 / 1170 passed**, run `40337490738` | `ebaa00e` + CI fix |
 
 Earlier "~5 compilation errors" and "100% pass rate" claims were unverified. In reality HEAD `e348e10` did not compile from a clean clone, and ~150 tests (Guilds, Quests, Dialogue, Crafting) were silently not running.
 
@@ -106,6 +106,6 @@ Not ported on purpose in phase 9: a persistent event store (the `EventRecorder` 
 
 1. Persistence: persist save metadata and the checksum (open issue above).
 2. More bridges where games need them (e.g. Inventory→Quests Collect objectives through `ReportProgress`).
-3. Add Unity license secrets so CI runs the EditMode suite.
+3. CI: the license file is bound to another machine, so GameCI falls back to email/password activation (works; noted for when it stops working).
 4. Decide and commit (or discard) the remaining uncommitted EPIC 25 modules, ReferenceGame, NuGet files, `activeInputHandler`.
 5. Resolve duplicate types.

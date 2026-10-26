@@ -10,7 +10,7 @@
 
 - `main` == `origin/main`. Last code-verified SHA: **`35a1dbb`**: clean-checkout compile 0 errors, **1170/1170 EditMode tests**.
 - **The MythHunter core migration (phases 1–9) is complete.** See the STATUS.md table for every SHA. No active roadmap item; next candidates are in STATUS.md "Next steps".
-- CI (`.github/workflows/ci.yml`): the `.meta` integrity job runs. The Unity test job is **skipped** until the `UNITY_LICENSE`, `UNITY_EMAIL` and `UNITY_PASSWORD` secrets exist.
+- CI (`.github/workflows/ci.yml`): `.meta` integrity and GameCI EditMode tests both run on every push (license secrets set 2026-10-26; first green run `40337490738`, 1170/1170).
 - `main` protection blocks force pushes and branch deletion only. Direct commits to `main` work (per CLAUDE.md).
 
 ## What was done
@@ -62,5 +62,4 @@ Create the worktree with `git worktree add --detach D:/RPG-Framework-verify <sha
 
 1. Commit or discard the uncommitted EPIC 25 modules (Camera, Debug, Resources, SceneManagement, Time, empty Audio), `Assets/ReferenceGame/`, the NuGet files and `activeInputHandler: 2`. The colliding drafts (`Systems/`, Pooling `PoolManager`/`GameObjectPool`) are preserved in `D:\RPG-Framework-EPIC25-backup`.
 2. Addressables: install the package if an Addressables `IAssetProvider` is wanted.
-3. Add Unity license secrets for CI.
-4. Remove the empty `Core/Installers` module, or give it content.
+3. Remove the empty `Core/Installers` module, or give it content.
