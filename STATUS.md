@@ -11,17 +11,17 @@
 
 | Gate | Result | SHA |
 |---|---|---|
-| Clean-checkout compile (`unity test`, fresh worktree) | ✅ 0 `error CS` | `8fc25fc` |
-| EditMode tests | ✅ **1097 / 1097 passed** | `8fc25fc` |
-| `.meta` integrity (CI `meta-check`) | ✅ green on every push | `8fc25fc` |
+| Clean-checkout compile (`unity test`, fresh worktree) | ✅ 0 `error CS` | `35a1dbb` |
+| EditMode tests | ✅ **1170 / 1170 passed** | `35a1dbb` |
+| `.meta` integrity (CI `meta-check`) | ✅ green on every push | `35a1dbb` |
 | CI Unity tests on GitHub | ⚠️ **skipped**: secrets `UNITY_LICENSE`, `UNITY_EMAIL`, `UNITY_PASSWORD` not set | — |
 
 Earlier "~5 compilation errors" and "100% pass rate" claims were unverified. In reality HEAD `e348e10` did not compile from a clean clone, and ~150 tests (Guilds, Quests, Dialogue, Crafting) were silently not running.
 
 ## Codebase (committed, from `git ls-files`)
 
-- **42 module folders** in `Assets/_Framework`. Added since the audit: AssetManagement, Bootstrap, Events, Scenes, Systems, Timers
-- **90 asmdef**, **670 .cs files**, **~71,400 C# lines**
+- **45 module folders** in `Assets/_Framework`. Added since the audit: AssetManagement, Bootstrap, Diagnostics, Events, Integration, Scenes, Systems, Timers, UINavigation
+- **100 asmdef**, **709 .cs files**, **~76,500 C# lines**
 - No AI, Economy or Objectives modules exist (older docs listed them).
 
 ## Core migration from MythHunter (`ARCHITECTURE-GAP-ANALYSIS.md` §6, approved 2026-10-26)
@@ -41,8 +41,19 @@ Each row was verified on a fresh worktree at the SHA shown (0 `error CS`, all Ed
 | 7c Scenes | Serialized `SceneDispatcher` (transitions, typed payloads, events), `UnitySceneBackend` | `6636329` | 1074 |
 | 7d Timers | `TimerService` (handles, categories, TimeScale, `DelayAsync`), ticked by the core module | `1ae1c21` | 1087 |
 | 7e StateMachine | `AsyncStateMachine` (serialized transitions, rules, payloads) | `bbdb168`, `8fc25fc` | 1097 |
+| 7f Core async | `AsyncSerialQueue`; `SceneDispatcher` and `AsyncStateMachine` now built on it | `199c144` | 1102 |
+| 8 UINavigation | `NavigationService` (string ids, serialized operations, history, modals with typed results, scene roots), transition rules, `SceneNavigationHandler`; Unity: `NavigableView`, `ModalView<T>`, `ViewConfig`, `PrefabViewFactory` (layers, reuse, preload), `CanvasGroupTransition` | `77b5433`, `7882e4b`, `e904270` | 1127 |
+| 9a Loot | Validating `LootTableBuilder` | `da7b553` | 1131 |
+| 9b Persistence | **Bug fix:** `SaveSystem.Load` deserialized state as `object` and lost all data; typed `Load<T>`/`QuickLoad<T>`. `SaveGameCoordinator` with per-system `ISaveParticipant` sections | `04235ff`, `f519967` | 1140 |
+| 9c Networking | Several handlers per message (isolated errors, `IDisposable` registration), `MessageAuthority` (Server/Client/Any) with rejection stats | `25ac1c9`, `0c59369` | 1146 |
+| 9d Diagnostics | `SystemProfiler` hook in `SystemGroup`, event type statistics; new `Diagnostics` module: `DiagnosticsHub`, `PerformanceMonitor`, sections (performance, systems, events, pools, timers), `DiagnosticsModule`, IMGUI `DiagnosticsOverlay` | `6e41eaf`, `9dd2975` | 1156 |
+| 9e DI | Optional constructor parameters: injected when registered, default value otherwise; validation skips them | `b7af7f9` | 1157 |
+| 9f Module events | Gameplay modules publish their events through an optional `IEventPublisher`: Quests (+ `FailQuest`, `ReportProgress`), Progression, Abilities (+ `CooldownTracker.CollectExpired`), Guilds, Inventory. Event types implement `IEvent` | `7427114`…`de95bd9`, `7e68d3a`, `d82835c`, `35a1dbb` | 1170 |
+| 9g Module bridge | `RPGFramework.Integration.CombatQuests`: `KillObjectiveBridge` turns `ILifeStateManager` deaths into Kill-objective progress (game supplies target ids and kill credit) | `dee45d1`, `25bb6a1` | 1163 |
 
-**Remaining:** phase 8 (UI navigation, view factory) and phase 9 (debug tools, event store, module bridges, loot builder, save coordinator, network authority).
+**Migration plan (`ARCHITECTURE-GAP-ANALYSIS.md` §6) is complete.** Everything above is pushed to `origin/main`.
+
+Not ported on purpose in phase 9: a persistent event store (the `EventRecorder` ring buffer covers debugging; no proven need for event sourcing).
 
 **Not done on purpose:**
 - No Addressables provider. The package is not installed, so it could not be compiled or verified. `IAssetProvider` is the extension point.
@@ -76,7 +87,8 @@ Each row was verified on a fresh worktree at the SHA shown (0 `error CS`, all Ed
 **High**
 - Duplicate types: `IStatusEffect`/`StatusEffectManager` (Combat vs StatusEffects), `QuestReward`/`QuestObjective` (Quests vs Tools/QuestEditor), `StatModifier` (Stats vs ItemAsset), `EquipmentSlot` (class in Inventory, enum in UI)
 - UI panels are stubs; `InventoryPanel` takes `object`; 25 `AddListener` with no `RemoveListener`; 3 event subscriptions in `EquipmentPanel` never removed
-- Gameplay modules do not yet publish their events through `IEventBus` (bus exists since phase 3)
+- Persistence: save metadata is kept only in memory (lost after restart), and the checksum is never stored, so the integrity check always passes
+- Events still without a producer: `StatIncreasedEvent` (Progression), `TreasuryDeposit/WithdrawEvent` (Guilds treasury has no publisher), Combat `DeathEvent` is a C# event on `ILifeStateManager`, not a bus event
 
 **Medium**
 - Test asmdef hygiene: DI, ECS, Logging lack `UNITY_INCLUDE_TESTS` and `nunit.framework.dll`; Environment lacks the constraint
@@ -92,8 +104,8 @@ Each row was verified on a fresh worktree at the SHA shown (0 `error CS`, all Ed
 
 ## Next steps
 
-1. Migration phase 8: UI navigation service, view factory, view config.
-2. Migration phase 9: debug tools, event store, module bridges, loot table builder, save coordinator, network authority.
+1. Persistence: persist save metadata and the checksum (open issue above).
+2. More bridges where games need them (e.g. Inventory→Quests Collect objectives through `ReportProgress`).
 3. Add Unity license secrets so CI runs the EditMode suite.
 4. Decide and commit (or discard) the remaining uncommitted EPIC 25 modules, ReferenceGame, NuGet files, `activeInputHandler`.
 5. Resolve duplicate types.

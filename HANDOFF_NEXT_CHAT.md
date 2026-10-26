@@ -8,8 +8,8 @@
 
 ## Where things stand
 
-- `main` == `origin/main`. Last code-verified SHA: **`8fc25fc`**: clean-checkout compile 0 errors, **1097/1097 EditMode tests**.
-- **Active task:** migrating the MythHunter core architecture into the framework. The user approved the plan and asked for work to continue until the whole migration is done. Phases 1–7 are done; **phase 8 (UI navigation) is next**, followed by phase 9.
+- `main` == `origin/main`. Last code-verified SHA: **`35a1dbb`**: clean-checkout compile 0 errors, **1170/1170 EditMode tests**.
+- **The MythHunter core migration (phases 1–9) is complete.** See the STATUS.md table for every SHA. No active roadmap item; next candidates are in STATUS.md "Next steps".
 - CI (`.github/workflows/ci.yml`): the `.meta` integrity job runs. The Unity test job is **skipped** until the `UNITY_LICENSE`, `UNITY_EMAIL` and `UNITY_PASSWORD` secrets exist.
 - `main` protection blocks force pushes and branch deletion only. Direct commits to `main` work (per CLAUDE.md).
 
@@ -18,10 +18,12 @@
 1. Technical audit, plus fixes for every finding (see STATUS.md, "Fixed in the audit").
 2. `ARCHITECTURE-GAP-ANALYSIS.md` (`3fb53cb`) compared MythHunter's core with the framework.
 3. Migration phases 1–7 (see the STATUS.md table): Logging, Core/UniTask, Events, Systems/World, Bootstrap/GameHost, ECS pools and archetypes, Pooling, AssetManagement, Scenes, Timers, AsyncStateMachine.
+4. Phase 8: `UINavigation` module. Phase 9: loot builder, save coordinator (+ load data-loss fix), network authority, diagnostics, DI optional parameters, module events, Combat→Quests bridge.
 
-## Phase 8/9 starting points
+## Conventions for new work
 
-- MythHunter sources: `_MythHunter/Code/UI` (e.g. `UI/Navigation/SceneViewRegistry.cs`). Read the actual code before porting. Port only game-agnostic parts.
+- Gameplay services take an optional `IEventPublisher events = null` (DI resolves it when registered) and publish their module's `IEvent` structs.
+- Cross-module glue lives in optional `Integration/<A><B>` assemblies, never as a direct reference between gameplay modules.
 - New runtime services follow the existing pattern:
   - Pure C# runtime assembly, plus an optional `*.Unity` assembly for MonoBehaviours.
   - Registered from a `GameFeatureModule` or `FrameworkCoreModule`.
@@ -42,7 +44,8 @@ Create the worktree with `git worktree add --detach D:/RPG-Framework-verify <sha
 ## Gotchas learned
 
 - Batch-mode Unity exits with code 2 when any test fails. Read the NUnit XML, not the exit code.
-- A test assembly whose plugin fails to load reports **0 tests, not an error**. Compare totals between runs (expected: 1097).
+- A test assembly whose plugin fails to load reports **0 tests, not an error**. Compare totals between runs (expected: 1170).
+- Test assemblies that construct `EventBus` need `RPGFramework.Logging.Runtime` (CS0012 otherwise).
 - A `.meta` without a valid 32-hex GUID makes Unity ignore the asset, silently. CI catches this.
 - Every new file and folder needs a committed `.meta`.
 - Stage explicit paths only. The working tree holds user changes that must not be committed (Pooling asmdef, ProjectSettings).
