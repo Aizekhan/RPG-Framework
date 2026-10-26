@@ -3,6 +3,7 @@
     "rootNamespace": "ReferenceGame.PlayTests",
     "references": [
         "ReferenceGame",
+        "ReferenceGame.Core",
         "RPGFramework.Presentation.Unity",
         "RPGFramework.Cameras.Unity",
         "RPGFramework.Bootstrap.Runtime",

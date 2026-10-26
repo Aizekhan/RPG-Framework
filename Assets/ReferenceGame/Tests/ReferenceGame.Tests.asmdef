@@ -3,6 +3,9 @@
     "rootNamespace": "ReferenceGame.Tests",
     "references": [
         "ReferenceGame",
+        "ReferenceGame.Core",
+        "RPGFramework.GameKit.Editor",
+        "RPGFramework.GameKit.TestSupport",
         "RPGFramework.Bootstrap.Unity",
         "RPGFramework.Spawning.Unity",
         "RPGFramework.Bootstrap.Runtime",

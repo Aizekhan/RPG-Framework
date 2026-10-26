@@ -31,9 +31,11 @@ that the framework modules work together.
 ## Game rules and the scene are separate
 
 ```
-Scripts/Core   rules, no Unity scene code: GoblinValleyGame, GoblinWaveSystem, content, events
-Scripts/View   what you see: prefabs bound to entities, input, HUD
+Scripts/Core   ReferenceGame.Core (noEngineReferences): GoblinValleyGame, GoblinWaveSystem, content, events
+Scripts/View   ReferenceGame: prefabs bound to entities, input, HUD
 ```
+
+`Tests/ReferenceGameArchitectureTests` runs the framework's game architecture rules (GA01–GA10) on this game.
 
 The rules announce combatants entering and leaving the valley (`CombatantSpawnedEvent`, `CombatantDespawnedEvent`).
 `GoblinValleyPresenter` answers by spawning the prefab registered for the combatant's kind (`player`, `goblin`)

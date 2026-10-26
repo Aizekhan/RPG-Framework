@@ -1,0 +1,35 @@
+{
+    "name": "__GAME__.Tests",
+    "rootNamespace": "__GAME__.Tests",
+    "references": [
+        "__GAME__.Core",
+        "__GAME__",
+        "RPGFramework.Bootstrap.Runtime",
+        "RPGFramework.Bootstrap.Unity",
+        "RPGFramework.Core.Runtime",
+        "RPGFramework.DI.Runtime",
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "RPGFramework.Systems.Runtime",
+        "RPGFramework.GameKit.Editor",
+        "RPGFramework.GameKit.TestSupport",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

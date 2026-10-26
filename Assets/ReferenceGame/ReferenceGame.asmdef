@@ -2,6 +2,7 @@
     "name": "ReferenceGame",
     "rootNamespace": "ReferenceGame",
     "references": [
+        "ReferenceGame.Core",
         "RPGFramework.Bootstrap.Runtime",
         "RPGFramework.Bootstrap.Unity",
         "RPGFramework.Bootstrap.Gameplay",

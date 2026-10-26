@@ -3,6 +3,7 @@
     "rootNamespace": "ReferenceGame.Editor",
     "references": [
         "ReferenceGame",
+        "ReferenceGame.Core",
         "RPGFramework.Bootstrap.Unity",
         "RPGFramework.Spawning.Unity",
         "RPGFramework.Cameras.Unity",

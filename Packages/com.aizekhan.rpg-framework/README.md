@@ -19,30 +19,44 @@ local copy instead: `"com.aizekhan.rpg-framework": "file:../../RPG-Framework/Pac
 Addressables are optional: when `com.unity.addressables` is installed, `AddressablesAssetProvider` compiles automatically.
 Games that reference prefabs directly (prefab catalogs, view configs) never need Addressables.
 
-## A game in four steps
+## Start a game (Game Kit)
 
-1. **Host.** Derive from `GameHostBehaviour`, put it on one object in the first scene and add modules:
+**RPG Framework > Game Kit > New Game or Feature...** creates a game that follows the architecture from the first
+line, with tests that keep it that way:
 
-   ```csharp
-   public sealed class MyGameHost : GameHostBehaviour
-   {
-       protected override void ConfigureModules(IGameCompositionBuilder builder) => builder
-           .UseModule(new CombatModule())
-           .UseModule(new ProgressionModule())
-           .UseModule(new QuestsModule())
-           .UseModule(new ItemsModule())
-           .UseModule(new LootModule())
-           .UseModule(new MyGameModule());
-   }
-   ```
+```
+Assets/MyGame/
+  Scripts/Core/   MyGame.Core: rules, modules, events (no UnityEngine)
+  Scripts/        MyGame: host (GameHostBehaviour), views, input
+  Scenes/         MyGame.unity with the host
+  Tests/          boot test, scene test, MyGameArchitectureTests (rules GA01-GA10)
+```
 
+**New Feature** adds a module, its rules, events and tests, and joins the module to the game's composition.
+It also installs `CLAUDE.md`, `Docs/RPGFramework/architecture.md` and recipes for AI assistants, plus a CI workflow
+when the project has none. **Check Architecture** runs the rules on demand. Everything also runs in batch mode, so an
+AI assistant can use it:
+
+```
+Unity -batchmode -quit -projectPath . -executeMethod RPGFramework.GameKit.Editor.GameScaffold.NewGameFromCommandLine -game MyGame
+Unity -batchmode -quit -projectPath . -executeMethod RPGFramework.GameKit.Editor.GameScaffold.NewFeatureFromCommandLine -game MyGame -feature Shop
+```
+
+The rules a game follows (each one is a test in `MyGameArchitectureTests`, failures say how to fix them):
+rules in a `*.Core` assembly without UnityEngine, dependencies pointing from views to rules, no scene searches,
+no singletons, immutable struct events, no UnityEditor in player code, one Unity object per file, every assembly tested.
+
+The flow inside a game:
+
+1. **Composition.** `MyGameComposition.Configure` lists the modules, framework ones included
+   (`CombatModule`, `ProgressionModule`, `QuestsModule`, `ItemsModule`, `LootModule`); the host and the tests share it.
 2. **Content.** Register items, quests, loot tables and stat growth in your module's `OnInitialize`.
-3. **Rules.** React to framework events by subscribing to `IEventBus`: `DeathEvent`, `QuestCompletedEvent`, `LevelUpEvent`
-   and so on. Do not poll other modules or call into their internals.
-4. **Presentation.** MonoBehaviours read state and subscribe to events. They never own game rules.
+3. **Rules.** React to framework events by subscribing to `IEventBus` (`DeathEvent`, `QuestCompletedEvent`,
+   `LevelUpEvent`); publish your own. Do not poll other modules or call into their internals.
+4. **Presentation.** A presenter spawns prefabs for entities through `IPrefabSpawner` and links them in
+   `IEntityViewRegistry`; MonoBehaviours read state and call the rules. They never own game rules.
 
-The `Assets/ReferenceGame` project in the repository (Goblin Valley) is a complete example, with tests that boot it
-through `GameHost`.
+The `Assets/ReferenceGame` project in the repository (Goblin Valley) is a complete, playable example.
 
 ## Modules
 
@@ -53,6 +67,7 @@ through `GameHost`.
 | Gameplay | `Combat`, `Stats`, `StatusEffects`, `Abilities`, `Progression`, `Quests`, `Items`, `Inventory`, `Loot`, `Crafting`, `Dialogue`, `Factions`, `Guilds`, `Trading`, `Housing`, `Companions`, `Achievements`, `Skills`, `DynamicEvents` |
 | Content & scenes | `AssetManagement` (Resources and Addressables providers), `Pooling`, `Spawning` (`PrefabSpawner`, `PrefabCatalog`), `Presentation` (`EntityViewRegistry`: entity ↔ GameObject), `Scenes`, `Persistence` |
 | UI | `UINavigation` (screens, modals, transitions), `UI` (RPG panels and HUD) |
+| Tooling | `GameKit` (game and feature generators, architecture rules for games, AI guidance), `Editor` (windows, inspectors) |
 
 Inside a module, engine-independent logic lives in `Runtime`, Unity-specific code in `Unity`, and tests in `Tests`.
 

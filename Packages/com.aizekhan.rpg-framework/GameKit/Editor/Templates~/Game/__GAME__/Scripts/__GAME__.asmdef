@@ -1,0 +1,30 @@
+{
+    "name": "__GAME__",
+    "rootNamespace": "__GAME__",
+    "references": [
+        "__GAME__.Core",
+        "RPGFramework.Bootstrap.Runtime",
+        "RPGFramework.Bootstrap.Unity",
+        "RPGFramework.Core.Runtime",
+        "RPGFramework.DI.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "RPGFramework.Presentation.Unity",
+        "RPGFramework.Spawning.Unity",
+        "RPGFramework.AssetManagement.Runtime",
+        "RPGFramework.AssetManagement.Unity",
+        "RPGFramework.Pooling.Runtime",
+        "RPGFramework.Pooling.Unity",
+        "RPGFramework.Cameras.Unity",
+        "UniTask"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

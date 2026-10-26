@@ -1,0 +1,54 @@
+# Installed by RPG Framework > Game Kit > Install AI Guidance (only when this file did not exist).
+# Runs the EditMode and PlayMode tests (architecture rules included) on every push and pull request.
+# Needs the repository secrets UNITY_LICENSE, UNITY_EMAIL and UNITY_PASSWORD (https://game.ci/docs/github/activation).
+name: Unity tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    name: ${{ matrix.mode }} tests
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [editmode, playmode]
+    permissions:
+      contents: read
+      checks: write
+    env:
+      UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+      UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+      UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+    steps:
+      - name: Check Unity license secrets
+        id: license
+        run: |
+          if [ -z "$UNITY_LICENSE" ] || [ -z "$UNITY_EMAIL" ] || [ -z "$UNITY_PASSWORD" ]; then
+            echo "::warning::Unity tests SKIPPED: set the UNITY_LICENSE, UNITY_EMAIL and UNITY_PASSWORD repository secrets."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v5
+        if: steps.license.outputs.available == 'true'
+      - uses: actions/cache@v4
+        if: steps.license.outputs.available == 'true'
+        with:
+          path: Library
+          key: Library-${{ hashFiles('Packages/packages-lock.json', 'Assets/**/*.asmdef') }}
+          restore-keys: Library-
+      - uses: game-ci/unity-test-runner@v4
+        if: steps.license.outputs.available == 'true'
+        id: tests
+        with:
+          testMode: ${{ matrix.mode }}
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          checkName: ${{ matrix.mode }} results
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.license.outputs.available == 'true'
+        with:
+          name: ${{ matrix.mode }}-results
+          path: ${{ steps.tests.outputs.artifactsPath }}
