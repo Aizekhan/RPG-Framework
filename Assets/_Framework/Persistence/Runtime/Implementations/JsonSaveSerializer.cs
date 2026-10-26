@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -60,7 +61,11 @@ namespace RPGFramework.Persistence
             {
                 if (type == typeof(bool))
                     return obj.ToString().ToLower();
-                return obj.ToString();
+                if (type == typeof(float))
+                    return ((float)obj).ToString("R", CultureInfo.InvariantCulture);
+                if (type == typeof(double))
+                    return ((double)obj).ToString("R", CultureInfo.InvariantCulture);
+                return Convert.ToString(obj, CultureInfo.InvariantCulture);
             }
 
             if (type == typeof(string))
@@ -136,13 +141,13 @@ namespace RPGFramework.Persistence
             if (type == typeof(bool))
                 return bool.Parse(json);
             if (type == typeof(int))
-                return int.Parse(json);
+                return int.Parse(json, CultureInfo.InvariantCulture);
             if (type == typeof(long))
-                return long.Parse(json);
+                return long.Parse(json, CultureInfo.InvariantCulture);
             if (type == typeof(float))
-                return float.Parse(json);
+                return float.Parse(json, CultureInfo.InvariantCulture);
             if (type == typeof(double))
-                return double.Parse(json);
+                return double.Parse(json, CultureInfo.InvariantCulture);
             if (type == typeof(string))
                 return UnescapeString(json.Trim('"'));
 

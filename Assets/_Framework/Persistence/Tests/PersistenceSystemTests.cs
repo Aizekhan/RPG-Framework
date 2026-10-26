@@ -294,6 +294,38 @@ namespace RPGFramework.Persistence.Tests
             Assert.AreEqual(SerializationFormat.Binary, _binarySerializer.Format);
         }
 
+        [Test]
+        public void BinarySerializer_RejectsDataWithoutHeader()
+        {
+            // e.g. a legacy or crafted BinaryFormatter payload
+            var foreign = new byte[] { 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF };
+
+            Assert.Throws<InvalidOperationException>(() => _binarySerializer.Deserialize<TestGameState>(foreign));
+        }
+
+        [TestCase("uk-UA")]
+        [TestCase("de-DE")]
+        public void Serializers_RoundTripFractionalValues_UnderCommaDecimalCulture(string cultureName)
+        {
+            var previous = System.Threading.Thread.CurrentThread.CurrentCulture;
+            try
+            {
+                System.Threading.Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo(cultureName);
+                var original = new TestGameState { PlayerName = "Culture", Level = 2, Health = 85.5f };
+
+                foreach (var serializer in new[] { _jsonSerializer, _binarySerializer })
+                {
+                    var deserialized = serializer.Deserialize<TestGameState>(serializer.Serialize(original));
+                    Assert.AreEqual(85.5f, deserialized.Health, serializer.Format.ToString());
+                    Assert.AreEqual(2, deserialized.Level, serializer.Format.ToString());
+                }
+            }
+            finally
+            {
+                System.Threading.Thread.CurrentThread.CurrentCulture = previous;
+            }
+        }
+
         #endregion
 
         #region SaveFile Tests
