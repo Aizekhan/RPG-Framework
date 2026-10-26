@@ -1,0 +1,19 @@
+{
+    "name": "RPGFramework.Systems.Runtime",
+    "rootNamespace": "RPGFramework.Systems",
+    "references": [
+        "RPGFramework.Logging.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.ECS.Runtime",
+        "UniTask"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
