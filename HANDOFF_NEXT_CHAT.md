@@ -8,7 +8,7 @@
 
 ## Where things stand
 
-- `main` == `origin/main`. Last code-verified SHA: **`e6b70cc`**: clean-checkout compile 0 errors, **1150/1150 EditMode tests**, 0 `.meta` problems.
+- `main` == `origin/main`. Last code-verified SHA: **`a968867`**: clean-checkout compile 0 errors, **1172/1172 EditMode tests**; CI green on `ff70d11` (package lock), 0 `.meta` problems.
 - **The MythHunter core migration (phases 1–9) is complete**, and so is the follow-up cleanup (persistence sidecar, duplicate types, UI component files, architecture tests, EPIC 25 integration). No uncommitted framework work remains. Next candidates: STATUS.md "Next steps".
 - CI (`.github/workflows/ci.yml`): `.meta` integrity and GameCI EditMode tests both run on every push (license secrets set 2026-10-26; first green run `40337490738`, 1170/1170).
 - `main` protection blocks force pushes and branch deletion only. Direct commits to `main` work (per CLAUDE.md).
@@ -44,7 +44,7 @@ Create the worktree with `git worktree add --detach D:/RPG-Framework-verify <sha
 ## Gotchas learned
 
 - Batch-mode Unity exits with code 2 when any test fails. Read the NUnit XML, not the exit code.
-- A test assembly whose plugin fails to load reports **0 tests, not an error**. Compare totals between runs (expected: 1150).
+- A test assembly whose plugin fails to load reports **0 tests, not an error**. Compare totals between runs (expected: 1172).
 - The verify worktree gets NuGetForUnity files generated on import; remove them there before `checkout`, or checkout aborts and the old commit is tested. Check the SHA the run actually used.
 - A MonoBehaviour must live in a file of its own name (enforced by `FrameworkArchitectureTests`). Test MonoBehaviours go in a `*.TestSupport` runtime assembly.
 - Test assemblies that construct `EventBus` need `RPGFramework.Logging.Runtime` (CS0012 otherwise).
@@ -62,5 +62,4 @@ Create the worktree with `git worktree add --detach D:/RPG-Framework-verify <sha
 
 ## Decisions waiting for the user
 
-1. Addressables: install the package if an Addressables `IAssetProvider` is wanted.
-2. What to do with `D:\RPG-Framework-EPIC25-backup` (superseded drafts and stale docs) once nobody needs it.
+None. Agreed next order: (1) run ReferenceGame and wire bus subscribers/missing publishers, (2) event integration tests, (3) Tools tests, (4) StatContainer only after a benchmark.

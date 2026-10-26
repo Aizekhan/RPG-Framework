@@ -11,16 +11,16 @@
 
 | Gate | Result | SHA |
 |---|---|---|
-| Clean-checkout compile (`unity test`, fresh worktree) | ✅ 0 `error CS` | `e6b70cc` |
-| EditMode tests | ✅ **1150 / 1150 passed** (33 tests of the removed Combat status-effect copy are gone) | `e6b70cc` |
-| `.meta` integrity (CI `meta-check`) | ✅ 0 problems | `e6b70cc` |
+| Clean-checkout compile (`unity test`, fresh worktree) | ✅ 0 `error CS` | `a968867` |
+| EditMode tests | ✅ **1172 / 1172 passed** | `a968867` (CI green on `ff70d11`) |
+| `.meta` integrity (CI `meta-check`) | ✅ 0 problems | `ff70d11` |
 | CI Unity tests on GitHub (GameCI) | ✅ **1170 / 1170 passed**, run `40337490738` | `ebaa00e` + CI fix |
 
 Earlier "~5 compilation errors" and "100% pass rate" claims were unverified. In reality HEAD `e348e10` did not compile from a clean clone, and ~150 tests (Guilds, Quests, Dialogue, Crafting) were silently not running.
 
 ## Codebase (committed, from `git ls-files`)
 
-- **46 module folders** in `Assets/_Framework`. Added since the audit: AssetManagement, Bootstrap, Cameras, Diagnostics, Events, Integration, Scenes, Systems, Timers, UINavigation
+- **46 module folders** in `Assets/_Framework`. Added since the audit: AssetManagement, Bootstrap, Cameras, Diagnostics, Events, Integration, Scenes, Spawning, Systems, Timers, UINavigation
 - **106 asmdef**, **718 .cs files**, **~76,500 C# lines**
 - `Assets/ReferenceGame`: sample game (Goblin Valley) built only on framework assemblies
 - `Assets/_Tests/Editor/FrameworkArchitectureTests.cs`: framework-wide rules (no game references, no editor code in player builds, no assembly cycles, `RPGFramework.*` namespaces, every MonoBehaviour/ScriptableObject in a file of its own name)
@@ -58,7 +58,7 @@ Each row was verified on a fresh worktree at the SHA shown (0 `error CS`, all Ed
 Not ported on purpose in phase 9: a persistent event store (the `EventRecorder` ring buffer covers debugging; no proven need for event sourcing).
 
 **Not done on purpose:**
-- No Addressables provider. The package is not installed, so it could not be compiled or verified. `IAssetProvider` is the extension point.
+- Addressables 2.4.6 installed; `AssetManagement.Addressables` (`AddressablesAssetProvider`, compiled only when the package is present) has no automated test: Addressables needs a built catalog/settings, which the project does not have yet.
 - `ParallelSystemRegistry` not ported. Unity API is main-thread only and there is no proven need.
 
 ## Cleanup after the migration (2026-10-26)
@@ -69,9 +69,10 @@ Not ported on purpose in phase 9: a persistent event store (the `EventRecorder` 
 | `24274c0` | Duplicate types removed: Combat's own status-effect system (StatusEffects is the single module); Tools `QuestObjectiveEntry`/`QuestRewardEntry`/`ItemStatModifierEntry`; UI `EquipmentSlotType` |
 | `55db5f2` | **UI bug:** `EquipmentSlotUI`, `AbilitySlotUI`, `AbilitySlotHUD` were declared in other classes' files, so Unity could not attach them to any prefab. Own files now (`ItemSlotUI` is the general slot). `InventoryPanel` takes `IInventoryContainer<IItem>` instead of `object` |
 | `162efbf`, `91aee01` | Framework-wide architecture tests; test asmdef hygiene (DI, ECS, Logging, Environment); `com.unity.textmeshpro` stub removed, `ugui` pinned to the 2.0.0 Unity resolves |
+| `a968867`, `ff70d11` | Addressables provider + package; `Spawning` (`PrefabSpawner`: spawn by key, optional pooling/prewarm/release; `PrefabCatalog`); legacy `UISystem`/`IView`/`ViewId` enum removed (duplicated UINavigation, unused): `UIViewBase` derives from `NavigableView`, `Close()` goes back through navigation; UI and Spawning tests |
 | `a60ab53`, `e6b70cc` | EPIC 25 leftovers: `Cameras` (CameraFollow), `Timers.Unity` (`TimeScaleController`: pause, slow motion), `DebugDraw` in `Diagnostics.Unity`; Characters tests; ReferenceGame; `activeInputHandler` Both; NuGetForUnity config; empty `Core/Installers` removed |
 
-Not committed, kept in `D:\RPG-Framework-EPIC25-backup` (they duplicate migrated modules): EPIC 25 `Systems/`, Pooling `PoolManager`/`GameObjectPool`, Debug logger (→ Logging), `Resources` (→ AssetManagement), `SceneManagement` (→ Scenes), empty `Audio`, and the stale `COMPLETE-FRAMEWORK-ARCHITECTURE.md` / `FRAMEWORK-ARCHITECTURE-MAP.md`.
+Not committed (they duplicated migrated modules; the backup folder was deleted on 2026-10-26 with the user's approval): EPIC 25 `Systems/`, Pooling `PoolManager`/`GameObjectPool`, Debug logger (→ Logging), `Resources` (→ AssetManagement), `SceneManagement` (→ Scenes), empty `Audio`, and the stale `COMPLETE-FRAMEWORK-ARCHITECTURE.md` / `FRAMEWORK-ARCHITECTURE-MAP.md`.
 
 ## Fixed in the audit (2026-10-26)
 
@@ -96,12 +97,14 @@ Not committed, kept in `D:\RPG-Framework-EPIC25-backup` (they duplicate migrated
 - `ICharacter.Inventory`/`Progression` are `object` (keeps Characters free of those modules)
 
 **Low**
-- Modules without tests: DeltaCompression, Editor, Tools, UI
+- Modules without tests: DeltaCompression, Editor, Tools
+- The event bus has publishers (24 of 27 events) but no runtime subscribers in the framework or ReferenceGame; the Combat→Quests bridge uses the C# `ILifeStateManager` event
 - CI: the license file is bound to another machine, so GameCI falls back to email/password activation (works)
 
 ## Next steps
 
-1. Bus events for the remaining producers (Progression stats, Guild treasury, Combat death relay).
-2. `StatContainer` performance and int rounding.
-3. Re-enable or delete the three `#if FALSE` editor windows.
-4. Tests for UI, Tools, DeltaCompression.
+1. Run ReferenceGame end to end: modules register, systems tick, errors surface; subscribe its game logic to the bus.
+2. Missing publishers (Progression stats, Guild treasury), a bus relay for Combat death, and integration tests proving publish → handle.
+3. Tests for Tools (and DeltaCompression).
+4. `StatContainer` performance and int rounding, after a benchmark.
+5. Re-enable or delete the three `#if FALSE` editor windows.
