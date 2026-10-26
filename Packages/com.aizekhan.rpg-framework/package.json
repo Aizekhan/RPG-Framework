@@ -1,0 +1,24 @@
+{
+  "name": "com.aizekhan.rpg-framework",
+  "displayName": "RPG Framework",
+  "version": "0.1.0",
+  "unity": "6000.0",
+  "description": "Reusable building blocks for RPGs: composition root and DI, event bus, systems and ECS, combat, stats, progression, quests, inventory, items, loot, dialogue, crafting, save/load, asset management, pooling, prefab spawning and UI navigation. Game content and rules stay in the game project.\n\nRequires UniTask (com.cysharp.unitask). Addressables support turns on automatically when com.unity.addressables is installed.",
+  "keywords": [
+    "rpg",
+    "framework",
+    "quests",
+    "inventory",
+    "combat",
+    "progression"
+  ],
+  "author": {
+    "name": "Aizekhan",
+    "url": "https://github.com/Aizekhan/RPG-Framework"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "com.unity.ugui": "2.0.0",
+    "com.unity.modules.jsonserialize": "1.0.0"
+  }
+}

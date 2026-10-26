@@ -1,4 +1,4 @@
-"""Validate Unity .meta files under Assets/.
+"""Validate Unity .meta files under Assets/ and embedded packages (Packages/<name>/ with a package.json).
 
 Fails on:
 - .meta files with a missing or malformed GUID (Unity silently ignores the asset)
@@ -20,11 +20,16 @@ IGNORED = re.compile(r"(^\.|~$|\.tmp$|^cvs$)", re.IGNORECASE)
 
 
 def main(root):
-    assets = os.path.join(root, "Assets")
+    roots = [os.path.join(root, "Assets")]
+    packages = os.path.join(root, "Packages")
+    if os.path.isdir(packages):
+        for name in sorted(os.listdir(packages)):
+            if os.path.isfile(os.path.join(packages, name, "package.json")):
+                roots.append(os.path.join(packages, name))
     errors = []
     guids = defaultdict(list)
 
-    for dirpath, dirnames, filenames in os.walk(assets):
+    for dirpath, dirnames, filenames in (entry for top in roots for entry in os.walk(top)):
         dirnames[:] = [d for d in dirnames if not IGNORED.search(d)]
         names = set(filenames) | set(dirnames)
 

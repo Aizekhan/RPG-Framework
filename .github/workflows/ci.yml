@@ -51,7 +51,7 @@ jobs:
         if: steps.license.outputs.available == 'true'
         with:
           path: Library
-          key: Library-${{ hashFiles('Packages/packages-lock.json', 'Assets/**/*.asmdef') }}
+          key: Library-${{ hashFiles('Packages/packages-lock.json', 'Assets/**/*.asmdef', 'Packages/**/*.asmdef') }}
           restore-keys: Library-
 
       - uses: game-ci/unity-test-runner@v4

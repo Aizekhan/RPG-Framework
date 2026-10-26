@@ -164,7 +164,7 @@ namespace RPGFramework.Tests.Editor
         public void UnityObjects_HaveAMatchingScriptFile()
         {
             var scripted = new HashSet<Type>();
-            foreach (var guid in AssetDatabase.FindAssets("t:MonoScript", new[] { "Assets/_Framework" }))
+            foreach (var guid in AssetDatabase.FindAssets("t:MonoScript", new[] { "Packages/com.aizekhan.rpg-framework" }))
             {
                 var script = AssetDatabase.LoadAssetAtPath<MonoScript>(AssetDatabase.GUIDToAssetPath(guid));
                 var type = script != null ? script.GetClass() : null;
