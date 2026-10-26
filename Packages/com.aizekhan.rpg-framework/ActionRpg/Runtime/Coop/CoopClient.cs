@@ -22,7 +22,6 @@ namespace RPGFramework.ActionRpg.Coop
         private const string Category = "Coop";
 
         private readonly INetworkManager _network;
-        private readonly IActorMotion _motion;
         private readonly string _fingerprint;
         private readonly ILogger _logger;
         private readonly SubscriptionBag _subscriptions = new SubscriptionBag();
@@ -38,7 +37,7 @@ namespace RPGFramework.ActionRpg.Coop
             if (settings == null)
                 throw new ArgumentNullException(nameof(settings));
             _network = network ?? throw new ArgumentNullException(nameof(network));
-            _motion = motion;
+            Motion = motion;
             _logger = logger;
             _fingerprint = CoopProtocol.Fingerprint(settings, content);
             World = new RemoteWorld(settings, content, bus, intent => _network.SendToServer(intent));
@@ -51,6 +50,11 @@ namespace RPGFramework.ActionRpg.Coop
         }
 
         public RemoteWorld World { get; }
+
+        /// <summary>
+        /// Where characters are; settable because the views that implement it usually need <see cref="World"/> first.
+        /// </summary>
+        public IActorMotion Motion { get; set; }
         public CoopClientState State { get; private set; } = CoopClientState.Idle;
 
         /// <summary>
@@ -97,7 +101,7 @@ namespace RPGFramework.ActionRpg.Coop
                 End(reason);
                 return;
             }
-            if (State != CoopClientState.Playing || _motion == null)
+            if (State != CoopClientState.Playing || Motion == null)
                 return;
             _sinceSend += deltaTime;
             if (_sinceSend < 1f / CoopProtocol.SendRate)
@@ -111,7 +115,7 @@ namespace RPGFramework.ActionRpg.Coop
         /// </summary>
         public void SendMotion()
         {
-            if (State != CoopClientState.Playing || _motion == null || !_motion.TryGetPose(World.PlayerId, out var pose))
+            if (State != CoopClientState.Playing || Motion == null || !Motion.TryGetPose(World.PlayerId, out var pose))
                 return;
             var message = new CoopMotionMessage();
             message.Poses.Add((World.PlayerId, pose));
@@ -160,13 +164,13 @@ namespace RPGFramework.ActionRpg.Coop
 
         private void OnMotion(int connectionId, CoopMotionMessage motion)
         {
-            if (_motion == null || State != CoopClientState.Playing)
+            if (Motion == null || State != CoopClientState.Playing)
                 return;
             foreach (var (id, pose) in motion.Poses)
             {
                 // This player moves themselves
                 if (id != World.PlayerId && World.Get(id) != null)
-                    _motion.SetTargetPose(id, pose);
+                    Motion.SetTargetPose(id, pose);
             }
         }
 

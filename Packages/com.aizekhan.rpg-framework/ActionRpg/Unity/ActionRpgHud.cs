@@ -284,9 +284,9 @@ namespace RPGFramework.ActionRpg
             _log.enabled = _showLog;
 
             // Bottom right: controls
-            var help = Label(Box(root, "Controls", new Vector2(1f, 0f), new Vector2(-24f, 24f), new Vector2(560f, 140f), Color.clear),
+            var help = Label(Box(root, "Controls", new Vector2(1f, 0f), new Vector2(-24f, 24f), new Vector2(560f, 175f), Color.clear),
                 "Lines", TextAnchor.LowerRight, _fontSize - 6);
-            help.text = "Move  WASD / arrows / left stick\nAttack  Space / left click / A\nCharacter  I / Tab / Select\nRespawn  R / Start";
+            help.text = "Move  WASD / arrows / left stick\nAttack  Space / left click / A\nCharacter  I / Tab / Select\nRespawn  R / Start\nCo-op  F2";
 
             // Centre: character sheet and backpack (hidden until toggled)
             _sheet = Box(root, "Character Sheet", new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1000f, 560f),

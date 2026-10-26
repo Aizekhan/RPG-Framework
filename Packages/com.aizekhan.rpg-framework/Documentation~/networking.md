@@ -1,43 +1,48 @@
-# Networking: where it stands and the proposed path
+# Networking: where it stands
 
-Status on 2026-10-26. **No game made with this package can be played over a network yet.**
+Status on 2026-10-26. **Action RPGs made with this package can be played in co-op by 2-4 players on one network**
+(LAN, or a VPN such as Tailscale or ZeroTier between homes).
 
 ## What exists
 
 | Part | State |
 |---|---|
-| Contracts: `INetworkTransport`, `INetworkManager`, `INetworkConnection`, `INetworkEntity`, `IReplicationSystem`, `INetworkSerializer` | done, engine-free |
-| `NetworkManager`, `NetworkConnection`, `ReplicationSystem`, `NetworkSerializer`, message types (spawn, despawn, state, delta, RPC, transform, ping) | done, tested against a mock transport (35 tests) |
-| `NetworkAuthority` (which side may send which message), several handlers per message | done, tested |
-| `DeltaCompression` (`DeltaSerializer`) | done, no tests |
-| A real transport (sockets / Unity Transport / Steam / relay) | **missing** |
-| Replication of the action RPG (`ActorWorld`) | **missing** |
-| Lobby, matchmaking, NAT traversal, host migration, client prediction | **missing** |
+| Contracts: `INetworkTransport`, `INetworkManager` (with `PeerConnected` / `PeerDisconnected`), `INetworkConnection`, `INetworkSerializer` | done, engine-free |
+| `NetworkManager`, `NetworkSerializer`, game messages with their own fields (`INetworkPayload`), `NetworkAuthority` (which side may send what) | done, tested |
+| `UnityNetworkTransport`: UDP over Unity Transport, reliable-ordered and unreliable pipelines, fragmentation up to 64 KB | done, tested over real UDP |
+| `LoopbackNetwork`: in-memory transport for tests and in-process play | done, tested |
+| Action RPG co-op (`ActionRpg/Runtime/Coop`): `CoopHost`, `CoopClient`, `RemoteWorld`, the party in `ActorWorld` | done, tested over loopback (EditMode) and UDP (PlayMode) |
+| `ActionRpgHost` co-op: F2 panel, `-host` / `-join`, smooth movement of others (`RemoteMotion`) | done, PlayMode test with two hosts |
+| `ReplicationSystem`, `NetworkEntity`, `NetworkTransform`, `DeltaCompression` (generic entity replication) | older, tested on a mock transport; the action RPG does not use them |
+| Internet play without a VPN (Unity Relay, NAT punch-through), lobby / matchmaking, host migration, client-side prediction | **missing** |
 
-The pieces are a protocol without a wire: messages can be built, serialized, authorised and dispatched, but only
-`MockNetworkTransport` (in the tests) moves them.
+## How the action RPG co-op works
 
-## Proposed path (co-op action RPG, 2-4 players)
+1. **Host-authoritative.** The host runs `ActorWorld` and the game's own rules. Joining adds a player to the party
+   (`ActorWorld.AddPlayer`); leaving removes them. The party shares level, experience, backpack and quests.
+2. **Joined machines mirror.** `CoopClient` keeps a `RemoteWorld` (an `IActorWorld`) in step and publishes
+   `ActorSpawnedEvent`, `ActorDespawnedEvent` and `ActorDamagedEvent` on its own bus, so the presenter, views and HUD
+   are the same code as in a solo game. Attacks and revives are sent to the host (`CoopIntentMessage`), which checks
+   them (alive, an enemy, within reach) and applies them through `ActorWorld`.
+3. **What is sent.** Reliable, 20 times a second when something changed: characters entering and leaving, hits,
+   changed numbers (health, stats, alive) and the party's progress, each measured against what that player last saw
+   (a late joiner gets everything at once). Unreliable, 20 times a second: positions (host → everyone; each player →
+   host, their own character only).
+4. **Messages** (ids 1100-1104): `CoopHello` (game fingerprint), `CoopWelcome` (accepted with a player id, or the
+   reason), `CoopWorld`, `CoopMotion`, `CoopIntent`. Hello and Intent are client-only, Welcome and World host-only
+   (`NetworkAuthority`).
+5. **Refusals in plain words:** a different build ("The host plays a different version of the game"), a full party,
+   nobody at that address (after about 5 seconds), the host leaving. The joined player is then back in a game of
+   their own.
 
-1. **Host-authoritative model.** The host runs `ActorWorld` as today; clients only show it and send input.
-   `ActorWorld` is engine-free and already announces everything on the bus (`ActorSpawnedEvent`,
-   `ActorDamagedEvent`, `ActorKilledEvent`, quests, loot), so replication is "forward these events to clients" plus
-   periodic transforms. No rule has to be rewritten.
-2. **First transport: Unity Transport (`com.unity.transport`)** behind `INetworkTransport`, in an optional assembly
-   compiled only when the package is installed (as the Addressables provider is). It is Unity's own low-level UDP
-   layer with reliable pipelines and Relay support, and it does not impose an object model that would compete with
-   `ActorWorld`. Netcode for GameObjects, Mirror or FishNet each bring their own spawning and ownership model; an
-   adapter to one of them is possible later through the same interface.
-3. **ActionRpg networking module:** host broadcasts actor events and transforms; clients send move/attack intents
-   that the host validates (`NetworkAuthority` already rejects client-sent state). Each player gets an actor; the
-   wave and quest rules stay on the host.
-4. **Proof:** two Editor instances (or ParrelSync / Multiplayer Play Mode) play the same valley; PlayMode tests run a
-   host and a client over the loopback transport.
+## Limits worth knowing
 
-Rough size: transport adapter 1-2 days, replication module and multi-player `ActorWorld` 4-6 days, tests and a
-sample scene 2 days.
+- Positions are trusted from each player for their own character (the host checks reach for attacks). Fine among
+  friends; a competitive game would need server-side movement.
+- No client-side prediction: a joined player's hits show after one round trip (a few milliseconds on a LAN).
+- Progress is saved on the host only; a friend who joins brings nothing and takes nothing home.
 
-## Decision needed
+## Next, if wanted
 
-Multiplayer is not started. Before any of this: is co-op in scope for the games you plan, and which transport
-should come first (Unity Transport proposed above)?
+- Unity Relay behind `INetworkTransport` for playing over the internet without a VPN (join code instead of an IP).
+- Per-player backpacks or loot rolls, if a game wants them instead of the shared party.

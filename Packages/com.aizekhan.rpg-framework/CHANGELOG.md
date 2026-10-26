@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- `ActionRpg`: co-op for 2-4 players on one network. Any `ActionRpgHost` game: F2 > **Host a game** / type an address and **Join** (or `-host` / `-join <ip>`). The host runs the rules; friends join its party (shared level, experience, backpack, quests) and see its world through `RemoteWorld`; their attacks and revives are decided by the host. Different builds and full parties are refused with a reason; a friend whose host leaves is back in a game of their own. `CoopHost` / `CoopClient` are engine-free and tested over `LoopbackNetwork`; a PlayMode test plays two hosts over UDP. Recipe 11
+- `ActionRpg`: `ActorWorld` party (`AddPlayer`, `RemovePlayer`, `Players`, `CreditOf`); enemies chase the nearest living player; views and the HUD read `IActorWorld`; `ActionRpgHost.CurrentWorld`
+- `Bootstrap`: `GameHostBehaviour.Restart()` starts a new game from `ConfigureModules`
+- `Networking`: `UnityNetworkTransport` gives up on an address nobody answers at after about 5 seconds; `NetworkManager` no longer throws on a bad message when it has no logger
 - `Networking`: a real transport, `UnityNetworkTransport` over Unity Transport (UDP; reliable-ordered and unreliable pipelines with fragmentation); `LoopbackNetwork` / `LoopbackTransport` for tests and in-process play; game messages with their own fields (`INetworkPayload`); `PeerConnected` / `PeerDisconnected` events on `INetworkManager`. The package now depends on `com.unity.transport`
 - `ActionRpg`: the backpack shows each item with its icon (new **Icon** sprite on Item assets; initials in a rarity-coloured frame when there is none). `ActionRpgHost` **Diagnostics** (on by default, Editor and development builds only): F3 shows systems, events and frame times
 - `Diagnostics`: `DiagnosticsOverlay`'s toggle key works with the Input System (it needed the legacy input manager before)

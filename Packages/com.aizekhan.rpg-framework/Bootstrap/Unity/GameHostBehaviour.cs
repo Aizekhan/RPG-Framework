@@ -36,6 +36,22 @@ namespace RPGFramework.Bootstrap.Unity
                 DontDestroyOnLoad(gameObject);
 
             _logger = CreateLogger();
+            StartHost();
+        }
+
+        /// <summary>
+        /// Shuts the running game down and starts a new one from <see cref="ConfigureModules"/> (a game switching
+        /// modes, such as joining someone else's game, or a "new game" button). Not from inside the host's own update.
+        /// </summary>
+        protected void Restart()
+        {
+            Host?.Dispose();
+            enabled = true;
+            StartHost();
+        }
+
+        private void StartHost()
+        {
             Host = new GameHost(_logger, new FrameworkCoreOptions
             {
                 WorldName = _worldName,

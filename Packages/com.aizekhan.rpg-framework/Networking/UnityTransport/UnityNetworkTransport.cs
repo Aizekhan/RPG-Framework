@@ -17,6 +17,8 @@ namespace RPGFramework.Networking.UnityTransport
     {
         private const int ServerConnectionId = 0;
         private const int MaxMessageSize = 64 * 1024;
+        private const int ConnectTimeoutMs = 1000;
+        private const int ConnectAttempts = 5;
 
         private readonly Queue<NetworkTransportEvent> _events = new Queue<NetworkTransportEvent>();
         private readonly Dictionary<int, UtpConnection> _connections = new Dictionary<int, UtpConnection>();
@@ -115,6 +117,8 @@ namespace RPGFramework.Networking.UnityTransport
             var settings = new NetworkSettings();
             settings.WithFragmentationStageParameters(payloadCapacity: MaxMessageSize);
             settings.WithReliableStageParameters(windowSize: 64);
+            // Give up on an address nobody answers at after about 5 seconds, not a minute
+            settings.WithNetworkConfigParameters(connectTimeoutMS: ConnectTimeoutMs, maxConnectAttempts: ConnectAttempts);
             _driver = NetworkDriver.Create(settings);
             _reliable = _driver.CreatePipeline(typeof(FragmentationPipelineStage), typeof(ReliableSequencedPipelineStage));
             _unreliable = _driver.CreatePipeline(typeof(FragmentationPipelineStage));

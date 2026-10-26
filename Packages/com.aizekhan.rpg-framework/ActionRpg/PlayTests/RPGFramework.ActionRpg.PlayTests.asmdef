@@ -17,7 +17,9 @@
         "RPGFramework.Tools.ItemDatabaseManager.Runtime",
         "RPGFramework.Diagnostics.Unity",
         "RPGFramework.Diagnostics.Runtime",
-        "UnityEngine.UI"
+        "UnityEngine.UI",
+        "RPGFramework.Networking.Runtime",
+        "RPGFramework.Networking.UnityTransport"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
