@@ -57,17 +57,17 @@ namespace RPGFramework.ActionRpg
         [SerializeField] private bool _diagnostics = true;
 
         [Header("Co-op")]
-        [Tooltip("Friends can host and join games (F2): up to 4 players, the host's machine runs the rules")]
+        [Tooltip("Friends can host and join games (F2); the host's machine runs the rules")]
         [SerializeField] private bool _coop = true;
+
+        [Tooltip("Most players in a hosted game, the host included (tested up to 8)")]
+        [SerializeField, Range(2, CoopProtocol.MaxSupportedPlayers)] private int _maxPlayers = CoopProtocol.DefaultMaxPlayers;
 
         [Tooltip("UDP port of games hosted on the local network (the default session provider)")]
         [SerializeField, Range(1024, 65535)] private int _coopPort = CoopProtocol.DefaultPort;
 
-        [Tooltip("Players' colours by party seat: the host, then each friend in the order they joined")]
-        [SerializeField] private Color[] _partyColors =
-        {
-            new Color(0.25f, 0.55f, 1f), new Color(1f, 0.6f, 0.15f), new Color(0.35f, 0.85f, 0.35f), new Color(0.8f, 0.35f, 0.95f)
-        };
+        [Tooltip("Players' colours by party seat: the host, then each friend in the order they joined. Seats past the list get generated colours")]
+        [SerializeField] private Color[] _partyColors = PlayerTagView.DefaultPalette();
 
         private const string PlayerNameKey = "RPGFramework.Coop.PlayerName";
         private string _playerName;
@@ -150,6 +150,16 @@ namespace RPGFramework.ActionRpg
         {
             get => _sessions ?? (_sessions = new LanSessionProvider(_coopPort));
             set => _sessions = value;
+        }
+
+        /// <summary>
+        /// Most players in the games this machine hosts, the host included (2 to <see cref="CoopProtocol.MaxSupportedPlayers"/>).
+        /// Applies to the next hosted game.
+        /// </summary>
+        public int MaxPlayers
+        {
+            get => Mathf.Clamp(_maxPlayers, 2, CoopProtocol.MaxSupportedPlayers);
+            set => _maxPlayers = Mathf.Clamp(value, 2, CoopProtocol.MaxSupportedPlayers);
         }
 
         /// <summary>
@@ -291,7 +301,7 @@ namespace RPGFramework.ActionRpg
             HostedSession session;
             try
             {
-                session = await SessionProvider.HostAsync(new SessionOptions { MaxPlayers = CoopProtocol.DefaultMaxPlayers, Name = PlayerName });
+                session = await SessionProvider.HostAsync(new SessionOptions { MaxPlayers = MaxPlayers, Name = PlayerName });
             }
             catch (NetworkSessionException exception)
             {
@@ -312,7 +322,8 @@ namespace RPGFramework.ActionRpg
                 _presenter, CoopProtocol.Fingerprint(_settings, _content), Host.Logger)
             {
                 // A friend's strike is checked against where this machine sees them, with slack for lag
-                MaxAttackDistance = _setup.Player.AttackRange + 1.5f
+                MaxAttackDistance = _setup.Player.AttackRange + 1.5f,
+                MaxPlayers = MaxPlayers
             };
             World.SetPlayerName(World.PlayerId, PlayerName);
             _coopHost.Open();
@@ -472,8 +483,13 @@ namespace RPGFramework.ActionRpg
         {
             _coopHost?.Dispose();
             _coopHost = null;
-            _coopClient?.Dispose();
-            _coopClient = null;
+            if (_coopClient != null)
+            {
+                // Closing the connection here is a restart (or a leave already handled), not the player walking out
+                _coopClient.Ended -= ReturnToSolo;
+                _coopClient.Dispose();
+                _coopClient = null;
+            }
             (_transport as IDisposable)?.Dispose();
             _transport = null;
             JoinCode = "";

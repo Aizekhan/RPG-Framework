@@ -24,6 +24,7 @@ namespace RPGFramework.ActionRpg.PlayTests
         private GameSetup _setup;
         private ActionRpgHost _first;
         private ActionRpgHost _second;
+        private readonly System.Collections.Generic.List<ActionRpgHost> _more = new System.Collections.Generic.List<ActionRpgHost>();
 
         [SetUp]
         public void SetUp()
@@ -44,6 +45,9 @@ namespace RPGFramework.ActionRpg.PlayTests
         [UnityTearDown]
         public IEnumerator TearDown()
         {
+            foreach (var game in _more.Where(game => game != null))
+                Object.Destroy(game.gameObject);
+            _more.Clear();
             if (_second != null)
                 Object.Destroy(_second.gameObject);
             if (_first != null)
@@ -143,6 +147,54 @@ namespace RPGFramework.ActionRpg.PlayTests
         }
 
         [UnityTest]
+        public IEnumerator EightPlayers_OverUdp_AllJoin_AndEachHasItsOwnColour()
+        {
+            _first.MaxPlayers = 8;
+            Assert.That(_first.HostGame(), Is.True, _first.CoopStatus);
+            var friends = new System.Collections.Generic.List<ActionRpgHost> { _second };
+            for (int i = 3; i <= 8; i++)
+            {
+                var game = StartGame($"Player {i}");
+                _more.Add(game);
+                friends.Add(game);
+            }
+            foreach (var friend in friends)
+            {
+                friend.UsePlayerName(friend.name);
+                friend.JoinGame("127.0.0.1");
+            }
+
+            yield return WaitUntil(() => friends.All(f => f.CoopClient?.State == Coop.CoopClientState.Playing),
+                () => "seven friends to join: " + string.Join("; ", friends.Select(f => $"{f.name} {f.Role} {f.CoopClient?.State} '{f.CoopStatus}'")));
+            var host = _first.World;
+            Assert.That(host.Players, Has.Count.EqualTo(8));
+            Assert.That(_first.CoopHost.MaxPlayers, Is.EqualTo(8));
+
+            // Every machine shows all eight players, each ring in its seat's colour, and no two seats look the same
+            yield return WaitUntil(() => friends.Append(_first).All(game => host.Players.All(id =>
+                game.Views.TryGetView(id, out var view) && view.GetComponent<PlayerTagView>().ShownName != "")), "all players on all screens");
+            var colours = host.Players.Select(id => _first.ColorOfSeat(host.Get(id).Seat)).ToList();
+            Assert.That(colours.Distinct().Count(), Is.EqualTo(8));
+            foreach (var game in friends)
+                foreach (int id in host.Players)
+                {
+                    game.Views.TryGetView(id, out var view);
+                    Assert.That(view.GetComponent<PlayerTagView>().ShownColor, Is.EqualTo(_first.ColorOfSeat(host.Get(id).Seat)));
+                }
+
+            // The last friend walks; the host and the first friend see it
+            var last = friends[friends.Count - 1];
+            int lastId = last.CurrentWorld.PlayerId;
+            last.Views.TryGetView(lastId, out var walker);
+            walker.transform.position = new Vector3(-5f, 0f, 6f);
+            Physics.SyncTransforms();
+            yield return WaitUntil(() => _first.Views.TryGetView(lastId, out var onHost) && _second.Views.TryGetView(lastId, out var onFriend)
+                                         && Vector3.Distance(onHost.transform.position, walker.transform.position) < 0.3f
+                                         && Vector3.Distance(onFriend.transform.position, walker.transform.position) < 0.3f,
+                "the last friend's move on other screens");
+        }
+
+        [UnityTest]
         public IEnumerator NobodyHosting_TheFriendIsToldAndPlaysAlone()
         {
             // A documentation-only address (TEST-NET-1): nothing answers there, on any machine
@@ -152,14 +204,16 @@ namespace RPGFramework.ActionRpg.PlayTests
                                          && _second.CoopStatus.Contains("Could not reach"), "giving up on the address");
         }
 
-        private static IEnumerator WaitUntil(Func<bool> condition, string what)
+        private static IEnumerator WaitUntil(Func<bool> condition, string what) => WaitUntil(condition, () => what);
+
+        private static IEnumerator WaitUntil(Func<bool> condition, Func<string> what)
         {
             float waited = 0f;
             while (!condition())
             {
                 waited += Time.unscaledDeltaTime;
                 if (waited > Timeout)
-                    Assert.Fail($"Timed out waiting for {what}");
+                    Assert.Fail($"Timed out waiting for {what()}");
                 yield return null;
             }
         }

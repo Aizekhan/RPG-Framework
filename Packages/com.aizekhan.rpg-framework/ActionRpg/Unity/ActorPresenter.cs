@@ -290,7 +290,13 @@ namespace RPGFramework.ActionRpg
             if (_reported.TryGetValue(actor.EntityId, out var pose))
                 return new Vector3(pose.X, pose.Y, pose.Z);
             if (actor.IsPlayer)
-                return origin;
+            {
+                // Friends appear around the start instead of inside each other
+                if (actor.Seat <= 0)
+                    return origin;
+                float angle = actor.Seat * Mathf.PI * 2f / CoopProtocol.MaxSupportedPlayers;
+                return origin + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * 1.6f;
+            }
             var centre = _views.TryGetView(_world.PlayerId, out var player) ? player.transform.position : origin;
             var onCircle = Random.insideUnitCircle.normalized * _setup.SpawnRadius;
             return new Vector3(centre.x + onCircle.x, origin.y, centre.z + onCircle.y);

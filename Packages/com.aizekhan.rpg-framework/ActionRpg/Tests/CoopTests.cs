@@ -305,6 +305,50 @@ namespace RPGFramework.ActionRpg.Tests
         }
 
         [Test]
+        public void EightPlayers_AllPlay_SeeEachOther_AndANinthIsRefused()
+        {
+            _host.MaxPlayers = CoopProtocol.MaxSupportedPlayers;
+            var guests = Enumerable.Range(1, 7).Select(i => Join(name: $"P{i}")).ToList();
+            var ninth = Join(name: "Late");
+
+            Assert.That(guests.Select(g => g.Client.State), Is.All.EqualTo(CoopClientState.Playing));
+            Assert.That(ninth.Client.State, Is.EqualTo(CoopClientState.Ended));
+            Assert.That(ninth.Client.EndReason, Does.Contain("full (8 players)"));
+            Assert.That(World.Players.Select(id => World.Get(id).Seat), Is.EquivalentTo(Enumerable.Range(0, 8)));
+
+            // Everyone walks; every other machine sees each move
+            for (int i = 0; i < guests.Count; i++)
+                guests[i].Motion.Poses[guests[i].World.PlayerId] = new ActorPose(i + 1f, 0f, -i, 0f);
+            _hostMotion.Poses[World.PlayerId] = new ActorPose(0f, 0f, 9f, 0f);
+            Pump();
+
+            for (int i = 0; i < guests.Count; i++)
+            {
+                var guest = guests[i];
+                Assert.That(guest.World.Actors.Count(a => a.IsPlayer), Is.EqualTo(8), $"players seen by P{i + 1}");
+                Assert.That(guest.Motion.Targets.Any(t => t.Id == World.PlayerId && t.Pose.Z == 9f), Is.True);
+                foreach (var other in guests.Where(g => g != guest))
+                {
+                    int index = guests.IndexOf(other);
+                    Assert.That(guest.Motion.Targets.Any(t => t.Id == other.World.PlayerId && t.Pose.X == index + 1f), Is.True,
+                        $"P{i + 1} sees P{index + 1} move");
+                }
+            }
+
+            // The last to join strikes a goblin; the kill reaches everyone
+            int goblin = World.SpawnEnemy(Goblin);
+            Pump();
+            var last = guests[6];
+            for (int round = 0; round < 10 && World.Get(goblin) != null; round++)
+            {
+                last.World.Attack(last.World.PlayerId, goblin);
+                Pump();
+            }
+            Assert.That(World.Get(goblin), Is.Null);
+            Assert.That(guests.Select(g => g.World.Kills), Is.All.EqualTo(1));
+        }
+
+        [Test]
         public void NoGameAtThatAddress_SaysSo()
         {
             var guest = new Guest { Bus = new EventBus() };
@@ -405,6 +449,23 @@ namespace RPGFramework.ActionRpg.Tests
         {
             Assert.That(CoopProtocol.Fingerprint(Settings(), Content()), Is.EqualTo(CoopProtocol.Fingerprint(Settings(), Content())));
             Assert.That(CoopProtocol.Fingerprint(Settings(7f), Content()), Is.Not.EqualTo(CoopProtocol.Fingerprint(Settings(), Content())));
+        }
+
+        [Test]
+        public void PartyColours_ComeFromThePalette_ThenEverySeatGetsItsOwn()
+        {
+            var palette = PlayerTagView.DefaultPalette();
+            var colours = Enumerable.Range(0, CoopProtocol.MaxSupportedPlayers).Select(seat => PlayerTagView.ColorOf(seat, palette)).ToList();
+
+            Assert.That(colours.Take(palette.Length), Is.EqualTo(palette));
+            for (int a = 0; a < colours.Count; a++)
+                for (int b = a + 1; b < colours.Count; b++)
+                {
+                    var difference = colours[a] - colours[b];
+                    float distance = UnityEngine.Mathf.Abs(difference.r) + UnityEngine.Mathf.Abs(difference.g) + UnityEngine.Mathf.Abs(difference.b);
+                    Assert.That(distance, Is.GreaterThan(0.25f), $"seats {a} and {b} look alike");
+                }
+            Assert.That(PlayerTagView.ColorOf(3, null), Is.Not.EqualTo(UnityEngine.Color.white), "no palette still colours seats");
         }
     }
 }

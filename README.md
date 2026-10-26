@@ -2,7 +2,7 @@
 
 Reusable building blocks for RPGs in Unity 6, shipped as one UPM package: composition and events, combat, stats,
 progression, quests, items, inventory, loot, saving, UI navigation, an action RPG made from inspector assets, and co-op
-for 2-4 players. The framework owns the rules and infrastructure; each game owns its content, presentation and the
+for 2-8 players. The framework owns the rules and infrastructure; each game owns its content, presentation and the
 rules that make it unique.
 
 ## Start a new game

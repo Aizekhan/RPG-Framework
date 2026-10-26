@@ -1,6 +1,6 @@
 # Networking: where it stands
 
-Status on 2026-10-26. **Action RPGs made with this package can be played in co-op by 2-4 players on one network**
+Status on 2026-10-26. **Action RPGs made with this package can be played in co-op by 2-8 players on one network** (4 by default, `Max Players` on `ActionRpgHost`; 8 tested over UDP)
 (LAN, or a VPN such as Tailscale or ZeroTier between homes).
 
 ## What exists
@@ -82,6 +82,59 @@ Sources: [Unity Gaming Services pricing](https://unity.com/products/gaming-servi
 [Steam networking](https://partner.steamgames.com/doc/features/multiplayer/networking),
 [EOS plugin for Unity](https://github.com/EOS-Contrib/eos_plugin_for_unity/blob/stable/com.playeveryware.eos/README.md),
 [Photon pricing](https://doc.photonengine.com/photon/current/pricing).
+
+## Unity Relay: compatibility check and adaptation plan (2026-10-26, nothing integrated yet)
+
+**Verdict: compatible.** Our `UnityNetworkTransport` already is a Unity Transport `NetworkDriver`; Relay is a setting
+of that driver, not another transport. The protocol, the messages, `CoopHost` / `CoopClient` and the game rules do
+not change. One class needs a small opening.
+
+What Relay needs from a Unity Transport driver, against what ours does now:
+
+| Step | Relay | `UnityNetworkTransport` today | Change |
+|---|---|---|---|
+| Driver settings | `NetworkSettings.WithRelayParameters(ref RelayServerData)` before `NetworkDriver.Create` | builds its own `NetworkSettings` (fragmentation 64 KB, reliable window 64, connect timeout) | let a caller add settings: a constructor taking `Action<NetworkSettings>` |
+| Host | `Bind(NetworkEndpoint.AnyIpv4)` then `Listen()`; the driver registers with the relay | `Bind(AnyIpv4.WithPort(port))`, `Listen()` | `StartServer(0)` already does this |
+| Client | `Connect(relayServerData.Endpoint)` | `Connect(string address, int port)` parses an IP | add `Connect(NetworkEndpoint)` |
+| Pipelines, fragmentation, reliable-ordered, connection ids, events | unchanged | unchanged | none |
+
+Where Relay comes from, current integration for Unity 6 (checked in Unity's registry today): the **Multiplayer
+Services SDK** `com.unity.services.multiplayer` **2.4.1** (Unity 6000.0+). It bundles Relay, Lobby and Matchmaker
+under *sessions* and depends on `com.unity.services.core` 1.18, `com.unity.services.authentication` 3.8 and
+**`com.unity.transport` 2.7.4**. It does not need Netcode for GameObjects: a session can take our own network
+handler (`SessionOptions.WithRelayNetwork().WithNetworkHandler(handler)`). The SDK then calls
+`INetworkHandler.StartAsync(NetworkConfiguration)`, whose `Role` and `RelayServerData` (host) / `RelayClientData`
+(client) are exactly what the driver settings above need. The session's short code becomes our join code.
+
+Plan, in order (each step proven by tests before the next):
+1. **Transport opening** (framework core, no new dependency): `UnityNetworkTransport(Action<NetworkSettings>)` and
+   `Connect(NetworkEndpoint)`. Test: the same UDP tests through the new entry points; LAN tests unchanged.
+2. **Unity Transport 2.7.4:** installing the SDK raises Unity Transport from 2.5.3 to 2.7.4 in the project. Run all
+   networking and co-op tests (EditMode and the UDP PlayMode tests) on 2.7.4 before anything else.
+3. **Module `RPGFramework.Networking.UnityRelay`** (own assembly, compiled only when `com.unity.services.multiplayer`
+   is installed, like the Addressables provider): `UnityRelaySessionProvider : INetworkSessionProvider`.
+   `HostAsync` signs in anonymously, creates a session (max players from `SessionOptions`, DTLS) and returns the
+   transport with the session code; `JoinAsync(code)` joins by code. Service errors become
+   `NetworkSessionException` in plain words (no such room, room full, no internet, services not set up). The cloud
+   calls sit behind a small internal interface so they can be faked in tests.
+4. **Setup check:** before hosting, the provider checks that the project is linked to a Unity Gaming Services
+   project (`Application.cloudProjectId` not empty) and says what to do if not: Edit > Project Settings > Services,
+   link or create a project, keep anonymous sign-in on (default). Same text in recipe 11.
+5. **Tests in CI:** with the faked cloud: create, join, wrong code, full room, services not set up, a different game
+   version still refused by our fingerprint after a relay join; LAN regression: the existing LAN and co-op tests run
+   unchanged. Real relay traffic needs Unity's servers and the owner's project, so it is a manual check (two
+   machines on different networks), optionally a nightly job if the project's credentials are added as CI secrets.
+6. **Panel:** F2 offers "Local network" and "Internet (Unity Relay)" when the module is present; the LAN provider stays
+   the default.
+
+What it needs from the owner: a Unity Gaming Services project linked to this Unity project (free at co-op scale, see
+the table above). Until then steps 1-2 can be done and verified.
+
+Sources: [Network connection management (Multiplayer Services)](https://docs.unity.com/ugs/en-us/manual/mps-sdk/manual/manage-session-network-connection),
+[`INetworkHandler`](https://docs.unity3d.com/Packages/com.unity.services.multiplayer@2.4/api/Unity.Services.Multiplayer.INetworkHandler.html),
+[`NetworkConfiguration`](https://docs.unity3d.com/Packages/com.unity.services.multiplayer@2.4/api/Unity.Services.Multiplayer.NetworkConfiguration.html),
+[Use Relay with UTP](https://docs.unity.com/en-us/relay/relay-and-utp),
+[`Unity.Networking.Transport.Relay`](https://docs.unity3d.com/Packages/com.unity.transport@2.5/api/Unity.Networking.Transport.Relay.html).
 
 ## Limits worth knowing
 

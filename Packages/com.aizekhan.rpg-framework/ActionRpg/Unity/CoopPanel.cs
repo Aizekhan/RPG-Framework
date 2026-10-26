@@ -84,7 +84,7 @@ namespace RPGFramework.ActionRpg
                 GUILayout.Label("Switching...", _text);
                 return;
             }
-            GUILayout.Label($"Play together ({_host.SessionProvider.DisplayName}): one hosts, up to three join.", _text);
+            GUILayout.Label($"Play together ({_host.SessionProvider.DisplayName}): one hosts, up to {_host.MaxPlayers - 1} join.", _text);
             GUILayout.BeginHorizontal();
             GUILayout.Label("Your name", _text, GUILayout.Width(100f));
             _name = _name ?? _host.PlayerName;

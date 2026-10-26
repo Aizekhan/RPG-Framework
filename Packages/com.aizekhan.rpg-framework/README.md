@@ -100,7 +100,7 @@ The `Assets/ReferenceGame` project in the repository (Goblin Valley) is a comple
 | Gameplay | `Combat`, `Stats`, `StatusEffects`, `Abilities`, `Progression`, `Quests`, `Items`, `Inventory`, `Loot`, `Crafting`, `Dialogue`, `Factions`, `Guilds`, `Trading`, `Housing`, `Companions`, `Achievements`, `Skills`, `DynamicEvents` |
 | Content & scenes | `AssetManagement` (Resources and Addressables providers), `Pooling`, `Spawning` (`PrefabSpawner`, `PrefabCatalog`), `Presentation` (`EntityViewRegistry`: entity ↔ GameObject), `Scenes`, `Persistence` |
 | UI | `UINavigation` (screens, modals, transitions), `UI` (RPG panels and HUD) |
-| Networking | `Networking` (messages, authority, `UnityNetworkTransport` over UDP, `LoopbackNetwork` for tests); action RPG co-op for 2-4 players (F2 in any `ActionRpgHost`), see `Documentation~/networking.md` |
+| Networking | `Networking` (messages, authority, `UnityNetworkTransport` over UDP, `LoopbackNetwork` for tests); action RPG co-op for 2-8 players (F2 in any `ActionRpgHost`), see `Documentation~/networking.md` |
 | Tooling | `GameKit` (game and feature generators, architecture rules for games, AI guidance), `Editor` (windows, inspectors) |
 
 Inside a module, engine-independent logic lives in `Runtime`, Unity-specific code in `Unity`, and tests in `Tests`.

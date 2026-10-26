@@ -49,6 +49,11 @@ namespace RPGFramework.ActionRpg.Coop
         public const int DefaultMaxPlayers = 4;
 
         /// <summary>
+        /// The largest party the co-op is tested with (eight players over real UDP).
+        /// </summary>
+        public const int MaxSupportedPlayers = 8;
+
+        /// <summary>
         /// World and motion updates per second.
         /// </summary>
         public const float SendRate = 20f;

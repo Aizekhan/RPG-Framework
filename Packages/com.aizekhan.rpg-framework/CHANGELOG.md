@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+- `ActionRpgHost` **Max Players** (2-8, default 4) in the inspector and as a property; it sets the hosted session and `CoopHost.MaxPlayers`. Eight players are tested over loopback (EditMode) and over real UDP with eight games (PlayMode). `CoopProtocol.MaxSupportedPlayers`
+- Party colours: seats past 'Party Colors' get generated colours, each the bright hue least like those before it, so no two players share one. `PlayerTagView.DefaultPalette()`
+- Friends appear in a ring around the start instead of inside each other
+- **Fix:** `JoinGame` called before the game had started (a host created in code, a join on launch) dropped back to solo with "You left the game.": the restart closed the new connection as if the player had left
+- The co-op panel says how many can join instead of a fixed "up to three"
+- `networking.md`: Unity Relay compatibility check and adaptation plan (nothing integrated yet)
+
 ## [0.2.0] - 2026-10-26
 
 Action RPG from inspector assets, the Game Kit (New Game creates a playable game), co-op for 2-4 players with
