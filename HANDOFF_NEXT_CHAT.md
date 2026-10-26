@@ -8,10 +8,11 @@
 
 ## Where things stand
 
-- Last code-verified SHA: **`ef8beeb`**: clean-checkout compile 0 errors, **1250/1250 EditMode**, **4/4 PlayMode**.
+- Last code-verified SHA: **`6eca982`**: clean-checkout compile 0 errors, **1243/1243 EditMode**, **4/4 PlayMode**, CI green.
+- Goblin Valley (`Assets/ReferenceGame`) is now an `ActionRpg` game: assets in `Content/`, one coded rule (`KillStreak`), rebuilt by `GoblinValleyBuilder` in batch mode.
 - The user story is delivered: create a Unity project, add the package, **RPG Framework > Game Kit > New Game**, Play: a hero walks and fights goblin waves with a HUD, character sheet (I/Tab) and saved progress. New enemies/items/quests are assets (`Character`, `Game Setup`, Item, Loot Table, Quest Asset); code only for unique rules (`ActionRpgHost.ConfigureGameModules`, events on the bus).
 - Proven in a fresh project `D:/RPG-Fresh` (manifest points at the package in `D:/RPG-Framework-verify`, so its contents follow that worktree).
-- The user's own uncommitted files in the main tree must stay untouched: `Assets/SampleQuest/` (+ .meta), root `CLAUDE.md` edit, `Docs/`, `.github/workflows/unity-tests.yml` (left over from an old New Game run).
+- Leftovers of an old New Game run (`Assets/SampleQuest`, `Docs/`, `.github/workflows/unity-tests.yml`, a CLAUDE.md block) were removed from the main tree at the user's request; a copy is in the session scratchpad `leftovers-backup`.
 
 ## What was done
 
@@ -49,7 +50,7 @@ Create the worktree with `git worktree add --detach D:/RPG-Framework-verify <sha
 ## Gotchas learned
 
 - Batch-mode Unity exits with code 2 when any test fails. Read the NUnit XML, not the exit code.
-- A test assembly whose plugin fails to load reports **0 tests, not an error**. Compare totals between runs (expected: 1250 EditMode, 4 PlayMode).
+- A test assembly whose plugin fails to load reports **0 tests, not an error**. Compare totals between runs (expected: 1243 EditMode, 4 PlayMode).
 - The verify worktree gets NuGetForUnity files generated on import; remove them there before `checkout`, or checkout aborts and the old commit is tested. Check the SHA the run actually used.
 - A MonoBehaviour must live in a file of its own name (enforced by `FrameworkArchitectureTests`). Test MonoBehaviours go in a `*.TestSupport` runtime assembly.
 - Test assemblies that construct `EventBus` need `RPGFramework.Logging.Runtime` (CS0012 otherwise).
@@ -73,5 +74,4 @@ Create the worktree with `git worktree add --detach D:/RPG-Framework-verify <sha
 
 ## Decisions waiting for the user
 
-- Migrate Goblin Valley (`Assets/ReferenceGame`) onto `ActionRpg`: deletes ~15 obsolete files with their metas, so it needs explicit confirmation (CLAUDE.md).
-- Whether to remove the leftover `Assets/SampleQuest`, `Docs/` and `.github/workflows/unity-tests.yml` from the main tree (user files; not touched).
+- Networking: is co-op in scope, and Unity Transport as the first transport? (`Documentation~/networking.md`)

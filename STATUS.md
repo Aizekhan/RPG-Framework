@@ -11,12 +11,15 @@
 
 | Gate | Result | SHA |
 |---|---|---|
-| Clean-checkout compile (`unity test`, fresh worktree) | ✅ 0 `error CS` | `ef8beeb` |
-| EditMode tests | ✅ **1250 / 1250 passed** | `ef8beeb` |
-| PlayMode tests (Goblin Valley scene, assets-only action RPG, save/reload) | ✅ **4 / 4 passed** | `ef8beeb` |
-| `.meta` integrity | ✅ 0 problems (1271 metas) | `ef8beeb` |
-| CI on GitHub (meta check, EditMode, PlayMode) | ✅ green (run `40367197669`) | `ef8beeb` |
+| Clean-checkout compile (`unity test`, fresh worktree) | ✅ 0 `error CS` | `6eca982` |
+| EditMode tests | ✅ **1243 / 1243 passed** | `6eca982` |
+| PlayMode tests (Goblin Valley scene, assets-only action RPG, save/reload) | ✅ **4 / 4 passed** | `6eca982` |
+| `.meta` integrity | ✅ 0 problems | `6eca982` |
+| CI on GitHub (meta check, EditMode, PlayMode) | ✅ green (run `40374752255`) | `6eca982` |
 | Fresh Unity 6 project + UniTask + package → New Game → tests → Play | ✅ 14/14 generated tests, played (screenshots) | `675b521` |
+
+EditMode went from 1250 to 1243 because Goblin Valley's own wave and rule tests were replaced by tests of its
+setup asset and kill streak rule (waves are covered by the `ActionRpg` tests).
 
 Earlier "~5 compilation errors" and "100% pass rate" claims were unverified. In reality HEAD `e348e10` did not compile from a clean clone, and ~150 tests (Guilds, Quests, Dialogue, Crafting) were silently not running.
 
@@ -71,6 +74,7 @@ Not ported on purpose in phase 9: a persistent event store (the `EventRecorder` 
 | 1 | Framework shipped as UPM package `com.aizekhan.rpg-framework` 0.1.0 (README, CHANGELOG, LICENSE; meta check covers embedded packages) | `ad978e6` | 1184/1184 EditMode |
 | 3 | **Game Kit (AI Kit).** Game architecture rules GA01–GA10 (`GameArchitectureRules` over `GameCodebase`) with a `GameArchitectureTests` base fixture; New Game / New Feature generators (`Templates~`, menu window + batch mode) producing Core/runtime/test assemblies, composition, host, scene and tests with metas; `AIGuidance` installs a CLAUDE.md block, `Docs/RPGFramework` guide + 9 recipes and a CI workflow. ReferenceGame rules moved to `ReferenceGame.Core` (noEngineReferences) and pass the rules | `6335b9d` | 1228/1228 EditMode, 1/1 PlayMode. Also proven in the verify worktree: generated `SampleQuest` + `Shop` feature compile and pass 16 tests (1244 total); injected singleton, `FindObjectOfType` and engine-enabled Core fail GA06, GA05, GA03 with fix hints |
 | 4 | **Action RPG from the inspector.** `ActionRpg` module: `Character` and `Game Setup` assets (player, enemies, waves, items, loot, quests, validation in plain words), engine-free `ActorWorld`/`ActionRpgModule`, `ActionRpgHost` that runs any prefab (controls, AI, strike, health bar added when missing; placeholder capsule without a prefab), camera follow, HUD with character sheet/backpack (I/Tab), progress saved between sessions. Game Kit **New Game** now produces a playable game with starter content | `bbaa32d`, `fcde87f`, `5136445`, `675b521`, `ef8beeb` | 1250/1250 EditMode, 4/4 PlayMode; generated game 14/14; fresh-project install proven |
+| 5 | **Goblin Valley on `ActionRpg`.** The reference game is built like a user's game: Game Setup + Character assets (Hero, Goblin, new Goblin Brute), items/loot/quests as assets, model prefabs, one coded rule (`KillStreak`). Its own presenter, HUD, controller, AI, waves and C# content were deleted (approved by the user). Plus: item icons in the backpack, F3 diagnostics, mesh health bars tinted | `46b8481`, `6eca982` | 1243/1243 EditMode, 4/4 PlayMode, screenshots of the valley and the backpack |
 | 2 | **Playable 3D Goblin Valley.** Framework `Presentation` module (`EntityViewRegistry`). Game: spawn/despawn/wave events, `GoblinWaveSystem`, inspector-tunable `GoblinValleyConfig` + `PrefabCatalog`, presenter spawning prefabs through `PrefabSpawner` (goblins pooled), `HeroController` (Input System: keyboard, mouse, gamepad), `GoblinBrain`, health bars, UGUI HUD, `CameraFollow`. `GoblinValleyBuilder` generates placeholder art, prefabs, config and scene (menu or batch mode). CI runs EditMode + PlayMode | `de2498e` | 1196/1196 EditMode, 1/1 PlayMode |
 
 Roadmap, in order (agreed with the user 2026-10-26):
@@ -116,14 +120,12 @@ Not committed (they duplicated migrated modules; the backup folder was deleted o
 **Low**
 - Modules without tests: DeltaCompression, Editor, Tools
 - Loot `LootGeneratedEvent`/`LootDroppedEvent` are not `IEvent`s and nothing raises them
-- ReferenceGame art is generated placeholders (primitives); `Scripts/Characters/SimpleMovement` (old Input) is superseded by `HeroController`
-- ReferenceGame (Goblin Valley) duplicates what `ActionRpg` now provides and keeps content in C#; migrating it onto `ActionRpg` deletes ~15 obsolete files, waiting for the user's confirmation
+- ReferenceGame art is generated placeholders (primitives)
+- Networking has no real transport (see `Packages/com.aizekhan.rpg-framework/Documentation~/networking.md`)
 - CI: the license file is bound to another machine, so GameCI falls back to email/password activation (works)
 
 ## Next steps
 
-1. Goblin Valley onto `ActionRpg` (after the user confirms the deletions).
-2. Item icons in the backpack; diagnostics overlay toggle in `ActionRpgHost`.
-3. Networking: only contracts, `MessageAuthority` and a mock transport exist; decide on a transport (e.g. Netcode for GameObjects / Mirror adapter) before any multiplayer work.
-4. Tests for Tools (and DeltaCompression); loot events as bus events (or remove them); re-enable or delete the three `#if FALSE` editor windows.
-5. `StatContainer` performance and int rounding, after a benchmark.
+1. Networking, if the user wants co-op: Unity Transport adapter, then host-authoritative `ActorWorld` replication (`Documentation~/networking.md`).
+2. Tests for Tools (and DeltaCompression); loot events as bus events (or remove them); re-enable or delete the three `#if FALSE` editor windows.
+3. `StatContainer` performance and int rounding, after a benchmark.
