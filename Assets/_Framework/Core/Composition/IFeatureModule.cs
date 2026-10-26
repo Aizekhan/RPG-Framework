@@ -1,6 +1,7 @@
 // Assets/_Framework/Core/Composition/IFeatureModule.cs
 using System;
 using System.Collections.Generic;
+using RPGFramework.DI;
 
 namespace RPGFramework.Core.Composition
 {
@@ -22,14 +23,13 @@ namespace RPGFramework.Core.Composition
 
         /// <summary>
         /// Configure dependency injection bindings for this module.
-        /// Called during composition building phase.
+        /// Called for every module (in dependency order) before any module is initialized.
         /// </summary>
         /// <param name="container">DI container to register types</param>
-        void Configure(object container);
+        void Configure(IDIContainer container);
 
         /// <summary>
-        /// Initialize module after all dependencies are configured.
-        /// Called after all modules are configured.
+        /// Initialize module after all modules are configured (and the container validated).
         /// </summary>
         void Initialize();
 

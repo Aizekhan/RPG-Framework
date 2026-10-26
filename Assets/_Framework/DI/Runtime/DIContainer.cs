@@ -68,6 +68,14 @@ namespace RPGFramework.DI
                 get; set;
             }
 
+            /// <summary>
+            /// Created by a user factory: no constructor analysis and no member injection.
+            /// </summary>
+            public bool IsUserFactory
+            {
+                get; set;
+            }
+
             public Registration(Type serviceType, Type implementationType, DILifetime lifetime)
             {
                 ServiceType = serviceType;
@@ -138,6 +146,26 @@ namespace RPGFramework.DI
             registration.Factory = GetOrCreateFactory(implementationType);
 
             _logger?.LogDebug($"Registered {lifetime} {implementationType.Name} as {serviceType.Name}", "DI");
+        }
+
+        /// <summary>
+        /// Registers a service created by a factory delegate (for types that need configuration values or
+        /// non-injectable arguments). The factory receives this container to resolve dependencies.
+        /// </summary>
+        public void RegisterFactory<TService>(Func<IDIContainer, TService> factory, DILifetime lifetime = DILifetime.Singleton)
+        {
+            if (factory == null)
+                throw new ArgumentNullException(nameof(factory));
+
+            var serviceType = typeof(TService);
+            _registrations[serviceType] = new Registration(serviceType, serviceType, lifetime)
+            {
+                Factory = () => factory(this),
+                IsUserFactory = true
+            };
+            _singletons.Remove(serviceType);
+
+            _logger?.LogDebug($"Registered {lifetime} factory for {serviceType.Name}", "DI");
         }
 
         /// <summary>
@@ -244,7 +272,8 @@ namespace RPGFramework.DI
                         _singletons[serviceType] = singleton;
 
                         // Inject dependencies
-                        InjectDependencies(singleton);
+                        if (!registration.IsUserFactory)
+                            InjectDependencies(singleton);
                     }
                     return singleton;
 
@@ -255,7 +284,8 @@ namespace RPGFramework.DI
                     return currentScope.GetOrCreateInstance(serviceType, () =>
                     {
                         var scopedInstance = registration.Factory();
-                        InjectDependencies(scopedInstance);
+                        if (!registration.IsUserFactory)
+                            InjectDependencies(scopedInstance);
                         return scopedInstance;
                     });
 
@@ -265,7 +295,8 @@ namespace RPGFramework.DI
                     var transientInstance = registration.Factory();
 
                     // Inject dependencies
-                    InjectDependencies(transientInstance);
+                    if (!registration.IsUserFactory)
+                        InjectDependencies(transientInstance);
 
                     return transientInstance;
             }
@@ -583,6 +614,8 @@ namespace RPGFramework.DI
             // Add types from registrations
             foreach (var registration in _registrations.Values)
             {
+                if (registration.IsUserFactory)
+                    continue;
                 allTypes.Add(registration.ServiceType);
                 allTypes.Add(registration.ImplementationType);
             }
@@ -664,7 +697,8 @@ namespace RPGFramework.DI
             var allTypes = new HashSet<Type>();
             foreach (var registration in _registrations.Values)
             {
-                allTypes.Add(registration.ImplementationType);
+                if (!registration.IsUserFactory)
+                    allTypes.Add(registration.ImplementationType);
             }
 
             // Validate each type
@@ -685,7 +719,10 @@ namespace RPGFramework.DI
         {
             var implementations = new Dictionary<Type, Type>();
             foreach (var registration in _registrations.Values)
-                implementations[registration.ServiceType] = registration.ImplementationType;
+            {
+                if (!registration.IsUserFactory)
+                    implementations[registration.ServiceType] = registration.ImplementationType;
+            }
             foreach (var pair in _lazyImplementations)
                 implementations[pair.Key] = pair.Value;
 

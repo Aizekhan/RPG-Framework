@@ -1,0 +1,22 @@
+{
+    "name": "RPGFramework.Bootstrap.Runtime",
+    "rootNamespace": "RPGFramework.Bootstrap",
+    "references": [
+        "RPGFramework.Core.Runtime",
+        "RPGFramework.DI.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Systems.Runtime",
+        "RPGFramework.ECS.Runtime",
+        "UniTask"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

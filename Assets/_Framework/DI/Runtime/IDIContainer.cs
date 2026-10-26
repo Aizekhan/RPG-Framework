@@ -10,6 +10,11 @@ namespace RPGFramework.DI
         void Register<TService, TImplementation>() where TImplementation : TService;
         void RegisterSingleton<TService, TImplementation>() where TImplementation : TService;
         void RegisterInstance<TService>(TService instance);
+
+        /// <summary>
+        /// Registers a service built by a factory that receives the container (singleton by default).
+        /// </summary>
+        void RegisterFactory<TService>(Func<IDIContainer, TService> factory, DILifetime lifetime = DILifetime.Singleton);
         TService Resolve<TService>();
         bool IsRegistered<TService>();
 

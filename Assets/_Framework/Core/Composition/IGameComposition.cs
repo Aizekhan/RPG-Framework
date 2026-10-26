@@ -1,5 +1,6 @@
 // Assets/_Framework/Core/Composition/IGameComposition.cs
 using System.Collections.Generic;
+using RPGFramework.DI;
 
 namespace RPGFramework.Core.Composition
 {
@@ -12,15 +13,17 @@ namespace RPGFramework.Core.Composition
         /// <summary>
         /// DI container with all registered types from modules.
         /// </summary>
-        object Container { get; }
+        IDIContainer Container { get; }
 
         /// <summary>
         /// All modules in this composition (in dependency order).
         /// </summary>
         IReadOnlyList<IFeatureModule> Modules { get; }
 
+        bool IsShutDown { get; }
+
         /// <summary>
-        /// Shutdown all modules in reverse dependency order.
+        /// Shutdown all modules in reverse dependency order. Safe to call more than once.
         /// </summary>
         void Shutdown();
     }

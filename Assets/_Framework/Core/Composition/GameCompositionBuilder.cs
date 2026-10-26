@@ -2,6 +2,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using RPGFramework.Core.Initialization;
+using RPGFramework.DI;
+using RPGFramework.Logging;
 
 namespace RPGFramework.Core.Composition
 {
@@ -11,14 +14,21 @@ namespace RPGFramework.Core.Composition
     /// </summary>
     public class GameCompositionBuilder : IGameCompositionBuilder
     {
-        private readonly object _container;
+        private const string Category = "Composition";
+
+        private readonly IDIContainer _container;
+        private readonly ILogger _logger;
         private readonly List<IFeatureModule> _modules = new List<IFeatureModule>();
         private readonly HashSet<Type> _registeredModuleTypes = new HashSet<Type>();
+        private bool _built;
 
-        public GameCompositionBuilder(object container)
+        public GameCompositionBuilder(IDIContainer container, ILogger logger = null)
         {
             _container = container ?? throw new ArgumentNullException(nameof(container));
+            _logger = logger;
         }
+
+        public bool ValidateContainer { get; set; } = true;
 
         public IGameCompositionBuilder UseModule<TModule>() where TModule : IFeatureModule, new()
         {
@@ -33,7 +43,7 @@ namespace RPGFramework.Core.Composition
             var moduleType = module.GetType();
             if (_registeredModuleTypes.Contains(moduleType))
             {
-                // Module already registered, skip
+                _logger.LogDebug($"Module {module.Name} is already registered, skipping", Category);
                 return this;
             }
 
@@ -43,8 +53,15 @@ namespace RPGFramework.Core.Composition
             return this;
         }
 
+        public bool HasModule<TModule>() where TModule : IFeatureModule =>
+            _modules.Any(m => m is TModule);
+
         public IGameComposition Build()
         {
+            if (_built)
+                throw new InvalidOperationException("Build() can only be called once per builder");
+            _built = true;
+
             // 1. Resolve dependencies (topological sort)
             var sortedModules = ResolveDependencies(_modules);
 
@@ -54,13 +71,24 @@ namespace RPGFramework.Core.Composition
                 module.Configure(_container);
             }
 
-            // 3. Initialize all modules
-            foreach (var module in sortedModules)
+            // 3. Fail fast on a broken object graph, before anything is initialized
+            if (ValidateContainer)
+                _container.Validate().ThrowIfInvalid();
+
+            // 4. Initialize all modules; on failure shut down the ones already initialized
+            using (var transaction = new InitializationTransaction(_logger))
             {
-                module.Initialize();
+                foreach (var module in sortedModules)
+                {
+                    module.Initialize();
+                    transaction.RegisterRollback(module.Shutdown, $"shutdown {module.Name}");
+                }
+
+                transaction.Commit();
             }
 
-            return new GameComposition(_container, sortedModules);
+            _logger.LogInfo($"Composition built: {string.Join(", ", sortedModules.Select(m => m.Name))}", Category);
+            return new GameComposition(_container, sortedModules, _logger);
         }
 
         private List<IFeatureModule> ResolveDependencies(List<IFeatureModule> modules)
@@ -119,17 +147,25 @@ namespace RPGFramework.Core.Composition
 
         private class GameComposition : IGameComposition
         {
-            public object Container { get; }
-            public IReadOnlyList<IFeatureModule> Modules { get; }
+            private readonly ILogger _logger;
 
-            public GameComposition(object container, List<IFeatureModule> modules)
+            public IDIContainer Container { get; }
+            public IReadOnlyList<IFeatureModule> Modules { get; }
+            public bool IsShutDown { get; private set; }
+
+            public GameComposition(IDIContainer container, List<IFeatureModule> modules, ILogger logger)
             {
                 Container = container;
                 Modules = modules.AsReadOnly();
+                _logger = logger;
             }
 
             public void Shutdown()
             {
+                if (IsShutDown)
+                    return;
+                IsShutDown = true;
+
                 // Shutdown in reverse order
                 for (int i = Modules.Count - 1; i >= 0; i--)
                 {
@@ -140,8 +176,7 @@ namespace RPGFramework.Core.Composition
                     catch (Exception ex)
                     {
                         // Log but continue shutting down other modules
-                        UnityEngine.Debug.LogError(
-                            $"Error shutting down module '{Modules[i].Name}': {ex.Message}");
+                        _logger.LogError($"Error shutting down module '{Modules[i].Name}'", Category, ex);
                     }
                 }
             }

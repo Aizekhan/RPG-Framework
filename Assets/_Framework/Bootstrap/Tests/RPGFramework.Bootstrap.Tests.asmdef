@@ -1,0 +1,31 @@
+{
+    "name": "RPGFramework.Bootstrap.Tests",
+    "rootNamespace": "RPGFramework.Bootstrap.Tests",
+    "references": [
+        "RPGFramework.Bootstrap.Runtime",
+        "RPGFramework.Core.Runtime",
+        "RPGFramework.DI.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Systems.Runtime",
+        "RPGFramework.ECS.Runtime",
+        "UniTask",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

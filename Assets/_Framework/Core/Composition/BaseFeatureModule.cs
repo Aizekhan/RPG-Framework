@@ -1,6 +1,7 @@
 // Assets/_Framework/Core/Composition/BaseFeatureModule.cs
 using System;
 using System.Collections.Generic;
+using RPGFramework.DI;
 
 namespace RPGFramework.Core.Composition
 {
@@ -10,13 +11,13 @@ namespace RPGFramework.Core.Composition
     /// </summary>
     public abstract class BaseFeatureModule : IFeatureModule
     {
-        protected object Container { get; private set; }
+        protected IDIContainer Container { get; private set; }
 
         public abstract string Name { get; }
 
         public virtual IEnumerable<Type> Dependencies => Array.Empty<Type>();
 
-        public void Configure(object container)
+        public void Configure(IDIContainer container)
         {
             Container = container ?? throw new ArgumentNullException(nameof(container));
             OnConfigure();
