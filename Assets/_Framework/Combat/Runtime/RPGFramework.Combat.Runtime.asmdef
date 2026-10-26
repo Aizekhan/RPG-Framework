@@ -2,9 +2,11 @@
     "name": "RPGFramework.Combat.Runtime",
     "rootNamespace": "RPGFramework.Combat",
     "references": [
-        "GUID:53b8d6d2c2c3435cb61ad1e7eaa55f8c",
-        "GUID:9ab0b1bbfc7e4a4eaee3000000000003",
-        "GUID:da40609a9472d8c4ea29b285a0de0ce9"
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "RPGFramework.Serialization.Runtime",
+        "RPGFramework.Events.Runtime",
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -14,5 +16,5 @@
     "autoReferenced": true,
     "defineConstraints": [],
     "versionDefines": [],
-    "noEngineReferences": true
+    "noEngineReferences": false
 }

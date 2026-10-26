@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using RPGFramework.Events;
 
 namespace RPGFramework.Combat
 {
@@ -14,6 +15,7 @@ namespace RPGFramework.Combat
     {
         private readonly Dictionary<int, LifeStateComponent> _lifeStates;
         private readonly Dictionary<int, ILifeStateHandler> _handlers;
+        private readonly IEventPublisher _events;
 
         /// <summary>
         /// Event raised when an entity dies.
@@ -28,8 +30,10 @@ namespace RPGFramework.Combat
         /// <summary>
         /// Initializes a new instance of the LifeStateManager class.
         /// </summary>
-        public LifeStateManager()
+        /// <param name="events">Optional bus that also receives <see cref="DeathEvent"/> and <see cref="ResurrectionEvent"/>.</param>
+        public LifeStateManager(IEventPublisher events = null)
         {
+            _events = events;
             _lifeStates = new Dictionary<int, LifeStateComponent>();
             _handlers = new Dictionary<int, ILifeStateHandler>();
         }
@@ -92,13 +96,15 @@ namespace RPGFramework.Combat
             }
 
             // Raise death event
-            OnDeath?.Invoke(new DeathEvent
+            var death = new DeathEvent
             {
                 EntityId = entityId,
                 KillerEntityId = killerId,
                 DeathReason = reason,
                 TimeOfDeath = lifeState.DeathTime
-            });
+            };
+            OnDeath?.Invoke(death);
+            _events?.Publish(death);
 
             return true;
         }
@@ -133,13 +139,15 @@ namespace RPGFramework.Combat
             }
 
             // Raise resurrection event
-            OnResurrection?.Invoke(new ResurrectionEvent
+            var resurrection = new ResurrectionEvent
             {
                 EntityId = entityId,
                 ResurrectorEntityId = resurrectorId,
                 ResurrectionType = resurrectType,
                 TimeOfResurrection = GetCurrentTime()
-            });
+            };
+            OnResurrection?.Invoke(resurrection);
+            _events?.Publish(resurrection);
 
             return true;
         }

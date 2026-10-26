@@ -6,7 +6,10 @@
         "UnityEditor.TestRunner",
         "RPGFramework.Combat.Runtime",
         "RPGFramework.ECS.Runtime",
-        "RPGFramework.Serialization.Runtime"
+        "RPGFramework.Serialization.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "UniTask"
     ],
     "includePlatforms": [
         "Editor"

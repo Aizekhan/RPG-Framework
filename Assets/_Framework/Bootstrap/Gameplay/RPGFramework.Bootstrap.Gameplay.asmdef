@@ -1,0 +1,29 @@
+{
+    "name": "RPGFramework.Bootstrap.Gameplay",
+    "rootNamespace": "RPGFramework.Bootstrap.Gameplay",
+    "references": [
+        "RPGFramework.Bootstrap.Runtime",
+        "RPGFramework.Core.Runtime",
+        "RPGFramework.DI.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "RPGFramework.Systems.Runtime",
+        "RPGFramework.Combat.Runtime",
+        "RPGFramework.Progression.Runtime",
+        "RPGFramework.Quests.Runtime",
+        "RPGFramework.Items.Runtime",
+        "RPGFramework.Loot.Runtime",
+        "RPGFramework.Integration.CombatQuests.Runtime",
+        "UniTask"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

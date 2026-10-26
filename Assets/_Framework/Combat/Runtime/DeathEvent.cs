@@ -1,3 +1,5 @@
+using RPGFramework.Events;
+
 namespace RPGFramework.Combat
 {
     /// <summary>
@@ -6,8 +8,9 @@ namespace RPGFramework.Combat
     /// <remarks>
     /// This event provides information about the death, including the killer and reason.
     /// Game layer can listen to this event to trigger death consequences (loot, XP, etc.).
+    /// Raised as <see cref="ILifeStateManager.OnDeath"/> and, when the manager has a publisher, on the event bus.
     /// </remarks>
-    public struct DeathEvent
+    public struct DeathEvent : IEvent
     {
         /// <summary>
         /// ID of the entity that died.

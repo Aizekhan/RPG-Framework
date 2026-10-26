@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using RPGFramework.Events;
 
 namespace RPGFramework.Guilds.Runtime
 {
@@ -11,6 +12,7 @@ namespace RPGFramework.Guilds.Runtime
     public class GuildTreasury : IGuildTreasury
     {
         private GuildTreasuryData _data;
+        private readonly IEventPublisher _events;
 
         public string GuildId => _data.GuildId;
         public long Gold => _data.Gold;
@@ -19,9 +21,11 @@ namespace RPGFramework.Guilds.Runtime
         /// <summary>
         /// Create a new guild treasury.
         /// </summary>
-        public GuildTreasury(GuildTreasuryData data)
+        /// <param name="events">Optional publisher for <see cref="TreasuryDepositEvent"/> and <see cref="TreasuryWithdrawEvent"/>.</param>
+        public GuildTreasury(GuildTreasuryData data, IEventPublisher events = null)
         {
             _data = data;
+            _events = events;
         }
 
         public bool IsFull()
@@ -50,6 +54,7 @@ namespace RPGFramework.Guilds.Runtime
                 Timestamp = DateTime.UtcNow
             });
 
+            _events?.Publish(TreasuryDepositEvent.GoldDeposit(_data.GuildId, depositorId, amount));
             return true;
         }
 
@@ -74,6 +79,7 @@ namespace RPGFramework.Guilds.Runtime
                 Timestamp = DateTime.UtcNow
             });
 
+            _events?.Publish(TreasuryWithdrawEvent.GoldWithdraw(_data.GuildId, withdrawerId, amount));
             return true;
         }
 
@@ -110,6 +116,7 @@ namespace RPGFramework.Guilds.Runtime
                 Timestamp = DateTime.UtcNow
             });
 
+            _events?.Publish(TreasuryDepositEvent.ItemDeposit(_data.GuildId, depositorId, itemId, quantity));
             return true;
         }
 
@@ -140,6 +147,7 @@ namespace RPGFramework.Guilds.Runtime
                 Timestamp = DateTime.UtcNow
             });
 
+            _events?.Publish(TreasuryWithdrawEvent.ItemWithdraw(_data.GuildId, withdrawerId, itemId, quantity));
             return true;
         }
 

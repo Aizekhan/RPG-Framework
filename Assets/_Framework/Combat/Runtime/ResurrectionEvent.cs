@@ -1,3 +1,5 @@
+using RPGFramework.Events;
+
 namespace RPGFramework.Combat
 {
     /// <summary>
@@ -7,7 +9,7 @@ namespace RPGFramework.Combat
     /// This event provides information about the resurrection, including who performed it and the type.
     /// Game layer can listen to this event to trigger resurrection effects (animations, buffs, etc.).
     /// </remarks>
-    public struct ResurrectionEvent
+    public struct ResurrectionEvent : IEvent
     {
         /// <summary>
         /// ID of the entity that was resurrected.

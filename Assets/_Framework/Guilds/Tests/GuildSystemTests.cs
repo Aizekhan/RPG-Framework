@@ -430,6 +430,28 @@ namespace RPGFramework.Guilds.Tests
         #region Treasury Tests
 
         [Test]
+        public void Treasury_WithPublisher_PublishesDepositsAndWithdrawals()
+        {
+            using var bus = new RPGFramework.Events.EventBus();
+            var treasury = new GuildTreasury(GuildTreasuryData.Create("guild_events"), bus);
+            var deposits = new System.Collections.Generic.List<TreasuryDepositEvent>();
+            var withdrawals = new System.Collections.Generic.List<TreasuryWithdrawEvent>();
+            bus.Subscribe<TreasuryDepositEvent>(deposits.Add);
+            bus.Subscribe<TreasuryWithdrawEvent>(withdrawals.Add);
+
+            treasury.DepositGold(500, 1);
+            treasury.DepositItem("gem", 3, 1);
+            treasury.WithdrawGold(200, 2);
+            treasury.WithdrawGold(10_000, 2);
+
+            Assert.That(deposits.Select(d => (d.GoldAmount, d.ItemId, d.ItemQuantity)),
+                Is.EqualTo(new[] { (500L, (string)null, 0), (0L, "gem", 3) }));
+            Assert.That(withdrawals, Has.Count.EqualTo(1), "a refused withdrawal publishes nothing");
+            Assert.That(withdrawals[0].WithdrawerId, Is.EqualTo(2));
+            Assert.That(withdrawals[0].GuildId, Is.EqualTo("guild_events"));
+        }
+
+        [Test]
         public void Treasury_DepositGold_Success()
         {
             var treasuryData = GuildTreasuryData.Create("guild_023");

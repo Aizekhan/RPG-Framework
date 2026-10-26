@@ -1,0 +1,41 @@
+{
+    "name": "ReferenceGame.Tests",
+    "rootNamespace": "ReferenceGame.Tests",
+    "references": [
+        "ReferenceGame",
+        "RPGFramework.Bootstrap.Runtime",
+        "RPGFramework.Bootstrap.Gameplay",
+        "RPGFramework.Core.Runtime",
+        "RPGFramework.DI.Runtime",
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "RPGFramework.Systems.Runtime",
+        "RPGFramework.Combat.Runtime",
+        "RPGFramework.Progression.Runtime",
+        "RPGFramework.Quests.Runtime",
+        "RPGFramework.Items.Runtime",
+        "RPGFramework.Inventory.Runtime",
+        "RPGFramework.Loot.Runtime",
+        "RPGFramework.Stats.Runtime",
+        "RPGFramework.Serialization.Runtime",
+        "UniTask",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

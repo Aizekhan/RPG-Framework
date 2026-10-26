@@ -519,6 +519,42 @@ namespace RPGFramework.Combat.Tests
 
         #endregion
 
+        #region Event Bus
+
+        [Test]
+        public void Kill_WithPublisher_PublishesDeathEventOnTheBus()
+        {
+            using var bus = new RPGFramework.Events.EventBus();
+            var manager = new LifeStateManager(bus);
+            manager.RegisterEntity(TestEntityId, new TestLifeStateHandler());
+            DeathEvent? received = null;
+            bus.Subscribe<DeathEvent>(e => received = e);
+
+            manager.Kill(TestEntityId, KillerId, "test_death");
+
+            Assert.IsTrue(received.HasValue);
+            Assert.AreEqual(TestEntityId, received.Value.EntityId);
+            Assert.AreEqual(KillerId, received.Value.KillerEntityId);
+            Assert.AreEqual("test_death", received.Value.DeathReason);
+        }
+
+        [Test]
+        public void Resurrect_WithPublisher_PublishesResurrectionEventOnTheBus()
+        {
+            using var bus = new RPGFramework.Events.EventBus();
+            var manager = new LifeStateManager(bus);
+            manager.RegisterEntity(TestEntityId, new TestLifeStateHandler());
+            int resurrections = 0;
+            bus.Subscribe<ResurrectionEvent>(e => resurrections++);
+            manager.Kill(TestEntityId, KillerId, "test_death");
+
+            manager.Resurrect(TestEntityId, KillerId, "spell");
+
+            Assert.AreEqual(1, resurrections);
+        }
+
+        #endregion
+
         #region Test Helper Class
 
         /// <summary>
