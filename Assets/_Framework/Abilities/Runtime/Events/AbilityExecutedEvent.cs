@@ -1,9 +1,11 @@
+using RPGFramework.Events;
+
 namespace RPGFramework.Abilities
 {
     /// <summary>
     /// Event raised when an ability is executed.
     /// </summary>
-    public struct AbilityExecutedEvent
+    public struct AbilityExecutedEvent : IEvent
     {
         /// <summary>Ability ID that was executed</summary>
         public string AbilityId;

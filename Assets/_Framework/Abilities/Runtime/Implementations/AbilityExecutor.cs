@@ -1,17 +1,21 @@
 using System;
 using System.Collections.Generic;
+using RPGFramework.Events;
 
 namespace RPGFramework.Abilities
 {
     /// <summary>
     /// Default implementation of IAbilityExecutor.
     /// Executes abilities with validation, cooldown management, and resource costs.
+    /// With an event publisher, raises AbilityExecuted (also for failed attempts, Success = false), CooldownStarted
+    /// for instant casts and AbilityCanceled for interrupted casts. Casts with a cast time are completed by the game.
     /// </summary>
     public class AbilityExecutor : IAbilityExecutor
     {
         private readonly IAbilityRegistry _registry;
         private readonly ICooldownTracker _cooldownTracker;
         private readonly ITargetValidator _targetValidator;
+        private readonly IEventPublisher _events;
 
         // Track active ability instances per entity
         private readonly Dictionary<int, Dictionary<string, IAbilityInstance>> _abilityInstances =
@@ -20,11 +24,13 @@ namespace RPGFramework.Abilities
         public AbilityExecutor(
             IAbilityRegistry registry,
             ICooldownTracker cooldownTracker,
-            ITargetValidator targetValidator)
+            ITargetValidator targetValidator,
+            IEventPublisher events = null)
         {
             _registry = registry;
             _cooldownTracker = cooldownTracker;
             _targetValidator = targetValidator;
+            _events = events;
         }
 
         public AbilityExecutionResult ExecuteAbility(
@@ -40,7 +46,7 @@ namespace RPGFramework.Abilities
             IAbility ability = _registry.GetAbility(abilityId);
             if (ability == null)
             {
-                return AbilityExecutionResult.CreateFailure(
+                return Fail(
                     abilityId, casterEntityId, "Ability not found in registry", currentTime);
             }
 
@@ -50,7 +56,7 @@ namespace RPGFramework.Abilities
             // Check if can use
             if (!instance.CanUse(currentTime))
             {
-                return AbilityExecutionResult.CreateFailure(
+                return Fail(
                     abilityId, casterEntityId, "Ability on cooldown or no charges remaining", currentTime);
             }
 
@@ -59,7 +65,7 @@ namespace RPGFramework.Abilities
             {
                 if (resourceCheck != null && !resourceCheck(casterEntityId, cost.ResourceType, cost.Amount))
                 {
-                    return AbilityExecutionResult.CreateFailure(
+                    return Fail(
                         abilityId, casterEntityId, $"Insufficient {cost.ResourceType}", currentTime);
                 }
             }
@@ -81,6 +87,28 @@ namespace RPGFramework.Abilities
 
                 // Complete cast (starts cooldown)
                 instance.CompleteCast(currentTime);
+
+                if (_events != null)
+                {
+                    _events.Publish(new AbilityExecutedEvent
+                    {
+                        AbilityId = abilityId,
+                        CasterEntityId = casterEntityId,
+                        TargetEntityId = targetEntityId,
+                        Timestamp = currentTime,
+                        Success = true
+                    });
+                    if (ability.Cooldown > 0f)
+                    {
+                        _events.Publish(new CooldownStartedEvent
+                        {
+                            AbilityId = abilityId,
+                            EntityId = casterEntityId,
+                            Duration = ability.Cooldown,
+                            Timestamp = currentTime
+                        });
+                    }
+                }
 
                 return AbilityExecutionResult.CreateSuccess(abilityId, casterEntityId, targetEntityId, currentTime);
             }
@@ -115,9 +143,29 @@ namespace RPGFramework.Abilities
                     if (instance.IsCasting)
                     {
                         instance.CancelCast();
+                        _events?.Publish(new AbilityCanceledEvent
+                        {
+                            AbilityId = instance.Ability.AbilityId,
+                            CasterEntityId = entityId,
+                            Timestamp = 0f,
+                            Reason = "canceled"
+                        });
                     }
                 }
             }
+        }
+
+        private AbilityExecutionResult Fail(string abilityId, int casterEntityId, string reason, float currentTime)
+        {
+            _events?.Publish(new AbilityExecutedEvent
+            {
+                AbilityId = abilityId,
+                CasterEntityId = casterEntityId,
+                TargetEntityId = -1,
+                Timestamp = currentTime,
+                Success = false
+            });
+            return AbilityExecutionResult.CreateFailure(abilityId, casterEntityId, reason, currentTime);
         }
 
         private IAbilityInstance GetOrCreateInstance(int entityId, IAbility ability)

@@ -1,9 +1,11 @@
+using RPGFramework.Events;
+
 namespace RPGFramework.Abilities
 {
     /// <summary>
     /// Event raised when an ability cooldown starts.
     /// </summary>
-    public struct CooldownStartedEvent
+    public struct CooldownStartedEvent : IEvent
     {
         /// <summary>Ability ID on cooldown</summary>
         public string AbilityId;

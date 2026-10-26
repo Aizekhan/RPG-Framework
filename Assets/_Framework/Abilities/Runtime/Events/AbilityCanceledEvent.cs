@@ -1,9 +1,11 @@
+using RPGFramework.Events;
+
 namespace RPGFramework.Abilities
 {
     /// <summary>
     /// Event raised when an ability cast is canceled.
     /// </summary>
-    public struct AbilityCanceledEvent
+    public struct AbilityCanceledEvent : IEvent
     {
         /// <summary>Ability ID that was canceled</summary>
         public string AbilityId;

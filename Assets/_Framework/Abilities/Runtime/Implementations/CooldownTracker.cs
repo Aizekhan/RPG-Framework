@@ -1,17 +1,52 @@
 using System.Collections.Generic;
 using System.Linq;
+using RPGFramework.Events;
 
 namespace RPGFramework.Abilities
 {
     /// <summary>
     /// Default implementation of ICooldownTracker.
     /// Tracks cooldown state for abilities across multiple entities.
+    /// With an event publisher, raises CooldownStarted, and CooldownExpired from <see cref="CollectExpired"/>.
     /// </summary>
     public class CooldownTracker : ICooldownTracker
     {
         // entityId -> (abilityId -> CooldownState)
         private readonly Dictionary<int, Dictionary<string, CooldownState>> _cooldowns =
             new Dictionary<int, Dictionary<string, CooldownState>>();
+        private readonly IEventPublisher _events;
+        private readonly List<string> _expired = new List<string>();
+
+        public CooldownTracker(IEventPublisher events = null)
+        {
+            _events = events;
+        }
+
+        /// <summary>
+        /// Removes cooldowns that have ended and raises CooldownExpired for each. Call it once per frame (or tick)
+        /// when something listens for expirations; queries work without it.
+        /// </summary>
+        /// <returns>Number of cooldowns that expired.</returns>
+        public int CollectExpired(float currentTime)
+        {
+            int count = 0;
+            foreach (var entity in _cooldowns)
+            {
+                _expired.Clear();
+                foreach (var pair in entity.Value)
+                {
+                    if (!pair.Value.IsOnCooldown(currentTime))
+                        _expired.Add(pair.Key);
+                }
+                foreach (var abilityId in _expired)
+                {
+                    entity.Value.Remove(abilityId);
+                    count++;
+                    _events?.Publish(new CooldownExpiredEvent { AbilityId = abilityId, EntityId = entity.Key, Timestamp = currentTime });
+                }
+            }
+            return count;
+        }
 
         public void StartCooldown(int entityId, string abilityId, float duration, float currentTime)
         {
@@ -21,6 +56,13 @@ namespace RPGFramework.Abilities
             }
 
             _cooldowns[entityId][abilityId] = new CooldownState(abilityId, duration, currentTime);
+            _events?.Publish(new CooldownStartedEvent
+            {
+                AbilityId = abilityId,
+                EntityId = entityId,
+                Duration = duration,
+                Timestamp = currentTime
+            });
         }
 
         public bool IsOnCooldown(int entityId, string abilityId, float currentTime)

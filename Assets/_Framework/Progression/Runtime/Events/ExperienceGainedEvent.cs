@@ -1,9 +1,11 @@
+using RPGFramework.Events;
+
 namespace RPGFramework.Progression
 {
     /// <summary>
     /// Event raised when an entity gains experience points.
     /// </summary>
-    public struct ExperienceGainedEvent
+    public struct ExperienceGainedEvent : IEvent
     {
         /// <summary>Entity that gained XP</summary>
         public int EntityId;

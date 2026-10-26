@@ -1,9 +1,11 @@
+using RPGFramework.Events;
+
 namespace RPGFramework.Progression
 {
     /// <summary>
     /// Event raised when an entity unlocks new content.
     /// </summary>
-    public struct UnlockAchievedEvent
+    public struct UnlockAchievedEvent : IEvent
     {
         /// <summary>Entity that achieved unlock</summary>
         public int EntityId;

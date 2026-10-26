@@ -1,19 +1,26 @@
+using System;
 using System.Collections.Generic;
+using RPGFramework.Events;
 
 namespace RPGFramework.Progression
 {
     /// <summary>
     /// Default implementation of IProgressionTracker.
     /// Tracks experience and levels for multiple entities.
+    /// With an event publisher, raises ExperienceGained and LevelUp; <c>clock</c> stamps them (game time, default 0).
     /// </summary>
     public class ProgressionTracker : IProgressionTracker
     {
         private readonly ILevelTable _levelTable;
+        private readonly IEventPublisher _events;
+        private readonly Func<float> _clock;
         private readonly Dictionary<int, ExperienceData> _entityExperience = new Dictionary<int, ExperienceData>();
 
-        public ProgressionTracker(ILevelTable levelTable)
+        public ProgressionTracker(ILevelTable levelTable, IEventPublisher events = null, Func<float> clock = null)
         {
             _levelTable = levelTable;
+            _events = events;
+            _clock = clock;
         }
 
         public ProgressionResult AddExperience(int entityId, long xpAmount)
@@ -47,7 +54,34 @@ namespace RPGFramework.Progression
             var newExpData = new ExperienceData(newLevel, xpInCurrentLevel, newTotalXP, xpToNextLevel);
             _entityExperience[entityId] = newExpData;
 
-            return ProgressionResult.Create(oldLevel, newLevel, xpAmount, newExpData);
+            var result = ProgressionResult.Create(oldLevel, newLevel, xpAmount, newExpData);
+            if (_events != null)
+            {
+                float now = _clock?.Invoke() ?? 0f;
+                if (xpAmount != 0)
+                {
+                    _events.Publish(new ExperienceGainedEvent
+                    {
+                        EntityId = entityId,
+                        XPAmount = xpAmount,
+                        TotalXP = newTotalXP,
+                        CurrentLevel = newLevel,
+                        Timestamp = now
+                    });
+                }
+                if (newLevel > oldLevel)
+                {
+                    _events.Publish(new LevelUpEvent
+                    {
+                        EntityId = entityId,
+                        OldLevel = oldLevel,
+                        NewLevel = newLevel,
+                        LevelsGained = newLevel - oldLevel,
+                        Timestamp = now
+                    });
+                }
+            }
+            return result;
         }
 
         public void SetLevel(int entityId, int level)

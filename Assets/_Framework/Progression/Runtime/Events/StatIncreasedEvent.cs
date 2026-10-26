@@ -1,9 +1,11 @@
+using RPGFramework.Events;
+
 namespace RPGFramework.Progression
 {
     /// <summary>
     /// Event raised when a stat increases due to level up.
     /// </summary>
-    public struct StatIncreasedEvent
+    public struct StatIncreasedEvent : IEvent
     {
         /// <summary>Entity whose stat increased</summary>
         public int EntityId;
