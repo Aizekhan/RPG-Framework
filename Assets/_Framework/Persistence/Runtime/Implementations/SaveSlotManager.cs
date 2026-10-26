@@ -111,9 +111,24 @@ namespace RPGFramework.Persistence
             return _slots.TryGetValue(slotId, out var slot) ? slot.FilePath : null;
         }
 
+        /// <summary>
+        /// Path of the sidecar <see cref="SaveFileInfo"/> for a save file.
+        /// </summary>
+        public static string GetInfoPath(string filePath)
+        {
+            return Path.ChangeExtension(filePath, ".info");
+        }
+
+        /// <summary>
+        /// Writes through a temporary file, so a crash mid-write leaves the previous save intact.
+        /// </summary>
         public void WriteSaveFile(string filePath, byte[] data)
         {
-            File.WriteAllBytes(filePath, data);
+            var tempPath = filePath + ".tmp";
+            File.WriteAllBytes(tempPath, data);
+            if (File.Exists(filePath))
+                File.Delete(filePath);
+            File.Move(tempPath, filePath);
         }
 
         public byte[] ReadSaveFile(string filePath)
@@ -130,6 +145,9 @@ namespace RPGFramework.Persistence
                 return false;
 
             File.Delete(filePath);
+            var infoPath = GetInfoPath(filePath);
+            if (File.Exists(infoPath))
+                File.Delete(infoPath);
             return true;
         }
 

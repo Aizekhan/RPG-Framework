@@ -12,6 +12,7 @@ namespace RPGFramework.Persistence
         private readonly SaveSlotManager _slotManager;
         private readonly ISaveSerializer _serializer;
         private readonly ISaveValidator _validator;
+        private readonly JsonSaveSerializer _infoSerializer = new JsonSaveSerializer();
 
         private ISaveSlot _activeSlot;
         private float _timeSinceLastAutoSave;
@@ -79,11 +80,18 @@ namespace RPGFramework.Persistence
                         "Save file failed integrity check.");
                 }
 
-                // Write to disk
+                // Write to disk: the data, then the sidecar with metadata and checksum
                 var filePath = _slotManager.GetFilePath(slotId);
                 try
                 {
                     _slotManager.WriteSaveFile(filePath, data);
+                    var info = new SaveFileInfo
+                    {
+                        Metadata = ToSaveMetadata(metadata),
+                        Checksum = checksum,
+                        DataLength = data.Length
+                    };
+                    _slotManager.WriteSaveFile(SaveSlotManager.GetInfoPath(filePath), _infoSerializer.Serialize(info));
                 }
                 catch (Exception ex)
                 {
@@ -148,6 +156,16 @@ namespace RPGFramework.Persistence
                         $"Failed to read save file: {ex.Message}");
                 }
 
+                // Verify the data against the checksum recorded at save time (saves without a sidecar predate it)
+                var info = ReadInfo(filePath);
+                if (info != null && !string.IsNullOrEmpty(info.Checksum) &&
+                    _validator.ComputeChecksum(data) != info.Checksum)
+                {
+                    OnSaveError?.Invoke(new SaveErrorEvent(slotId, SaveError.InvalidChecksum, "Save data does not match its checksum."));
+                    return LoadResult.CreateFailure(slotId, SaveError.InvalidChecksum,
+                        "Save data does not match its checksum (corrupted or modified).");
+                }
+
                 // Deserialize game state. The serializers rebuild objects by reflection, so they need the concrete
                 // type: deserializing as object used to return an empty object and silently lose the state.
                 object gameState = null;
@@ -162,9 +180,11 @@ namespace RPGFramework.Persistence
                         $"Failed to deserialize game state: {ex.Message}");
                 }
 
-                // Get metadata
+                // Get metadata (known after a save in this session, otherwise from the sidecar)
                 var slot = _slotManager.GetSlot(slotId);
-                var metadata = slot.Metadata;
+                var metadata = slot.Metadata ?? info?.Metadata;
+                if (slot.Metadata == null && metadata != null)
+                    _slotManager.MarkSlotOccupied(slotId, metadata);
 
                 // Update active slot
                 _activeSlot = slot;
@@ -214,7 +234,48 @@ namespace RPGFramework.Persistence
         public ISaveMetadata GetMetadata(string slotId)
         {
             var slot = _slotManager.GetSlot(slotId);
-            return slot?.Metadata;
+            if (slot == null || slot.Metadata != null || !slot.IsOccupied)
+                return slot?.Metadata;
+
+            // Saves from an earlier session: read the sidecar on demand
+            var metadata = ReadInfo(_slotManager.GetFilePath(slotId))?.Metadata;
+            if (metadata != null)
+                _slotManager.MarkSlotOccupied(slotId, metadata);
+            return metadata;
+        }
+
+        private SaveFileInfo ReadInfo(string filePath)
+        {
+            try
+            {
+                var bytes = _slotManager.ReadSaveFile(SaveSlotManager.GetInfoPath(filePath));
+                return bytes == null ? null : _infoSerializer.Deserialize<SaveFileInfo>(bytes);
+            }
+            catch
+            {
+                // An unreadable sidecar must not make the save itself unloadable
+                return null;
+            }
+        }
+
+        private static SaveMetadata ToSaveMetadata(ISaveMetadata metadata)
+        {
+            if (metadata == null)
+                return null;
+            if (metadata is SaveMetadata concrete)
+                return concrete;
+            return new SaveMetadata
+            {
+                Timestamp = metadata.Timestamp,
+                GameVersion = metadata.GameVersion,
+                CharacterName = metadata.CharacterName,
+                PlaytimeSeconds = metadata.PlaytimeSeconds,
+                LocationName = metadata.LocationName,
+                CharacterLevel = metadata.CharacterLevel,
+                CustomData = metadata.CustomData != null
+                    ? new System.Collections.Generic.Dictionary<string, string>(metadata.CustomData)
+                    : new System.Collections.Generic.Dictionary<string, string>()
+            };
         }
 
         public bool HasSave(string slotId)
