@@ -17,6 +17,7 @@
 | `.meta` integrity | ✅ 0 problems | `11c9de6` |
 | CI on GitHub (meta check, EditMode, PlayMode) | ✅ green (run `40385148480`) | `11c9de6` |
 | Fresh Unity 6 project + UniTask + package → New Game → tests → Play | ✅ 14/14 generated tests, played (screenshots) | `675b521` |
+| **Release `v0.2.0`**: fresh Unity 6 project installs the package by git URL `#v0.2.0` (resolves to `01f5af8`), 0 `error CS`, New Game → 14/14 generated tests | ✅ CI green (run `40386565078`) | `01f5af8` |
 
 EditMode went from 1250 to 1243 (before networking) because Goblin Valley's own wave and rule tests were replaced by tests of its
 setup asset and kill streak rule (waves are covered by the `ActionRpg` tests).
@@ -32,7 +33,7 @@ Earlier "~5 compilation errors" and "100% pass rate" claims were unverified. In 
 - `Assets/_Tests/Editor/FrameworkArchitectureTests.cs`: framework-wide rules (no game references, no editor code in player builds, no assembly cycles, `RPGFramework.*` namespaces, every MonoBehaviour/ScriptableObject in a file of its own name)
 - No AI, Economy or Objectives modules exist (older docs listed them).
 
-## Core migration from MythHunter (`ARCHITECTURE-GAP-ANALYSIS.md` §6, approved 2026-10-26)
+## Core migration from MythHunter (`Docs/archive/ARCHITECTURE-GAP-ANALYSIS.md` §6, approved 2026-10-26)
 
 Each row was verified on a fresh worktree at the SHA shown (0 `error CS`, all EditMode tests green), then pushed.
 
@@ -59,7 +60,7 @@ Each row was verified on a fresh worktree at the SHA shown (0 `error CS`, all Ed
 | 9f Module events | Gameplay modules publish their events through an optional `IEventPublisher`: Quests (+ `FailQuest`, `ReportProgress`), Progression, Abilities (+ `CooldownTracker.CollectExpired`), Guilds, Inventory. Event types implement `IEvent` | `7427114`…`de95bd9`, `7e68d3a`, `d82835c`, `35a1dbb` | 1170 |
 | 9g Module bridge | `RPGFramework.Integration.CombatQuests`: `KillObjectiveBridge` turns `ILifeStateManager` deaths into Kill-objective progress (game supplies target ids and kill credit) | `dee45d1`, `25bb6a1` | 1163 |
 
-**Migration plan (`ARCHITECTURE-GAP-ANALYSIS.md` §6) is complete.** Everything above is pushed to `origin/main`.
+**Migration plan (`Docs/archive/ARCHITECTURE-GAP-ANALYSIS.md` §6) is complete.** Everything above is pushed to `origin/main`.
 
 Not ported on purpose in phase 9: a persistent event store (the `EventRecorder` ring buffer covers debugging; no proven need for event sourcing).
 
@@ -109,6 +110,14 @@ Not committed (they duplicated migrated modules; the backup folder was deleted o
 | `28521c7` | Bug: `TimeSystem` ignored start hour (12:00 + 1h = 01:00); bug: `EventParticipant` leaving at t=0 stayed active, Observers were reward-eligible |
 | `03d28e0` | **Security:** `BinaryFormatter` removed from `BinarySaveSerializer` (now header + GZip JSON). **Bug:** JSON saves lost decimals under comma-decimal locales (85.5 → 85.0, proven by failing test on old code). Breaking: old binary saves unreadable |
 | `b9d96b5`, `7c3cc2d` | GitHub Actions CI: `.meta` integrity + GameCI EditMode tests |
+
+## Backlog from archived plans
+
+Checked before moving the old plans to `Docs/archive/` (2026-10-26). Ideas that are still open and not listed elsewhere here; none is scheduled:
+- **Performance benchmarks** (CLAUDE.md validation step 4; old KPI: < 16 ms frame with 1000+ entities). None exist yet.
+- **Editor tools:** dialogue graph, skill/ability tree, faction relationship map (the three `#if FALSE` windows below), a combat balancing simulator.
+- **Bigger features:** procedural generation (dungeons, quests), tactical / boss AI, save versioning and migration, cloud saves.
+- **Release extras:** API reference, tutorials, more sample games of other RPG types, CONTRIBUTING and issue templates, Asset Store submission (licence decision is the owner's).
 
 ## Open issues
 

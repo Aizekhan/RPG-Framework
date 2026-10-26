@@ -2,13 +2,15 @@
 
 **Date:** 2026-10-26
 **Project:** RPG Framework (`D:\RPG-Framework`, https://github.com/Aizekhan/RPG-Framework)
-**Read first:** `STATUS.md` (verified gates, migration table, open issues), then `ARCHITECTURE-GAP-ANALYSIS.md` §6 (migration plan)
+**Read first:** `STATUS.md` (verified gates, migration table, open issues), then `Docs/archive/ARCHITECTURE-GAP-ANALYSIS.md` §6 (migration plan)
 
 ---
 
 ## Where things stand
 
 - Last code-verified SHA: **`11c9de6`**: compile 0 errors, **1283/1283 EditMode**, **6/6 PlayMode**, CI green (run `40385148480`).
+- **Released `v0.2.0`** (tag on `01f5af8`, CI green): install with `#v0.2.0` proven in a fresh project `D:/RPG-Release020`. Old plans moved to `Docs/archive/`; their open ideas are in STATUS.md "Backlog from archived plans".
+- User's order after the release (2026-10-26): archive old docs (done), Max Players in the inspector + palette for more colours (test 6-8 players before claiming it), Unity Relay: first check Unity Transport compatibility and write the adaptation plan, no integration before that; Steam/EOS later; PvP later, as game modes.
 - User's co-op plan (2026-10-26): stage 1 names and colours (done, `8948d16`); stage 2 play between homes: providers architecture done (`11c9de6`, `INetworkSessionProvider`), service choice researched in `networking.md`, waiting for the user (Unity Relay recommended, needs their UGS project); stage 3 reliability: not started. Principle from the user: network core never depends on a provider; each service is a separate module.
 - **Co-op works** (user approved 2-4 players): any `ActionRpgHost` game, F2 > Host a game / Join an IP, or `-host` / `-join <ip>`. Host-authoritative: the host's `ActorWorld` runs the rules with everyone in one party; joined machines restart into a core-only `GameHost` and mirror the world (`RemoteWorld`). Code: `ActionRpg/Runtime/Coop`, `ActionRpg/Unity/{ActionRpgHost,CoopPanel,RemoteMotion,ActorPresenter}.cs`, `Networking/UnityTransport`. Docs: `Documentation~/networking.md`, recipe 11.
 - Goblin Valley (`Assets/ReferenceGame`) is now an `ActionRpg` game: assets in `Content/`, one coded rule (`KillStreak`), rebuilt by `GoblinValleyBuilder` in batch mode.
@@ -19,7 +21,7 @@
 ## What was done
 
 1. Technical audit, plus fixes for every finding (see STATUS.md, "Fixed in the audit").
-2. `ARCHITECTURE-GAP-ANALYSIS.md` (`3fb53cb`) compared MythHunter's core with the framework.
+2. `Docs/archive/ARCHITECTURE-GAP-ANALYSIS.md` (`3fb53cb`) compared MythHunter's core with the framework.
 3. Migration phases 1–7 (see the STATUS.md table): Logging, Core/UniTask, Events, Systems/World, Bootstrap/GameHost, ECS pools and archetypes, Pooling, AssetManagement, Scenes, Timers, AsyncStateMachine.
 4. Phase 8: `UINavigation` module. Phase 9: loot builder, save coordinator (+ load data-loss fix), network authority, diagnostics, DI optional parameters, module events, Combat→Quests bridge.
 5. Product milestones 1-6 (STATUS.md): UPM package, Game Kit, action RPG from the inspector, Goblin Valley on it, co-op.
