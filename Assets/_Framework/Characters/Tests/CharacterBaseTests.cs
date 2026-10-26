@@ -19,6 +19,7 @@ namespace RPGFramework.Characters.Tests
         public void TearDown() => Object.DestroyImmediate(_host);
 
         [Test]
+        public void NewCharacter_IsAliveAndUnbound()
         {
             Assert.That(_character.IsAlive, Is.True);
             Assert.That(_character.EntityId, Is.EqualTo(-1));
