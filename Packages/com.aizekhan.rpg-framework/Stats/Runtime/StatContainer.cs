@@ -12,6 +12,8 @@ namespace RPGFramework.Stats
     /// <summary>
     /// Generic stat container component with modifier support
     /// Supports any stat type (enum, struct) and value type (float, int, etc.)
+    /// Final values are cached until a base value or modifier changes; recalculating allocates nothing (modifiers are
+    /// kept in priority order as they are added). Whole-number stats stop at their type's limits instead of overflowing.
     /// </summary>
     /// <typeparam name="TStatType">Stat identifier type (must be value type with IConvertible)</typeparam>
     /// <typeparam name="TValue">Stat value type (must be value type with IComparable)</typeparam>
@@ -66,9 +68,9 @@ namespace RPGFramework.Stats
             EnsureInitialized();
 
             // Return cached value if not dirty
-            if (!_dirtyStats.Contains(statType) && _cachedFinalStats.ContainsKey(statType))
+            if (!_dirtyStats.Contains(statType) && _cachedFinalStats.TryGetValue(statType, out var cached))
             {
-                return _cachedFinalStats[statType];
+                return cached;
             }
 
             // Calculate final value
@@ -107,12 +109,17 @@ namespace RPGFramework.Stats
 
             EnsureInitialized();
 
-            if (!_modifiers.ContainsKey(modifier.StatType))
+            if (!_modifiers.TryGetValue(modifier.StatType, out var list))
             {
-                _modifiers[modifier.StatType] = new List<IStatModifier<TStatType, TValue>>();
+                list = new List<IStatModifier<TStatType, TValue>>();
+                _modifiers[modifier.StatType] = list;
             }
 
-            _modifiers[modifier.StatType].Add(modifier);
+            // Kept in priority order (equal priorities in the order added), so recalculating never sorts
+            int index = list.Count;
+            while (index > 0 && list[index - 1].Priority > modifier.Priority)
+                index--;
+            list.Insert(index, modifier);
             MarkDirty(modifier.StatType);
         }
 
@@ -198,48 +205,44 @@ namespace RPGFramework.Stats
             TValue baseValue = GetBaseStat(statType);
 
             // No modifiers? Return base value
-            if (!_modifiers.ContainsKey(statType) || _modifiers[statType].Count == 0)
+            if (!_modifiers.TryGetValue(statType, out var modifierList) || modifierList.Count == 0)
             {
                 return baseValue;
             }
 
-            var modifierList = _modifiers[statType];
-
-            // Check for Override modifiers (highest priority wins)
-            var overrideModifiers = modifierList
-                .Where(m => m.ModifierType == StatModifierType.Override)
-                .OrderByDescending(m => m.Priority)
-                .ToList();
-
-            if (overrideModifiers.Count > 0)
+            // One pass over the priority-ordered list: an Override wins outright (the highest priority, the first
+            // added among equals); otherwise (base + additives) * (1 + each multiplier), multipliers in priority order
+            IStatModifier<TStatType, TValue> winningOverride = null;
+            double additive = 0d;
+            for (int i = 0; i < modifierList.Count; i++)
             {
-                return overrideModifiers[0].Value;
+                var modifier = modifierList[i];
+                if (modifier.ModifierType == StatModifierType.Override)
+                {
+                    if (winningOverride == null || modifier.Priority > winningOverride.Priority)
+                        winningOverride = modifier;
+                }
+                else if (modifier.ModifierType == StatModifierType.Additive)
+                {
+                    additive += StatValues<TValue>.ToDouble(modifier.Value);
+                }
+            }
+            if (winningOverride != null)
+            {
+                return winningOverride.Value;
             }
 
-            // Apply Additive modifiers
-            var additiveModifiers = modifierList
-                .Where(m => m.ModifierType == StatModifierType.Additive)
-                .OrderBy(m => m.Priority);
-
-            double currentValue = Convert.ToDouble(baseValue);
-            foreach (var modifier in additiveModifiers)
+            double currentValue = StatValues<TValue>.ToDouble(baseValue) + additive;
+            for (int i = 0; i < modifierList.Count; i++)
             {
-                currentValue += Convert.ToDouble(modifier.Value);
-            }
-
-            // Apply Multiplicative modifiers
-            var multiplicativeModifiers = modifierList
-                .Where(m => m.ModifierType == StatModifierType.Multiplicative)
-                .OrderBy(m => m.Priority);
-
-            foreach (var modifier in multiplicativeModifiers)
-            {
+                var modifier = modifierList[i];
                 // Multiplicative formula: value * (1 + modifier)
                 // Example: 100 * (1 + 0.1) = 110 (10% increase)
-                currentValue *= (1 + Convert.ToDouble(modifier.Value));
+                if (modifier.ModifierType == StatModifierType.Multiplicative)
+                    currentValue *= 1d + StatValues<TValue>.ToDouble(modifier.Value);
             }
 
-            return (TValue)Convert.ChangeType(currentValue, typeof(TValue));
+            return StatValues<TValue>.FromDouble(currentValue);
         }
 
         // Serialization
@@ -356,6 +359,68 @@ namespace RPGFramework.Stats
             {
                 MarkDirty(statType);
             }
+        }
+    }
+
+    /// <summary>
+    /// Converts stat values to and from double without boxing (one delegate per value type, made once).
+    /// Whole numbers are rounded half away from zero and kept within the type's range.
+    /// </summary>
+    internal static class StatValues<TValue> where TValue : struct
+    {
+        public static readonly Func<TValue, double> ToDouble;
+        public static readonly Func<double, TValue> FromDouble;
+
+        static StatValues()
+        {
+            object to, from;
+            var type = typeof(TValue);
+            if (type == typeof(float))
+            {
+                to = (Func<float, double>)(v => v);
+                from = (Func<double, float>)(d => (float)d);
+            }
+            else if (type == typeof(double))
+            {
+                to = (Func<double, double>)(v => v);
+                from = (Func<double, double>)(d => d);
+            }
+            else if (type == typeof(int))
+            {
+                to = (Func<int, double>)(v => v);
+                from = (Func<double, int>)(d => (int)Whole(d, int.MinValue, int.MaxValue));
+            }
+            else if (type == typeof(long))
+            {
+                to = (Func<long, double>)(v => v);
+                from = (Func<double, long>)(d => d >= 9.2233720368547758E+18 ? long.MaxValue : d <= -9.2233720368547758E+18 ? long.MinValue : (long)Whole(d, long.MinValue, long.MaxValue));
+            }
+            else if (type == typeof(short))
+            {
+                to = (Func<short, double>)(v => v);
+                from = (Func<double, short>)(d => (short)Whole(d, short.MinValue, short.MaxValue));
+            }
+            else if (type == typeof(byte))
+            {
+                to = (Func<byte, double>)(v => v);
+                from = (Func<double, byte>)(d => (byte)Whole(d, byte.MinValue, byte.MaxValue));
+            }
+            else
+            {
+                // Anything else convertible: correct, though it boxes
+                to = (Func<TValue, double>)(v => System.Convert.ToDouble(v, System.Globalization.CultureInfo.InvariantCulture));
+                from = (Func<double, TValue>)(d => (TValue)System.Convert.ChangeType(d, typeof(TValue), System.Globalization.CultureInfo.InvariantCulture));
+            }
+            ToDouble = (Func<TValue, double>)to;
+            FromDouble = (Func<double, TValue>)from;
+        }
+
+        private static double Whole(double value, double min, double max)
+        {
+            if (double.IsNaN(value))
+                return 0d;
+            value = Math.Round(value, MidpointRounding.AwayFromZero);
+            return value < min ? min : value > max ? max : value;
         }
     }
 }
