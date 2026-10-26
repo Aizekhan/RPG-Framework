@@ -1,0 +1,16 @@
+{
+    "name": "RPGFramework.Diagnostics.Unity",
+    "rootNamespace": "RPGFramework.Diagnostics.Unity",
+    "references": [
+        "RPGFramework.Diagnostics.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

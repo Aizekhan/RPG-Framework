@@ -1,0 +1,24 @@
+{
+    "name": "RPGFramework.Diagnostics.Runtime",
+    "rootNamespace": "RPGFramework.Diagnostics",
+    "references": [
+        "RPGFramework.Bootstrap.Runtime",
+        "RPGFramework.Core.Runtime",
+        "RPGFramework.DI.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "RPGFramework.Pooling.Runtime",
+        "RPGFramework.Systems.Runtime",
+        "RPGFramework.Timers.Runtime",
+        "UniTask"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
