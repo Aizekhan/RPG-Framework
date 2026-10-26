@@ -104,9 +104,7 @@ namespace RPGFramework.Tests.Editor
                 }
             }
 
-            Assert.That(violations, Is.Empty, "Wrap editor-only code in #if UNITY_EDITOR:
-" + string.Join("
-", violations));
+            Assert.That(violations, Is.Empty, "Wrap editor-only code in #if UNITY_EDITOR:" + System.Environment.NewLine + string.Join(System.Environment.NewLine, violations));
         }
 
         [Test]
