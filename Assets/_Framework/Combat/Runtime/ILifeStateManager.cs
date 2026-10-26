@@ -12,6 +12,19 @@ namespace RPGFramework.Combat
     public interface ILifeStateManager
     {
         /// <summary>
+        /// Starts tracking an entity's life state; its handler receives the death/resurrection callbacks.
+        /// </summary>
+        /// <param name="entityId">ID of the entity to register.</param>
+        /// <param name="handler">Life state handler for the entity.</param>
+        /// <param name="initialState">Initial life state; alive when null.</param>
+        void RegisterEntity(int entityId, ILifeStateHandler handler, LifeStateComponent? initialState = null);
+
+        /// <summary>
+        /// Stops tracking an entity (e.g. when it is despawned).
+        /// </summary>
+        void UnregisterEntity(int entityId);
+
+        /// <summary>
         /// Kills the specified entity.
         /// </summary>
         /// <param name="entityId">ID of the entity to kill.</param>
