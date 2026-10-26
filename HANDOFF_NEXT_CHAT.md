@@ -8,9 +8,11 @@
 
 ## Where things stand
 
-- Last code-verified SHA: **`9d08fd4`**: compile 0 errors, **1287/1287 EditMode**, **7/7 PlayMode** (incl. eight games over UDP), the same on Unity Transport 2.5.3 and 2.7.4, CI green (run `40394742917`).
-- **Released `v0.2.0`** (tag on `01f5af8`, CI green): install with `#v0.2.0` proven in a fresh project `D:/RPG-Release020`. Old plans moved to `Docs/archive/`; their open ideas are in STATUS.md "Backlog from archived plans".
-- User's order after the release (2026-10-26): archive old docs (done), Max Players 2-8 + generated colours (done, `d345bf6`, 8 tested over UDP), Unity Relay compatibility check + adaptation plan (done, `networking.md`; verdict: compatible, a small opening in `UnityNetworkTransport`; Multiplayer Services SDK 2.4.1 pulls Unity Transport 2.7.4; integration waits for the owner's UGS project and go-ahead); user approved Relay steps 1-2 (done, `9d08fd4`: suite green on Unity Transport 2.7.4; transport opened for relays). Next: step 3, module `RPGFramework.Networking.UnityRelay` (optional, compiled only with `com.unity.services.multiplayer`), then clean-install + CI, then the owner's UGS project and a real two-network test. Relay pricing/free tier must be checked against Unity's current terms (user's point). PvP and the archived backlog wait until internet co-op works; Steam/EOS later; PvP later, as game modes.
+- Last code-verified SHA: **`ed1aaf7`**: compile 0 errors, **1308/1308 EditMode** (Multiplayer Services SDK 2.4.1 installed in the main project), meta check clean. PlayMode **8/8** at `451afe3`; CI green at `ed1aaf7` (run `40405836091`: meta, EditMode, PlayMode).
+- **Released `v0.2.0`** (tag on `01f5af8`). **Do not release v0.3.0 yet**: the user wants the whole plan finished first (reliability, weak spots, PvP).
+- **Unity Relay** (steps 1-3 done): `9d08fd4` opened `UnityNetworkTransport` for relays; `451afe3` added the optional module `Networking/UnityRelay` (asmdef define `RPG_MULTIPLAYER_SERVICES`, self-registers in `NetworkSessionProviders`, F2 panel toolbar, `-provider unity-relay`). Proven with a fake cloud only, and by a clean install with and without the SDK (`D:/RPG-Release020`). **Open gate:** live test across two networks with the owner's UGS project; check Unity's current Relay terms before calling it free.
+- **Claude Code starter** (`ed1aaf7`): `START-NEW-GAME.md` at the repo root (README links it). The developer drops it into an empty folder and Claude Code follows steps 0-10. Run end to end in `D:/RPG-Starter-Test`. New rules GA11/GA12 plus `GAME.md` / `FRAMEWORK-GAPS.md` / `DEVLOG.md` stop an assistant from rebuilding framework modules or hiding gaps. Selling only the file is not possible while the repo is public MIT (licence is the owner's decision, near 1.0).
+- **Next, in order:** network reliability (stage 3) → weak spots (save versioning, benchmarks/`StatContainer`, Tools/DeltaCompression tests, `#if FALSE` windows, loot events) → PvP as modes → editors, second genre → 1.0. See STATUS.md "Next steps".
 - User's co-op plan (2026-10-26): stage 1 names and colours (done, `8948d16`); stage 2 play between homes: providers architecture done (`11c9de6`, `INetworkSessionProvider`), service choice researched in `networking.md`, waiting for the user (Unity Relay recommended, needs their UGS project); stage 3 reliability: not started. Principle from the user: network core never depends on a provider; each service is a separate module.
 - **Co-op works** (user approved 2-4 players): any `ActionRpgHost` game, F2 > Host a game / Join an IP, or `-host` / `-join <ip>`. Host-authoritative: the host's `ActorWorld` runs the rules with everyone in one party; joined machines restart into a core-only `GameHost` and mirror the world (`RemoteWorld`). Code: `ActionRpg/Runtime/Coop`, `ActionRpg/Unity/{ActionRpgHost,CoopPanel,RemoteMotion,ActorPresenter}.cs`, `Networking/UnityTransport`. Docs: `Documentation~/networking.md`, recipe 11.
 - Goblin Valley (`Assets/ReferenceGame`) is now an `ActionRpg` game: assets in `Content/`, one coded rule (`KillStreak`), rebuilt by `GoblinValleyBuilder` in batch mode.
@@ -54,8 +56,11 @@ Create the worktree with `git worktree add --detach D:/RPG-Framework-verify <sha
 
 ## Gotchas learned
 
+- `GameArchitectureTests` (TestSupport) lists each rule as its own test; a new rule needs a test there too (`EveryRule_IsATestInEveryGame` checks).
+- Don't write regex escapes (`\b`) through bash heredocs into C#; use the Edit tool.
+
 - Batch-mode Unity exits with code 2 when any test fails. Read the NUnit XML, not the exit code.
-- A test assembly whose plugin fails to load reports **0 tests, not an error**. Compare totals between runs (expected: 1287 EditMode, 7 PlayMode).
+- A test assembly whose plugin fails to load reports **0 tests, not an error**. Compare totals between runs (expected: 1308 EditMode, 8 PlayMode, with the Multiplayer Services SDK installed).
 - The verify worktree gets NuGetForUnity files generated on import; remove them there before `checkout`, or checkout aborts and the old commit is tested. Check the SHA the run actually used.
 - A MonoBehaviour must live in a file of its own name (enforced by `FrameworkArchitectureTests`). Test MonoBehaviours go in a `*.TestSupport` runtime assembly.
 - Test assemblies that construct `EventBus` need `RPGFramework.Logging.Runtime` (CS0012 otherwise).
