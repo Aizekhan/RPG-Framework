@@ -6,7 +6,7 @@ namespace RPGFramework.Environment.Runtime
     public struct TimeData
     {
         /// <summary>
-        /// Total elapsed game time in seconds.
+        /// Total elapsed game time in seconds since day 1, 00:00.
         /// </summary>
         public float TotalSeconds;
 
@@ -40,7 +40,7 @@ namespace RPGFramework.Environment.Runtime
         /// </summary>
         public static TimeData Default => new TimeData
         {
-            TotalSeconds = 0f,
+            TotalSeconds = 12 * 3600f,
             Hour = 12,
             Minute = 0,
             Day = 1,

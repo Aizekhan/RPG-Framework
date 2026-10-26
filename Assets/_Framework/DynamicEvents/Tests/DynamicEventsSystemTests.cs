@@ -88,7 +88,7 @@ namespace RPGFramework.DynamicEvents.Tests
             Assert.AreEqual(0f, participant.ContributionScore);
             Assert.AreEqual(ParticipationLevel.Observer, participant.ParticipationLevel);
             Assert.IsTrue(participant.IsActive);
-            Assert.IsTrue(participant.IsEligibleForRewards);
+            Assert.IsFalse(participant.IsEligibleForRewards); // Observer tier earns "none"
         }
 
         [Test]
@@ -361,11 +361,10 @@ namespace RPGFramework.DynamicEvents.Tests
             var dynamicEvent = manager.CreateEvent("defense_template", "village_01");
             manager.JoinEvent(dynamicEvent.EventId, "player1");
             manager.JoinEvent(dynamicEvent.EventId, "player2");
-            manager.JoinEvent(dynamicEvent.EventId, "player3");
-            manager.JoinEvent(dynamicEvent.EventId, "player4");
 
             manager.ScaleEvent(dynamicEvent.EventId);
 
+            // 2-3 participants scale Easy -> Normal
             Assert.AreEqual(EventDifficulty.Normal, dynamicEvent.Difficulty);
         }
 

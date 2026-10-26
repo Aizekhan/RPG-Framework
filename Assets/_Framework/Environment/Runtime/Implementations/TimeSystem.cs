@@ -33,7 +33,7 @@ namespace RPGFramework.Environment.Runtime
                 Minute = startMinute,
                 Day = 1,
                 TimeScale = timeScale,
-                TotalSeconds = 0f,
+                TotalSeconds = (startHour * 60 + startMinute) * 60f,
                 TimeOfDay = CalculateTimeOfDay(startHour)
             };
             _previousTimeOfDay = _timeData.TimeOfDay;

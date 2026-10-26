@@ -15,8 +15,10 @@ namespace RPGFramework.DynamicEvents.Runtime
         public ParticipationLevel ParticipationLevel { get; private set; }
         public float JoinTime { get; }
         public float LeaveTime { get; private set; }
-        public bool IsActive => LeaveTime == 0f;
+        public bool IsActive => !_hasLeft;
         public bool IsEligibleForRewards { get; private set; }
+
+        private bool _hasLeft;
 
         public EventParticipant(string participantId, string eventId, float joinTime)
         {
@@ -26,7 +28,7 @@ namespace RPGFramework.DynamicEvents.Runtime
             LeaveTime = 0f;
             ContributionScore = 0f;
             ParticipationLevel = ParticipationLevel.Observer;
-            IsEligibleForRewards = true;
+            IsEligibleForRewards = false;
         }
 
         public void AddContribution(float amount)
@@ -47,6 +49,7 @@ namespace RPGFramework.DynamicEvents.Runtime
                 return;
 
             LeaveTime = currentTime;
+            _hasLeft = true;
             UpdateParticipationLevel();
         }
 
