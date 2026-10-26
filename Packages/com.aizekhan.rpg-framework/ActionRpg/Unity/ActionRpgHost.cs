@@ -343,6 +343,15 @@ namespace RPGFramework.ActionRpg
         {
         }
 
+        /// <summary>
+        /// Add your game's own state to the saved progress: <c>saves.Register(new MyShopSave(shop))</c> with a
+        /// <c>SaveParticipant&lt;TState&gt;</c>. Runs before the save is loaded, when 'Save Progress' is on and this
+        /// machine runs the rules.
+        /// </summary>
+        protected virtual void ConfigureSaves(ActionRpgSaves saves)
+        {
+        }
+
         protected virtual void Start()
         {
             ShowGame();
@@ -639,9 +648,17 @@ namespace RPGFramework.ActionRpg
         private void StartSaving()
         {
             _saves = new ActionRpgSaves(World, SaveDirectory, Application.version);
+            ConfigureSaves(_saves);
             string error = _saves.Load();
             if (error != null)
                 Host.Logger.LogError($"Saved progress could not be loaded: {error}", Category);
+            else if (_saves.Notice.Length > 0)
+                Host.Logger.LogWarning(_saves.Notice, Category);
+            // The player reads it in the game's log
+            if (_saves.Notice.Length > 0)
+                World.Announce(_saves.Notice);
+            else if (!_saves.CanSave)
+                World.Announce("Progress is not saved: the save was made by a newer version of the game.");
 
             var bus = Host.Container.Resolve<IEventBus>();
             bus.Subscribe<LevelUpEvent>(_ => SaveProgress()).AddTo(_saveTriggers);

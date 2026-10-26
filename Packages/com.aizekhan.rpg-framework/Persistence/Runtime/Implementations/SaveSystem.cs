@@ -5,7 +5,9 @@ using System.Linq;
 namespace RPGFramework.Persistence
 {
     /// <summary>
-    /// Core save system implementation.
+    /// Saves into slots on disk: the data, a sidecar with metadata and checksum, and the previous save kept beside it
+    /// (<c>slot.previous.sav</c>) on every save while it was intact. A latest save that fails its checksum or cannot be
+    /// read falls back to the previous one (<see cref="LoadResult.FromPrevious"/>).
     /// </summary>
     public class SaveSystem : ISaveSystem
     {
@@ -84,6 +86,7 @@ namespace RPGFramework.Persistence
                 var filePath = _slotManager.GetFilePath(slotId);
                 try
                 {
+                    KeepPrevious(filePath);
                     _slotManager.WriteSaveFile(filePath, data);
                     var info = new SaveFileInfo
                     {
@@ -116,11 +119,76 @@ namespace RPGFramework.Persistence
             }
         }
 
-        public LoadResult Load(string slotId) => LoadCore(slotId, null);
+        public LoadResult Load(string slotId) => LoadCore(slotId, null, previous: false);
 
-        public LoadResult Load<TState>(string slotId) => LoadCore(slotId, data => _serializer.Deserialize<TState>(data));
+        public LoadResult Load<TState>(string slotId)
+        {
+            var result = LoadCore(slotId, Deserializer<TState>(), previous: false);
+            if (result.Success || (result.Error != SaveError.InvalidChecksum && result.Error != SaveError.DeserializationFailed))
+                return result;
+            var previous = LoadCore(slotId, Deserializer<TState>(), previous: true);
+            if (!previous.Success)
+                return result;
+            previous.FromPrevious = true;
+            previous.ErrorMessage = result.ErrorMessage;
+            return previous;
+        }
 
-        private LoadResult LoadCore(string slotId, Func<byte[], object> deserialize)
+        public LoadResult LoadPrevious<TState>(string slotId) => LoadCore(slotId, Deserializer<TState>(), previous: true);
+
+        /// <summary>
+        /// Moves an unreadable save out of the slot (data and sidecar renamed with "unreadable" and the time), so
+        /// the next save does not overwrite what someone may still recover. Returns the new data path, or null.
+        /// </summary>
+        public string SetAside(string slotId)
+        {
+            var filePath = _slotManager.GetFilePath(slotId);
+            if (filePath == null || !_slotManager.FileExists(filePath))
+                return null;
+            string stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss", System.Globalization.CultureInfo.InvariantCulture);
+            string target = SiblingPath(filePath, ".unreadable-" + stamp);
+            System.IO.File.Move(filePath, target);
+            var info = SaveSlotManager.GetInfoPath(filePath);
+            if (_slotManager.FileExists(info))
+                System.IO.File.Move(info, SaveSlotManager.GetInfoPath(target));
+            _slotManager.MarkSlotEmpty(slotId);
+            return target;
+        }
+
+        /// <summary>
+        /// Where the save that the latest one replaced is kept.
+        /// </summary>
+        public static string GetPreviousPath(string filePath) => SiblingPath(filePath, ".previous");
+
+        private static string SiblingPath(string filePath, string tag) =>
+            System.IO.Path.Combine(System.IO.Path.GetDirectoryName(filePath) ?? "",
+                System.IO.Path.GetFileNameWithoutExtension(filePath) + tag + System.IO.Path.GetExtension(filePath));
+
+        private Func<byte[], object> Deserializer<TState>() => data => _serializer.Deserialize<TState>(data);
+
+        /// <summary>
+        /// Copies the current save aside before it is replaced, unless it is damaged (a damaged one must not push out
+        /// a good previous save).
+        /// </summary>
+        private void KeepPrevious(string filePath)
+        {
+            if (!_slotManager.FileExists(filePath))
+                return;
+            var data = _slotManager.ReadSaveFile(filePath);
+            var info = ReadInfo(filePath);
+            if (data == null || (info != null && !string.IsNullOrEmpty(info.Checksum) && _validator.ComputeChecksum(data) != info.Checksum))
+                return;
+            var previous = GetPreviousPath(filePath);
+            _slotManager.WriteSaveFile(previous, data);
+            var infoPath = SaveSlotManager.GetInfoPath(filePath);
+            var previousInfo = SaveSlotManager.GetInfoPath(previous);
+            if (_slotManager.FileExists(infoPath))
+                _slotManager.WriteSaveFile(previousInfo, _slotManager.ReadSaveFile(infoPath));
+            else if (_slotManager.FileExists(previousInfo))
+                System.IO.File.Delete(previousInfo);
+        }
+
+        private LoadResult LoadCore(string slotId, Func<byte[], object> deserialize, bool previous)
         {
             try
             {
@@ -132,14 +200,20 @@ namespace RPGFramework.Persistence
                 }
 
                 // Check if slot is occupied
-                if (!_slotManager.IsSlotOccupied(slotId))
+                var filePath = _slotManager.GetFilePath(slotId);
+                if (previous)
+                {
+                    filePath = GetPreviousPath(filePath);
+                    if (!_slotManager.FileExists(filePath))
+                        return LoadResult.CreateFailure(slotId, SaveError.FileNotFound, $"Save slot '{slotId}' has no previous save.");
+                }
+                else if (!_slotManager.IsSlotOccupied(slotId))
                 {
                     return LoadResult.CreateFailure(slotId, SaveError.FileNotFound,
                         $"Save slot '{slotId}' is empty.");
                 }
 
                 // Read save file
-                var filePath = _slotManager.GetFilePath(slotId);
                 byte[] data;
                 try
                 {
@@ -182,7 +256,7 @@ namespace RPGFramework.Persistence
 
                 // Get metadata (known after a save in this session, otherwise from the sidecar)
                 var slot = _slotManager.GetSlot(slotId);
-                var metadata = slot.Metadata ?? info?.Metadata;
+                var metadata = previous ? info?.Metadata : slot.Metadata ?? info?.Metadata;
                 if (slot.Metadata == null && metadata != null)
                     _slotManager.MarkSlotOccupied(slotId, metadata);
 
@@ -211,6 +285,7 @@ namespace RPGFramework.Persistence
 
                 var filePath = _slotManager.GetFilePath(slotId);
                 var success = _slotManager.DeleteSaveFile(filePath);
+                _slotManager.DeleteSaveFile(GetPreviousPath(filePath));
 
                 if (success)
                 {

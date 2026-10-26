@@ -49,6 +49,12 @@ namespace RPGFramework.Persistence
         LoadResult Load<TState>(string slotId);
 
         /// <summary>
+        /// Loads the save that the latest one replaced (kept on every save while it was intact), e.g. when the latest
+        /// cannot be used. Fails with <see cref="SaveError.FileNotFound"/> when there is none.
+        /// </summary>
+        LoadResult LoadPrevious<TState>(string slotId);
+
+        /// <summary>
         /// Deletes the save in the specified slot.
         /// </summary>
         bool DeleteSave(string slotId);

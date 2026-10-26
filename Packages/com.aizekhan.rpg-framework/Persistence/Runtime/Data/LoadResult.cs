@@ -35,6 +35,12 @@ namespace RPGFramework.Persistence
         /// </summary>
         public string ErrorMessage { get; set; }
 
+        /// <summary>
+        /// The latest save could not be read and the one before it was loaded instead; <see cref="ErrorMessage"/>
+        /// says what was wrong with the latest.
+        /// </summary>
+        public bool FromPrevious { get; set; }
+
         public LoadResult(bool success, string slotId, SaveError error = SaveError.None, string errorMessage = "")
         {
             Success = success;

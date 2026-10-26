@@ -8,7 +8,10 @@ namespace RPGFramework.Persistence
     /// </summary>
     public sealed class SaveGameState
     {
-        public const int CurrentVersion = 1;
+        /// <summary>
+        /// 2 added <see cref="SectionVersions"/>; version 1 saves still load (every section counts as version 1).
+        /// </summary>
+        public const int CurrentVersion = 2;
 
         public int Version { get; set; } = CurrentVersion;
 
@@ -16,6 +19,11 @@ namespace RPGFramework.Persistence
         /// Participant key → Base64 of the section bytes (independent of the outer save serializer).
         /// </summary>
         public Dictionary<string, string> Sections { get; set; } = new Dictionary<string, string>();
+
+        /// <summary>
+        /// Participant key → <see cref="ISaveParticipant.Version"/> it was saved with.
+        /// </summary>
+        public Dictionary<string, int> SectionVersions { get; set; } = new Dictionary<string, int>();
     }
 
     /// <summary>
@@ -23,6 +31,9 @@ namespace RPGFramework.Persistence
     /// know every system. Loading is all-or-nothing up to the restore step: every section is deserialised before any
     /// participant is touched. Participants are restored in registration order; one with no section in the save
     /// keeps its current state and is listed in <see cref="LastMissingSections"/>.
+    /// Each section carries its participant's version: older ones are upgraded by the participant
+    /// (<see cref="LastUpgradedSections"/>), newer ones (a save from a newer build) fail the load before anything
+    /// changes. When the latest save cannot be read, the previous one is loaded (<see cref="LoadResult.FromPrevious"/>).
     /// </summary>
     public sealed class SaveGameCoordinator
     {
@@ -32,6 +43,7 @@ namespace RPGFramework.Persistence
         private readonly ISaveSerializer _sectionSerializer;
         private readonly List<ISaveParticipant> _participants = new List<ISaveParticipant>();
         private readonly List<string> _missingSections = new List<string>();
+        private readonly List<string> _upgradedSections = new List<string>();
 
         /// <param name="sectionSerializer">Serialises each participant's state; JSON by default.</param>
         public SaveGameCoordinator(ISaveSystem saveSystem, ISaveSerializer sectionSerializer = null)
@@ -55,6 +67,11 @@ namespace RPGFramework.Persistence
         /// Participants that had no section in the last successful load (e.g. a system added after the save was made).
         /// </summary>
         public IReadOnlyList<string> LastMissingSections => _missingSections;
+
+        /// <summary>
+        /// Participants whose section was saved with an older version and upgraded in the last successful load.
+        /// </summary>
+        public IReadOnlyList<string> LastUpgradedSections => _upgradedSections;
 
         public SaveGameCoordinator Register(ISaveParticipant participant)
         {
@@ -86,6 +103,26 @@ namespace RPGFramework.Persistence
             var result = _saveSystem.Load<SaveGameState>(slotId);
             if (!result.Success)
                 return result;
+            var outcome = Restore(slotId, result, out bool touched);
+            if (outcome.Success || touched || result.FromPrevious || outcome.Error == SaveError.IncompatibleVersion)
+                return outcome;
+
+            // The latest save is intact on disk but its contents cannot be used: try the one before it
+            var previous = _saveSystem.LoadPrevious<SaveGameState>(slotId);
+            if (!previous.Success)
+                return outcome;
+            var fallback = Restore(slotId, previous, out _);
+            if (!fallback.Success)
+                return outcome;
+            fallback.FromPrevious = true;
+            fallback.ErrorMessage = outcome.ErrorMessage;
+            return fallback;
+        }
+
+        /// <param name="touched">Whether any participant was restored (a failure after that cannot be undone).</param>
+        private LoadResult Restore(string slotId, LoadResult result, out bool touched)
+        {
+            touched = false;
             if (!(result.GameState is SaveGameState state) || state.Sections == null)
                 return LoadResult.CreateFailure(slotId, SaveError.CorruptedData, "Save does not contain a coordinated game state");
             if (state.Version > SaveGameState.CurrentVersion)
@@ -94,6 +131,7 @@ namespace RPGFramework.Persistence
 
             var restores = new List<KeyValuePair<ISaveParticipant, object>>(_participants.Count);
             var missing = new List<string>();
+            var upgraded = new List<string>();
             foreach (var participant in _participants)
             {
                 if (!state.Sections.TryGetValue(participant.SaveKey, out var encoded) || encoded == null)
@@ -101,9 +139,15 @@ namespace RPGFramework.Persistence
                     missing.Add(participant.SaveKey);
                     continue;
                 }
+                int savedVersion = state.SectionVersions != null && state.SectionVersions.TryGetValue(participant.SaveKey, out int v) ? v : 1;
+                if (savedVersion > participant.Version)
+                    return LoadResult.CreateFailure(slotId, SaveError.IncompatibleVersion,
+                        $"Section '{participant.SaveKey}' was saved by a newer version of the game (section version {savedVersion}, this build reads up to {participant.Version})");
+                if (savedVersion < participant.Version)
+                    upgraded.Add(participant.SaveKey);
                 try
                 {
-                    var section = participant.Read(Convert.FromBase64String(encoded), _sectionSerializer);
+                    var section = participant.Read(Convert.FromBase64String(encoded), savedVersion, _sectionSerializer);
                     restores.Add(new KeyValuePair<ISaveParticipant, object>(participant, section));
                 }
                 catch (Exception ex)
@@ -114,6 +158,7 @@ namespace RPGFramework.Persistence
             }
 
             var failures = new List<string>();
+            touched = restores.Count > 0;
             foreach (var pair in restores)
             {
                 try
@@ -128,6 +173,8 @@ namespace RPGFramework.Persistence
 
             _missingSections.Clear();
             _missingSections.AddRange(missing);
+            _upgradedSections.Clear();
+            _upgradedSections.AddRange(upgraded);
             if (failures.Count > 0)
                 return LoadResult.CreateFailure(slotId, SaveError.CorruptedData,
                     $"Game state partially restored; failed sections: {string.Join("; ", failures)}");
@@ -158,6 +205,7 @@ namespace RPGFramework.Persistence
                 try
                 {
                     state.Sections[participant.SaveKey] = Convert.ToBase64String(participant.Capture(_sectionSerializer));
+                    state.SectionVersions[participant.SaveKey] = participant.Version;
                 }
                 catch (Exception ex)
                 {
