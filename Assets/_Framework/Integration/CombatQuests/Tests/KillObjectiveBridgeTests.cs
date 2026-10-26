@@ -14,6 +14,7 @@ namespace RPGFramework.Integration.CombatQuests.Tests
 
         private sealed class Mortal : ILifeStateHandler
         {
+            public LifeState CurrentState => LifeState.Alive;
             public bool CanDie => true;
             public bool CanResurrect => true;
             public void OnDeath(int killerId, string reason) { }
