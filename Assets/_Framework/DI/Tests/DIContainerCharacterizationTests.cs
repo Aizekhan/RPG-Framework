@@ -253,10 +253,38 @@ namespace RPGFramework.DI.Tests
             Assert.That(CountingService.Created, Is.EqualTo(0));
         }
 
+        [Test]
+        public void OptionalConstructorParameter_UsesDefaultWhenUnregistered_AndServiceWhenRegistered()
+        {
+            var container = new DIContainer();
+            container.RegisterTransient<OptionalConsumer, OptionalConsumer>();
+
+            var withoutService = container.Resolve<OptionalConsumer>();
+            Assert.That(withoutService.Service, Is.Null);
+            Assert.That(withoutService.Limit, Is.EqualTo(7));
+            Assert.That(container.Validate().IsValid, Is.True);
+
+            var service = new TestService();
+            container.RegisterInstance<ITestService>(service);
+            Assert.That(container.Resolve<OptionalConsumer>().Service, Is.SameAs(service));
+        }
+
         // ---------- test types ----------
 
         private interface ITestService
         {
+        }
+
+        private sealed class OptionalConsumer
+        {
+            public OptionalConsumer(ITestService service = null, int limit = 7)
+            {
+                Service = service;
+                Limit = limit;
+            }
+
+            public ITestService Service { get; }
+            public int Limit { get; }
         }
 
         private sealed class TestService : ITestService

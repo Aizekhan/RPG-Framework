@@ -366,13 +366,27 @@ namespace RPGFramework.DI
             {
                 var paramType = parameters[i].ParameterType;
 
-                // Create expression for calling ResolveByType method to get dependency
-                var resolveMethod = typeof(DIContainer).GetMethod("ResolveByType",
-                    BindingFlags.NonPublic | BindingFlags.Instance);
-                paramExpressions[i] = Expression.Call(
-                    Expression.Constant(this),
-                    resolveMethod,
-                    Expression.Constant(paramType));
+                if (parameters[i].HasDefaultValue)
+                {
+                    // Optional parameter: injected when registered, otherwise its default value
+                    var optionalMethod = typeof(DIContainer).GetMethod(nameof(ResolveOptional),
+                        BindingFlags.NonPublic | BindingFlags.Instance);
+                    paramExpressions[i] = Expression.Call(
+                        Expression.Constant(this),
+                        optionalMethod,
+                        Expression.Constant(paramType),
+                        Expression.Constant(GetDefaultValue(parameters[i]), typeof(object)));
+                }
+                else
+                {
+                    // Create expression for calling ResolveByType method to get dependency
+                    var resolveMethod = typeof(DIContainer).GetMethod("ResolveByType",
+                        BindingFlags.NonPublic | BindingFlags.Instance);
+                    paramExpressions[i] = Expression.Call(
+                        Expression.Constant(this),
+                        resolveMethod,
+                        Expression.Constant(paramType));
+                }
 
                 // Add type conversion if needed
                 if (paramType != typeof(object))
@@ -389,6 +403,23 @@ namespace RPGFramework.DI
 
             // Compile expression to function
             return Expression.Lambda<Func<object>>(convertExpression).Compile();
+        }
+
+        /// <summary>
+        /// Resolves an optional dependency: the registered service, or the parameter's default value.
+        /// </summary>
+        private object ResolveOptional(Type serviceType, object defaultValue)
+        {
+            return IsRegistered(serviceType) ? ResolveByType(serviceType) : defaultValue;
+        }
+
+        private static object GetDefaultValue(ParameterInfo parameter)
+        {
+            var value = parameter.DefaultValue;
+            if (value == null && parameter.ParameterType.IsValueType &&
+                Nullable.GetUnderlyingType(parameter.ParameterType) == null)
+                return Activator.CreateInstance(parameter.ParameterType);
+            return value;
         }
 
         /// <summary>
@@ -636,7 +667,8 @@ namespace RPGFramework.DI
                 {
                     var paramType = param.ParameterType;
                     var isRegistered = _singletons.ContainsKey(paramType) || _registrations.ContainsKey(paramType);
-                    dependencyList.Add($"{paramType.Name} (Registered: {isRegistered})");
+                    var optional = param.HasDefaultValue ? ", optional" : "";
+                    dependencyList.Add($"{paramType.Name} (Registered: {isRegistered}{optional})");
                 }
 
                 _logger.LogInfo($"Type {type.Name} depends on: {string.Join(", ", dependencyList)}", "DI");
@@ -676,7 +708,7 @@ namespace RPGFramework.DI
             foreach (var param in parameters)
             {
                 var paramType = param.ParameterType;
-                if (!_singletons.ContainsKey(paramType) && !_registrations.ContainsKey(paramType))
+                if (!param.HasDefaultValue && !_singletons.ContainsKey(paramType) && !_registrations.ContainsKey(paramType))
                 {
                     _logger?.LogWarning($"Missing dependency: {paramType.Name} for {type.Name}", "DI");
                 }
@@ -748,7 +780,7 @@ namespace RPGFramework.DI
                         if (implementations.ContainsKey(dependency))
                             dependencies.Add(dependency);
                     }
-                    else
+                    else if (!parameter.HasDefaultValue)
                     {
                         issues.Add(new DIValidationIssue(DIValidationIssueKind.MissingDependency, pair.Key, pair.Value, dependency,
                             $"{pair.Value.Name} requires {dependency.Name}, which is not registered"));
