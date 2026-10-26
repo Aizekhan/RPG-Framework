@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System;
-// using RPGFramework.Characters; // TODO: Game layer should provide character interface
+using RPGFramework.Characters;
 
 namespace RPGFramework.UI.Panels
 {
@@ -45,7 +45,7 @@ namespace RPGFramework.UI.Panels
         [Header("Equipment Bonuses")]
         [SerializeField] protected TextMeshProUGUI equipmentBonusText;
 
-        // protected ICharacter character; // TODO: Game layer provides character interface
+        protected ICharacter character;
 
         protected override void Awake()
         {
@@ -57,13 +57,12 @@ namespace RPGFramework.UI.Panels
 
         /// <summary>
         /// Initializes panel with character data.
-        /// TODO: Game layer provides character interface and implements this method
         /// </summary>
-        // public virtual void Initialize(ICharacter character)
-        // {
-        //     this.character = character;
-        //     RefreshStats();
-        // }
+        public virtual void Initialize(ICharacter character)
+        {
+            this.character = character;
+            RefreshStats();
+        }
 
         /// <summary>
         /// Refreshes all stat displays.
@@ -78,80 +77,40 @@ namespace RPGFramework.UI.Panels
             UpdateRegeneration();
         }
 
+        /// <summary>
+        /// Updates primary attributes display.
+        /// Game layer overrides to access concrete Stats type.
+        /// </summary>
         protected virtual void UpdatePrimaryAttributes()
         {
-            var stats = character.Stats;
-
-            if (strengthValueText != null)
-                strengthValueText.text = stats.Strength.ToString("F0");
-
-            if (agilityValueText != null)
-                agilityValueText.text = stats.Agility.ToString("F0");
-
-            if (intelligenceValueText != null)
-                intelligenceValueText.text = stats.Intelligence.ToString("F0");
-
-            if (vitalityValueText != null)
-                vitalityValueText.text = stats.Vitality.ToString("F0");
+            // Game layer implements with concrete stats type
         }
 
+        /// <summary>
+        /// Updates combat stats display.
+        /// Game layer overrides to access concrete Stats type.
+        /// </summary>
         protected virtual void UpdateCombatStats()
         {
-            var stats = character.Stats;
-
-            if (attackPowerText != null)
-                attackPowerText.text = stats.AttackPower.ToString("F0");
-
-            if (spellPowerText != null)
-                spellPowerText.text = stats.SpellPower.ToString("F0");
-
-            if (defenseText != null)
-                defenseText.text = stats.Defense.ToString("F0");
-
-            if (armorText != null)
-                armorText.text = stats.Armor.ToString("F0");
-
-            if (criticalChanceText != null)
-                criticalChanceText.text = $"{(stats.CriticalChance * 100):F1}%";
-
-            if (criticalDamageText != null)
-                criticalDamageText.text = $"{(stats.CriticalDamage * 100):F0}%";
-
-            if (attackSpeedText != null)
-                attackSpeedText.text = stats.AttackSpeed.ToString("F2");
-
-            if (movementSpeedText != null)
-                movementSpeedText.text = stats.MovementSpeed.ToString("F1");
+            // Game layer implements with concrete stats type
         }
 
+        /// <summary>
+        /// Updates resistances display.
+        /// Game layer overrides if resistances are available.
+        /// </summary>
         protected virtual void UpdateResistances()
         {
-            // Override to implement resistances if available in stats
-            if (physicalResistText != null)
-                physicalResistText.text = "0%";
-
-            if (fireResistText != null)
-                fireResistText.text = "0%";
-
-            if (iceResistText != null)
-                iceResistText.text = "0%";
-
-            if (lightningResistText != null)
-                lightningResistText.text = "0%";
-
-            if (poisonResistText != null)
-                poisonResistText.text = "0%";
+            // Game layer implements with concrete stats type
         }
 
+        /// <summary>
+        /// Updates regeneration display.
+        /// Game layer overrides to access concrete Stats type.
+        /// </summary>
         protected virtual void UpdateRegeneration()
         {
-            var stats = character.Stats;
-
-            if (healthRegenText != null)
-                healthRegenText.text = $"{stats.HealthRegeneration:F1}/sec";
-
-            if (manaRegenText != null)
-                manaRegenText.text = $"{stats.ManaRegeneration:F1}/sec";
+            // Game layer implements with concrete stats type
         }
 
         public override void Show()

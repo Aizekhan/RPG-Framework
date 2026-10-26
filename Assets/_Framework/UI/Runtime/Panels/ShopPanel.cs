@@ -244,26 +244,32 @@ namespace RPGFramework.UI.Panels
 
             if (isBuyMode)
             {
-                OnItemPurchased?.Invoke(selectedItem.Id, 1);
+                OnItemPurchased?.Invoke(selectedItem.ItemId, 1);
             }
             else
             {
-                OnItemSold?.Invoke(selectedItem.Id, 1);
+                OnItemSold?.Invoke(selectedItem.ItemId, 1);
             }
 
             ClearSelection();
         }
 
+        /// <summary>
+        /// Gets buy price for an item.
+        /// Game layer overrides with actual pricing logic.
+        /// </summary>
         protected virtual int GetBuyPrice(IItem item)
         {
-            // Override to implement actual pricing logic
-            return item.Value;
+            return 0; // Game layer implements
         }
 
+        /// <summary>
+        /// Gets sell price for an item.
+        /// Game layer overrides with actual pricing logic.
+        /// </summary>
         protected virtual int GetSellPrice(IItem item)
         {
-            // Override to implement sell price (usually 50% of buy price)
-            return item.Value / 2;
+            return 0; // Game layer implements
         }
 
         protected virtual void ClearBuyEntries()

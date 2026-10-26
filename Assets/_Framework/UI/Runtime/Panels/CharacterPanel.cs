@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System;
-// using RPGFramework.Characters; // TODO: Game layer should provide character interface
+using RPGFramework.Characters;
 
 namespace RPGFramework.UI.Panels
 {
@@ -45,7 +45,7 @@ namespace RPGFramework.UI.Panels
         public event Action OnCharacterPanelOpened;
         public event Action OnCharacterPanelClosed;
 
-        // protected ICharacter character; // TODO: Game layer provides character interface
+        protected ICharacter character;
 
         protected override void Awake()
         {
@@ -57,13 +57,12 @@ namespace RPGFramework.UI.Panels
 
         /// <summary>
         /// Initializes panel with character data.
-        /// TODO: Game layer provides character interface and implements this method
         /// </summary>
-        // public virtual void Initialize(ICharacter character)
-        // {
-        //     this.character = character;
-        //     RefreshDisplay();
-        // }
+        public virtual void Initialize(ICharacter character)
+        {
+            this.character = character;
+            RefreshDisplay();
+        }
 
         /// <summary>
         /// Refreshes all character information display.
@@ -91,63 +90,31 @@ namespace RPGFramework.UI.Panels
                 characterClassText.text = "Adventurer";
         }
 
+        /// <summary>
+        /// Updates experience display.
+        /// Game layer overrides to access concrete Progression type.
+        /// </summary>
         protected virtual void UpdateExperience()
         {
-            if (character.Progression == null) return;
-
-            int currentXP = character.Progression.CurrentExperience;
-            int requiredXP = character.Progression.ExperienceToNextLevel;
-
-            if (experienceSlider != null)
-            {
-                experienceSlider.maxValue = requiredXP;
-                experienceSlider.value = currentXP;
-            }
-
-            if (experienceText != null)
-            {
-                experienceText.text = $"{currentXP} / {requiredXP} XP";
-            }
+            // Game layer implements with concrete progression type
         }
 
+        /// <summary>
+        /// Updates attribute displays (health, mana, stats).
+        /// Game layer overrides to access concrete Stats type.
+        /// </summary>
         protected virtual void UpdateAttributes()
         {
-            if (character.Stats == null) return;
-
-            if (healthText != null)
-                healthText.text = $"{character.Stats.CurrentHealth:F0} / {character.Stats.MaxHealth:F0}";
-
-            if (manaText != null)
-                manaText.text = $"{character.Stats.CurrentMana:F0} / {character.Stats.MaxMana:F0}";
-
-            if (strengthText != null)
-                strengthText.text = character.Stats.Strength.ToString("F0");
-
-            if (agilityText != null)
-                agilityText.text = character.Stats.Agility.ToString("F0");
-
-            if (intelligenceText != null)
-                intelligenceText.text = character.Stats.Intelligence.ToString("F0");
-
-            if (vitalityText != null)
-                vitalityText.text = character.Stats.Vitality.ToString("F0");
+            // Game layer implements with concrete stats type
         }
 
+        /// <summary>
+        /// Updates combat stats display.
+        /// Game layer overrides to access concrete Stats type.
+        /// </summary>
         protected virtual void UpdateCombatStats()
         {
-            if (character.Stats == null) return;
-
-            if (attackPowerText != null)
-                attackPowerText.text = character.Stats.AttackPower.ToString("F0");
-
-            if (defenseText != null)
-                defenseText.text = character.Stats.Defense.ToString("F0");
-
-            if (critChanceText != null)
-                critChanceText.text = $"{(character.Stats.CriticalChance * 100):F1}%";
-
-            if (critDamageText != null)
-                critDamageText.text = $"{(character.Stats.CriticalDamage * 100):F0}%";
+            // Game layer implements with concrete stats type
         }
 
         protected virtual void ClosePanel()

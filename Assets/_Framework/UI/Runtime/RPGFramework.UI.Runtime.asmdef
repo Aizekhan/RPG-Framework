@@ -8,6 +8,7 @@
         "RPGFramework.Quests.Runtime",
         "RPGFramework.Loot.Runtime",
         "RPGFramework.Stats.Runtime",
+        "RPGFramework.Characters.Runtime",
         "Unity.TextMeshPro"
     ],
     "includePlatforms": [],

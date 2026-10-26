@@ -42,7 +42,7 @@ namespace RPGFramework.UI.Panels
         public event Action<IItem> OnItemDropped;
 
         protected List<GameObject> itemSlots = new List<GameObject>();
-        protected IInventoryManager inventoryManager;
+        protected object inventoryManager; // Game layer provides concrete type
 
         protected override void Awake()
         {
@@ -56,8 +56,9 @@ namespace RPGFramework.UI.Panels
 
         /// <summary>
         /// Initializes panel with inventory manager.
+        /// Game layer casts to concrete inventory manager type.
         /// </summary>
-        public virtual void Initialize(IInventoryManager inventoryManager)
+        public virtual void Initialize(object inventoryManager)
         {
             this.inventoryManager = inventoryManager;
             RefreshInventory();

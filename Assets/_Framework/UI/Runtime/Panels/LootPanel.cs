@@ -50,7 +50,7 @@ namespace RPGFramework.UI.Panels
         /// </summary>
         public virtual void DisplayLoot(LootResult lootResult, string sourceName = "Loot")
         {
-            if (lootResult == null || lootResult.Drops == null) return;
+            if (lootResult.Drops == null) return;
 
             currentLoot.Clear();
             currentLoot.AddRange(lootResult.Drops);
