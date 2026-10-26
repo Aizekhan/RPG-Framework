@@ -1,0 +1,28 @@
+{
+    "name": "ReferenceGame.PlayTests",
+    "rootNamespace": "ReferenceGame.PlayTests",
+    "references": [
+        "ReferenceGame",
+        "RPGFramework.Presentation.Unity",
+        "RPGFramework.Cameras.Unity",
+        "RPGFramework.Bootstrap.Runtime",
+        "RPGFramework.Bootstrap.Unity",
+        "RPGFramework.DI.Runtime",
+        "RPGFramework.Combat.Runtime",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -22,11 +22,11 @@ namespace ReferenceGame
     {
         public const string ModuleName = "ReferenceGame.GoblinValley";
 
-        private readonly int? _seed;
+        private readonly GoblinValleyOptions _options;
 
-        public GoblinValleyModule(int? seed = null)
+        public GoblinValleyModule(GoblinValleyOptions options = null)
         {
-            _seed = seed;
+            _options = options ?? new GoblinValleyOptions();
         }
 
         public override string Name => ModuleName;
@@ -55,7 +55,9 @@ namespace ReferenceGame
                 c.Resolve<IItemRegistry>(),
                 c.Resolve<IEventBus>(),
                 c.Resolve<ILogger>(),
-                _seed));
+                _options.Seed != 0 ? _options.Seed : (int?)null));
+            Container.RegisterInstance(_options);
+            AddSystem<GoblinWaveSystem>();
         }
 
         protected override void OnInitialize()
@@ -81,12 +83,15 @@ namespace ReferenceGame
     /// </summary>
     public static class GoblinValleyComposition
     {
-        public static GoblinValleyModule Configure(IGameCompositionBuilder builder, int? seed = null)
+        public static GoblinValleyModule Configure(IGameCompositionBuilder builder, int? seed = null) =>
+            Configure(builder, new GoblinValleyOptions { Seed = seed ?? 0 });
+
+        public static GoblinValleyModule Configure(IGameCompositionBuilder builder, GoblinValleyOptions options)
         {
             if (builder == null)
                 throw new ArgumentNullException(nameof(builder));
 
-            var game = new GoblinValleyModule(seed);
+            var game = new GoblinValleyModule(options);
             builder
                 .UseModule(new CombatModule())
                 .UseModule(new ProgressionModule())

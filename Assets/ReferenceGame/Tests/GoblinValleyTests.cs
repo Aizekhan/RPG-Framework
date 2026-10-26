@@ -162,7 +162,7 @@ namespace ReferenceGame.Tests
         [Test]
         public void MissingModule_FailsTheStartLoudly()
         {
-            Assert.Throws(Is.InstanceOf<Exception>(), () => _host.Start(builder => builder.UseModule(new GoblinValleyModule(Seed))));
+            Assert.Throws(Is.InstanceOf<Exception>(), () => _host.Start(builder => builder.UseModule(new GoblinValleyModule(new GoblinValleyOptions { Seed = Seed }))));
 
             Assert.That(_host.State, Is.EqualTo(GameHostState.Failed));
             Assert.That(_logSink.Snapshot().Any(entry => entry.Severity == LogSeverity.Critical), Is.True);

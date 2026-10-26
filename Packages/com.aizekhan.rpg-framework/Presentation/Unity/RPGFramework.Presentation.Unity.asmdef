@@ -1,0 +1,14 @@
+{
+    "name": "RPGFramework.Presentation.Unity",
+    "rootNamespace": "RPGFramework.Presentation",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

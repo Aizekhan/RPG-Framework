@@ -25,6 +25,15 @@ namespace ReferenceGame.Tests
 
                 Assert.That(hosts, Has.Count.EqualTo(1));
                 Assert.That(missingScripts, Is.EqualTo(0));
+
+                // Wired by GoblinValleyBuilder: rules and prefabs, and a camera to follow the hero
+                var host = new UnityEditor.SerializedObject(hosts[0]);
+                var config = host.FindProperty("_config").objectReferenceValue as GoblinValleyConfig;
+                Assert.That(config, Is.Not.Null);
+                Assert.That(config.Prefabs, Is.Not.Null);
+                var keys = config.Prefabs.Entries.Where(e => e.Prefab != null).Select(e => e.Key);
+                Assert.That(keys, Is.SupersetOf(new[] { GoblinValleyContent.PlayerKind, GoblinValleyContent.GoblinKind }));
+                Assert.That(host.FindProperty("_camera").objectReferenceValue, Is.Not.Null);
             }
             finally
             {

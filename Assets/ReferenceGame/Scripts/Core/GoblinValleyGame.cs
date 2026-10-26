@@ -66,6 +66,16 @@ namespace ReferenceGame
         public long TotalXp => IsStarted ? _progression.GetTotalXP(PlayerId) : 0;
         public IReadOnlyList<string> Log => _log;
 
+        /// <summary>
+        /// Number of the last wave started (0 before the first one).
+        /// </summary>
+        public int CurrentWave { get; private set; }
+
+        /// <summary>
+        /// Everyone in the valley, the player included.
+        /// </summary>
+        public IEnumerable<Combatant> Combatants => _combatants.Values;
+
         public IEnumerable<int> LivingGoblins
         {
             get
@@ -115,6 +125,23 @@ namespace ReferenceGame
                 GoblinValleyContent.GoblinDefense);
             Write("A goblin appears");
             return id;
+        }
+
+        /// <summary>
+        /// Starts the next wave with this many goblins.
+        /// </summary>
+        public void StartWave(int goblins)
+        {
+            ThrowIfNotStarted();
+            if (goblins <= 0)
+                throw new ArgumentOutOfRangeException(nameof(goblins));
+
+            CurrentWave++;
+            Write($"Wave {CurrentWave}: {goblins} goblins");
+            for (int i = 0; i < goblins; i++)
+                Spawn(GoblinValleyContent.GoblinKind, GoblinValleyContent.GoblinHealth, GoblinValleyContent.GoblinAttack,
+                    GoblinValleyContent.GoblinDefense);
+            _bus.Publish(new WaveStartedEvent(CurrentWave, goblins));
         }
 
         public Combatant Get(int entityId) => _combatants.TryGetValue(entityId, out var combatant) ? combatant : null;
@@ -172,15 +199,19 @@ namespace ReferenceGame
             var combatant = new Combatant(id, kind, maxHealth, attack, defense);
             _combatants.Add(id, combatant);
             _lifeStates.RegisterEntity(id, combatant);
+            _bus.Publish(new CombatantSpawnedEvent(id, kind));
             return id;
         }
 
         private void Despawn(int entityId)
         {
+            if (!_combatants.TryGetValue(entityId, out var combatant))
+                return;
             _combatants.Remove(entityId);
             _lifeStates.UnregisterEntity(entityId);
             if (_entities.Exists(entityId))
                 _entities.DestroyEntity(entityId);
+            _bus.Publish(new CombatantDespawnedEvent(entityId, combatant.Kind));
         }
 
         private void OnDeath(DeathEvent death)

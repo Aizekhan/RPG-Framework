@@ -1,0 +1,22 @@
+{
+    "name": "ReferenceGame.Editor",
+    "rootNamespace": "ReferenceGame.Editor",
+    "references": [
+        "ReferenceGame",
+        "RPGFramework.Bootstrap.Unity",
+        "RPGFramework.Spawning.Unity",
+        "RPGFramework.Cameras.Unity",
+        "RPGFramework.Presentation.Unity"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

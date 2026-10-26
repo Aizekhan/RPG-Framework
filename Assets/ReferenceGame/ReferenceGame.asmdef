@@ -19,7 +19,16 @@
         "RPGFramework.Loot.Runtime",
         "RPGFramework.Stats.Runtime",
         "RPGFramework.Serialization.Runtime",
-        "UniTask"
+        "UniTask",
+        "RPGFramework.Presentation.Unity",
+        "RPGFramework.Spawning.Unity",
+        "RPGFramework.AssetManagement.Runtime",
+        "RPGFramework.AssetManagement.Unity",
+        "RPGFramework.Pooling.Runtime",
+        "RPGFramework.Pooling.Unity",
+        "RPGFramework.Cameras.Unity",
+        "Unity.InputSystem",
+        "UnityEngine.UI"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

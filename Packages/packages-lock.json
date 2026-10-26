@@ -1,5 +1,14 @@
 {
   "dependencies": {
+    "com.aizekhan.rpg-framework": {
+      "version": "file:com.aizekhan.rpg-framework",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.unity.ugui": "2.0.0",
+        "com.unity.modules.jsonserialize": "1.0.0"
+      }
+    },
     "com.cysharp.unitask": {
       "version": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask#2.5.10",
       "depth": 0,

@@ -21,10 +21,14 @@ jobs:
           python-version: "3.12"
       - run: python -I .github/scripts/check_meta.py .
 
-  editmode-tests:
-    name: EditMode tests (Unity 6000.0.45f1)
+  unity-tests:
+    name: ${{ matrix.mode }} tests (Unity 6000.0.45f1)
     runs-on: ubuntu-latest
     needs: meta-check
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [editmode, playmode]
     permissions:
       contents: read
       checks: write # unity-test-runner publishes results as a check run
@@ -38,7 +42,7 @@ jobs:
         run: |
           if [ -z "$UNITY_LICENSE" ] || [ -z "$UNITY_EMAIL" ] || [ -z "$UNITY_PASSWORD" ]; then
             echo "::warning::Unity tests SKIPPED: set UNITY_LICENSE, UNITY_EMAIL and UNITY_PASSWORD repository secrets (see https://game.ci/docs/github/activation)."
-            echo "### ⚠️ Unity EditMode tests were NOT run (license secrets missing)" >> "$GITHUB_STEP_SUMMARY"
+            echo "### ⚠️ Unity ${{ matrix.mode }} tests were NOT run (license secrets missing)" >> "$GITHUB_STEP_SUMMARY"
             echo "available=false" >> "$GITHUB_OUTPUT"
           else
             echo "available=true" >> "$GITHUB_OUTPUT"
@@ -59,12 +63,12 @@ jobs:
         id: tests
         with:
           unityVersion: 6000.0.45f1
-          testMode: editmode
+          testMode: ${{ matrix.mode }}
           githubToken: ${{ secrets.GITHUB_TOKEN }}
-          checkName: EditMode results
+          checkName: ${{ matrix.mode }} results
 
       - uses: actions/upload-artifact@v4
         if: always() && steps.license.outputs.available == 'true'
         with:
-          name: editmode-results-${{ github.sha }}
+          name: ${{ matrix.mode }}-results-${{ github.sha }}
           path: ${{ steps.tests.outputs.artifactsPath }}
