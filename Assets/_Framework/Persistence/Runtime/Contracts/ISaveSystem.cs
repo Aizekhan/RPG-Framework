@@ -38,9 +38,15 @@ namespace RPGFramework.Persistence
         SaveResult Save(string slotId, object gameState, ISaveMetadata metadata);
 
         /// <summary>
-        /// Loads game state from the specified slot.
+        /// Opens the save in the specified slot (makes it active and returns its metadata) without reading the game
+        /// state: <see cref="LoadResult.GameState"/> is null. Use <see cref="Load{TState}"/> to get the state.
         /// </summary>
         LoadResult Load(string slotId);
+
+        /// <summary>
+        /// Loads the game state saved in the specified slot as <typeparamref name="TState"/>.
+        /// </summary>
+        LoadResult Load<TState>(string slotId);
 
         /// <summary>
         /// Deletes the save in the specified slot.
@@ -63,9 +69,14 @@ namespace RPGFramework.Persistence
         SaveResult QuickSave(object gameState, ISaveMetadata metadata);
 
         /// <summary>
-        /// Loads the most recent quick save.
+        /// Opens the quick save without reading the game state (see <see cref="Load(string)"/>).
         /// </summary>
         LoadResult QuickLoad();
+
+        /// <summary>
+        /// Loads the quick save's game state as <typeparamref name="TState"/>.
+        /// </summary>
+        LoadResult QuickLoad<TState>();
 
         /// <summary>
         /// Triggers an auto-save if conditions are met.

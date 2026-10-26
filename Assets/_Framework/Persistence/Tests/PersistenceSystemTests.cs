@@ -83,12 +83,35 @@ namespace RPGFramework.Persistence.Tests
             Assert.IsTrue(_saveSystem.HasSave("slot_0"));
 
             // Act - Load
-            var loadResult = _saveSystem.Load("slot_0");
+            var loadResult = _saveSystem.Load<TestGameState>("slot_0");
 
-            // Assert - Load
+            // Assert - Load: the state comes back with its data (it used to be an empty object)
             Assert.IsTrue(loadResult.Success);
             Assert.AreEqual("slot_0", loadResult.SlotId);
-            Assert.IsNotNull(loadResult.GameState);
+            var loaded = loadResult.GameState as TestGameState;
+            Assert.IsNotNull(loaded);
+            Assert.AreEqual("TestHero", loaded.PlayerName);
+            Assert.AreEqual(10, loaded.Level);
+            Assert.AreEqual(85.5f, loaded.Health);
+            CollectionAssert.AreEqual(new[] { "Sword", "Shield", "Potion" }, loaded.Inventory);
+
+            var opened = _saveSystem.Load("slot_0");
+            Assert.IsTrue(opened.Success);
+            Assert.IsNull(opened.GameState, "the untyped load does not read the state");
+            Assert.AreEqual("TestHero", opened.Metadata.CharacterName);
+        }
+
+        [Test]
+        public void SaveSystem_BinarySerializer_RoundTripsTypedState()
+        {
+            var binarySystem = new SaveSystem(_testSaveDirectory, 3, _binarySerializer, _validator);
+            binarySystem.Save("slot_2", new TestGameState { PlayerName = "Binary", Level = 3 }, new SaveMetadata());
+
+            var loaded = binarySystem.Load<TestGameState>("slot_2").GameState as TestGameState;
+
+            Assert.IsNotNull(loaded);
+            Assert.AreEqual("Binary", loaded.PlayerName);
+            Assert.AreEqual(3, loaded.Level);
         }
 
         [Test]
@@ -187,11 +210,11 @@ namespace RPGFramework.Persistence.Tests
             var metadata = new SaveMetadata("1.0.0", "QuickLoadTest", 2500f, "Desert", 12);
 
             _saveSystem.QuickSave(gameState, metadata);
-            var result = _saveSystem.QuickLoad();
+            var result = _saveSystem.QuickLoad<TestGameState>();
 
             Assert.IsTrue(result.Success);
             Assert.AreEqual("quicksave", result.SlotId);
-            Assert.IsNotNull(result.GameState);
+            Assert.AreEqual("QuickLoadTest", ((TestGameState)result.GameState).PlayerName);
         }
 
         [Test]

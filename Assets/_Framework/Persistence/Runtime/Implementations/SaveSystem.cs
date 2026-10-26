@@ -108,7 +108,11 @@ namespace RPGFramework.Persistence
             }
         }
 
-        public LoadResult Load(string slotId)
+        public LoadResult Load(string slotId) => LoadCore(slotId, null);
+
+        public LoadResult Load<TState>(string slotId) => LoadCore(slotId, data => _serializer.Deserialize<TState>(data));
+
+        private LoadResult LoadCore(string slotId, Func<byte[], object> deserialize)
         {
             try
             {
@@ -144,11 +148,13 @@ namespace RPGFramework.Persistence
                         $"Failed to read save file: {ex.Message}");
                 }
 
-                // Deserialize game state
-                object gameState;
+                // Deserialize game state. The serializers rebuild objects by reflection, so they need the concrete
+                // type: deserializing as object used to return an empty object and silently lose the state.
+                object gameState = null;
                 try
                 {
-                    gameState = _serializer.Deserialize<object>(data);
+                    if (deserialize != null)
+                        gameState = deserialize(data);
                 }
                 catch (Exception ex)
                 {
@@ -224,6 +230,11 @@ namespace RPGFramework.Persistence
         public LoadResult QuickLoad()
         {
             return Load("quicksave");
+        }
+
+        public LoadResult QuickLoad<TState>()
+        {
+            return Load<TState>("quicksave");
         }
 
         public void TriggerAutoSave(object gameState, ISaveMetadata metadata)
