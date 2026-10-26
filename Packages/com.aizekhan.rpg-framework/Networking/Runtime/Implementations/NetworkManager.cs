@@ -272,7 +272,7 @@ namespace RPGFramework.Networking
                 if (Authority != null && !Authority.CanReceive(messageTypeId, Role))
                 {
                     _stats.RejectedMessages++;
-                    _logger.LogWarning($"Rejected message type {messageTypeId} from connection {connectionId}: not allowed from that side", LogCategory);
+                    _logger?.LogWarning($"Rejected message type {messageTypeId} from connection {connectionId}: not allowed from that side", LogCategory);
                     return;
                 }
 
@@ -281,7 +281,7 @@ namespace RPGFramework.Networking
             catch (Exception ex)
             {
                 _stats.DroppedPackets++;
-                _logger.LogError($"Could not deserialize message from connection {connectionId}", LogCategory, ex);
+                _logger?.LogError($"Could not deserialize message from connection {connectionId}", LogCategory, ex);
             }
         }
 
@@ -300,14 +300,14 @@ namespace RPGFramework.Networking
                 catch (Exception ex)
                 {
                     _stats.HandlerErrors++;
-                    _logger.LogError($"Handler for message type {messageTypeId} failed", LogCategory, ex);
+                    _logger?.LogError($"Handler for message type {messageTypeId} failed", LogCategory, ex);
                 }
             }
         }
 
         private void HandleError(int connectionId, string error)
         {
-            _logger.LogError($"Network error on connection {connectionId}: {error}", LogCategory);
+            _logger?.LogError($"Network error on connection {connectionId}: {error}", LogCategory);
         }
 
         private void HandlePing(int connectionId, PingMessage ping)

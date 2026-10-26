@@ -67,6 +67,11 @@ namespace RPGFramework.ActionRpg
 
         public void RestoreFullHealth() => Health = MaxHealth;
 
+        /// <summary>
+        /// Sets health as it is elsewhere (a co-op client mirroring the host), kept within 0..max.
+        /// </summary>
+        public void SetHealth(float health) => Health = Math.Max(0f, Math.Min(MaxHealth, health));
+
         public void OnDeath(int killerId, string reason) => Health = 0f;
 
         public void OnResurrect(int resurrectorId, string resurrectType) => RestoreFullHealth();

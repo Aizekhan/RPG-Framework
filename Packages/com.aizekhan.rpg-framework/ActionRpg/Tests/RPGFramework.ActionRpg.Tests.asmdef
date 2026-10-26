@@ -25,7 +25,8 @@
         "UniTask",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
-        "RPGFramework.Persistence.Runtime"
+        "RPGFramework.Persistence.Runtime",
+        "RPGFramework.Networking.Runtime"
     ],
     "includePlatforms": [
         "Editor"
