@@ -1,56 +1,53 @@
+using Cysharp.Threading.Tasks;
+using RPGFramework.UINavigation;
+using RPGFramework.UINavigation.Unity;
 using UnityEngine;
 
 namespace RPGFramework.UI
 {
     /// <summary>
-    /// Base MonoBehaviour for all UI views.
-    /// Implements IView interface and provides common show/hide logic.
+    /// Base for the framework's RPG panels. A panel works either standalone (placed in a scene, shown and hidden
+    /// directly) or as a screen of <see cref="INavigationService"/> (registered through a <c>ViewConfig</c> and
+    /// opened with <c>NavigateToAsync</c>). Set <see cref="Navigation"/> for the second case so <see cref="Close"/>
+    /// goes back through the navigation history instead of only hiding the panel.
     /// </summary>
-    public abstract class UIViewBase : MonoBehaviour, IView
+    public abstract class UIViewBase : NavigableView
     {
+        [Tooltip("Hide on Awake (for panels placed directly in a scene)")]
         [SerializeField] private bool startHidden = true;
 
-        private CanvasGroup _canvasGroup;
-        private bool _isVisible;
-
-        public GameObject GameObject => gameObject;
-        public bool IsVisible => _isVisible;
+        /// <summary>
+        /// Navigation that opened this panel, if any (e.g. assigned from <c>PrefabViewFactory.InstanceCreated</c>).
+        /// </summary>
+        public INavigationService Navigation { get; set; }
 
         protected virtual void Awake()
         {
-            // Get or add CanvasGroup for smooth fade in/out
-            _canvasGroup = GetComponent<CanvasGroup>();
-            if (_canvasGroup == null)
-            {
-                _canvasGroup = gameObject.AddComponent<CanvasGroup>();
-            }
-
             if (startHidden)
-            {
                 Hide();
-            }
         }
 
-        public virtual void Show()
+        public override void Show()
         {
-            gameObject.SetActive(true);
-            _canvasGroup.alpha = 1f;
-            _canvasGroup.interactable = true;
-            _canvasGroup.blocksRaycasts = true;
-            _isVisible = true;
-
+            base.Show();
             OnShow();
         }
 
-        public virtual void Hide()
+        public override void Hide()
         {
-            _canvasGroup.alpha = 0f;
-            _canvasGroup.interactable = false;
-            _canvasGroup.blocksRaycasts = false;
-            _isVisible = false;
-            gameObject.SetActive(false);
-
+            base.Hide();
             OnHide();
+        }
+
+        /// <summary>
+        /// Closes the panel: navigates back when it is the navigation's current screen, otherwise hides it.
+        /// </summary>
+        public virtual void Close()
+        {
+            if (Navigation != null && ReferenceEquals(Navigation.CurrentView, this) && Navigation.ModalCount == 0)
+                Navigation.GoBackAsync().Forget();
+            else
+                Hide();
         }
 
         /// <summary>

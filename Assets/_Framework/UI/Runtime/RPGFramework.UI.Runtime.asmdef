@@ -9,6 +9,9 @@
         "RPGFramework.Loot.Runtime",
         "RPGFramework.Stats.Runtime",
         "RPGFramework.Characters.Runtime",
+        "RPGFramework.UINavigation.Runtime",
+        "RPGFramework.UINavigation.Unity",
+        "UniTask",
         "Unity.TextMeshPro"
     ],
     "includePlatforms": [],

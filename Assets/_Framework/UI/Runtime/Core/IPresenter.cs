@@ -1,5 +1,7 @@
 using System;
-using System.Threading.Tasks;
+using System.Threading;
+using Cysharp.Threading.Tasks;
+using RPGFramework.UINavigation;
 
 namespace RPGFramework.UI
 {
@@ -13,18 +15,13 @@ namespace RPGFramework.UI
         /// Initializes the presenter asynchronously.
         /// Called when presenter is created.
         /// </summary>
-        Task InitializeAsync();
-
-        /// <summary>
-        /// Called when presenter should be cleaned up.
-        /// </summary>
-        new void Dispose();
+        UniTask InitializeAsync(CancellationToken cancellationToken = default);
     }
 
     /// <summary>
     /// Generic presenter interface with typed view.
     /// </summary>
-    public interface IPresenter<out TView> : IPresenter where TView : IView
+    public interface IPresenter<out TView> : IPresenter where TView : INavigableView
     {
         /// <summary>
         /// The view this presenter controls.

@@ -151,7 +151,7 @@ namespace RPGFramework.UI.Panels
         {
             OnDialogueEnded?.Invoke();
             ClearChoices();
-            Hide();
+            Close();
         }
 
         public override void Hide()

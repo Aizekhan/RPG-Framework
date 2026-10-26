@@ -41,13 +41,27 @@ namespace RPGFramework.AssetManagement.Unity
         /// <summary>
         /// Loads a prefab and instantiates it; the prefab stays loaded until the instance is destroyed.
         /// </summary>
-        public static async UniTask<GameObject> InstantiateAsync(this IAssetManager assets, string key, Transform parent = null,
-            CancellationToken cancellationToken = default)
+        public static UniTask<GameObject> InstantiateAsync(this IAssetManager assets, string key, Transform parent = null,
+            CancellationToken cancellationToken = default) =>
+            InstantiateAsync(assets, key, parent, null, cancellationToken);
+
+        /// <summary>
+        /// Loads a prefab and instantiates it at a pose (Awake/OnEnable already see it there); the prefab stays loaded
+        /// until the instance is destroyed.
+        /// </summary>
+        public static UniTask<GameObject> InstantiateAsync(this IAssetManager assets, string key, Vector3 position, Quaternion rotation,
+            Transform parent = null, CancellationToken cancellationToken = default) =>
+            InstantiateAsync(assets, key, parent, new Pose(position, rotation), cancellationToken);
+
+        private static async UniTask<GameObject> InstantiateAsync(IAssetManager assets, string key, Transform parent, Pose? pose,
+            CancellationToken cancellationToken)
         {
             var handle = await assets.LoadAsync<GameObject>(key, cancellationToken);
             try
             {
-                var instance = Object.Instantiate(handle.Asset, parent);
+                var instance = pose.HasValue
+                    ? Object.Instantiate(handle.Asset, pose.Value.position, pose.Value.rotation, parent)
+                    : Object.Instantiate(handle.Asset, parent);
                 instance.AddComponent<AssetHandleOwner>().Bind(handle);
                 return instance;
             }

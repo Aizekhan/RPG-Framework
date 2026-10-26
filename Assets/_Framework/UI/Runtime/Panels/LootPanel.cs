@@ -122,7 +122,7 @@ namespace RPGFramework.UI.Panels
         {
             OnLootClosed?.Invoke();
             currentLoot.Clear();
-            Hide();
+            Close();
         }
 
         protected virtual void ClearLootList()

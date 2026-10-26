@@ -1,5 +1,7 @@
 using System;
-using System.Threading.Tasks;
+using System.Threading;
+using Cysharp.Threading.Tasks;
+using RPGFramework.UINavigation;
 
 namespace RPGFramework.UI
 {
@@ -7,28 +9,26 @@ namespace RPGFramework.UI
     /// Base presenter implementation for MVP pattern.
     /// Provides default lifecycle management.
     /// </summary>
-    public abstract class BasePresenter<TView> : IPresenter<TView> where TView : IView
+    public abstract class BasePresenter<TView> : IPresenter<TView> where TView : INavigableView
     {
-        protected bool _disposed;
-
-        public TView View { get; private set; }
-
         protected BasePresenter(TView view)
         {
             View = view ?? throw new ArgumentNullException(nameof(view));
         }
 
-        public virtual Task InitializeAsync()
-        {
-            return Task.CompletedTask;
-        }
+        public TView View { get; }
+
+        public bool IsDisposed { get; private set; }
+
+        public virtual UniTask InitializeAsync(CancellationToken cancellationToken = default) => UniTask.CompletedTask;
 
         public void Dispose()
         {
-            if (_disposed) return;
+            if (IsDisposed)
+                return;
 
             OnDispose();
-            _disposed = true;
+            IsDisposed = true;
         }
 
         /// <summary>

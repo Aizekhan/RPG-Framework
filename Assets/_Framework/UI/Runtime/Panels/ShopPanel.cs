@@ -296,7 +296,7 @@ namespace RPGFramework.UI.Panels
         {
             OnShopClosed?.Invoke();
             ClearSelection();
-            Hide();
+            Close();
         }
     }
 }

@@ -1,0 +1,28 @@
+{
+    "name": "RPGFramework.AssetManagement.Addressables",
+    "rootNamespace": "RPGFramework.AssetManagement.Addressables",
+    "references": [
+        "RPGFramework.AssetManagement.Runtime",
+        "Unity.Addressables",
+        "Unity.ResourceManager",
+        "UniTask",
+        "UniTask.Addressables"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "RPG_ADDRESSABLES"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.addressables",
+            "expression": "",
+            "define": "RPG_ADDRESSABLES"
+        }
+    ],
+    "noEngineReferences": false
+}

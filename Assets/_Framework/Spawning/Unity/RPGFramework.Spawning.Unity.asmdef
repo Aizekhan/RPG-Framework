@@ -1,0 +1,21 @@
+{
+    "name": "RPGFramework.Spawning.Unity",
+    "rootNamespace": "RPGFramework.Spawning",
+    "references": [
+        "RPGFramework.AssetManagement.Runtime",
+        "RPGFramework.AssetManagement.Unity",
+        "RPGFramework.Pooling.Runtime",
+        "RPGFramework.Pooling.Unity",
+        "RPGFramework.Logging.Runtime",
+        "UniTask"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

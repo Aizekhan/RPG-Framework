@@ -120,7 +120,7 @@ namespace RPGFramework.UI.Panels
         protected virtual void ClosePanel()
         {
             OnCharacterPanelClosed?.Invoke();
-            Hide();
+            Close();
         }
 
         public override void Show()
