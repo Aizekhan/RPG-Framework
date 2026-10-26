@@ -48,7 +48,7 @@ namespace RPGFramework.ActionRpg
         [SerializeField] private int _seed;
 
         [Header("Camera")]
-        [SerializeField] private Vector3 _cameraOffset = new Vector3(0f, 12f, -9f);
+        [SerializeField] private Vector3 _cameraOffset = new Vector3(0f, 8f, -6.5f);
 
         public CharacterDefinition Player => _player;
         public IReadOnlyList<CharacterDefinition> Enemies => _enemies;

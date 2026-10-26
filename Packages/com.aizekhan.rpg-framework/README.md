@@ -13,32 +13,59 @@ The package needs UniTask. Add both lines to the game's `Packages/manifest.json`
 "com.aizekhan.rpg-framework": "https://github.com/Aizekhan/RPG-Framework.git?path=/Packages/com.aizekhan.rpg-framework#v0.1.0"
 ```
 
-Pin a tag (`#v0.1.0`) so updates are deliberate. To develop the framework and a game side by side, point the game at a
+The Input System package comes with it; if Unity asks to enable the new input backend, answer Yes (it restarts the
+editor once). Pin a tag (`#v0.1.0`) so updates are deliberate. To develop the framework and a game side by side, point the game at a
 local copy instead: `"com.aizekhan.rpg-framework": "file:../../RPG-Framework/Packages/com.aizekhan.rpg-framework"`.
 
 Addressables are optional: when `com.unity.addressables` is installed, `AddressablesAssetProvider` compiles automatically.
 Games that reference prefabs directly (prefab catalogs, view configs) never need Addressables.
 
-## Start a game (Game Kit)
+## Make a game in 5 minutes
 
-**RPG Framework > Game Kit > New Game or Feature...** creates a game that follows the architecture from the first
-line, with tests that keep it that way:
+1. **RPG Framework > Game Kit > New Game or Feature...**, type a name, press **New Game**. The scene opens.
+2. Press **Play**. A hero (blue capsule) walks with WASD / left stick and attacks with Space / left click; goblins come
+   in waves, drop loot and count for the first quest; the HUD shows health, level, quests, wave and a log.
+3. Make it yours in the inspector, no code:
+   - `Assets/MyGame/Content/MyGameSetup.asset` (**Game Setup**): the player, the enemies, waves, items, loot tables,
+     starting quests, inventory size, random seed, camera offset. A box at the top says what is wrong before you press
+     Play; buttons create a new enemy, item, loot table or quest next to it.
+   - `Content/Characters/*.asset` (**Character**): drag any model prefab into **Prefab** (pivot at the feet, facing +Z),
+     set health, attack, defense, growth per level, speed, reach, attack rate, experience and loot table. Movement
+     (player), AI (enemies), a strike lunge and a health bar are added in play mode when the prefab has none; add
+     `PlayerController`, `EnemyBrain`, `StrikeAnimator` or `HealthBarView` to the prefab yourself to tune them.
+     With an Animator, set the strike's trigger name to play your attack clip.
+   - Items, loot tables and quests are the framework's **Item**, **Loot Table** and **Quest Asset** assets
+     (Create > RPG Framework).
+4. Rules the inspector cannot express go in code: `Scripts/Core/MyGameSession.cs`, or **New Feature** for a module of
+   their own. They react to events (`ActorSpawnedEvent`, `ActorDamagedEvent`, `WaveStartedEvent`, `DeathEvent`,
+   `QuestCompletedEvent`, `LevelUpEvent`) and act through `ActorWorld`.
+
+Without the Game Kit: create a **Game Setup** (Create > RPG Framework > Game Setup) and **Characters**, put an
+**Action Rpg Host** on an empty GameObject, drag the setup into it, add a ground with a collider and press Play.
+
+What a new game contains:
 
 ```
 Assets/MyGame/
-  Scripts/Core/   MyGame.Core: rules, modules, events (no UnityEngine)
-  Scripts/        MyGame: host (GameHostBehaviour), views, input
-  Scenes/         MyGame.unity with the host
+  Content/        Game Setup, characters, items, loot table, quest, ground material (edit these)
+  Scripts/Core/   MyGame.Core: your rules and modules (no UnityEngine)
+  Scripts/        MyGame: MyGameHost (an ActionRpgHost), your views and input
+  Scenes/         MyGame.unity: host, camera, light, ground
   Tests/          boot test, scene test, MyGameArchitectureTests (rules GA01-GA10)
 ```
 
+The tests keep the game healthy: the setup is valid, the game boots and plays a wave, the code follows the
+architecture rules. Run them in **Window > General > Test Runner**.
+
+### Game Kit details
+
 **New Feature** adds a module, its rules, events and tests, and joins the module to the game's composition.
-It also installs `CLAUDE.md`, `Docs/RPGFramework/architecture.md` and recipes for AI assistants, plus a CI workflow
-when the project has none. **Check Architecture** runs the rules on demand. Everything also runs in batch mode, so an
-AI assistant can use it:
+**Check Architecture** runs the rules on demand. Tick **Also install AI guidance** on New Game (or use the button) to
+add `CLAUDE.md`, `Docs/RPGFramework/architecture.md` and recipes for AI assistants, plus a CI workflow when the project
+has none. Everything also runs in batch mode, so an AI assistant can use it:
 
 ```
-Unity -batchmode -quit -projectPath . -executeMethod RPGFramework.GameKit.Editor.GameScaffold.NewGameFromCommandLine -game MyGame
+Unity -batchmode -quit -projectPath . -executeMethod RPGFramework.GameKit.Editor.GameScaffold.NewGameFromCommandLine -game MyGame [-aiGuidance]
 Unity -batchmode -quit -projectPath . -executeMethod RPGFramework.GameKit.Editor.GameScaffold.NewFeatureFromCommandLine -game MyGame -feature Shop
 ```
 
@@ -46,15 +73,15 @@ The rules a game follows (each one is a test in `MyGameArchitectureTests`, failu
 rules in a `*.Core` assembly without UnityEngine, dependencies pointing from views to rules, no scene searches,
 no singletons, immutable struct events, no UnityEditor in player code, one Unity object per file, every assembly tested.
 
-The flow inside a game:
+Under the hood (for games that outgrow the action RPG template):
 
-1. **Composition.** `MyGameComposition.Configure` lists the modules, framework ones included
-   (`CombatModule`, `ProgressionModule`, `QuestsModule`, `ItemsModule`, `LootModule`); the host and the tests share it.
-2. **Content.** Register items, quests, loot tables and stat growth in your module's `OnInitialize`.
-3. **Rules.** React to framework events by subscribing to `IEventBus` (`DeathEvent`, `QuestCompletedEvent`,
-   `LevelUpEvent`); publish your own. Do not poll other modules or call into their internals.
-4. **Presentation.** A presenter spawns prefabs for entities through `IPrefabSpawner` and links them in
-   `IEntityViewRegistry`; MonoBehaviours read state and call the rules. They never own game rules.
+1. **Composition.** `GameHost` runs `GameFeatureModule`s; `ActionRpgComposition` adds the framework gameplay modules
+   (`CombatModule`, `ProgressionModule`, `QuestsModule`, `ItemsModule`, `LootModule`) and `ActionRpgModule`.
+2. **Content.** Registries (`IItemRegistry`, `ILootTableRegistry`, `IQuestRegistry`) are filled from the assets.
+3. **Rules.** React to framework events by subscribing to `IEventBus`; publish your own. Do not poll other modules or
+   call into their internals.
+4. **Presentation.** `ActorPresenter` spawns prefabs through `IPrefabSpawner` and links them in `IEntityViewRegistry`;
+   MonoBehaviours read state and call the rules. They never own game rules.
 
 The `Assets/ReferenceGame` project in the repository (Goblin Valley) is a complete, playable example.
 
@@ -64,6 +91,7 @@ The `Assets/ReferenceGame` project in the repository (Goblin Valley) is a comple
 |---|---|
 | Composition | `Core` (modules, builder), `DI`, `Bootstrap` (`GameHost`, `GameHostBehaviour`), `Bootstrap.Gameplay` (ready-made gameplay modules) |
 | Runtime | `Events` (bus), `Systems` (update loop), `ECS` (entities, components), `Timers`, `Logging`, `Diagnostics` |
+| Game templates | `ActionRpg` (Game Setup and Character assets, `ActionRpgHost`, player controls, enemy AI, health bars, HUD) |
 | Gameplay | `Combat`, `Stats`, `StatusEffects`, `Abilities`, `Progression`, `Quests`, `Items`, `Inventory`, `Loot`, `Crafting`, `Dialogue`, `Factions`, `Guilds`, `Trading`, `Housing`, `Companions`, `Achievements`, `Skills`, `DynamicEvents` |
 | Content & scenes | `AssetManagement` (Resources and Addressables providers), `Pooling`, `Spawning` (`PrefabSpawner`, `PrefabCatalog`), `Presentation` (`EntityViewRegistry`: entity ↔ GameObject), `Scenes`, `Persistence` |
 | UI | `UINavigation` (screens, modals, transitions), `UI` (RPG panels and HUD) |

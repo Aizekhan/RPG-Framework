@@ -1,6 +1,8 @@
 # Recipe: use framework gameplay modules
 
-`RPGFramework.Bootstrap.Gameplay` has ready modules. Add them in the composition before the game's own modules:
+A game made with New Game already runs them: `ActionRpgHost` calls `ActionRpgComposition.Configure`, which adds the
+modules below plus `ActionRpgModule`. Add the others you need (dialogue, crafting, factions...) in
+`<Game>Composition.Configure`. Without the action RPG template, add them yourself before the game's own modules:
 
 ```csharp
 builder
@@ -19,4 +21,4 @@ builder
 2. Declare the module in your module's `Dependencies` when you resolve its services. The host then fails loudly
    at start if the module is missing, instead of failing later.
 3. Register content (items, loot tables, quests) in your module's `OnInitialize` through the registries.
-4. Goblin Valley (`GoblinValleyComposition`, `GoblinValleyModule`, `GoblinValleyContent`) uses all of them.
+4. `ActionRpgComposition` and Goblin Valley (`GoblinValleyComposition`, `GoblinValleyModule`) use all of them.

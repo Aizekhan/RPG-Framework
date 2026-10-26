@@ -15,7 +15,8 @@ Automated tests enforce the architecture, so a change that breaks it fails.
 ```
 Assets/<Game>/
   Scripts/Core/    <Game>.Core asmdef, noEngineReferences: rules, state, events, modules, systems (plain C#)
-  Scripts/         <Game> asmdef: host (GameHostBehaviour), views, input, HUD (MonoBehaviours)
+  Content/         Game Setup, Characters, items, loot tables, quests (ScriptableObjects designers edit)
+  Scripts/         <Game> asmdef: host (ActionRpgHost or GameHostBehaviour), views, input, HUD (MonoBehaviours)
   Editor/          <Game>.Editor asmdef: menus, builders, inspectors
   Tests/           <Game>.Tests asmdef: EditMode tests + <Game>ArchitectureTests
   PlayTests/       PlayMode tests that play a scene
@@ -31,7 +32,8 @@ Assets/<Game>/
 3. **React through the event bus.** Something happened → publish an `IEvent` (`readonly struct`, past-tense name,
    e.g. `ChestOpenedEvent`). Another feature cares → subscribe to it. Features do not call each other directly.
 4. **Designers tune, code reads.** Numbers, prefabs and content live in ScriptableObjects or `[SerializeField]`
-   fields, not in constants.
+   fields, not in constants. Characters, enemies, items, loot and quests go in the Game Setup and Character assets
+   (recipe 10); code only adds rules the assets cannot express.
 5. **Every change comes with tests.** Rules: EditMode tests that boot `GameHost` with the composition.
    Scenes: a PlayMode test. Never delete or weaken a test to make it pass.
 6. **Every new file and folder under `Assets/` gets its `.meta`**: let Unity import (open the Editor or run it in

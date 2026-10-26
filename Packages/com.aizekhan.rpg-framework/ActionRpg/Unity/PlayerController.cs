@@ -118,7 +118,9 @@ namespace RPGFramework.ActionRpg
             var velocity = direction * Definition.MoveSpeed;
             if (_body != null)
             {
-                _fallSpeed = _body.isGrounded ? -1f : _fallSpeed + Physics.gravity.y * Time.deltaTime;
+                // No ground anywhere below (an empty test scene): stay at this height instead of falling forever
+                bool groundBelow = _body.isGrounded || Physics.Raycast(transform.position + Vector3.up * 0.5f, Vector3.down, 500f);
+                _fallSpeed = _body.isGrounded ? -1f : groundBelow ? _fallSpeed + Physics.gravity.y * Time.deltaTime : 0f;
                 _body.Move((velocity + Vector3.up * _fallSpeed) * Time.deltaTime);
             }
             else

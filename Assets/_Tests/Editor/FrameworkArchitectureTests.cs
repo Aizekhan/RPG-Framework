@@ -36,6 +36,7 @@ namespace RPGFramework.Tests.Editor
         {
             var name = assembly.GetName().Name;
             return !name.EndsWith(".Tests", StringComparison.Ordinal) &&
+                   !name.EndsWith(".PlayTests", StringComparison.Ordinal) &&
                    !name.EndsWith(".TestSupport", StringComparison.Ordinal) &&
                    !name.EndsWith(".Editor", StringComparison.Ordinal) &&
                    name != "RPGFramework.Editor";

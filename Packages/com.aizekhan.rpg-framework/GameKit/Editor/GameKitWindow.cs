@@ -13,6 +13,7 @@ namespace RPGFramework.GameKit.Editor
     {
         private string _game = "MyGame";
         private string _feature = "Shop";
+        private bool _installAIGuidance;
         private string _message;
         private MessageType _messageType;
 
@@ -42,10 +43,14 @@ namespace RPGFramework.GameKit.Editor
         {
             EditorGUILayout.LabelField("Game", EditorStyles.boldLabel);
             _game = EditorGUILayout.TextField("Name", _game);
+            _installAIGuidance = EditorGUILayout.ToggleLeft(
+                new GUIContent("Also install AI guidance", "Adds a block to CLAUDE.md, Docs/RPGFramework and a CI workflow at the project root"),
+                _installAIGuidance);
             using (new EditorGUILayout.HorizontalScope())
             {
                 if (GUILayout.Button("New Game"))
-                    Run(() => GameScaffold.NewGame(_game), $"Created Assets/{_game}. Open Assets/{_game}/Scenes/{_game}.unity and press Play.");
+                    Run(() => GameScaffold.NewGame(_game, _installAIGuidance),
+                        $"Created Assets/{_game} and opened its scene: press Play. Tune it in Assets/{_game}/Content/{_game}Setup.asset.");
                 if (GUILayout.Button("Check Architecture"))
                     Run(() => LogCheck(_game), "Architecture checked; see the Console.");
             }

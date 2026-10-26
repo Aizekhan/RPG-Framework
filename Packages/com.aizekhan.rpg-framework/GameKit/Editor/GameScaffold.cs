@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 
 namespace RPGFramework.GameKit.Editor
@@ -14,7 +15,8 @@ namespace RPGFramework.GameKit.Editor
     /// architecture tests). Every file gets its <c>.meta</c>. Existing files are never overwritten.
     /// Batch mode:
     /// <c>Unity -batchmode -quit -projectPath . -executeMethod RPGFramework.GameKit.Editor.GameScaffold.NewGameFromCommandLine -game MyGame</c>,
-    /// <c>... GameScaffold.NewFeatureFromCommandLine -game MyGame -feature Shop</c>.
+    /// <c>... GameScaffold.NewFeatureFromCommandLine -game MyGame -feature Shop</c>; add <c>-aiGuidance</c> to New Game
+    /// to also install the AI guidance.
     /// </summary>
     public static class GameScaffold
     {
@@ -111,14 +113,26 @@ namespace RPGFramework.GameKit.Editor
         public static void OpenWindow() => GameKitWindow.Open();
 
         /// <summary>
-        /// Creates the game in Assets, installs the AI guidance at the project root and imports everything.
+        /// Creates a playable game in Assets: code from the templates, starter content (hero, goblin, items, loot,
+        /// quest, Game Setup), the scene linked to it. Optionally installs the AI guidance at the project root.
         /// </summary>
-        public static List<string> NewGame(string game)
+        public static List<string> NewGame(string game, bool installAIGuidance = false)
         {
             var files = WriteGame(TemplatesRoot, Application.dataPath, game);
-            AIGuidance.Install(AIGuidance.DocumentationRoot, PackagePaths.ProjectRoot);
             AssetDatabase.Refresh();
-            Debug.Log($"[Game Kit] Created {game}: {files.Count} files in Assets/{game}. Open Assets/{game}/Scenes/{game}.unity");
+
+            var setup = StarterContent.Create(game, out var ground);
+            string scene = $"Assets/{game}/Scenes/{game}.unity";
+            StarterContent.LinkScene(scene, setup, ground);
+
+            if (installAIGuidance)
+                AIGuidance.Install(AIGuidance.DocumentationRoot, PackagePaths.ProjectRoot);
+            AssetDatabase.Refresh();
+
+            Debug.Log($"[Game Kit] Created {game} in Assets/{game}: open {scene} and press Play. " +
+                      $"Tune the game in Assets/{game}/Content/{game}Setup.asset");
+            if (!Application.isBatchMode && EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+                EditorSceneManager.OpenScene(scene);
             return files;
         }
 
@@ -133,7 +147,8 @@ namespace RPGFramework.GameKit.Editor
             return files;
         }
 
-        public static void NewGameFromCommandLine() => NewGame(Argument("-game"));
+        public static void NewGameFromCommandLine() =>
+            NewGame(Argument("-game"), Environment.GetCommandLineArgs().Contains("-aiGuidance"));
 
         public static void NewFeatureFromCommandLine() => NewFeature(Argument("-game"), Argument("-feature"));
 

@@ -8,7 +8,16 @@
         "RPGFramework.ECS.Runtime",
         "RPGFramework.Events.Runtime",
         "RPGFramework.Logging.Runtime",
-        "RPGFramework.Systems.Runtime"
+        "RPGFramework.Systems.Runtime",
+        "RPGFramework.ActionRpg.Runtime",
+        "RPGFramework.Bootstrap.Gameplay",
+        "RPGFramework.Combat.Runtime",
+        "RPGFramework.Progression.Runtime",
+        "RPGFramework.Quests.Runtime",
+        "RPGFramework.Items.Runtime",
+        "RPGFramework.Inventory.Runtime",
+        "RPGFramework.Loot.Runtime",
+        "RPGFramework.Stats.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
