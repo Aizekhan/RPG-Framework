@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- **`START-NEW-GAME.md`** (repository root): one file a developer drops into an empty folder; Claude Code follows it to check the tools, create the Unity project, install the latest release, generate the game, write `GAME.md` with the developer, and then build feature by feature
+- Game Kit rules **GA11** (the game does not redeclare framework types or write into `RPGFramework.*`) and **GA12** (every `// framework-gap: <id>` stand-in has a section in `FRAMEWORK-GAPS.md`)
+- AI guidance: "never cut the corner" protocol in the game's `CLAUDE.md` block; `GAME.md`, `FRAMEWORK-GAPS.md` and `DEVLOG.md` are created once from templates and never overwritten
 - **Internet co-op module `RPGFramework.Networking.UnityRelay`** (compiled only when `com.unity.services.multiplayer` 2.4.1+ is installed; the package does not depend on it): `UnityRelaySessionProvider` (room code from Unity Multiplayer Services, traffic through Unity Relay over DTLS), `IRelayService` / `MultiplayerRelayService`, `RelaySessionTransport`, `RelayErrors`. Tested against a fake room service; not yet proven between two real networks
 - `NetworkSessionProviders`: modules register the ways to play together they bring; `ActionRpgHost.SessionProviders` / `UseSessionProvider(id)` / `-provider <id>`, and F2 lets the player choose (local network stays the default)
 - `UnityNetworkTransport.Update()` runs the driver without taking events (waiting for a relay)

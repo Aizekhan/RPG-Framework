@@ -145,6 +145,32 @@ namespace RPGFramework.GameKit.Tests
         }
 
         [Test]
+        public void AIGuidance_CreatesTheGamesOwnDocumentsOnce_AndNeverOverwritesThem()
+        {
+            var written = AIGuidance.Install(AIGuidance.DocumentationRoot, _project);
+            Assert.That(written, Is.SupersetOf(new[] { "GAME.md", GameArchitectureRules.GapsFile, "DEVLOG.md" }));
+            Assert.That(File.ReadAllText(Path.Combine(_project, GameArchitectureRules.GapsFile)), Does.Contain("## Open"));
+
+            string game = Path.Combine(_project, "GAME.md");
+            File.WriteAllText(game, "# Dragon Peak\nOur decisions.");
+            var again = AIGuidance.Install(AIGuidance.DocumentationRoot, _project);
+
+            Assert.That(File.ReadAllText(game), Is.EqualTo("# Dragon Peak\nOur decisions."));
+            Assert.That(again, Has.No.Member("GAME.md"));
+            string claude = File.ReadAllText(Path.Combine(_project, "CLAUDE.md"));
+            Assert.That(claude, Does.Contain("framework-gap").And.Contain("GAME.md"));
+        }
+
+        [Test]
+        public void EveryRule_IsATestInEveryGame()
+        {
+            var tests = typeof(RPGFramework.GameKit.TestSupport.GameArchitectureTests).GetMethods()
+                .Where(m => m.GetCustomAttributes(typeof(TestAttribute), false).Length > 0).Select(m => m.Name).ToList();
+            foreach (var rule in GameArchitectureRules.All)
+                Assert.That(tests.Any(t => t.StartsWith(rule.Id + "_")), Is.True, $"GameArchitectureTests has no test for {rule.Id}");
+        }
+
+        [Test]
         public void Guide_ExplainsEveryRule()
         {
             string guide = File.ReadAllText(Path.Combine(AIGuidance.DocumentationRoot, "architecture.md"));

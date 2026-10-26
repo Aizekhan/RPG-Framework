@@ -5,7 +5,7 @@ This game is built on the RPG Framework package (`com.aizekhan.rpg-framework`). 
 Automated tests enforce the architecture, so a change that breaks it fails.
 
 ## Read before changing code
-- `Docs/RPGFramework/architecture.md`: the layers and the rules GA01–GA10 (test failures name the rule).
+- `Docs/RPGFramework/architecture.md`: the layers and the rules GA01–GA12 (test failures name the rule).
 - `Docs/RPGFramework/recipes/`: step-by-step recipes. Find the one that matches the task and follow it.
 - The framework's own README (`Packages/com.aizekhan.rpg-framework/README.md`, or the package in `Library/PackageCache`)
   lists the modules. **Use a framework module before writing your own**: combat, stats, progression, quests,
@@ -38,6 +38,22 @@ Assets/<Game>/
    Scenes: a PlayMode test. Never delete or weaken a test to make it pass.
 6. **Every new file and folder under `Assets/` gets its `.meta`**: let Unity import (open the Editor or run it in
    batch mode); never write a `.meta` by hand with a made-up GUID.
+
+## When the framework lacks something (never cut the corner)
+1. Search first: the package README's module list, `Docs/RPGFramework/recipes/07-use-framework-modules.md`, and the
+   package source (`Library/PackageCache/com.aizekhan.rpg-framework*`). Most RPG needs are already there.
+2. If it really is missing: **do not** rebuild the module in the game, **do not** shrink the feature to fit, and
+   **do not** fake it with a hack. Tell the developer what is missing and why the feature needs it.
+3. Record it in `FRAMEWORK-GAPS.md` (project root): a section `## <id>` with what the game needs, what the framework
+   lacks, the API you would want, and where the stand-in lives.
+4. Write the smallest stand-in behind an interface in `<Game>.Core`, marked `// framework-gap: <id>` on the line
+   above it, with tests. GA11 fails on rebuilt framework types; GA12 fails on a marker with no section.
+5. If the gap is big (a whole system), stop and ask whether to add it to the framework first.
+
+## The game's own documents (project root)
+- `GAME.md`: what the game is: genre, core loop, features in priority order, what it will not have. Read it before
+  planning; update it when the developer decides something.
+- `FRAMEWORK-GAPS.md`: the gaps above. `DEVLOG.md`: one line per finished feature (date, what, commit).
 
 ## Workflow
 1. Generate structure instead of writing it: **RPG Framework > Game Kit** (New Game, New Feature).

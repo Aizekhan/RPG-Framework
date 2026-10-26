@@ -3,6 +3,7 @@
     "rootNamespace": "RPGFramework.GameKit.Tests",
     "references": [
         "RPGFramework.GameKit.Editor",
+        "RPGFramework.GameKit.TestSupport",
         "RPGFramework.Events.Runtime",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"

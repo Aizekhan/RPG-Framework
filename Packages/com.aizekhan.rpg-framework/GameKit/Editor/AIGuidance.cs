@@ -9,6 +9,7 @@ namespace RPGFramework.GameKit.Editor
     /// <summary>
     /// Installs the guidance an AI assistant (or a new developer) needs to build a game the framework's way:
     /// a block in the project's <c>CLAUDE.md</c>, the architecture guide and recipes under <c>Docs/RPGFramework</c>,
+    /// the game's own documents (<c>GAME.md</c>, <c>FRAMEWORK-GAPS.md</c>, <c>DEVLOG.md</c>, created once and then kept),
     /// and a CI workflow that runs the tests when the project has none. Reinstalling updates the framework's
     /// files and its <c>CLAUDE.md</c> block; the rest of <c>CLAUDE.md</c> is kept.
     /// </summary>
@@ -53,6 +54,20 @@ namespace RPGFramework.GameKit.Editor
                 {
                     Copy(recipe, Path.Combine(docs, "recipes", Path.GetFileName(recipe)));
                     written.Add($"{DocsFolder}/recipes/{Path.GetFileName(recipe)}");
+                }
+            }
+
+            // The game's own documents: created once from templates, never overwritten (they hold the game's records)
+            string projectDocs = Path.Combine(documentationRoot, "project");
+            if (Directory.Exists(projectDocs))
+            {
+                foreach (var template in Directory.GetFiles(projectDocs, "*.md"))
+                {
+                    string target = Path.Combine(projectRoot, Path.GetFileName(template));
+                    if (File.Exists(target))
+                        continue;
+                    Copy(template, target);
+                    written.Add(Path.GetFileName(template));
                 }
             }
 

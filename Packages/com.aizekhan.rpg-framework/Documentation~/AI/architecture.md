@@ -31,7 +31,7 @@ The reference game `Assets/ReferenceGame` (Goblin Valley) follows all of this. R
 ## Rules
 
 Each rule is a test in `<Game>ArchitectureTests`. A failure prints the rule id, the place and the fix.
-A single source line may opt out of a source rule (GA05, GA08) with a reason:
+A single source line may opt out of a source rule (GA05, GA08, GA11) with a reason:
 `// architecture: allow GA05 (third-party plugin needs it)`. Use it rarely.
 
 ### GA01 Game code lives in assembly definitions
@@ -72,3 +72,18 @@ Unity can attach a MonoBehaviour or create a ScriptableObject only when the clas
 ### GA10 Every rules and runtime assembly has tests
 A test assembly references each of them. Rules are tested by booting `GameHost` with the game's composition;
 scenes by a PlayMode test.
+
+### GA11 The game does not redo the framework
+Game code does not declare a type with the name of a framework type (`Quest`, `Item`, `Ability`, ...) and does not
+write into the `RPGFramework` namespace. Use the framework's type. If it lacks something the game needs, that is a
+**framework gap** (GA12): record it, do not rebuild the module inside the game. A different, game-specific thing gets
+a name that says what it is (`BountyBoard`, not `Quest`).
+
+### GA12 Framework gaps are recorded
+When the game needs something the framework does not have, the work does not stop and the feature is not quietly
+cut. The game gets a stand-in, as small as possible, behind its own interface, with a marker on the line above it:
+`// framework-gap: <id>`. `FRAMEWORK-GAPS.md` in the project root has a section `## <id>` for every marker: what the
+game needed, what the framework lacks, the API the framework should offer, and where the stand-in lives. A marker
+without a section fails this rule. The file is the framework's backlog with proof; when the framework gains the
+feature, the stand-in is deleted and the section moved to "Resolved".
+

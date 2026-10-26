@@ -202,6 +202,55 @@ namespace RPGFramework.GameKit.Tests
         {
             public static SingletonManager Instance { get; private set; }
         }
+
+        [Test]
+        public void GA11_ARebuiltFrameworkTypeOrNamespace_IsCaught_AGameSpecificNameIsNot()
+        {
+            var framework = new HashSet<string> { "Quest", "Item" };
+            var game = Game(Assembly("Game.Core", GameAssemblyKind.Rules, noEngine: true, sources: new[]
+            {
+                Source("Quest.cs", "namespace Game { public sealed class Quest { } }"),
+                Source("Patch.cs", "namespace RPGFramework.Items { class Extra { } }"),
+                Source("Bounty.cs", "namespace Game { sealed class BountyBoard { } // a Quest board of our own\n}"),
+                Source("Allowed.cs", "namespace Game { sealed class Item { } // architecture: allow GA11 (adapter for the save format)\n}")
+            }));
+
+            var violations = GameArchitectureRules.GameDoesNotRedoTheFramework(game, framework).ToList();
+
+            Assert.That(violations, Has.Count.EqualTo(2));
+            Assert.That(violations.Count(v => v.Where.Contains("Quest.cs") && v.Problem.Contains("declares Quest")), Is.EqualTo(1));
+            Assert.That(violations.Count(v => v.Where.Contains("Patch.cs") && v.Problem.Contains("RPGFramework namespace")), Is.EqualTo(1));
+            Assert.That(violations[0].Fix, Does.Contain(GameArchitectureRules.GapsFile));
+        }
+
+        [Test]
+        public void GA11_KnowsTheFrameworksRealTypes()
+        {
+            var names = GameArchitectureRules.FrameworkTypeNames();
+
+            Assert.That(names, Does.Contain("Quest").And.Contain("ActorWorld").And.Contain("EventBus"));
+            Assert.That(names, Does.Not.Contain("GameArchitectureRules"), "editor tools are not something a game would rebuild");
+        }
+
+        [Test]
+        public void GA12_AStandInNeedsItsGapRecorded()
+        {
+            var game = Game(Assembly("Game.Core", GameAssemblyKind.Rules, noEngine: true, sources: new[]
+            {
+                Source("Currency.cs", "// framework-gap: shop-currency (no currency in Trading yet)\nclass Coins { }"),
+                Source("Weather.cs", "// framework-gap: weather-events\nclass Rain { }")
+            }));
+            string gaps = Path.Combine(_folder, "FRAMEWORK-GAPS.md");
+
+            Assert.That(Rules(GameArchitectureRules.FrameworkGapsAreRecorded(game, gaps)), Is.EqualTo(new[] { "GA12", "GA12" }),
+                "no gaps file yet");
+
+            File.WriteAllText(gaps, "# Framework gaps\n\n## shop-currency\nCoins and prices.\n");
+            var left = GameArchitectureRules.FrameworkGapsAreRecorded(game, gaps).ToList();
+            Assert.That(left, Has.Count.EqualTo(1));
+            Assert.That(left[0].Where, Does.Contain("Weather.cs:1"));
+            Assert.That(left[0].Fix, Does.Contain("## weather-events"));
+        }
     }
 
     // Top-level so GA09 sees it as a scene component

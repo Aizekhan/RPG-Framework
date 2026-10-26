@@ -44,6 +44,11 @@ namespace RPGFramework.GameKit.Editor
     {
         public const string Guide = "Docs/RPGFramework/architecture.md";
 
+        /// <summary>
+        /// Where a game records what it needed from the framework and did not find (project root).
+        /// </summary>
+        public const string GapsFile = "FRAMEWORK-GAPS.md";
+
         public static readonly IReadOnlyList<(string Id, string Title, Func<GameCodebase, IEnumerable<ArchitectureViolation>> Check)> All =
             new (string, string, Func<GameCodebase, IEnumerable<ArchitectureViolation>>)[]
             {
@@ -56,7 +61,9 @@ namespace RPGFramework.GameKit.Editor
                 ("GA07", "Events are immutable structs", EventsAreImmutableStructs),
                 ("GA08", "UnityEditor only in editor code", UnityEditorOnlyInEditorCode),
                 ("GA09", "Unity objects live in files of their own name", UnityObjectsHaveMatchingFiles),
-                ("GA10", "Every rules and runtime assembly has tests", AssembliesAreTested)
+                ("GA10", "Every rules and runtime assembly has tests", AssembliesAreTested),
+                ("GA11", "The game does not redo the framework", GameDoesNotRedoTheFramework),
+                ("GA12", "Framework gaps are recorded", FrameworkGapsAreRecorded)
             };
 
         /// <summary>
@@ -243,6 +250,117 @@ namespace RPGFramework.GameKit.Editor
                 yield return new ArchitectureViolation("GA10", assembly.Name, "no test assembly references it",
                     $"Add {assembly.Name} to the references of the game's test .asmdef and write tests for it " +
                     "(rules: boot GameHost with the game's composition; views: PlayMode tests).");
+            }
+        }
+
+        private static readonly Regex Declaration = new Regex(@"\b(class|struct|interface|enum|record)\s+([A-Z]\w*)");
+        private static readonly Regex FrameworkNamespace = new Regex(@"^namespace\s+RPGFramework\b");
+        private static HashSet<string> _frameworkTypeNames;
+
+        public static IEnumerable<ArchitectureViolation> GameDoesNotRedoTheFramework(GameCodebase codebase) =>
+            GameDoesNotRedoTheFramework(codebase, FrameworkTypeNames());
+
+        /// <param name="frameworkTypes">Names of the framework's public types.</param>
+        public static IEnumerable<ArchitectureViolation> GameDoesNotRedoTheFramework(GameCodebase codebase,
+            ICollection<string> frameworkTypes)
+        {
+            foreach (var assembly in codebase.Assemblies.Where(a => a.IsPlayerCode))
+            {
+                foreach (var file in assembly.SourceFiles)
+                {
+                    foreach (var (line, number) in CodeLines(file, "GA11"))
+                    {
+                        if (FrameworkNamespace.IsMatch(line))
+                        {
+                            yield return new ArchitectureViolation("GA11", $"{file}:{number}", "game code in the RPGFramework namespace",
+                                "Use the game's own namespace. A change the framework needs belongs in the framework package, " +
+                                $"not in a copy inside the game: describe it in {GapsFile} (GA12).");
+                        }
+                        foreach (Match declaration in Declaration.Matches(line))
+                        {
+                            string name = declaration.Groups[2].Value;
+                            if (!frameworkTypes.Contains(name))
+                                continue;
+                            yield return new ArchitectureViolation("GA11", $"{file}:{number}",
+                                $"declares {name}, which the framework already has",
+                                $"Use the framework's {name} (README lists the modules; recipe 07). If it lacks something this game " +
+                                $"needs, do not rebuild it: record the gap in {GapsFile} and keep a stand-in marked " +
+                                "// framework-gap: <id> (GA12). If it is a different, game-specific thing, give it a name that says so.");
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Public top-level type names of the framework's runtime assemblies (not its tests or editor tools).
+        /// </summary>
+        public static HashSet<string> FrameworkTypeNames()
+        {
+            if (_frameworkTypeNames != null)
+                return _frameworkTypeNames;
+            var names = new HashSet<string>();
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                string name = assembly.GetName().Name;
+                if (!name.StartsWith("RPGFramework.", StringComparison.Ordinal) || name.Contains(".Tests") ||
+                    name.Contains("TestSupport") || name.Contains(".Editor") || name.Contains(".GameKit") || assembly.IsDynamic)
+                    continue;
+                Type[] types;
+                try
+                {
+                    types = assembly.GetExportedTypes();
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+                foreach (var type in types.Where(t => !t.IsNested))
+                {
+                    int tick = type.Name.IndexOf('`');
+                    names.Add(tick < 0 ? type.Name : type.Name.Substring(0, tick));
+                }
+            }
+            return _frameworkTypeNames = names;
+        }
+
+        private static readonly Regex GapMarker = new Regex(@"framework-gap:\s*([A-Za-z0-9][\w-]*)");
+        private static readonly Regex GapHeading = new Regex(@"^#+\s*([A-Za-z0-9][\w-]*)");
+
+        public static IEnumerable<ArchitectureViolation> FrameworkGapsAreRecorded(GameCodebase codebase) =>
+            FrameworkGapsAreRecorded(codebase, GapsFile);
+
+        /// <param name="gapsFile">The gaps file to check against.</param>
+        public static IEnumerable<ArchitectureViolation> FrameworkGapsAreRecorded(GameCodebase codebase, string gapsFile)
+        {
+            var recorded = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (File.Exists(gapsFile))
+            {
+                foreach (var line in File.ReadAllLines(gapsFile))
+                {
+                    var heading = GapHeading.Match(line.Trim());
+                    if (heading.Success)
+                        recorded.Add(heading.Groups[1].Value);
+                }
+            }
+            foreach (var assembly in codebase.Assemblies)
+            {
+                foreach (var file in assembly.SourceFiles.Where(File.Exists))
+                {
+                    var lines = File.ReadAllLines(file);
+                    for (int i = 0; i < lines.Length; i++)
+                    {
+                        var marker = GapMarker.Match(lines[i]);
+                        if (!marker.Success || recorded.Contains(marker.Groups[1].Value))
+                            continue;
+                        string id = marker.Groups[1].Value;
+                        yield return new ArchitectureViolation("GA12", $"{file}:{i + 1}",
+                            $"stand-in for framework gap '{id}', which {GapsFile} does not describe",
+                            $"Add a section \"## {id}\" to {GapsFile} (project root): what the game needed, what the framework " +
+                            "lacks, the API you would want there, and where the stand-in lives. The list is how the framework " +
+                            "learns what games need.");
+                    }
+                }
             }
         }
 

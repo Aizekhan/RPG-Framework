@@ -69,6 +69,12 @@ namespace RPGFramework.GameKit.TestSupport
         [Test]
         public void GA10_AssembliesAreTested() => Check(GameArchitectureRules.AssembliesAreTested);
 
+        [Test]
+        public void GA11_GameDoesNotRedoTheFramework() => Check(GameArchitectureRules.GameDoesNotRedoTheFramework);
+
+        [Test]
+        public void GA12_FrameworkGapsAreRecorded() => Check(GameArchitectureRules.FrameworkGapsAreRecorded);
+
         private void Check(Func<GameCodebase, IEnumerable<ArchitectureViolation>> rule)
         {
             var violations = rule(_codebase).ToList();
