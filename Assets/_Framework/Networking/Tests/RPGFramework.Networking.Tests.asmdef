@@ -5,6 +5,7 @@
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
         "RPGFramework.Networking.Runtime",
+        "RPGFramework.Logging.Runtime",
         "RPGFramework.ECS.Runtime",
         "RPGFramework.Serialization.Runtime"
     ],
