@@ -1,0 +1,17 @@
+{
+    "name": "RPGFramework.Scenes.Unity",
+    "rootNamespace": "RPGFramework.Scenes.Unity",
+    "references": [
+        "RPGFramework.Scenes.Runtime",
+        "UniTask"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
