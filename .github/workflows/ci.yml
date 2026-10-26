@@ -15,8 +15,8 @@ jobs:
     name: Unity .meta integrity
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - run: python -I .github/scripts/check_meta.py .
@@ -41,7 +41,7 @@ jobs:
             echo "available=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: steps.license.outputs.available == 'true'
 
       - uses: actions/cache@v4
