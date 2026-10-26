@@ -186,6 +186,104 @@ namespace RPGFramework.ActionRpg
             return dealt;
         }
 
+        /// <summary>
+        /// True while <see cref="RestoreProgress"/> replays saved quests: rules that grant rewards on
+        /// <c>QuestCompletedEvent</c> should skip them then, the player already has them.
+        /// </summary>
+        public bool IsRestoring { get; private set; }
+
+        /// <summary>
+        /// The player's level, experience, backpack and quests, for saving.
+        /// </summary>
+        public PlayerProgress CaptureProgress()
+        {
+            ThrowIfNotStarted();
+            var progress = new PlayerProgress { Level = Level, TotalExperience = TotalExperience, Kills = Kills };
+            progress.Items.AddRange(Inventory.GetAllItems().Where(i => i != null).Select(i => i.ItemId));
+            foreach (var active in _quests.GetActiveQuests(PlayerId))
+            {
+                var record = new QuestRecord { QuestId = active.QuestId };
+                record.Objectives.AddRange(active.ObjectiveProgress.Select(p => new ObjectiveRecord { ObjectiveId = p.Key, Progress = p.Value }));
+                progress.ActiveQuests.Add(record);
+            }
+            progress.CompletedQuests.AddRange(_quests.GetCompletedQuests(PlayerId));
+            return progress;
+        }
+
+        /// <summary>
+        /// Puts saved progress back: level and stats, experience, backpack, quests. Rewards of completed quests are
+        /// not granted again. Items and quests that no longer exist in the content are skipped with a warning.
+        /// </summary>
+        public void RestoreProgress(PlayerProgress progress)
+        {
+            ThrowIfNotStarted();
+            if (progress == null)
+                throw new ArgumentNullException(nameof(progress));
+
+            IsRestoring = true;
+            try
+            {
+                int level = Math.Max(1, progress.Level);
+                _progression.SetLevel(PlayerId, level);
+                long missing = progress.TotalExperience - _progression.GetTotalXP(PlayerId);
+                if (missing > 0)
+                    _progression.AddExperience(PlayerId, missing);
+                foreach (ActorStat stat in Enum.GetValues(typeof(ActorStat)))
+                    Player.SetBaseStat(stat, _settings.Player.StatAt(stat, Level));
+                Player.RestoreFullHealth();
+                Kills = progress.Kills;
+
+                Inventory.Clear();
+                foreach (var itemId in progress.Items ?? new List<string>())
+                {
+                    var item = _items.GetItem(itemId);
+                    if (item == null)
+                        _logger?.LogWarning($"Saved item '{itemId}' is no longer in the game; skipped", Category);
+                    else if (!Inventory.Add(item))
+                        break;
+                }
+
+                var completed = _quests.GetCompletedQuests(PlayerId);
+                foreach (var questId in progress.CompletedQuests ?? new List<string>())
+                {
+                    var quest = _questRegistry.GetQuest(questId);
+                    if (quest == null || completed.Contains(questId))
+                        continue;
+                    if (_quests.GetQuestProgress(PlayerId, questId) == null)
+                        _quests.AcceptQuest(PlayerId, questId);
+                    foreach (var objective in quest.Objectives)
+                        SetObjective(questId, objective.Id, objective.RequiredCount);
+                    _quests.CompleteQuest(PlayerId, questId);
+                }
+
+                foreach (var record in progress.ActiveQuests ?? new List<QuestRecord>())
+                {
+                    if (_questRegistry.GetQuest(record.QuestId) == null)
+                    {
+                        _logger?.LogWarning($"Saved quest '{record.QuestId}' is no longer in the game; skipped", Category);
+                        continue;
+                    }
+                    if (_quests.GetQuestProgress(PlayerId, record.QuestId) == null && !_quests.AcceptQuest(PlayerId, record.QuestId))
+                        continue;
+                    foreach (var objective in record.Objectives ?? new List<ObjectiveRecord>())
+                        SetObjective(record.QuestId, objective.ObjectiveId, objective.Progress);
+                }
+            }
+            finally
+            {
+                IsRestoring = false;
+            }
+            Write($"Welcome back: level {Level}, {Inventory.Count} items");
+        }
+
+        private void SetObjective(string questId, string objectiveId, int target)
+        {
+            var current = _quests.GetQuestProgress(PlayerId, questId);
+            int done = current != null && current.ObjectiveProgress.TryGetValue(objectiveId, out int value) ? value : 0;
+            if (target > done)
+                _quests.UpdateObjectiveProgress(PlayerId, questId, objectiveId, target - done);
+        }
+
         public bool RevivePlayer() => IsStarted && _lifeStates.Resurrect(PlayerId, -1, "respawn");
 
         public void Dispose()
@@ -247,7 +345,7 @@ namespace RPGFramework.ActionRpg
 
         private void OnObjectiveProgressed(ObjectiveProgressedEvent progress)
         {
-            if (progress.EntityId != PlayerId)
+            if (progress.EntityId != PlayerId || IsRestoring)
                 return;
             string title = _questRegistry.GetQuest(progress.QuestId)?.Title ?? progress.QuestId;
             Write($"{title}: {progress.CurrentProgress}/{progress.RequiredProgress}");
@@ -258,7 +356,7 @@ namespace RPGFramework.ActionRpg
 
         private void OnQuestCompleted(QuestCompletedEvent completed)
         {
-            if (completed.EntityId != PlayerId)
+            if (completed.EntityId != PlayerId || IsRestoring)
                 return;
             Write($"Quest complete: {_questRegistry.GetQuest(completed.QuestId)?.Title ?? completed.QuestId}");
             if (completed.Rewards == null)
@@ -301,7 +399,7 @@ namespace RPGFramework.ActionRpg
 
         private void OnItemAdded(ItemAddedEvent<IItem> added)
         {
-            if (added.EntityId == PlayerId)
+            if (added.EntityId == PlayerId && !IsRestoring)
                 Write($"+{added.Quantity} {added.Item.Name}");
         }
 

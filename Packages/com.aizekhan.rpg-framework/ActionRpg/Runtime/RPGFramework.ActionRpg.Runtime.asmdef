@@ -18,7 +18,8 @@
         "RPGFramework.Loot.Runtime",
         "RPGFramework.Stats.Runtime",
         "RPGFramework.Integration.CombatQuests.Runtime",
-        "UniTask"
+        "UniTask",
+        "RPGFramework.Persistence.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

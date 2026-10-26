@@ -107,6 +107,56 @@ namespace RPGFramework.ActionRpg.PlayTests
         }
 
         [UnityTest]
+        public IEnumerator SavedProgress_ComesBackNextSession()
+        {
+            Object.Destroy(_host.gameObject);
+            yield return null;
+            _setup.name = "SaveTest_" + Guid.NewGuid().ToString("N");
+
+            var first = StartHost(saving: true);
+            yield return null;
+            Assert.That(first.Saves, Is.Not.Null);
+            var lifeStates = first.Host.Container.Resolve<ILifeStateManager>();
+            for (int i = 0; i < 5; i++)
+                lifeStates.Kill(first.World.SpawnEnemy("goblin"), first.World.PlayerId, "test");
+            int level = first.World.Level;
+            long experience = first.World.TotalExperience;
+            Assume.That(level, Is.GreaterThan(1));
+            string directory = first.SaveDirectory;
+            Object.Destroy(first.gameObject); // quitting saves
+            yield return null;
+
+            try
+            {
+                var second = StartHost(saving: true);
+                _host = second;
+                yield return null;
+                Assert.That(second.World.Level, Is.EqualTo(level));
+                Assert.That(second.World.TotalExperience, Is.EqualTo(experience));
+                Assert.That(second.World.Kills, Is.EqualTo(5));
+            }
+            finally
+            {
+                if (_host != null)
+                    Object.DestroyImmediate(_host.gameObject);
+
+                if (System.IO.Directory.Exists(directory))
+                    System.IO.Directory.Delete(directory, true);
+            }
+        }
+
+        private ActionRpgHost StartHost(bool saving)
+        {
+            var hostObject = new GameObject("Game");
+            hostObject.SetActive(false);
+            var host = hostObject.AddComponent<ActionRpgHost>();
+            host.UseSetup(_setup);
+            host.UseSaving(saving);
+            hostObject.SetActive(true);
+            return host;
+        }
+
+        [UnityTest]
         public IEnumerator BrokenSetup_DoesNotStartAndSaysWhy()
         {
             Object.Destroy(_host.gameObject);

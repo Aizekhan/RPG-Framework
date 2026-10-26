@@ -360,6 +360,7 @@ MonoBehaviour:
   _setup: {fileID: 0}
   _camera: {fileID: 0}
   _showHud: 1
+  _saveProgress: 1
 --- !u!1 &1600000001
 GameObject:
   m_ObjectHideFlags: 0

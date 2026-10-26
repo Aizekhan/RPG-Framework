@@ -25,6 +25,9 @@ Games that reference prefabs directly (prefab catalogs, view configs) never need
 1. **RPG Framework > Game Kit > New Game or Feature...**, type a name, press **New Game**. The scene opens.
 2. Press **Play**. A hero (blue capsule) walks with WASD / left stick and attacks with Space / left click; goblins come
    in waves, drop loot and count for the first quest; the HUD shows health, level, quests, wave and a log.
+   **I** / **Tab** opens the character sheet and backpack. Progress (level, backpack, quests) is saved on level-up,
+   finished quests and quit, and comes back next Play; untick **Save Progress** on the host to start fresh every time,
+   or right-click the host > **Delete Saved Progress**.
 3. Make it yours in the inspector, no code:
    - `Assets/MyGame/Content/MyGameSetup.asset` (**Game Setup**): the player, the enemies, waves, items, loot tables,
      starting quests, inventory size, random seed, camera offset. A box at the top says what is wrong before you press

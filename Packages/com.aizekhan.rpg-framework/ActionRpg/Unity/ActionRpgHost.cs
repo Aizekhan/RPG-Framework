@@ -1,10 +1,13 @@
 using System;
+using System.IO;
 using RPGFramework.Bootstrap.Unity;
 using RPGFramework.Cameras;
 using RPGFramework.Core.Composition;
 using RPGFramework.Events;
 using RPGFramework.Logging;
 using RPGFramework.Presentation;
+using RPGFramework.Progression;
+using RPGFramework.Quests;
 using RPGFramework.Spawning;
 using UnityEngine;
 
@@ -27,9 +30,14 @@ namespace RPGFramework.ActionRpg
 
         [SerializeField] private bool _showHud = true;
 
+        [Tooltip("Keep the player's level, backpack and quests between sessions (saved on level-up, finished quests and quit)")]
+        [SerializeField] private bool _saveProgress;
+
         private ActionRpgModule _module;
         private PrefabSpawner _spawner;
         private ActorPresenter _presenter;
+        private ActionRpgSaves _saves;
+        private readonly SubscriptionBag _saveTriggers = new SubscriptionBag();
 
         public GameSetup Setup => _setup;
 
@@ -44,6 +52,16 @@ namespace RPGFramework.ActionRpg
         public IEntityViewRegistry Views => _presenter?.Views;
 
         /// <summary>
+        /// The player's saved progress (null when 'Save Progress' is off or the game did not start).
+        /// </summary>
+        public ActionRpgSaves Saves => _saves;
+
+        /// <summary>
+        /// Where this game's progress is saved: a folder per Game Setup under the persistent data path.
+        /// </summary>
+        public string SaveDirectory => Path.Combine(Application.persistentDataPath, "Saves", _setup != null ? _setup.name : "Game");
+
+        /// <summary>
         /// Raised when a character's view is in the scene.
         /// </summary>
         public event Action<int, GameObject> ViewShown;
@@ -52,6 +70,11 @@ namespace RPGFramework.ActionRpg
         /// Sets the setup before the host starts (tests, code-built scenes). Call on an inactive GameObject.
         /// </summary>
         public void UseSetup(GameSetup setup) => _setup = setup;
+
+        /// <summary>
+        /// Turns progress saving on or off before the host starts. Call on an inactive GameObject.
+        /// </summary>
+        public void UseSaving(bool saveProgress) => _saveProgress = saveProgress;
 
         protected sealed override void ConfigureModules(IGameCompositionBuilder builder)
         {
@@ -85,6 +108,9 @@ namespace RPGFramework.ActionRpg
             if (World == null)
                 return; // the start failed and was logged
 
+            if (_saveProgress)
+                StartSaving();
+
             var root = new GameObject("Characters").transform;
             root.SetParent(transform, false);
 
@@ -96,6 +122,40 @@ namespace RPGFramework.ActionRpg
 
             if (_showHud)
                 gameObject.AddComponent<ActionRpgHud>().Bind(World);
+        }
+
+        private void StartSaving()
+        {
+            _saves = new ActionRpgSaves(World, SaveDirectory, Application.version);
+            string error = _saves.Load();
+            if (error != null)
+                Host.Logger.LogError($"Saved progress could not be loaded: {error}", Category);
+
+            var bus = Host.Container.Resolve<IEventBus>();
+            bus.Subscribe<LevelUpEvent>(_ => SaveProgress()).AddTo(_saveTriggers);
+            bus.Subscribe<QuestCompletedEvent>(_ => SaveProgress()).AddTo(_saveTriggers);
+        }
+
+        /// <summary>
+        /// Saves now (does nothing when 'Save Progress' is off). Returns false and logs when the save failed.
+        /// </summary>
+        public bool SaveProgress()
+        {
+            if (_saves == null || World == null || World.IsRestoring)
+                return false;
+            string error = _saves.Save();
+            if (error == null)
+                return true;
+            Host.Logger.LogError($"Progress was not saved: {error}", Category);
+            return false;
+        }
+
+        [ContextMenu("Delete Saved Progress")]
+        private void DeleteSavedProgress()
+        {
+            if (Directory.Exists(SaveDirectory))
+                Directory.Delete(SaveDirectory, true);
+            Debug.Log($"Saved progress deleted: {SaveDirectory}", this);
         }
 
         private void OnViewShown(int entityId, GameObject view)
@@ -129,7 +189,9 @@ namespace RPGFramework.ActionRpg
 
         protected override void OnDestroy()
         {
-            // Views first: they read the world, which the host shuts down
+            // Save and drop views first: they read the world, which the host shuts down
+            SaveProgress();
+            _saveTriggers.Dispose();
             _presenter?.Dispose();
             _spawner?.Dispose();
             base.OnDestroy();

@@ -120,10 +120,14 @@ namespace RPGFramework.Persistence
         }
 
         /// <summary>
-        /// Writes through a temporary file, so a crash mid-write leaves the previous save intact.
+        /// Writes through a temporary file, so a crash mid-write leaves the previous save intact. Recreates the save
+        /// folder if it was deleted while the game ran.
         /// </summary>
         public void WriteSaveFile(string filePath, byte[] data)
         {
+            var directory = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrEmpty(directory))
+                Directory.CreateDirectory(directory);
             var tempPath = filePath + ".tmp";
             File.WriteAllBytes(tempPath, data);
             if (File.Exists(filePath))

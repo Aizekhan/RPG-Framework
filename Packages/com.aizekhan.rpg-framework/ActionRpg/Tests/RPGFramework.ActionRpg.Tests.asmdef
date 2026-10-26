@@ -24,7 +24,8 @@
         "RPGFramework.Tools.QuestEditor.Runtime",
         "UniTask",
         "UnityEngine.TestRunner",
-        "UnityEditor.TestRunner"
+        "UnityEditor.TestRunner",
+        "RPGFramework.Persistence.Runtime"
     ],
     "includePlatforms": [
         "Editor"

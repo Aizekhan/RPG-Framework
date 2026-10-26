@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- `ActionRpg`: the player's progress is saved between sessions (level, experience, kills, backpack, quest progress, finished quests; rewards are not paid twice on load). `ActionRpgSaves` over the framework's `SaveGameCoordinator`; `ActionRpgHost` **Save Progress** (on in new games) saves on level-up, finished quests and quit, with a **Delete Saved Progress** context menu
+- `Persistence`: writing a save recreates the save folder if it was deleted while the game ran
 - `ActionRpg`: character and backpack panel in the HUD (I / Tab / gamepad Select); `ActorKilledEvent`, public `ActorWorld.GiveItem`, `Announce` and `ExperienceForNextLevel` for game rules
 - Editor menus are all under **RPG Framework** (the tool windows moved from Tools > RPG Framework to RPG Framework > Tools)
 - Install: the package depends on `com.unity.test-framework` and `com.unity.inputsystem`, and `GameKit.TestSupport` compiles without the package being testable, so a new game's tests build in a fresh project (verified: empty Unity 6 project + UniTask + this package, New Game, 14/14 tests, Play)
