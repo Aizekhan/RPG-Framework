@@ -1,11 +1,12 @@
 using System;
+using RPGFramework.Events;
 
 namespace RPGFramework.Guilds.Runtime
 {
     /// <summary>
     /// Event raised when a guild is disbanded.
     /// </summary>
-    public class GuildDisbandedEvent
+    public class GuildDisbandedEvent : IEvent
     {
         /// <summary>
         /// Guild ID that was disbanded.

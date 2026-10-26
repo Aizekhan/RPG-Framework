@@ -1,11 +1,12 @@
 using System;
+using RPGFramework.Events;
 
 namespace RPGFramework.Guilds.Runtime
 {
     /// <summary>
     /// Event raised when a new guild is created.
     /// </summary>
-    public class GuildCreatedEvent
+    public class GuildCreatedEvent : IEvent
     {
         /// <summary>
         /// Guild that was created.

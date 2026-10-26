@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using RPGFramework.ECS;
+using RPGFramework.Events;
 using RPGFramework.Factions;
 
 namespace RPGFramework.Guilds.Runtime
@@ -9,6 +10,8 @@ namespace RPGFramework.Guilds.Runtime
     /// <summary>
     /// Concrete implementation of IGuildManager.
     /// Manages guild lifecycle, membership, and operations.
+    /// With an event publisher, raises GuildCreated/GuildDisbanded and the member joined/left/promoted/demoted events
+    /// (actor ids are 0: the manager does not know who requested the change).
     /// </summary>
     public class GuildManager : IGuildManager
     {
@@ -16,12 +19,15 @@ namespace RPGFramework.Guilds.Runtime
         private readonly IEntityManager _entityManager;
         private readonly IFactionRegistry _factionRegistry;
         private readonly Dictionary<int, string> _entityToGuildMap; // entityId -> guildId
+        private readonly IEventPublisher _events;
 
         /// <summary>
         /// Create a new guild manager.
         /// </summary>
-        public GuildManager(IEntityManager entityManager, IFactionRegistry factionRegistry, IGuildRegistry registry)
+        public GuildManager(IEntityManager entityManager, IFactionRegistry factionRegistry, IGuildRegistry registry,
+            IEventPublisher events = null)
         {
+            _events = events;
             _entityManager = entityManager ?? throw new ArgumentNullException(nameof(entityManager));
             _factionRegistry = factionRegistry ?? throw new ArgumentNullException(nameof(factionRegistry));
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
@@ -57,6 +63,7 @@ namespace RPGFramework.Guilds.Runtime
             _entityManager.AddComponent(leaderId, leaderData);
             _entityToGuildMap[leaderId] = guildId;
 
+            _events?.Publish(new GuildCreatedEvent(guild, leaderId));
             return guild;
         }
 
@@ -75,6 +82,8 @@ namespace RPGFramework.Guilds.Runtime
 
             // Unregister guild
             _registry.UnregisterGuild(guildId);
+
+            _events?.Publish(new GuildDisbandedEvent(guildId, guild.Name, 0));
         }
 
         public IGuild GetGuild(string guildId)
@@ -135,6 +144,7 @@ namespace RPGFramework.Guilds.Runtime
             _entityManager.AddComponent(entityId, memberData);
             _entityToGuildMap[entityId] = guildId;
 
+            _events?.Publish(new MemberJoinedEvent(guildId, entityId, rank));
             return true;
         }
 
@@ -151,15 +161,19 @@ namespace RPGFramework.Guilds.Runtime
             if (guild.LeaderId == entityId && guild.MemberCount > 1)
                 return false;
 
+            var lastRank = guild.GetMember(entityId).Rank;
+
             // Remove from guild
             ((Guild)guild).RemoveMemberInternal(entityId);
 
             ClearMembership(entityId);
+            _events?.Publish(new MemberLeftEvent(guildId, entityId, lastRank, wasKicked: false));
 
             // If this was the last member, disband the guild
             if (guild.MemberCount == 0)
             {
                 _registry.UnregisterGuild(guildId);
+                _events?.Publish(new GuildDisbandedEvent(guildId, guild.Name, entityId, "last member left"));
             }
 
             return true;
@@ -178,6 +192,8 @@ namespace RPGFramework.Guilds.Runtime
             if (newRank <= member.Rank)
                 return false; // Not a promotion
 
+            var oldRank = member.Rank;
+
             // Update member rank
             ((GuildMember)member).SetRank(newRank);
 
@@ -185,6 +201,7 @@ namespace RPGFramework.Guilds.Runtime
             var data = ((GuildMember)member).GetData();
             _entityManager.AddComponent(entityId, data);
 
+            _events?.Publish(new MemberPromotedEvent(guildId, entityId, oldRank, newRank, 0));
             return true;
         }
 
@@ -205,6 +222,8 @@ namespace RPGFramework.Guilds.Runtime
             if (member.Rank == GuildRankType.Leader)
                 return false;
 
+            var oldRank = member.Rank;
+
             // Update member rank
             ((GuildMember)member).SetRank(newRank);
 
@@ -212,6 +231,7 @@ namespace RPGFramework.Guilds.Runtime
             var data = ((GuildMember)member).GetData();
             _entityManager.AddComponent(entityId, data);
 
+            _events?.Publish(new MemberDemotedEvent(guildId, entityId, oldRank, newRank, 0));
             return true;
         }
 

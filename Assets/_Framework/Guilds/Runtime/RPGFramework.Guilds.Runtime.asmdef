@@ -3,7 +3,9 @@
     "rootNamespace": "RPGFramework.Guilds.Runtime",
     "references": [
         "RPGFramework.ECS.Runtime",
-        "RPGFramework.Factions.Runtime"
+        "RPGFramework.Factions.Runtime",
+        "RPGFramework.Events.Runtime",
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -13,5 +15,5 @@
     "autoReferenced": true,
     "defineConstraints": [],
     "versionDefines": [],
-    "noEngineReferences": true
+    "noEngineReferences": false
 }

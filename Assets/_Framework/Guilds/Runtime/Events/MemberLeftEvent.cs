@@ -1,11 +1,12 @@
 using System;
+using RPGFramework.Events;
 
 namespace RPGFramework.Guilds.Runtime
 {
     /// <summary>
     /// Event raised when a member leaves or is removed from a guild.
     /// </summary>
-    public class MemberLeftEvent
+    public class MemberLeftEvent : IEvent
     {
         /// <summary>
         /// Guild the member left.

@@ -1,11 +1,12 @@
 using System;
+using RPGFramework.Events;
 
 namespace RPGFramework.Guilds.Runtime
 {
     /// <summary>
     /// Event raised when a guild member is demoted to a lower rank.
     /// </summary>
-    public class MemberDemotedEvent
+    public class MemberDemotedEvent : IEvent
     {
         /// <summary>
         /// Guild ID.

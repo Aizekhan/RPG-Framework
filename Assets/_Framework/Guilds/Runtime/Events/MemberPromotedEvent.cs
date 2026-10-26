@@ -1,11 +1,12 @@
 using System;
+using RPGFramework.Events;
 
 namespace RPGFramework.Guilds.Runtime
 {
     /// <summary>
     /// Event raised when a guild member is promoted to a higher rank.
     /// </summary>
-    public class MemberPromotedEvent
+    public class MemberPromotedEvent : IEvent
     {
         /// <summary>
         /// Guild ID.

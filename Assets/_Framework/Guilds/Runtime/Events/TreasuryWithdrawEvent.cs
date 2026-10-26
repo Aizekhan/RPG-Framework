@@ -1,11 +1,12 @@
 using System;
+using RPGFramework.Events;
 
 namespace RPGFramework.Guilds.Runtime
 {
     /// <summary>
     /// Event raised when resources are withdrawn from the guild treasury.
     /// </summary>
-    public class TreasuryWithdrawEvent
+    public class TreasuryWithdrawEvent : IEvent
     {
         /// <summary>
         /// Guild ID.

@@ -1,11 +1,12 @@
 using System;
+using RPGFramework.Events;
 
 namespace RPGFramework.Guilds.Runtime
 {
     /// <summary>
     /// Event raised when a new member joins a guild.
     /// </summary>
-    public class MemberJoinedEvent
+    public class MemberJoinedEvent : IEvent
     {
         /// <summary>
         /// Guild the member joined.

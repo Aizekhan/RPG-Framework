@@ -1,11 +1,12 @@
 using System;
+using RPGFramework.Events;
 
 namespace RPGFramework.Guilds.Runtime
 {
     /// <summary>
     /// Event raised when resources are deposited into the guild treasury.
     /// </summary>
-    public class TreasuryDepositEvent
+    public class TreasuryDepositEvent : IEvent
     {
         /// <summary>
         /// Guild ID.
