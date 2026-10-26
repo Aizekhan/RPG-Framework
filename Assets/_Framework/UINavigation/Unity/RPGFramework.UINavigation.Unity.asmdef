@@ -1,0 +1,19 @@
+{
+    "name": "RPGFramework.UINavigation.Unity",
+    "rootNamespace": "RPGFramework.UINavigation.Unity",
+    "references": [
+        "RPGFramework.UINavigation.Runtime",
+        "RPGFramework.AssetManagement.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "UniTask"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,0 +1,30 @@
+{
+    "name": "RPGFramework.UINavigation.Tests",
+    "rootNamespace": "RPGFramework.UINavigation.Tests",
+    "references": [
+        "RPGFramework.UINavigation.Runtime",
+        "RPGFramework.UINavigation.Unity",
+        "RPGFramework.AssetManagement.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "RPGFramework.Scenes.Runtime",
+        "UniTask",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
