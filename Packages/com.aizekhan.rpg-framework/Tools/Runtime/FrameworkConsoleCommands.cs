@@ -38,7 +38,7 @@ namespace RPGFramework.Tools
 
         void Update()
         {
-            if (Input.GetKeyDown(_toggleKey))
+            if (ToolKeys.WasPressed(_toggleKey))
             {
                 _isVisible = !_isVisible;
             }
@@ -46,17 +46,17 @@ namespace RPGFramework.Tools
             if (!_isVisible) return;
 
             // Command history navigation
-            if (Input.GetKeyDown(KeyCode.UpArrow) && _commandHistory.Count > 0)
+            if (ToolKeys.WasPressed(KeyCode.UpArrow) && _commandHistory.Count > 0)
             {
                 _historyIndex = Math.Min(_historyIndex + 1, _commandHistory.Count - 1);
                 _inputText = _commandHistory[_commandHistory.Count - 1 - _historyIndex];
             }
-            else if (Input.GetKeyDown(KeyCode.DownArrow) && _historyIndex > 0)
+            else if (ToolKeys.WasPressed(KeyCode.DownArrow) && _historyIndex > 0)
             {
                 _historyIndex--;
                 _inputText = _commandHistory[_commandHistory.Count - 1 - _historyIndex];
             }
-            else if (Input.GetKeyDown(KeyCode.DownArrow) && _historyIndex == 0)
+            else if (ToolKeys.WasPressed(KeyCode.DownArrow) && _historyIndex == 0)
             {
                 _historyIndex = -1;
                 _inputText = "";

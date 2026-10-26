@@ -53,6 +53,12 @@ namespace RPGFramework.Tools.ItemDatabaseManager
         public ItemStatModifierEntry[] statModifiers = new ItemStatModifierEntry[0];
 
         [Header("Consumable Properties")]
+        [Tooltip("What using it does: the effect id your game's effect system knows (for Consumable type)")]
+        public string effectId = "default_effect";
+
+        [Tooltip("How strong the effect is, e.g. health restored (for Consumable type)")]
+        public float effectMagnitude = 10f;
+
         [Tooltip("Use duration in seconds (for Consumable type)")]
         [Min(0f)]
         public float useDuration = 0f;
@@ -65,7 +71,9 @@ namespace RPGFramework.Tools.ItemDatabaseManager
         public bool consumeOnUse = true;
 
         /// <summary>
-        /// Converts to Framework IItem implementation.
+        /// Converts to Framework IItem implementation: a consumable becomes an <see cref="IConsumable"/>; equipment
+        /// becomes an unstackable item, and its slot and stat modifiers stay on the asset (<see cref="equipmentSlot"/>,
+        /// <see cref="statModifiers"/>) for the game, which owns its slot and stat types.
         /// </summary>
         public IItem ToItem()
         {
@@ -115,8 +123,8 @@ namespace RPGFramework.Tools.ItemDatabaseManager
                 itemId: itemId,
                 name: itemName,
                 description: description,
-                effectId: "default_effect", // Tools module uses placeholder
-                effectMagnitude: 10f,
+                effectId: effectId,
+                effectMagnitude: effectMagnitude,
                 rarity: rarity,
                 quality: quality,
                 maxStackSize: maxStackSize,

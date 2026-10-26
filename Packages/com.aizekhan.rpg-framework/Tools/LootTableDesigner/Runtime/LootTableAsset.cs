@@ -48,7 +48,7 @@ namespace RPGFramework.Tools.LootTableDesigner
         public ILootTable ToLootTable()
         {
             var lootEntries = entries?
-                .Where(e => e != null && !string.IsNullOrWhiteSpace(e.itemId))
+                .Where(IsRolled)
                 .Select(e => e.ToLootEntry())
                 .ToList() ?? new List<ILootEntry>();
 
@@ -106,6 +106,9 @@ namespace RPGFramework.Tools.LootTableDesigner
 
                     if (entry.minLevel < 0)
                         errors.Add($"Entry {i} ({entry.itemId}): Min level cannot be negative");
+
+                    if (entry.maxLevel != -1 && entry.maxLevel < entry.minLevel)
+                        errors.Add($"Entry {i} ({entry.itemId}): Max level ({entry.maxLevel}) is below min level ({entry.minLevel}), so it never drops (-1 = no maximum)");
                 }
 
                 // Check for duplicate item IDs
@@ -142,12 +145,15 @@ namespace RPGFramework.Tools.LootTableDesigner
         }
 
         /// <summary>
-        /// Calculates total weight for drop rate percentages.
+        /// Calculates total weight for drop rate percentages: only the entries the game rolls (with an item id), so
+        /// the percentages shown are the ones players get.
         /// </summary>
         public int GetTotalWeight()
         {
-            return entries?.Sum(e => e?.weight ?? 0) ?? 0;
+            return entries?.Where(IsRolled).Sum(e => e.weight) ?? 0;
         }
+
+        private static bool IsRolled(LootEntryData entry) => entry != null && !string.IsNullOrWhiteSpace(entry.itemId);
 
         /// <summary>
         /// Gets drop rate percentage for a specific entry.
@@ -155,7 +161,7 @@ namespace RPGFramework.Tools.LootTableDesigner
         public float GetDropRatePercentage(LootEntryData entry)
         {
             var totalWeight = GetTotalWeight();
-            if (totalWeight == 0) return 0f;
+            if (totalWeight == 0 || !IsRolled(entry)) return 0f;
             return (entry.weight / (float)totalWeight) * 100f;
         }
 

@@ -43,7 +43,7 @@ namespace RPGFramework.Tools
 
         void Update()
         {
-            if (Input.GetKeyDown(_toggleKey))
+            if (ToolKeys.WasPressed(_toggleKey))
             {
                 _isVisible = !_isVisible;
             }

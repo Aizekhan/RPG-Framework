@@ -54,7 +54,7 @@ namespace RPGFramework.Tools
         {
             if (!_enabled) return;
 
-            if (Input.GetKeyDown(_toggleDisplayKey))
+            if (ToolKeys.WasPressed(_toggleDisplayKey))
             {
                 _isVisible = !_isVisible;
             }

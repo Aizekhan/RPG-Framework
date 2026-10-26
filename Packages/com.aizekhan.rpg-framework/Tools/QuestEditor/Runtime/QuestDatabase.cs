@@ -138,10 +138,11 @@ namespace RPGFramework.Tools.QuestEditor
                 }
             }
 
-            // Check for circular dependencies
+            // Check for circular dependencies (a quest whose prerequisites lead into a loop can never be started)
+            var reachesLoop = new Dictionary<QuestAsset, bool>();
             foreach (var quest in quests.Where(q => q != null))
             {
-                if (HasCircularDependency(quest, new HashSet<QuestAsset>()))
+                if (ReachesLoop(quest, reachesLoop, new HashSet<QuestAsset>()))
                 {
                     errors.Add($"Circular dependency detected for quest: {quest.questId}");
                 }
@@ -151,27 +152,32 @@ namespace RPGFramework.Tools.QuestEditor
         }
 
         /// <summary>
-        /// Check for circular prerequisite dependencies.
+        /// Whether following the quest's prerequisites leads into a loop. Each quest is walked once (results are kept in
+        /// <paramref name="known"/>), so long branching chains are checked quickly.
         /// </summary>
-        private bool HasCircularDependency(QuestAsset quest, HashSet<QuestAsset> visited)
+        private static bool ReachesLoop(QuestAsset quest, Dictionary<QuestAsset, bool> known, HashSet<QuestAsset> onPath)
         {
-            if (visited.Contains(quest))
+            if (known.TryGetValue(quest, out var result))
+                return result;
+            if (!onPath.Add(quest))
                 return true;
 
-            visited.Add(quest);
-
+            result = false;
             if (quest.prerequisiteQuests != null)
             {
                 foreach (var prereq in quest.prerequisiteQuests)
                 {
-                    if (prereq != null && HasCircularDependency(prereq, new HashSet<QuestAsset>(visited)))
+                    if (prereq != null && ReachesLoop(prereq, known, onPath))
                     {
-                        return true;
+                        result = true;
+                        break;
                     }
                 }
             }
 
-            return false;
+            onPath.Remove(quest);
+            known[quest] = result;
+            return result;
         }
 
         /// <summary>

@@ -1,3 +1,4 @@
+using System.Linq;
 using UnityEngine;
 using RPGFramework.Quests;
 
@@ -41,32 +42,27 @@ namespace RPGFramework.Tools.QuestEditor
         public QuestRewardEntry[] rewards = new QuestRewardEntry[1];
 
         /// <summary>
-        /// Convert this ScriptableObject to Framework QuestData struct.
+        /// Convert this ScriptableObject to Framework QuestData struct. Empty objective, reward and prerequisite slots
+        /// are left out.
         /// </summary>
         public QuestData ToQuestData()
         {
-            // Convert prerequisite assets to IDs
-            string[] prerequisiteIds = new string[prerequisiteQuests?.Length ?? 0];
-            for (int i = 0; i < prerequisiteIds.Length; i++)
-            {
-                prerequisiteIds[i] = prerequisiteQuests[i] != null
-                    ? prerequisiteQuests[i].questId
-                    : "";
-            }
+            // Empty slots (added in the inspector and not filled yet, or never filled in an asset made in code) are
+            // skipped: an empty prerequisite would otherwise lock the quest forever
+            string[] prerequisiteIds = (prerequisiteQuests ?? System.Array.Empty<QuestAsset>())
+                .Where(p => p != null)
+                .Select(p => p.questId)
+                .ToArray();
 
-            // Convert objectives
-            QuestObjectiveData[] objectiveData = new QuestObjectiveData[objectives?.Length ?? 0];
-            for (int i = 0; i < objectiveData.Length; i++)
-            {
-                objectiveData[i] = objectives[i].ToObjectiveData();
-            }
+            QuestObjectiveData[] objectiveData = (objectives ?? System.Array.Empty<QuestObjectiveEntry>())
+                .Where(o => o != null)
+                .Select(o => o.ToObjectiveData())
+                .ToArray();
 
-            // Convert rewards
-            QuestRewardData[] rewardData = new QuestRewardData[rewards?.Length ?? 0];
-            for (int i = 0; i < rewardData.Length; i++)
-            {
-                rewardData[i] = rewards[i].ToRewardData();
-            }
+            QuestRewardData[] rewardData = (rewards ?? System.Array.Empty<QuestRewardEntry>())
+                .Where(r => r != null)
+                .Select(r => r.ToRewardData())
+                .ToArray();
 
             return new QuestData
             {

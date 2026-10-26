@@ -6,12 +6,22 @@ using RPGFramework.Serialization;
 namespace RPGFramework.DeltaCompression
 {
     /// <summary>
-    /// Stateless delta compression serializer.
-    /// Caller manages last-known-state via entityId.
+    /// Delta compression serializer: after the first full state, sends only the byte runs that changed.
+    /// The sender and the receiver each keep the last state per entityId.
+    /// A delta names the state it was built on (its length and checksum); a receiver whose state differs (a packet
+    /// was lost) refuses it with <see cref="InvalidOperationException"/>, and the sender calls <see cref="ClearState"/>
+    /// so its next packet is a full state. Send over a reliable, ordered channel and resync on refusal.
+    /// Broken packets are refused with <see cref="InvalidDataException"/> and leave the receiver's state as it was.
     /// Framework implementation - no game/network dependencies.
     /// </summary>
     public class DeltaSerializer : IDeltaSerializer
     {
+        private const byte FullStateKind = 1;
+        private const byte DeltaKind = 0;
+
+        // Unchanged bytes between two changes are sent inside one run when that is cheaper than a new run header
+        private const int RunHeaderSize = 8;
+
         private readonly Dictionary<int, byte[]> _lastState = new Dictionary<int, byte[]>();
         private readonly object _lock = new object();
         private readonly float _deltaThreshold;
@@ -33,7 +43,7 @@ namespace RPGFramework.DeltaCompression
             if (currentState == null)
                 throw new ArgumentNullException(nameof(currentState));
 
-            var fullState = currentState.Serialize();
+            var fullState = currentState.Serialize() ?? Array.Empty<byte>();
 
             lock (_lock)
             {
@@ -51,7 +61,8 @@ namespace RPGFramework.DeltaCompression
                 _lastState[entityId] = fullState;
 
                 // Use delta only if it's smaller than threshold
-                return delta.Length < fullState.Length * _deltaThreshold
+                var fullPacketSize = fullState.Length + 5;
+                return delta.Length < fullPacketSize * _deltaThreshold
                     ? delta
                     : CreateFullStatePacket(fullState);
             }
@@ -62,63 +73,37 @@ namespace RPGFramework.DeltaCompression
             if (delta == null)
                 throw new ArgumentNullException(nameof(delta));
 
-            using (var stream = new MemoryStream(delta))
-            using (var reader = new BinaryReader(stream))
+            byte[] newState;
+            try
             {
-                var isFullState = reader.ReadBoolean();
-
-                if (isFullState)
+                using (var stream = new MemoryStream(delta))
+                using (var reader = new BinaryReader(stream))
                 {
-                    // Full state packet
-                    var length = reader.ReadInt32();
-                    var fullState = reader.ReadBytes(length);
+                    var kind = reader.ReadByte();
+                    if (kind == FullStateKind)
+                        newState = ReadBytes(reader, reader.ReadInt32(), "full state");
+                    else if (kind == DeltaKind)
+                        newState = ReadDelta(entityId, reader);
+                    else
+                        throw new InvalidDataException($"Not a delta packet (kind {kind})");
 
-                    lock (_lock)
-                    {
-                        _lastState[entityId] = fullState;
-                    }
-
-                    var result = new T();
-                    result.Deserialize(fullState);
-                    return result;
-                }
-                else
-                {
-                    // Delta packet
-                    byte[] baseState;
-                    lock (_lock)
-                    {
-                        if (!_lastState.TryGetValue(entityId, out baseState))
-                        {
-                            throw new InvalidOperationException(
-                                $"Cannot apply delta: no base state for entity {entityId}");
-                        }
-                    }
-
-                    // Read and apply changes
-                    var changeCount = reader.ReadInt32();
-                    var newState = new byte[baseState.Length];
-                    Array.Copy(baseState, newState, baseState.Length);
-
-                    for (int i = 0; i < changeCount; i++)
-                    {
-                        var offset = reader.ReadInt32();
-                        var value = reader.ReadByte();
-
-                        if (offset < newState.Length)
-                            newState[offset] = value;
-                    }
-
-                    lock (_lock)
-                    {
-                        _lastState[entityId] = newState;
-                    }
-
-                    var result = new T();
-                    result.Deserialize(newState);
-                    return result;
+                    if (stream.Position != stream.Length)
+                        throw new InvalidDataException("Delta packet has bytes after its end");
                 }
             }
+            catch (EndOfStreamException)
+            {
+                throw new InvalidDataException("Delta packet is cut short");
+            }
+
+            lock (_lock)
+            {
+                _lastState[entityId] = newState;
+            }
+
+            var result = new T();
+            result.Deserialize(newState);
+            return result;
         }
 
         public void ClearState(int entityId)
@@ -137,16 +122,71 @@ namespace RPGFramework.DeltaCompression
             }
         }
 
+        private byte[] ReadDelta(int entityId, BinaryReader reader)
+        {
+            byte[] baseState;
+            lock (_lock)
+            {
+                if (!_lastState.TryGetValue(entityId, out baseState))
+                {
+                    throw new InvalidOperationException(
+                        $"Cannot apply delta: no base state for entity {entityId}; the sender must send a full state (ClearState)");
+                }
+            }
+
+            var baseLength = reader.ReadInt32();
+            var baseChecksum = reader.ReadUInt32();
+            var newLength = reader.ReadInt32();
+            var runCount = reader.ReadInt32();
+            if (newLength < 0 || runCount < 0)
+                throw new InvalidDataException("Delta packet has a negative length");
+
+            if (baseLength != baseState.Length || baseChecksum != Checksum(baseState))
+            {
+                throw new InvalidOperationException(
+                    $"Cannot apply delta: it was built on a state entity {entityId} never received (a lost packet); the sender must send a full state (ClearState)");
+            }
+
+            var remaining = reader.BaseStream.Length - reader.BaseStream.Position;
+            if (newLength > baseLength + remaining)
+                throw new InvalidDataException("Delta packet claims more new bytes than it carries");
+
+            var newState = new byte[newLength];
+            Array.Copy(baseState, newState, Math.Min(baseLength, newLength));
+
+            var end = -1;
+            for (int i = 0; i < runCount; i++)
+            {
+                var offset = reader.ReadInt32();
+                var length = reader.ReadInt32();
+                if (offset <= end || length <= 0 || offset > newLength - length)
+                    throw new InvalidDataException($"Delta packet has a change outside the state ({offset}+{length} of {newLength})");
+
+                var bytes = ReadBytes(reader, length, "change");
+                Array.Copy(bytes, 0, newState, offset, length);
+                end = offset + length - 1;
+            }
+
+            return newState;
+        }
+
+        private static byte[] ReadBytes(BinaryReader reader, int length, string what)
+        {
+            if (length < 0 || length > reader.BaseStream.Length - reader.BaseStream.Position)
+                throw new InvalidDataException($"Delta packet is cut short ({what})");
+            return reader.ReadBytes(length);
+        }
+
         /// <summary>
         /// Creates a full state packet.
-        /// Wire format: [IsFullState=true (bool)] [Length (int32)] [FullState (byte[])]
+        /// Wire format: [Kind=1 (byte)] [Length (int32)] [FullState (byte[])]
         /// </summary>
         private byte[] CreateFullStatePacket(byte[] state)
         {
-            using (var stream = new MemoryStream())
+            using (var stream = new MemoryStream(state.Length + 5))
             using (var writer = new BinaryWriter(stream))
             {
-                writer.Write(true); // isFullState
+                writer.Write(FullStateKind);
                 writer.Write(state.Length);
                 writer.Write(state);
                 return stream.ToArray();
@@ -155,43 +195,66 @@ namespace RPGFramework.DeltaCompression
 
         /// <summary>
         /// Creates a delta packet.
-        /// Wire format: [IsFullState=false (bool)] [ChangeCount (int32)] [Offset (int32), Value (byte)]...
+        /// Wire format: [Kind=0 (byte)] [BaseLength (int32)] [BaseChecksum (uint32)] [NewLength (int32)] [RunCount (int32)]
+        /// then per run: [Offset (int32)] [Length (int32)] [Bytes (byte[])]. Bytes past the new length are dropped.
         /// </summary>
         private byte[] CreateStateDelta(byte[] oldState, byte[] newState)
         {
-            var changes = new List<KeyValuePair<int, byte>>();
-
-            // Find byte-level differences
-            var minLength = Math.Min(oldState.Length, newState.Length);
-            for (int i = 0; i < minLength; i++)
+            var runs = new List<(int Offset, int Length)>();
+            int i = 0;
+            while (i < newState.Length)
             {
-                if (oldState[i] != newState[i])
+                if (i < oldState.Length && oldState[i] == newState[i])
                 {
-                    changes.Add(new KeyValuePair<int, byte>(i, newState[i]));
+                    i++;
+                    continue;
                 }
+
+                // A run starts at the first changed byte and ends where enough unchanged bytes follow
+                int start = i;
+                int last = i;
+                for (i++; i < newState.Length; i++)
+                {
+                    bool changed = i >= oldState.Length || oldState[i] != newState[i];
+                    if (changed)
+                        last = i;
+                    else if (i - last > RunHeaderSize)
+                        break;
+                }
+                runs.Add((start, last - start + 1));
+                i = last + 1;
             }
 
-            // If new state is longer, add new bytes
-            for (int i = minLength; i < newState.Length; i++)
-            {
-                changes.Add(new KeyValuePair<int, byte>(i, newState[i]));
-            }
-
-            // Create delta packet
             using (var stream = new MemoryStream())
             using (var writer = new BinaryWriter(stream))
             {
-                writer.Write(false); // isFullState
-                writer.Write(changes.Count);
+                writer.Write(DeltaKind);
+                writer.Write(oldState.Length);
+                writer.Write(Checksum(oldState));
+                writer.Write(newState.Length);
+                writer.Write(runs.Count);
 
-                foreach (var change in changes)
+                foreach (var run in runs)
                 {
-                    writer.Write(change.Key);   // offset
-                    writer.Write(change.Value); // value
+                    writer.Write(run.Offset);
+                    writer.Write(run.Length);
+                    writer.Write(newState, run.Offset, run.Length);
                 }
 
                 return stream.ToArray();
             }
+        }
+
+        // FNV-1a: enough to tell two states apart, not a security check
+        private static uint Checksum(byte[] data)
+        {
+            uint hash = 2166136261;
+            for (int i = 0; i < data.Length; i++)
+            {
+                hash ^= data[i];
+                hash *= 16777619;
+            }
+            return hash;
         }
     }
 }
