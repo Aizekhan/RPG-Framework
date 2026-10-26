@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using RPGFramework.ActionRpg.Coop;
@@ -15,7 +16,9 @@ namespace RPGFramework.ActionRpg.Tests
     /// <summary>
     /// Co-op over an in-memory network: a friend joins and sees the whole world, their attacks go to the host which
     /// decides, hits, deaths and the party's progress reach them, movement goes both ways, leaving and a host going
-    /// away are handled, and a different game version or a full party is refused with a reason.
+    /// away are handled, and a different game version or a full party is refused with a reason. A lost link (silence,
+    /// as when a cable is pulled) is noticed on both sides; the host keeps the lost player's seat for a while and they
+    /// come back as themselves; broken or hostile messages do not break the game.
     /// </summary>
     public sealed class CoopTests
     {
@@ -44,6 +47,7 @@ namespace RPGFramework.ActionRpg.Tests
             public EventBus Bus;
             public Motion Motion;
             public NetworkManager Network;
+            public LoopbackTransport Transport;
             public readonly List<ActorSpawnedEvent> Spawned = new List<ActorSpawnedEvent>();
             public readonly List<ActorDespawnedEvent> Despawned = new List<ActorDespawnedEvent>();
             public readonly List<ActorDamagedEvent> Damaged = new List<ActorDamagedEvent>();
@@ -56,6 +60,7 @@ namespace RPGFramework.ActionRpg.Tests
         private ActionRpgModule _module;
         private CoopHost _host;
         private Motion _hostMotion;
+        private LoopbackTransport _hostTransport;
         private readonly List<Guest> _guests = new List<Guest>();
 
         private ActorWorld World => _module.World;
@@ -102,7 +107,8 @@ namespace RPGFramework.ActionRpg.Tests
             var content = Content();
             _game.Start(builder => _module = ActionRpgComposition.Configure(builder, settings, content));
             _hostMotion = new Motion();
-            _host = new CoopHost(World, _game.Container.Resolve<IEventBus>(), CoopProtocol.CreateNetwork(_network.CreateTransport()),
+            _hostTransport = _network.CreateTransport();
+            _host = new CoopHost(World, _game.Container.Resolve<IEventBus>(), CoopProtocol.CreateNetwork(_hostTransport),
                 _hostMotion, CoopProtocol.Fingerprint(settings, content));
             _host.Open(Port);
         }
@@ -118,21 +124,35 @@ namespace RPGFramework.ActionRpg.Tests
             _logger.Dispose();
         }
 
-        private Guest Join(ActionRpgSettings settings = null, string name = "")
+        private Guest Join(ActionRpgSettings settings = null, string name = "", string rejoinToken = "")
         {
             var guest = new Guest { Bus = new EventBus(), Motion = new Motion() };
             guest.Bus.Subscribe<ActorSpawnedEvent>(guest.Spawned.Add);
             guest.Bus.Subscribe<ActorDespawnedEvent>(guest.Despawned.Add);
             guest.Bus.Subscribe<ActorDamagedEvent>(guest.Damaged.Add);
-            guest.Network = CoopProtocol.CreateNetwork(_network.CreateTransport());
+            guest.Transport = _network.CreateTransport();
+            guest.Network = CoopProtocol.CreateNetwork(guest.Transport);
             guest.Client = new CoopClient(settings ?? Settings(), Content(), guest.Bus, guest.Network, guest.Motion)
             {
-                PlayerName = name
+                PlayerName = name, RejoinToken = rejoinToken
             };
             _guests.Add(guest);
             guest.Client.Join("127.0.0.1", Port);
             Pump();
             return guest;
+        }
+
+        /// <summary>
+        /// Lets game time pass on every machine, in 0.1 s frames.
+        /// </summary>
+        private void Run(float seconds)
+        {
+            for (float time = 0f; time < seconds; time += 0.1f)
+            {
+                _host.Update(0.1f);
+                foreach (var guest in _guests)
+                    guest.Client.Update(0.1f);
+            }
         }
 
         private void Pump()
@@ -279,6 +299,166 @@ namespace RPGFramework.ActionRpg.Tests
             Assert.That(reason, Does.Contain("host left"));
             Assert.That(second.World.Actors, Is.Empty);
             Assert.That(second.Despawned.Select(d => d.EntityId), Has.Member(World.PlayerId));
+        }
+
+        [Test]
+        public void LostLink_TheSeatWaits_AndThePlayerComesBackAsThemselves()
+        {
+            var ann = Join(name: "Ann");
+            var bob = Join(name: "Bob");
+            int annId = ann.World.PlayerId;
+            World.Get(annId).SetHealth(40f);
+            Pump();
+            string token = ann.Client.RejoinToken;
+            Assert.That(token, Is.Not.Empty, "the host gives every player a way back");
+
+            ann.Transport.GoSilent(); // the cable is pulled: nobody is told
+            Run(CoopProtocol.UnstableAfter + 0.5f);
+
+            Assert.That(_host.IsUnstable(annId), Is.True, "the host sees the link struggle first");
+            Assert.That(ann.Client.IsUnstable, Is.True);
+            Assert.That(World.Get(annId), Is.Not.Null, "a short silence is not a goodbye");
+
+            Run(CoopProtocol.ConnectionTimeout);
+
+            Assert.That(World.Get(annId), Is.Null);
+            Assert.That(_host.KeptSeats, Is.EqualTo(1));
+            Assert.That(bob.World.Get(annId), Is.Null);
+            Assert.That(ann.Client.State, Is.EqualTo(CoopClientState.Ended));
+            Assert.That(ann.Client.EndKind, Is.EqualTo(CoopEndKind.ConnectionLost));
+            Assert.That(ann.Client.EndReason, Does.Contain("Lost the connection"));
+
+            var back = Join(name: "Someone else", rejoinToken: token);
+
+            Assert.That(back.Client.State, Is.EqualTo(CoopClientState.Playing));
+            Assert.That(back.Client.Rejoined, Is.True);
+            var player = World.Get(back.World.PlayerId);
+            Assert.That(player.Seat, Is.EqualTo(1), "the same seat, so the same colour");
+            Assert.That(player.DisplayName, Is.EqualTo("Ann"));
+            Assert.That(player.Health, Is.EqualTo(40f), "reconnecting does not heal");
+            Assert.That(bob.World.Get(back.World.PlayerId).Seat, Is.EqualTo(1));
+            Assert.That(_host.KeptSeats, Is.Zero);
+            Assert.That(back.Client.RejoinToken, Is.Not.Empty.And.Not.EqualTo(token), "a token works once");
+        }
+
+        [Test]
+        public void ComingBackBeforeTheHostNoticed_StillGetsTheSeat()
+        {
+            var ann = Join(name: "Ann");
+            World.Get(ann.World.PlayerId).SetHealth(40f);
+            ann.Transport.GoSilent();
+
+            // The friend's machine gave up first and joined again while the host still counts the old link
+            var back = Join(name: "Ann", rejoinToken: ann.Client.RejoinToken);
+
+            Assert.That(back.Client.Rejoined, Is.True);
+            Assert.That(World.Players, Has.Count.EqualTo(2));
+            var player = World.Get(back.World.PlayerId);
+            Assert.That(player.Seat, Is.EqualTo(1));
+            Assert.That(player.DisplayName, Is.EqualTo("Ann"));
+            Assert.That(player.Health, Is.EqualTo(40f));
+
+            // The old link times out later: nothing changes
+            Run(CoopProtocol.ConnectionTimeout + 1f);
+            Assert.That(World.Players, Has.Count.EqualTo(2));
+            Assert.That(_host.KeptSeats, Is.Zero);
+            Assert.That(back.Client.State, Is.EqualTo(CoopClientState.Playing));
+        }
+
+        [Test]
+        public void LeavingOnPurpose_KeepsNoSeat()
+        {
+            var ann = Join(name: "Ann");
+            string token = ann.Client.RejoinToken;
+
+            ann.Client.Leave();
+            Pump();
+
+            Assert.That(_host.KeptSeats, Is.Zero);
+            var again = Join(name: "Ann", rejoinToken: token);
+            Assert.That(again.Client.State, Is.EqualTo(CoopClientState.Playing));
+            Assert.That(again.Client.Rejoined, Is.False);
+        }
+
+        [Test]
+        public void AKeptSeat_IsNotGivenToNewcomers_UntilItsTimeIsUp()
+        {
+            _host.MaxPlayers = 3;
+            _host.RejoinWindow = 5f;
+            var ann = Join(name: "Ann");
+            Join(name: "Bob");
+
+            ann.Transport.GoSilent();
+            Run(CoopProtocol.ConnectionTimeout + 1f);
+            var newcomer = Join(name: "Cid");
+
+            Assert.That(newcomer.Client.State, Is.EqualTo(CoopClientState.Ended));
+            Assert.That(newcomer.Client.EndKind, Is.EqualTo(CoopEndKind.Refused));
+            Assert.That(newcomer.Client.EndReason, Does.Contain("full"));
+
+            Run(5f);
+            var later = Join(name: "Dee");
+
+            Assert.That(_host.KeptSeats, Is.Zero);
+            Assert.That(later.Client.State, Is.EqualTo(CoopClientState.Playing));
+            Assert.That(World.Get(later.World.PlayerId).Seat, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void TheHostVanishes_TheFriendSeesTheLinkStruggle_ThenLost()
+        {
+            var guest = Join();
+            Run(5f);
+            Assert.That(guest.Client.IsUnstable, Is.False, "a quiet game is not a lost one: pings keep it heard");
+
+            _hostTransport.GoSilent();
+            Run(CoopProtocol.UnstableAfter + 0.5f);
+
+            Assert.That(guest.Client.State, Is.EqualTo(CoopClientState.Playing));
+            Assert.That(guest.Client.IsUnstable, Is.True);
+
+            Run(CoopProtocol.ConnectionTimeout);
+
+            Assert.That(guest.Client.EndKind, Is.EqualTo(CoopEndKind.ConnectionLost));
+            Assert.That(guest.World.Actors, Is.Empty);
+        }
+
+        [Test]
+        public void TheHostClosing_IsNotALostLink()
+        {
+            var guest = Join();
+
+            _host.Dispose();
+            Pump();
+
+            Assert.That(guest.Client.EndKind, Is.EqualTo(CoopEndKind.HostLeft));
+        }
+
+        [Test]
+        public void BrokenOrHostileMessages_DoNotBreakTheGame()
+        {
+            var guest = Join();
+            int id = guest.World.PlayerId;
+
+            // Not a number: ignored, the character stays where it was
+            var motion = new CoopMotionMessage();
+            motion.Poses.Add((id, new ActorPose(float.NaN, 0f, float.PositiveInfinity, 0f)));
+            guest.Network.SendToServer(motion, reliable: false);
+            // Bytes that are no message at all
+            for (int i = 0; i < 3; i++)
+                guest.Transport.Send(0, new byte[] { 1, 2, 3, 4, 5 }, reliable: true);
+            Pump();
+
+            Assert.That(_hostMotion.Targets.Where(t => t.Id == id).Select(t => t.Pose), Has.None.Matches<ActorPose>(p => !p.IsFinite));
+            Assert.That(World.Get(id), Is.Not.Null, "a few bad messages are survivable");
+            Assert.That(guest.Client.State, Is.EqualTo(CoopClientState.Playing));
+
+            // A message claiming a billion entries is refused before anything is allocated
+            var stream = new MemoryStream();
+            var writer = new BinaryWriter(stream);
+            writer.Write(1_000_000_000);
+            stream.Position = 0;
+            Assert.Throws<InvalidDataException>(() => new CoopMotionMessage().Read(new BinaryReader(stream)));
         }
 
         [Test]

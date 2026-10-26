@@ -12,6 +12,9 @@ namespace RPGFramework.ActionRpg.Coop
     /// host has it and sends what they want to do; the host's rules decide. Each joined player gets, in order,
     /// characters entering and leaving, hits, changed numbers and the party's progress — measured against what that
     /// player last saw, so someone joining late gets the whole world at once. Call <see cref="Update"/> every frame.
+    /// A player whose link is lost (silence for <see cref="CoopProtocol.ConnectionTimeout"/> seconds) leaves the party,
+    /// but their seat, name and health are kept for <see cref="RejoinWindow"/> seconds: joining again with the token
+    /// from their welcome puts them back as themselves. Leaving on purpose keeps nothing.
     /// </summary>
     public sealed class CoopHost : IDisposable
     {
@@ -20,9 +23,19 @@ namespace RPGFramework.ActionRpg.Coop
         private sealed class Guest
         {
             public int PlayerId = -1;
+            public string Token = "";
+            public bool LeavingOnPurpose;
             public readonly Dictionary<int, Actor> Known = new Dictionary<int, Actor>();
             public readonly Dictionary<int, ActorState> States = new Dictionary<int, ActorState>();
             public byte[] Party;
+        }
+
+        private sealed class KeptSeat
+        {
+            public int Seat;
+            public string Name;
+            public float Health;
+            public float Since;
         }
 
         private struct Happening
@@ -43,6 +56,7 @@ namespace RPGFramework.ActionRpg.Coop
         private readonly Dictionary<int, Actor> _present = new Dictionary<int, Actor>();
         private readonly List<Happening> _happenings = new List<Happening>();
         private readonly SubscriptionBag _subscriptions = new SubscriptionBag();
+        private readonly Dictionary<string, KeptSeat> _keptSeats = new Dictionary<string, KeptSeat>();
         private float _sinceSend;
 
         /// <param name="world">The game this machine runs.</param>
@@ -84,7 +98,17 @@ namespace RPGFramework.ActionRpg.Coop
         /// </summary>
         public float MaxAttackDistance { get; set; }
 
+        /// <summary>
+        /// Seconds the seat of a player whose link was lost waits for them; 0 keeps none.
+        /// </summary>
+        public float RejoinWindow { get; set; } = CoopProtocol.RejoinWindow;
+
         public bool IsOpen => _network.IsConnected;
+
+        /// <summary>
+        /// Seats waiting for players whose link was lost.
+        /// </summary>
+        public int KeptSeats => _keptSeats.Count;
 
         /// <summary>
         /// Players in the party, the host included.
@@ -102,6 +126,19 @@ namespace RPGFramework.ActionRpg.Coop
         public event Action<int> PlayerJoined;
 
         public event Action<int> PlayerLeft;
+
+        /// <summary>
+        /// Nothing has come from this joined player for a while (<see cref="CoopProtocol.UnstableAfter"/> seconds).
+        /// </summary>
+        public bool IsUnstable(int playerId)
+        {
+            foreach (var pair in _guests)
+            {
+                if (pair.Value.PlayerId == playerId)
+                    return _network.SecondsSinceHeard(pair.Key) > CoopProtocol.UnstableAfter;
+            }
+            return false;
+        }
 
         /// <summary>
         /// Starts listening for players on this port.
@@ -132,6 +169,7 @@ namespace RPGFramework.ActionRpg.Coop
         public void Update(float deltaTime)
         {
             _network.Update(deltaTime);
+            ForgetOldSeats(deltaTime);
             if (!_network.IsConnected)
                 return;
             _sinceSend += deltaTime;
@@ -161,6 +199,23 @@ namespace RPGFramework.ActionRpg.Coop
             foreach (var guest in _guests.Values.Where(g => g.PlayerId >= 0 && _world.IsStarted))
                 _world.RemovePlayer(guest.PlayerId);
             _guests.Clear();
+            _keptSeats.Clear();
+        }
+
+        private void ForgetOldSeats(float deltaTime)
+        {
+            if (_keptSeats.Count == 0)
+                return;
+            foreach (var token in _keptSeats.Keys.ToList())
+            {
+                var kept = _keptSeats[token];
+                kept.Since += deltaTime;
+                if (kept.Since > RejoinWindow)
+                {
+                    _keptSeats.Remove(token);
+                    _logger?.LogInfo($"Seat {kept.Seat} of {kept.Name} is free again", Category);
+                }
+            }
         }
 
         private void OnPeerConnected(int connectionId) => _guests[connectionId] = new Guest();
@@ -172,6 +227,12 @@ namespace RPGFramework.ActionRpg.Coop
             _guests.Remove(connectionId);
             if (guest.PlayerId < 0)
                 return;
+            var player = _world.Get(guest.PlayerId);
+            if (!guest.LeavingOnPurpose && RejoinWindow > 0f && player != null)
+            {
+                _keptSeats[guest.Token] = new KeptSeat { Seat = player.Seat, Name = player.PlayerName, Health = player.Health };
+                _logger?.LogInfo($"Lost {player.DisplayName}; their seat waits {RejoinWindow:0} s", Category);
+            }
             _world.RemovePlayer(guest.PlayerId);
             PlayerLeft?.Invoke(guest.PlayerId);
         }
@@ -181,21 +242,77 @@ namespace RPGFramework.ActionRpg.Coop
             if (!_guests.TryGetValue(connectionId, out var guest) || guest.PlayerId >= 0)
                 return;
 
+            var kept = TakeKeptSeat(hello.RejoinToken, connectionId);
             string refusal = null;
             if (hello.Fingerprint != _fingerprint)
                 refusal = "The host plays a different version of the game. Both need the same build.";
-            else if (PlayerCount >= MaxPlayers)
+            // Seats kept for lost players count as taken for newcomers
+            else if (PlayerCount + (kept != null ? 0 : _keptSeats.Count) >= MaxPlayers)
                 refusal = $"The party is full ({MaxPlayers} players).";
             if (refusal != null)
             {
+                if (kept != null)
+                    _keptSeats[hello.RejoinToken] = kept;
                 _network.Send(connectionId, new CoopWelcomeMessage { Accepted = false, Reason = refusal });
                 _logger?.LogInfo($"Refused connection {connectionId}: {refusal}", Category);
                 return;
             }
 
-            guest.PlayerId = _world.AddPlayer(name: hello.Name);
-            _network.Send(connectionId, new CoopWelcomeMessage { Accepted = true, PlayerId = guest.PlayerId });
+            if (kept != null)
+            {
+                guest.PlayerId = _world.AddPlayer(name: kept.Name, seat: kept.Seat);
+                // Back with the health they had (at least a little): reconnecting is not a way to heal
+                _world.Get(guest.PlayerId)?.SetHealth(Math.Max(1f, kept.Health));
+            }
+            else
+            {
+                guest.PlayerId = _world.AddPlayer(name: hello.Name, seat: FreeSeat());
+            }
+            guest.Token = Guid.NewGuid().ToString("N");
+            _network.Send(connectionId, new CoopWelcomeMessage
+            {
+                Accepted = true, PlayerId = guest.PlayerId, RejoinToken = guest.Token, Rejoined = kept != null
+            });
             PlayerJoined?.Invoke(guest.PlayerId);
+        }
+
+        /// <summary>
+        /// The seat kept for this token. A player may come back before this machine noticed the old link was lost:
+        /// that link is let go of now (its late messages are ignored) and its seat goes to the new one.
+        /// </summary>
+        private KeptSeat TakeKeptSeat(string token, int connectionId)
+        {
+            if (string.IsNullOrEmpty(token))
+                return null;
+            if (_keptSeats.TryGetValue(token, out var kept))
+            {
+                _keptSeats.Remove(token);
+                return kept;
+            }
+            foreach (var pair in _guests)
+            {
+                var old = pair.Value;
+                if (pair.Key == connectionId || old.Token != token || old.PlayerId < 0)
+                    continue;
+                var player = _world.Get(old.PlayerId);
+                _guests.Remove(pair.Key);
+                if (player == null)
+                    return null;
+                kept = new KeptSeat { Seat = player.Seat, Name = player.PlayerName, Health = player.Health };
+                _world.RemovePlayer(old.PlayerId);
+                PlayerLeft?.Invoke(old.PlayerId);
+                _logger?.LogInfo($"{player.DisplayName} came back on a new link", Category);
+                return kept;
+            }
+            return null;
+        }
+
+        private int FreeSeat()
+        {
+            int seat = 0;
+            while (_world.IsSeatTaken(seat) || _keptSeats.Values.Any(k => k.Seat == seat))
+                seat++;
+            return seat;
         }
 
         private void OnIntent(int connectionId, CoopIntentMessage intent)
@@ -211,6 +328,9 @@ namespace RPGFramework.ActionRpg.Coop
                     break;
                 case CoopIntentMessage.IntentKind.Revive:
                     _world.RevivePlayer(guest.PlayerId);
+                    break;
+                case CoopIntentMessage.IntentKind.Leave:
+                    guest.LeavingOnPurpose = true;
                     break;
             }
         }
@@ -232,7 +352,7 @@ namespace RPGFramework.ActionRpg.Coop
             // A player moves only their own character
             foreach (var (id, pose) in motion.Poses)
             {
-                if (id == guest.PlayerId)
+                if (id == guest.PlayerId && pose.IsFinite)
                     _motion.SetTargetPose(id, pose);
             }
         }

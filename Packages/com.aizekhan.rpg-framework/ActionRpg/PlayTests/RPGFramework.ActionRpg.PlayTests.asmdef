@@ -19,7 +19,8 @@
         "RPGFramework.Diagnostics.Runtime",
         "UnityEngine.UI",
         "RPGFramework.Networking.Runtime",
-        "RPGFramework.Networking.UnityTransport"
+        "RPGFramework.Networking.UnityTransport",
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

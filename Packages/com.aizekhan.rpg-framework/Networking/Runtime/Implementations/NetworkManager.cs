@@ -19,6 +19,12 @@ namespace RPGFramework.Networking
         private readonly List<INetworkConnection> _connectionsReadOnly;
         private NetworkStats _stats;
         private float _timeSinceLastPing;
+        // Per connection: seconds since it was last heard, and how many bad messages it sent
+        private readonly Dictionary<int, float> _silence = new Dictionary<int, float>();
+        private readonly Dictionary<int, int> _badMessages = new Dictionary<int, int>();
+        private readonly List<int> _toDrop = new List<int>();
+        // Server: connections it let go of, whose late messages are not read
+        private readonly HashSet<int> _dropped = new HashSet<int>();
 
         public NetworkRole Role { get; private set; }
         public bool IsConnected { get; private set; }
@@ -33,6 +39,7 @@ namespace RPGFramework.Networking
 
         public event Action<int> PeerConnected;
         public event Action<int> PeerDisconnected;
+        public event Action<int, PeerDropReason> PeerDropped;
 
         public NetworkManager(INetworkTransport transport, INetworkSerializer serializer, NetworkConfig config, ILogger logger = null)
         {
@@ -102,8 +109,13 @@ namespace RPGFramework.Networking
             Role = NetworkRole.None;
             _connections.Clear();
             _connectionsReadOnly.Clear();
+            _silence.Clear();
+            _badMessages.Clear();
+            _dropped.Clear();
             LocalConnectionId = -1;
         }
+
+        public float SecondsSinceHeard(int connectionId) => _silence.TryGetValue(connectionId, out float seconds) ? seconds : 0f;
 
         public void Send(int connectionId, INetworkMessage message, bool reliable = true)
         {
@@ -184,10 +196,12 @@ namespace RPGFramework.Networking
                 return;
 
             // Poll transport for events
-            while (_transport.Poll(out var transportEvent))
+            while (_transport.IsActive && _transport.Poll(out var transportEvent))
             {
                 HandleTransportEvent(transportEvent);
             }
+            if (!_transport.IsActive)
+                return;
 
             // Send periodic pings
             if (Config.PingInterval > 0)
@@ -244,12 +258,15 @@ namespace RPGFramework.Networking
             {
                 LocalConnectionId = connectionId;
                 IsConnected = true;
+                _silence[connectionId] = 0f;
             }
             else if (Role == NetworkRole.Server)
             {
                 var connection = new NetworkConnection(connectionId, remoteAddress, _transport, _serializer);
                 _connections[connectionId] = connection;
                 _connectionsReadOnly.Add(connection);
+                _silence[connectionId] = 0f;
+                _dropped.Remove(connectionId);
             }
             else
             {
@@ -260,6 +277,8 @@ namespace RPGFramework.Networking
 
         private void HandleDisconnected(int connectionId, string reason)
         {
+            _silence.Remove(connectionId);
+            _badMessages.Remove(connectionId);
             if (_connections.TryGetValue(connectionId, out var connection))
             {
                 connection.SetState(ConnectionState.Disconnected);
@@ -277,8 +296,13 @@ namespace RPGFramework.Networking
 
         private void HandleData(int connectionId, byte[] data)
         {
+            // Still queued from a peer that was dropped
+            if (_dropped.Contains(connectionId))
+                return;
             _stats.TotalBytesReceived += data.Length;
             _stats.TotalMessagesReceived++;
+            if (_silence.ContainsKey(connectionId))
+                _silence[connectionId] = 0f;
 
             try
             {
@@ -300,6 +324,7 @@ namespace RPGFramework.Networking
                 {
                     _stats.RejectedMessages++;
                     _logger?.LogWarning($"Rejected message type {messageTypeId} from connection {connectionId}: not allowed from that side", LogCategory);
+                    CountBadMessage(connectionId);
                     return;
                 }
 
@@ -309,6 +334,7 @@ namespace RPGFramework.Networking
             {
                 _stats.DroppedPackets++;
                 _logger?.LogError($"Could not deserialize message from connection {connectionId}", LogCategory, ex);
+                CountBadMessage(connectionId);
             }
         }
 
@@ -385,9 +411,62 @@ namespace RPGFramework.Networking
             }
         }
 
+        private void CountBadMessage(int connectionId)
+        {
+            if (Config.MaxBadMessages <= 0 || !_silence.ContainsKey(connectionId))
+                return;
+            _badMessages.TryGetValue(connectionId, out int count);
+            _badMessages[connectionId] = ++count;
+            if (count > Config.MaxBadMessages)
+            {
+                _logger?.LogWarning($"Dropping connection {connectionId}: {count} messages that could not be read or were not its to send", LogCategory);
+                Drop(connectionId, PeerDropReason.BadMessages);
+            }
+        }
+
         private void UpdateConnectionTimeouts(float deltaTime)
         {
-            // TODO: Implement connection timeout tracking
+            if (_silence.Count == 0)
+                return;
+            _toDrop.Clear();
+            foreach (int id in new List<int>(_silence.Keys))
+            {
+                float seconds = _silence[id] + deltaTime;
+                _silence[id] = seconds;
+                if (Config.ConnectionTimeout > 0f && seconds > Config.ConnectionTimeout)
+                    _toDrop.Add(id);
+            }
+            foreach (int id in _toDrop)
+            {
+                _logger?.LogWarning($"Connection {id} timed out: nothing heard for {Config.ConnectionTimeout:0.#} s", LogCategory);
+                Drop(id, PeerDropReason.TimedOut);
+            }
+            _toDrop.Clear();
+        }
+
+        /// <summary>
+        /// Lets go of a peer the manager gave up on: a server closes that one connection, a client the whole link.
+        /// </summary>
+        private void Drop(int connectionId, PeerDropReason reason)
+        {
+            if (!_silence.ContainsKey(connectionId))
+                return;
+            if (Role == NetworkRole.Server)
+            {
+                (_transport as INetworkPeerDisconnect)?.Disconnect(connectionId);
+                _dropped.Add(connectionId);
+                PeerDropped?.Invoke(connectionId, reason);
+                HandleDisconnected(connectionId, reason.ToString());
+            }
+            else
+            {
+                _silence.Remove(connectionId);
+                _badMessages.Remove(connectionId);
+                IsConnected = false;
+                _transport.Disconnect();
+                PeerDropped?.Invoke(connectionId, reason);
+                PeerDisconnected?.Invoke(connectionId);
+            }
         }
 
         private void EnsureCanSend(INetworkMessage message)

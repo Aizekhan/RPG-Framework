@@ -165,13 +165,17 @@ namespace RPGFramework.ActionRpg
         /// </summary>
         /// <param name="character">Their character; null plays the same character as the first player.</param>
         /// <param name="name">Their name (cleaned, made unique in the party); empty gives "Player 2" and so on.</param>
-        public int AddPlayer(CharacterData character = null, string name = null)
+        /// <param name="seat">The seat they want (a player coming back); taken or negative gives the first free one.</param>
+        public int AddPlayer(CharacterData character = null, string name = null, int seat = -1)
         {
             ThrowIfNotStarted();
             character = character ?? _settings.Player;
-            int seat = 0;
-            while (_party.Any(id => Get(id)?.Seat == seat))
-                seat++;
+            if (seat < 0 || IsSeatTaken(seat))
+            {
+                seat = 0;
+                while (IsSeatTaken(seat))
+                    seat++;
+            }
             int id = _entities.CreateEntity();
             _party.Add(id);
             var player = new Actor(id, character, isPlayer: true, level: Level) { Seat = seat };
@@ -180,6 +184,11 @@ namespace RPGFramework.ActionRpg
             Write($"{player.DisplayName} joins the party");
             return id;
         }
+
+        /// <summary>
+        /// Someone in the party sits there.
+        /// </summary>
+        public bool IsSeatTaken(int seat) => _party.Any(id => Get(id)?.Seat == seat);
 
         /// <summary>
         /// Names a player (the first player gets the character's name until named).

@@ -35,7 +35,7 @@ namespace RPGFramework.Networking
     /// One end of a <see cref="LoopbackNetwork"/>. As a client it reaches the server as connection 0; as a server
     /// its clients get connection ids from 1 up.
     /// </summary>
-    public sealed class LoopbackTransport : INetworkTransport
+    public sealed class LoopbackTransport : INetworkTransport, INetworkPeerDisconnect
     {
         private const int ServerConnectionId = 0;
 
@@ -47,10 +47,17 @@ namespace RPGFramework.Networking
         private int _idOnServer = -1;
         private int _nextClientId = 1;
         private bool _isServer;
+        private bool _silent;
 
         internal LoopbackTransport(LoopbackNetwork network) => _network = network;
 
         public bool IsActive { get; private set; }
+
+        /// <summary>
+        /// Pulls the cable (tests): from now on nothing this end sends arrives and nothing reaches it, and nobody is
+        /// told; peers find out only by not hearing from it.
+        /// </summary>
+        public void GoSilent() => _silent = true;
 
         public void StartServer(int port)
         {
@@ -96,35 +103,48 @@ namespace RPGFramework.Networking
             if (_isServer)
             {
                 _network.StopListening(_port, this);
-                foreach (var client in _peers.Values)
-                    client.Dropped(ServerConnectionId);
+                if (!_silent)
+                {
+                    foreach (var client in _peers.Values)
+                        client.Dropped(ServerConnectionId);
+                }
             }
-            else if (_peers.TryGetValue(ServerConnectionId, out var server))
+            else if (!_silent && _peers.TryGetValue(ServerConnectionId, out var server))
             {
                 server.Dropped(_idOnServer);
             }
             _peers.Clear();
             _incoming.Clear();
             _isServer = false;
+            _silent = false;
+        }
+
+        public void Disconnect(int connectionId)
+        {
+            if (!IsActive || !_isServer || !_peers.TryGetValue(connectionId, out var client))
+                return;
+            _peers.Remove(connectionId);
+            if (!_silent)
+                client.Dropped(ServerConnectionId);
         }
 
         private void Dropped(int connectionId)
         {
-            if (!_peers.Remove(connectionId))
+            if (_silent || !_peers.Remove(connectionId))
                 return;
             Enqueue(NetworkTransportEventType.Disconnected, connectionId, null, null);
         }
 
         public void Send(int connectionId, byte[] data, bool reliable)
         {
-            if (!IsActive || !_peers.TryGetValue(connectionId, out var peer))
+            if (!IsActive || _silent || !_peers.TryGetValue(connectionId, out var peer))
                 return;
             peer.Receive(_isServer ? ServerConnectionId : _idOnServer, data);
         }
 
         public void Broadcast(byte[] data, bool reliable)
         {
-            if (!IsActive || !_isServer)
+            if (!IsActive || !_isServer || _silent)
                 return;
             foreach (var client in _peers.Values)
                 client.Receive(ServerConnectionId, data);
@@ -132,7 +152,7 @@ namespace RPGFramework.Networking
 
         private void Receive(int fromConnectionId, byte[] data)
         {
-            if (IsActive)
+            if (IsActive && !_silent)
                 Enqueue(NetworkTransportEventType.Data, fromConnectionId, (byte[])data.Clone(), null);
         }
 

@@ -1,6 +1,8 @@
 using System;
 using System.Collections;
 using System.Linq;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using NUnit.Framework;
 using RPGFramework.Presentation;
 using UnityEngine;
@@ -226,6 +228,69 @@ namespace RPGFramework.ActionRpg.PlayTests
             finally
             {
                 Networking.NetworkSessionProviders.Unregister("test-rooms");
+            }
+        }
+
+        /// <summary>
+        /// In-process rooms whose joined links can be cut, as a pulled cable would.
+        /// </summary>
+        private sealed class CablePuller : Networking.INetworkSessionProvider
+        {
+            private readonly Networking.LoopbackSessionProvider _rooms;
+
+            public CablePuller(Networking.LoopbackNetwork network) => _rooms = new Networking.LoopbackSessionProvider(network, 5100);
+
+            public Networking.LoopbackTransport LastJoined { get; private set; }
+            public string DisplayName => "Test cables";
+            public string JoinCodeHint => _rooms.JoinCodeHint;
+
+            public UniTask<Networking.HostedSession> HostAsync(Networking.SessionOptions options, CancellationToken cancellation = default) =>
+                _rooms.HostAsync(options, cancellation);
+
+            public async UniTask<Networking.INetworkTransport> JoinAsync(string joinCode, CancellationToken cancellation = default)
+            {
+                var transport = await _rooms.JoinAsync(joinCode, cancellation);
+                LastJoined = transport as Networking.LoopbackTransport;
+                return transport;
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator LostLink_TheFriendReconnectsByItself_IntoTheSameSeat()
+        {
+            var cables = new CablePuller(new Networking.LoopbackNetwork());
+            Networking.NetworkSessionProviders.Register("test-cables", "Test cables", () => cables);
+            try
+            {
+                var first = StartGame("Host with cables");
+                var second = StartGame("Friend with cables");
+                _more.Add(first);
+                _more.Add(second);
+                first.ConnectionTimeout = 1f;
+                second.ConnectionTimeout = 1f;
+                yield return null;
+                Assert.That(first.UseSessionProvider("test-cables") && second.UseSessionProvider("test-cables"), Is.True);
+                Assert.That(first.HostGame(), Is.True, first.CoopStatus);
+                yield return WaitUntil(() => first.Role == CoopRole.Hosting && first.JoinCode != "", "hosting");
+                second.JoinGame(first.JoinCode);
+                yield return WaitUntil(() => second.CoopClient?.State == Coop.CoopClientState.Playing, () => "joining: " + second.CoopStatus);
+                int seat = first.World.Get(first.World.Players.Last()).Seat;
+                string name = first.World.Get(first.World.Players.Last()).DisplayName;
+
+                cables.LastJoined.GoSilent();
+
+                yield return WaitUntil(() => second.CoopStatus.Contains("Reconnecting"), () => "the friend to notice: " + second.CoopStatus);
+                yield return WaitUntil(() => second.CoopClient?.State == Coop.CoopClientState.Playing && second.CoopClient.Rejoined,
+                    () => "the friend to be back: " + second.CoopStatus);
+                Assert.That(second.CoopStatus, Does.Contain("back in your seat"));
+                Assert.That(first.World.Players, Has.Count.EqualTo(2));
+                var back = first.World.Get(first.World.Players.Last());
+                Assert.That(back.Seat, Is.EqualTo(seat));
+                Assert.That(back.DisplayName, Is.EqualTo(name));
+            }
+            finally
+            {
+                Networking.NetworkSessionProviders.Unregister("test-cables");
             }
         }
 

@@ -133,6 +133,8 @@ namespace RPGFramework.ActionRpg
             GUILayout.Label(client.State == CoopClientState.Playing
                 ? $"Playing in a friend's game:  {Party()}"
                 : "Connecting...", _rich);
+            if (client.IsUnstable)
+                GUILayout.Label("<color=#FFB000>The connection to the host is unstable...</color>", _rich);
             if (GUILayout.Button("Leave", GUILayout.Height(34f)))
                 _host.LeaveGame();
         }
@@ -146,7 +148,8 @@ namespace RPGFramework.ActionRpg
             if (world == null)
                 return "";
             var names = world.Actors.Where(a => a.IsPlayer).OrderBy(a => a.Seat)
-                .Select(a => $"<color=#{ColorUtility.ToHtmlStringRGB(_host.ColorOfSeat(a.Seat))}>{Escape(a.DisplayName)}</color>");
+                .Select(a => $"<color=#{ColorUtility.ToHtmlStringRGB(_host.ColorOfSeat(a.Seat))}>{Escape(a.DisplayName)}</color>"
+                    + (_host.CoopHost != null && _host.CoopHost.IsUnstable(a.EntityId) ? " <color=#FFB000>(unstable)</color>" : ""));
             return string.Join("  ", names);
         }
 

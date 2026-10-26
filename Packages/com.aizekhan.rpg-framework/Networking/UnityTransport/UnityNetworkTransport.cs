@@ -16,7 +16,7 @@ namespace RPGFramework.Networking.UnityTransport
     /// The same transport runs through a Unity Relay server (<see cref="ThroughRelay"/>): only the driver settings and
     /// the endpoint change, never the messages.
     /// </summary>
-    public sealed class UnityNetworkTransport : INetworkTransport, IDisposable
+    public sealed class UnityNetworkTransport : INetworkTransport, INetworkPeerDisconnect, IDisposable
     {
         /// <summary>
         /// Adds to the driver settings after the transport's own (pipelines, timeouts), e.g. relay parameters.
@@ -123,6 +123,15 @@ namespace RPGFramework.Networking.UnityTransport
             // Let the disconnect messages leave before the driver goes
             _driver.ScheduleUpdate().Complete();
             Dispose();
+        }
+
+        public void Disconnect(int connectionId)
+        {
+            if (!_driver.IsCreated || !_connections.TryGetValue(connectionId, out var connection))
+                return;
+            _connections.Remove(connectionId);
+            _ids.Remove(connection);
+            _driver.Disconnect(connection);
         }
 
         public void Send(int connectionId, byte[] data, bool reliable)

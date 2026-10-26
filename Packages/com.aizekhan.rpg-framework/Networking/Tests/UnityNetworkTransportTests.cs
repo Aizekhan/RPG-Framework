@@ -43,13 +43,16 @@ namespace RPGFramework.Networking.Tests
             _transports.Clear();
         }
 
-        private NetworkManager Manager(out UnityNetworkTransport transport)
+        private NetworkManager Manager(out UnityNetworkTransport transport) =>
+            Manager(out transport, new NetworkConfig { PingInterval = 0 });
+
+        private NetworkManager Manager(out UnityNetworkTransport transport, NetworkConfig config)
         {
             transport = new UnityNetworkTransport();
             _transports.Add(transport);
             var serializer = new NetworkSerializer();
             serializer.RegisterMessageType<BlobMessage>(BlobMessage.Id);
-            return new NetworkManager(transport, serializer, new NetworkConfig { PingInterval = 0 });
+            return new NetworkManager(transport, serializer, config);
         }
 
         private static void PumpUntil(string what, Func<bool> done, params NetworkManager[] managers)
@@ -98,6 +101,54 @@ namespace RPGFramework.Networking.Tests
             server.PeerDisconnected += id => left = id;
             client.Stop();
             PumpUntil("leaving", () => left == connected, server);
+        }
+
+        [Test]
+        public void ACrashedClient_IsDroppedByTheServerAfterTheTimeout_AndTheOtherStays()
+        {
+            var config = new NetworkConfig { PingInterval = 0.2f, ConnectionTimeout = 1f };
+            var server = Manager(out var serverTransport, config);
+            var crashing = Manager(out var crashingTransport, config);
+            var staying = Manager(out _, config);
+            server.StartServer(0);
+            int connected = 0;
+            server.PeerConnected += _ => connected++;
+            crashing.StartClient("127.0.0.1", serverTransport.ListeningPort);
+            staying.StartClient("127.0.0.1", serverTransport.ListeningPort);
+            PumpUntil("two clients", () => connected == 2 && crashing.IsConnected && staying.IsConnected, server, crashing, staying);
+            var dropped = new List<PeerDropReason>();
+            server.PeerDropped += (_, reason) => dropped.Add(reason);
+
+            // The process dies: its driver goes without saying goodbye
+            crashingTransport.Dispose();
+            PumpUntil("the server to give up on the silent client", () => dropped.Count == 1, server, staying);
+
+            Assert.That(dropped, Is.EqualTo(new[] { PeerDropReason.TimedOut }));
+            Assert.That(server.Connections, Has.Count.EqualTo(1));
+            var until = DateTime.UtcNow.AddSeconds(1.5);
+            PumpUntil("time to pass", () => DateTime.UtcNow > until, server, staying);
+            Assert.That(staying.IsConnected, Is.True);
+            Assert.That(server.Connections, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public void TheServerDropsOneClient_ThatClientHearsIt_TheOtherStays()
+        {
+            var server = Manager(out var serverTransport);
+            var dropped = Manager(out _);
+            var staying = Manager(out _);
+            server.StartServer(0);
+            var ids = new List<int>();
+            server.PeerConnected += ids.Add;
+            dropped.StartClient("127.0.0.1", serverTransport.ListeningPort);
+            PumpUntil("first client", () => ids.Count == 1 && dropped.IsConnected, server, dropped);
+            staying.StartClient("127.0.0.1", serverTransport.ListeningPort);
+            PumpUntil("second client", () => ids.Count == 2 && staying.IsConnected, server, staying);
+
+            serverTransport.Disconnect(ids[0]);
+            PumpUntil("the dropped client to hear it", () => !dropped.IsConnected, server, dropped, staying);
+
+            Assert.That(staying.IsConnected, Is.True);
         }
 
         [Test]

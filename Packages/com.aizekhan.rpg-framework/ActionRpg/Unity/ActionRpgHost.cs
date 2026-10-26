@@ -55,6 +55,9 @@ namespace RPGFramework.ActionRpg
         [Tooltip("Keep the player's level, backpack and quests between sessions (saved on level-up, finished quests and quit)")]
         [SerializeField] private bool _saveProgress;
 
+        [Tooltip("Also save every this many seconds, so a crash loses little (0 = only on level-up, quests and quit)")]
+        [SerializeField, Min(0f)] private float _autosaveSeconds = 60f;
+
         [Tooltip("In the Editor and development builds, F3 shows systems, events and frame times (off in release builds)")]
         [SerializeField] private bool _diagnostics = true;
 
@@ -94,6 +97,22 @@ namespace RPGFramework.ActionRpg
         private CoopClient _coopClient;
         private string _joinCode;
         private bool _restartPending;
+        private float _sinceSave;
+
+        /// <summary>
+        /// Seconds without a word from the other side before a co-op link counts as lost (a crash, a pulled cable).
+        /// </summary>
+        public float ConnectionTimeout { get; set; } = CoopProtocol.ConnectionTimeout;
+
+        /// <summary>
+        /// Times this machine tries to get back into a friend's game after the link was lost.
+        /// </summary>
+        public const int ReconnectAttempts = 3;
+
+        private int _reconnectAttempt;
+        // The host's token for this player's seat, and the game it is for
+        private string _rejoinToken = "";
+        private string _rejoinCode;
 
         /// <summary>
         /// The F3 diagnostics panel (null when diagnostics are off or in a release build).
@@ -369,7 +388,7 @@ namespace RPGFramework.ActionRpg
             }
 
             _transport = session.Transport;
-            _coopHost = new CoopHost(World, Host.Container.Resolve<IEventBus>(), CoopProtocol.CreateNetwork(_transport, Host.Logger),
+            _coopHost = new CoopHost(World, Host.Container.Resolve<IEventBus>(), CoopProtocol.CreateNetwork(_transport, Host.Logger, ConnectionTimeout),
                 _presenter, CoopProtocol.Fingerprint(_settings, _content), Host.Logger)
             {
                 // A friend's strike is checked against where this machine sees them, with slack for lag
@@ -393,6 +412,7 @@ namespace RPGFramework.ActionRpg
             if (!_coop || string.IsNullOrWhiteSpace(joinCode))
                 return;
             _joinCode = joinCode.Trim();
+            _reconnectAttempt = 0;
             CoopStatus = $"Joining {_joinCode}...";
             _restartPending = true;
         }
@@ -426,6 +446,18 @@ namespace RPGFramework.ActionRpg
             base.Update();
             _coopHost?.Update(Time.unscaledDeltaTime);
             _coopClient?.Update(Time.unscaledDeltaTime);
+            Autosave(Time.unscaledDeltaTime);
+        }
+
+        private void Autosave(float deltaTime)
+        {
+            if (_saves == null || _autosaveSeconds <= 0f)
+                return;
+            _sinceSave += deltaTime;
+            if (_sinceSave < _autosaveSeconds)
+                return;
+            _sinceSave = 0f;
+            SaveProgress();
         }
 
         private void StartFromCommandLine(string[] args)
@@ -465,7 +497,7 @@ namespace RPGFramework.ActionRpg
             }
             catch (NetworkSessionException exception)
             {
-                if (generation == _generation)
+                if (generation == _generation && !TryReconnect(exception.Message, CoopEndKind.Unreachable))
                     ReturnToSolo(exception.Message);
                 return;
             }
@@ -478,8 +510,13 @@ namespace RPGFramework.ActionRpg
 
             _transport = transport;
             _coopClient = new CoopClient(_settings, _content, Host.Container.Resolve<IEventBus>(),
-                CoopProtocol.CreateNetwork(_transport, Host.Logger), null, Host.Logger) { PlayerName = PlayerName };
-            _coopClient.Ended += ReturnToSolo;
+                CoopProtocol.CreateNetwork(_transport, Host.Logger, ConnectionTimeout), null, Host.Logger)
+            {
+                PlayerName = PlayerName,
+                RejoinToken = _rejoinCode == _joinCode ? _rejoinToken : ""
+            };
+            _coopClient.Joined += OnJoined;
+            _coopClient.Ended += OnClientEnded;
             ShowWorld();
             _coopClient.Motion = _presenter;
             _coopClient.JoinSession(_joinCode);
@@ -539,7 +576,8 @@ namespace RPGFramework.ActionRpg
             if (_coopClient != null)
             {
                 // Closing the connection here is a restart (or a leave already handled), not the player walking out
-                _coopClient.Ended -= ReturnToSolo;
+                _coopClient.Joined -= OnJoined;
+                _coopClient.Ended -= OnClientEnded;
                 _coopClient.Dispose();
                 _coopClient = null;
             }
@@ -548,8 +586,38 @@ namespace RPGFramework.ActionRpg
             JoinCode = "";
         }
 
+        private void OnJoined()
+        {
+            _rejoinToken = _coopClient.RejoinToken;
+            _rejoinCode = _joinCode;
+            CoopStatus = _coopClient.Rejoined ? "Reconnected: back in your seat." : "";
+            _reconnectAttempt = 0;
+        }
+
+        private void OnClientEnded(string reason)
+        {
+            if (!TryReconnect(reason, _coopClient.EndKind))
+                ReturnToSolo(reason);
+        }
+
+        /// <summary>
+        /// After a lost link, joins the same game again (the host keeps the seat a while); a failed try counts too.
+        /// </summary>
+        private bool TryReconnect(string reason, CoopEndKind kind)
+        {
+            bool lost = kind == CoopEndKind.ConnectionLost || (_reconnectAttempt > 0 && kind == CoopEndKind.Unreachable);
+            if (!lost || _joinCode == null || _reconnectAttempt >= ReconnectAttempts)
+                return false;
+            _reconnectAttempt++;
+            CoopStatus = $"{reason} Reconnecting ({_reconnectAttempt}/{ReconnectAttempts})...";
+            Host.Logger.LogInfo(CoopStatus, Category);
+            _restartPending = true;
+            return true;
+        }
+
         private void ReturnToSolo(string reason)
         {
+            _reconnectAttempt = 0;
             CoopStatus = reason;
             if (_joinCode == null)
                 return;

@@ -26,6 +26,13 @@ namespace RPGFramework.ActionRpg.Coop
             Z = z;
             Yaw = yaw;
         }
+
+        /// <summary>
+        /// Every number is a real number (a broken or hostile message can carry NaN or infinity).
+        /// </summary>
+        public bool IsFinite => Finite(X) && Finite(Y) && Finite(Z) && Finite(Yaw);
+
+        private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
     }
 
     /// <summary>
@@ -43,7 +50,7 @@ namespace RPGFramework.ActionRpg.Coop
         /// <summary>
         /// Changes whenever the messages change, so older and newer builds refuse each other instead of misreading.
         /// </summary>
-        public const int Version = 2;
+        public const int Version = 3;
 
         public const int DefaultPort = 7777;
         public const int DefaultMaxPlayers = 4;
@@ -57,6 +64,27 @@ namespace RPGFramework.ActionRpg.Coop
         /// World and motion updates per second.
         /// </summary>
         public const float SendRate = 20f;
+
+        /// <summary>
+        /// Seconds without a word from the other side before the link counts as lost (a crash, a pulled cable).
+        /// Both sides ping every second, so a quiet game is not mistaken for a lost one.
+        /// </summary>
+        public const float ConnectionTimeout = 10f;
+
+        /// <summary>
+        /// Seconds without a word after which the link counts as struggling (the panel says so).
+        /// </summary>
+        public const float UnstableAfter = 2f;
+
+        /// <summary>
+        /// Seconds the host keeps the seat of a player whose link was lost, so they come back as themselves.
+        /// </summary>
+        public const float RejoinWindow = 120f;
+
+        /// <summary>
+        /// Most entries a message may say it carries (characters, poses, items); more means it is broken.
+        /// </summary>
+        public const int MaxEntries = 4096;
 
         public static NetworkSerializer CreateSerializer()
         {
@@ -76,11 +104,25 @@ namespace RPGFramework.ActionRpg.Coop
             .Set(WorldId, MessageAuthority.Server)
             .Set(MotionId, MessageAuthority.Any);
 
-        public static NetworkManager CreateNetwork(INetworkTransport transport, ILogger logger = null) =>
-            new NetworkManager(transport, CreateSerializer(), new NetworkConfig { PingInterval = 1f }, logger)
+        /// <param name="connectionTimeout">Seconds of silence before the link counts as lost (tests use less).</param>
+        public static NetworkManager CreateNetwork(INetworkTransport transport, ILogger logger = null,
+            float connectionTimeout = ConnectionTimeout) =>
+            new NetworkManager(transport, CreateSerializer(),
+                new NetworkConfig { PingInterval = 1f, ConnectionTimeout = connectionTimeout, MaxBadMessages = 20 }, logger)
             {
                 Authority = CreateAuthority()
             };
+
+        /// <summary>
+        /// Reads how many entries follow, refusing a count no real message has.
+        /// </summary>
+        internal static int ReadCount(BinaryReader reader)
+        {
+            int count = reader.ReadInt32();
+            if (count < 0 || count > MaxEntries)
+                throw new InvalidDataException($"A message says it carries {count} entries");
+            return count;
+        }
 
         /// <summary>
         /// A short id of the game's rules and content: host and client must have the same to play together.
@@ -138,16 +180,23 @@ namespace RPGFramework.ActionRpg.Coop
         /// </summary>
         public string Name = "";
 
+        /// <summary>
+        /// From an earlier welcome by this host, when coming back after the link was lost; empty otherwise.
+        /// </summary>
+        public string RejoinToken = "";
+
         public void Write(BinaryWriter writer)
         {
             writer.Write(Fingerprint ?? "");
             writer.Write(Name ?? "");
+            writer.Write(RejoinToken ?? "");
         }
 
         public void Read(BinaryReader reader)
         {
             Fingerprint = reader.ReadString();
             Name = reader.ReadString();
+            RejoinToken = reader.ReadString();
         }
     }
 
@@ -161,11 +210,23 @@ namespace RPGFramework.ActionRpg.Coop
         public int PlayerId = -1;
         public string Reason = "";
 
+        /// <summary>
+        /// Lets the player back into their seat if the link is lost (<see cref="CoopHelloMessage.RejoinToken"/>).
+        /// </summary>
+        public string RejoinToken = "";
+
+        /// <summary>
+        /// The player came back into the seat they had.
+        /// </summary>
+        public bool Rejoined;
+
         public void Write(BinaryWriter writer)
         {
             writer.Write(Accepted);
             writer.Write(PlayerId);
             writer.Write(Reason ?? "");
+            writer.Write(RejoinToken ?? "");
+            writer.Write(Rejoined);
         }
 
         public void Read(BinaryReader reader)
@@ -173,6 +234,8 @@ namespace RPGFramework.ActionRpg.Coop
             Accepted = reader.ReadBoolean();
             PlayerId = reader.ReadInt32();
             Reason = reader.ReadString();
+            RejoinToken = reader.ReadString();
+            Rejoined = reader.ReadBoolean();
         }
     }
 
@@ -273,7 +336,7 @@ namespace RPGFramework.ActionRpg.Coop
 
         public void Read(BinaryReader reader)
         {
-            int changes = reader.ReadInt32();
+            int changes = CoopProtocol.ReadCount(reader);
             for (int i = 0; i < changes; i++)
             {
                 var change = new Change { Kind = (ChangeKind)reader.ReadByte(), Id = reader.ReadInt32() };
@@ -293,7 +356,7 @@ namespace RPGFramework.ActionRpg.Coop
                 }
                 Changes.Add(change);
             }
-            int states = reader.ReadInt32();
+            int states = CoopProtocol.ReadCount(reader);
             for (int i = 0; i < states; i++)
             {
                 States.Add(new ActorState
@@ -385,12 +448,12 @@ namespace RPGFramework.ActionRpg.Coop
             Kills = reader.ReadInt32();
             Wave = reader.ReadInt32();
             Items = ReadStrings(reader);
-            int quests = reader.ReadInt32();
+            int quests = CoopProtocol.ReadCount(reader);
             ActiveQuests = new List<QuestRecord>(quests);
             for (int i = 0; i < quests; i++)
             {
                 var record = new QuestRecord { QuestId = reader.ReadString() };
-                int objectives = reader.ReadInt32();
+                int objectives = CoopProtocol.ReadCount(reader);
                 for (int o = 0; o < objectives; o++)
                     record.Objectives.Add(new ObjectiveRecord { ObjectiveId = reader.ReadString(), Progress = reader.ReadInt32() });
                 ActiveQuests.Add(record);
@@ -408,7 +471,7 @@ namespace RPGFramework.ActionRpg.Coop
 
         private static List<string> ReadStrings(BinaryReader reader)
         {
-            int count = reader.ReadInt32();
+            int count = CoopProtocol.ReadCount(reader);
             var values = new List<string>(count);
             for (int i = 0; i < count; i++)
                 values.Add(reader.ReadString());
@@ -439,7 +502,7 @@ namespace RPGFramework.ActionRpg.Coop
 
         public void Read(BinaryReader reader)
         {
-            int count = reader.ReadInt32();
+            int count = CoopProtocol.ReadCount(reader);
             for (int i = 0; i < count; i++)
                 Poses.Add((reader.ReadInt32(), new ActorPose(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle())));
         }
@@ -453,7 +516,12 @@ namespace RPGFramework.ActionRpg.Coop
         public enum IntentKind : byte
         {
             Attack = 1,
-            Revive = 2
+            Revive = 2,
+
+            /// <summary>
+            /// The player leaves on purpose: no seat is kept for them.
+            /// </summary>
+            Leave = 3
         }
 
         public override int MessageTypeId => CoopProtocol.IntentId;

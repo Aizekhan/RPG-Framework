@@ -7,7 +7,7 @@ namespace RPGFramework.Networking.UnityRelay
     /// The game's transport while in a relayed room: everything goes to the inner transport, and closing it also
     /// leaves the room (a host's room closes for everyone).
     /// </summary>
-    public sealed class RelaySessionTransport : INetworkTransport, IDisposable
+    public sealed class RelaySessionTransport : INetworkTransport, INetworkPeerDisconnect, IDisposable
     {
         private readonly INetworkTransport _inner;
         private readonly IRelayService _service;
@@ -35,6 +35,8 @@ namespace RPGFramework.Networking.UnityRelay
         public void Broadcast(byte[] data, bool reliable) => _inner.Broadcast(data, reliable);
 
         public bool Poll(out NetworkTransportEvent transportEvent) => _inner.Poll(out transportEvent);
+
+        public void Disconnect(int connectionId) => (_inner as INetworkPeerDisconnect)?.Disconnect(connectionId);
 
         public void Disconnect()
         {

@@ -14,6 +14,45 @@ namespace RPGFramework.ActionRpg.Coop
     }
 
     /// <summary>
+    /// How a game with the host ended.
+    /// </summary>
+    public enum CoopEndKind
+    {
+        None,
+
+        /// <summary>
+        /// This player left.
+        /// </summary>
+        Left,
+
+        /// <summary>
+        /// The host said no (another version, a full party).
+        /// </summary>
+        Refused,
+
+        /// <summary>
+        /// Nobody answered at that address or code.
+        /// </summary>
+        Unreachable,
+
+        /// <summary>
+        /// The host closed the game.
+        /// </summary>
+        HostLeft,
+
+        /// <summary>
+        /// Nothing came from the host for <see cref="CoopProtocol.ConnectionTimeout"/> seconds: worth joining again,
+        /// with <see cref="CoopClient.RejoinToken"/> to get the same seat.
+        /// </summary>
+        ConnectionLost,
+
+        /// <summary>
+        /// The host kept sending what this game cannot read.
+        /// </summary>
+        BadData
+    }
+
+    /// <summary>
     /// Joins a friend's game: says hello with this game's fingerprint, then mirrors the host's world in
     /// <see cref="World"/> and sends this player's movement and actions. Call <see cref="Update"/> every frame.
     /// </summary>
@@ -28,6 +67,7 @@ namespace RPGFramework.ActionRpg.Coop
         private string _address = "";
         private float _sinceSend;
         private string _pendingEnd;
+        private CoopEndKind _pendingKind;
 
         /// <param name="network">An unstarted network manager made by <see cref="CoopProtocol.CreateNetwork"/>.</param>
         /// <param name="motion">Where characters are; null sends and applies no movement.</param>
@@ -44,6 +84,7 @@ namespace RPGFramework.ActionRpg.Coop
 
             _network.PeerConnected += OnConnected;
             _network.PeerDisconnected += OnDisconnected;
+            _network.PeerDropped += OnDropped;
             _network.RegisterMessageHandler<CoopWelcomeMessage>(OnWelcome).AddTo(_subscriptions);
             _network.RegisterMessageHandler<CoopWorldMessage>((_, message) => World.Apply(message)).AddTo(_subscriptions);
             _network.RegisterMessageHandler<CoopMotionMessage>(OnMotion).AddTo(_subscriptions);
@@ -66,6 +107,25 @@ namespace RPGFramework.ActionRpg.Coop
         /// Why the game ended (refused, host gone, unreachable), for the player to read.
         /// </summary>
         public string EndReason { get; private set; } = "";
+
+        public CoopEndKind EndKind { get; private set; }
+
+        /// <summary>
+        /// Lets this player back into their seat after a lost link: given by the host on joining; set it on a new
+        /// client before <see cref="Join"/> to come back as the same player.
+        /// </summary>
+        public string RejoinToken { get; set; } = "";
+
+        /// <summary>
+        /// The host put this player back into the seat they had.
+        /// </summary>
+        public bool Rejoined { get; private set; }
+
+        /// <summary>
+        /// Nothing has come from the host for a while (<see cref="CoopProtocol.UnstableAfter"/> seconds).
+        /// </summary>
+        public bool IsUnstable =>
+            State == CoopClientState.Playing && _network.SecondsSinceHeard(_network.LocalConnectionId) > CoopProtocol.UnstableAfter;
 
         /// <summary>
         /// The host let this player in.
@@ -94,6 +154,8 @@ namespace RPGFramework.ActionRpg.Coop
                 throw new InvalidOperationException("Already joining a game");
             _address = address;
             EndReason = "";
+            EndKind = CoopEndKind.None;
+            Rejoined = false;
             State = CoopClientState.Connecting;
             try
             {
@@ -114,7 +176,7 @@ namespace RPGFramework.ActionRpg.Coop
                 // Ended from inside a message handler: the network is stopped here, outside its own update
                 string reason = _pendingEnd;
                 _pendingEnd = null;
-                End(reason);
+                End(reason, _pendingKind);
                 return;
             }
             if (State != CoopClientState.Playing || Motion == null)
@@ -140,8 +202,11 @@ namespace RPGFramework.ActionRpg.Coop
 
         public void Leave()
         {
+            // Tell the host this is on purpose, so it keeps no seat
+            if (State == CoopClientState.Playing && _network.IsConnected)
+                _network.SendToServer(new CoopIntentMessage { Kind = CoopIntentMessage.IntentKind.Leave });
             if (State == CoopClientState.Connecting || State == CoopClientState.Playing)
-                End("You left the game.");
+                End("You left the game.", CoopEndKind.Left);
         }
 
         public void Dispose()
@@ -150,17 +215,40 @@ namespace RPGFramework.ActionRpg.Coop
             _subscriptions.Dispose();
             _network.PeerConnected -= OnConnected;
             _network.PeerDisconnected -= OnDisconnected;
+            _network.PeerDropped -= OnDropped;
         }
 
-        private void OnConnected(int connectionId) =>
-            _network.SendToServer(new CoopHelloMessage { Fingerprint = _fingerprint, Name = PlayerName });
+        private void OnConnected(int connectionId) => _network.SendToServer(new CoopHelloMessage
+        {
+            Fingerprint = _fingerprint, Name = PlayerName, RejoinToken = RejoinToken ?? ""
+        });
 
         private void OnDisconnected(int connectionId)
         {
+            if (_pendingEnd != null)
+                return; // already known why (dropped, refused)
             if (State == CoopClientState.Connecting)
-                _pendingEnd = $"Could not reach a game at {_address}.";
+                EndLater($"Could not reach a game at {_address}.", CoopEndKind.Unreachable);
             else if (State == CoopClientState.Playing)
-                _pendingEnd = "The host left the game.";
+                EndLater("The host left the game.", CoopEndKind.HostLeft);
+        }
+
+        private void OnDropped(int connectionId, PeerDropReason reason)
+        {
+            if (State == CoopClientState.Connecting)
+                EndLater($"Could not reach a game at {_address}.", CoopEndKind.Unreachable);
+            else if (State != CoopClientState.Playing)
+                return;
+            else if (reason == PeerDropReason.TimedOut)
+                EndLater("Lost the connection to the host.", CoopEndKind.ConnectionLost);
+            else
+                EndLater("The host sent data this game cannot read.", CoopEndKind.BadData);
+        }
+
+        private void EndLater(string reason, CoopEndKind kind)
+        {
+            _pendingEnd = reason;
+            _pendingKind = kind;
         }
 
         private void OnWelcome(int connectionId, CoopWelcomeMessage welcome)
@@ -169,9 +257,11 @@ namespace RPGFramework.ActionRpg.Coop
                 return;
             if (!welcome.Accepted)
             {
-                _pendingEnd = welcome.Reason;
+                EndLater(welcome.Reason, CoopEndKind.Refused);
                 return;
             }
+            RejoinToken = welcome.RejoinToken ?? "";
+            Rejoined = welcome.Rejoined;
             World.Begin(welcome.PlayerId);
             State = CoopClientState.Playing;
             _logger?.LogInfo($"Joined {_address} as player {welcome.PlayerId}", Category);
@@ -185,18 +275,19 @@ namespace RPGFramework.ActionRpg.Coop
             foreach (var (id, pose) in motion.Poses)
             {
                 // This player moves themselves
-                if (id != World.PlayerId && World.Get(id) != null)
+                if (id != World.PlayerId && pose.IsFinite && World.Get(id) != null)
                     Motion.SetTargetPose(id, pose);
             }
         }
 
-        private void End(string reason)
+        private void End(string reason, CoopEndKind kind)
         {
             if (_network.IsConnected || _network.Role != NetworkRole.None)
                 _network.Stop();
             World.End();
             State = CoopClientState.Ended;
             EndReason = reason;
+            EndKind = kind;
             _logger?.LogInfo($"Co-op ended: {reason}", Category);
             Ended?.Invoke(reason);
         }

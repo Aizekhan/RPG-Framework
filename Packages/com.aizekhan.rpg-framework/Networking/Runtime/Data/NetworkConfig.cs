@@ -11,9 +11,16 @@ namespace RPGFramework.Networking
         public int MaxConnections;
 
         /// <summary>
-        /// Connection timeout in seconds.
+        /// Seconds without anything from a peer before it is dropped as gone (<see cref="PeerDropReason.TimedOut"/>);
+        /// 0 waits for the transport to notice. Keep it well above <see cref="PingInterval"/>, which keeps quiet peers heard.
         /// </summary>
         public float ConnectionTimeout;
+
+        /// <summary>
+        /// Unreadable or not-allowed messages a peer may send before it is dropped
+        /// (<see cref="PeerDropReason.BadMessages"/>); 0 never drops for that.
+        /// </summary>
+        public int MaxBadMessages;
 
         /// <summary>
         /// Replication update rate in Hz (updates per second).
@@ -63,7 +70,8 @@ namespace RPGFramework.Networking
             EnableLagCompensation = true,
             EnablePrediction = true,
             InterpolationDelay = 0.1f,
-            PingInterval = 1f
+            PingInterval = 1f,
+            MaxBadMessages = 20
         };
     }
 }

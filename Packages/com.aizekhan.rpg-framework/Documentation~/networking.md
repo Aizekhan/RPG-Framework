@@ -35,6 +35,18 @@ Status on 2026-10-26. **Action RPGs made with this package can be played in co-o
 5. **Refusals in plain words:** a different build ("The host plays a different version of the game"), a full party,
    nobody at that address (after about 5 seconds), the host leaving. The joined player is then back in a game of
    their own.
+6. **Bad links.** Both sides ping every second; 2 seconds of silence shows "unstable" in the F2 panel, 10 seconds
+   (`CoopProtocol.ConnectionTimeout`) counts as a lost link, whatever the transport (a crashed game or a pulled cable
+   says nothing over UDP). The host then keeps the player's seat, name and health for 2 minutes
+   (`CoopHost.RejoinWindow`; the seat counts as taken for newcomers), and the player's game joins again by itself, up
+   to 3 times, with the token from its welcome: they are back in their seat with the health they had. If their game
+   comes back before the host noticed, the old link is let go of at once. Leaving on purpose (Leave, F2) keeps no
+   seat; the host closing ends the game for everyone, with no reconnecting.
+7. **Broken or hostile messages** are dropped and counted; past 20 from one peer it is dropped. Counts no real message
+   has are refused before anything is allocated, and positions that are not numbers are ignored.
+8. **Saves.** The host's progress is saved on level-up, finished quests, every 60 seconds (**Autosave Seconds**) and on
+   quit, so a crash loses at most a minute. A joined player's own saved game is not touched while they play with
+   someone else.
 
 ## Connecting players: session providers
 
@@ -166,6 +178,9 @@ Sources: [Network connection management (Multiplayer Services)](https://docs.uni
   friends; a competitive game would need server-side movement.
 - No client-side prediction: a joined player's hits show after one round trip (a few milliseconds on a LAN).
 - Progress is saved on the host only; a friend who joins brings nothing and takes nothing home.
+- No host migration: when the host's game ends, the game ends for everyone (their own saved games are untouched).
+- Reconnecting restarts the joined player's scene (a second or two) and puts them at the starting ring, not where
+  they stood.
 
 ## Next, if wanted
 

@@ -46,6 +46,12 @@ namespace RPGFramework.Networking
         event Action<int> PeerDisconnected;
 
         /// <summary>
+        /// The manager dropped a peer itself (server: that client; client: the server), with the reason.
+        /// <see cref="PeerDisconnected"/> follows.
+        /// </summary>
+        event Action<int, PeerDropReason> PeerDropped;
+
+        /// <summary>
         /// Start as server.
         /// </summary>
         void StartServer(int port);
@@ -110,6 +116,12 @@ namespace RPGFramework.Networking
         /// Get connection by ID.
         /// </summary>
         INetworkConnection GetConnection(int connectionId);
+
+        /// <summary>
+        /// Seconds since anything came from this connection (a client asks with <see cref="LocalConnectionId"/>);
+        /// 0 for an unknown connection. A few seconds means the link is struggling.
+        /// </summary>
+        float SecondsSinceHeard(int connectionId);
 
         /// <summary>
         /// Get network statistics.
