@@ -186,7 +186,7 @@ namespace RPGFramework.StateMachine
             if (_current != null && ReferenceEquals(_current, target) && !reenter)
                 return;
             if (!CanTransition(to))
-                throw new InvalidOperationException($"Transition {_current?.Id} -> {to} is not allowed");
+                throw new InvalidOperationException($"Transition {(_current != null ? _current.Id.ToString() : "<none>")} -> {to} is not allowed");
 
             var transition = _current != null
                 ? new StateTransition<TStateId>(true, _current.Id, to, payload)
