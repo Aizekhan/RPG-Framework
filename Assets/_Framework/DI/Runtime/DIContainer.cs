@@ -21,6 +21,7 @@ namespace RPGFramework.DI
 
         // Stores LazyDependency objects for lazy initialization
         private readonly Dictionary<Type, object> _lazyDependencies = new Dictionary<Type, object>();
+        private readonly Dictionary<Type, Type> _lazyImplementations = new Dictionary<Type, Type>();
 
         // Logger
         private readonly ILogger _logger;
@@ -169,6 +170,7 @@ namespace RPGFramework.DI
 
             // Store LazyDependency
             _lazyDependencies[serviceType] = lazyDependency;
+            _lazyImplementations[serviceType] = implementationType;
 
             _logger?.LogDebug($"Registered lazy singleton {implementationType.Name} as {serviceType.Name}", "DI");
         }
@@ -309,11 +311,7 @@ namespace RPGFramework.DI
         /// </summary>
         private Func<object> GetOrCreateFactory(Type type)
         {
-            // Get constructor with [Inject] attribute or first constructor
-            var constructors = type.GetConstructors();
-            var constructor = constructors.FirstOrDefault(c =>
-                c.GetCustomAttributes(typeof(InjectAttribute), true).Length > 0) ??
-                (constructors.Length > 0 ? constructors[0] : null);
+            var constructor = GetPreferredConstructor(type);
 
             if (constructor == null)
             {
@@ -613,22 +611,14 @@ namespace RPGFramework.DI
         }
 
         /// <summary>
-        /// Finds constructor for injection.
+        /// Constructor used both for instantiation and for validation:
+        /// the one marked [Inject], otherwise the first public constructor.
         /// </summary>
-        private ConstructorInfo GetPreferredConstructor(Type type)
+        private static ConstructorInfo GetPreferredConstructor(Type type)
         {
-            // First look for constructor with [Inject] attribute
             var constructors = type.GetConstructors();
-            var constructor = constructors.FirstOrDefault(c =>
-                c.GetCustomAttributes(typeof(InjectAttribute), true).Length > 0);
-
-            // If none exists, take constructor with most parameters
-            if (constructor == null && constructors.Length > 0)
-            {
-                constructor = constructors.OrderByDescending(c => c.GetParameters().Length).First();
-            }
-
-            return constructor;
+            return constructors.FirstOrDefault(c => c.GetCustomAttributes(typeof(InjectAttribute), true).Length > 0) ??
+                (constructors.Length > 0 ? constructors[0] : null);
         }
 
         /// <summary>
@@ -684,6 +674,84 @@ namespace RPGFramework.DI
             }
 
             _logger.LogInfo("Dependency validation completed", "DI");
+        }
+
+        /// <summary>
+        /// Checks every type-based registration without creating instances:
+        /// constructor parameters that are not registered, types without a public constructor,
+        /// and circular constructor dependencies.
+        /// </summary>
+        public DIValidationResult Validate()
+        {
+            var implementations = new Dictionary<Type, Type>();
+            foreach (var registration in _registrations.Values)
+                implementations[registration.ServiceType] = registration.ImplementationType;
+            foreach (var pair in _lazyImplementations)
+                implementations[pair.Key] = pair.Value;
+
+            var issues = new List<DIValidationIssue>();
+            var edges = new Dictionary<Type, List<Type>>();
+
+            foreach (var pair in implementations)
+            {
+                var constructor = GetPreferredConstructor(pair.Value);
+                if (constructor == null)
+                {
+                    issues.Add(new DIValidationIssue(DIValidationIssueKind.NoPublicConstructor, pair.Key, pair.Value, null,
+                        $"{pair.Value.Name} (registered as {pair.Key.Name}) has no public constructor"));
+                    continue;
+                }
+
+                var dependencies = new List<Type>();
+                foreach (var parameter in constructor.GetParameters())
+                {
+                    var dependency = parameter.ParameterType;
+                    if (IsRegistered(dependency))
+                    {
+                        if (implementations.ContainsKey(dependency))
+                            dependencies.Add(dependency);
+                    }
+                    else
+                    {
+                        issues.Add(new DIValidationIssue(DIValidationIssueKind.MissingDependency, pair.Key, pair.Value, dependency,
+                            $"{pair.Value.Name} requires {dependency.Name}, which is not registered"));
+                    }
+                }
+                edges[pair.Key] = dependencies;
+            }
+
+            // Depth-first search for cycles (0 = unvisited, 1 = on stack, 2 = done)
+            var state = new Dictionary<Type, int>();
+            var stack = new List<Type>();
+            foreach (var service in edges.Keys)
+                FindCycles(service, edges, state, stack, issues);
+
+            return new DIValidationResult(issues);
+        }
+
+        private static void FindCycles(Type service, Dictionary<Type, List<Type>> edges, Dictionary<Type, int> state,
+            List<Type> stack, List<DIValidationIssue> issues)
+        {
+            state.TryGetValue(service, out int current);
+            if (current == 2)
+                return;
+            if (current == 1)
+            {
+                var cycle = stack.Skip(stack.IndexOf(service)).Concat(new[] { service }).Select(t => t.Name);
+                issues.Add(new DIValidationIssue(DIValidationIssueKind.CircularDependency, service, null, null,
+                    "Circular dependency: " + string.Join(" -> ", cycle)));
+                return;
+            }
+
+            state[service] = 1;
+            stack.Add(service);
+            if (edges.TryGetValue(service, out var dependencies))
+            {
+                foreach (var dependency in dependencies)
+                    FindCycles(dependency, edges, state, stack, issues);
+            }
+            stack.RemoveAt(stack.Count - 1);
+            state[service] = 2;
         }
 
         #endregion

@@ -18,6 +18,11 @@ namespace RPGFramework.DI
         object Resolve(Type type);
         void AnalyzeDependencies();
 
+        /// <summary>
+        /// Checks registrations for missing constructor dependencies and cycles without creating instances.
+        /// </summary>
+        DIValidationResult Validate();
+
         // Method for injecting dependencies into an object
         void InjectDependencies(object target);
 
