@@ -1,89 +1,37 @@
 # RPG Framework
 
-**Universal RPG Framework for Unity 6**
+Reusable building blocks for RPGs in Unity 6, shipped as one UPM package: composition and events, combat, stats,
+progression, quests, items, inventory, loot, saving, UI navigation, an action RPG made from inspector assets, and co-op
+for 2-4 players. The framework owns the rules and infrastructure; each game owns its content, presentation and the
+rules that make it unique.
 
-A comprehensive, modular, and reusable RPG framework designed to work with any RPG game.
+## Start a new game
 
-## Features
+1. Create an empty **Unity 6** project (6000.0 or later).
+2. Add two lines to its `Packages/manifest.json`:
 
-### Core Systems
-- **Dependency Injection** - LazyMonoBehaviour with automatic injection
-- **Event System** - Type-safe messaging system
-- **Object Pooling** - Efficient object reuse
-- **State Machine** - Generic hierarchical state machines
+   ```json
+   "com.cysharp.unitask": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask#2.5.10",
+   "com.aizekhan.rpg-framework": "https://github.com/Aizekhan/RPG-Framework.git?path=/Packages/com.aizekhan.rpg-framework#v0.2.0"
+   ```
 
-### Gameplay Systems
-- **Abilities** - Flexible ability system with cooldowns and resources
-- **Characters** - Stats, attributes, levels, experience
-- **Combat** - Damage calculation, effects, targeting
-- **Dialogue** - Branching conversations with choices
-- **Inventory** - Items, equipment, currencies
-- **Quests** - Quest tracking with objectives
-- **Save System** - Serialization and persistence
+3. In Unity: **RPG Framework > Game Kit > New Game or Feature...**, type a name, **New Game**, then **Play**.
+   A hero fights waves of goblins, with loot, quests, a HUD and saved progress. **F2** hosts or joins co-op.
 
-### AI Systems
-- **Behavior Trees** - Modular AI behavior composition
-- **Pathfinding** - NavMesh integration
-- **Sensors** - Perception and awareness
+Everything after that (new enemies, items, quests, your own rules, tests) is in the package README:
+[`Packages/com.aizekhan.rpg-framework/README.md`](Packages/com.aizekhan.rpg-framework/README.md).
 
-### Infrastructure
-- **UI System** - Presenter/View pattern for UI panels
-- **Scene Management** - Scene loading and transitions
-- **Resource Management** - Asset loading and caching
-- **Debug Tools** - Development utilities
+## What is in this repository
 
-## Project Structure
+| Path | What it is |
+|---|---|
+| `Packages/com.aizekhan.rpg-framework` | **The framework** (the package games install). Its README, CHANGELOG and `Documentation~` are the reference |
+| `Assets/ReferenceGame` | Goblin Valley, a sample game built only on the package, the way a user's game is |
+| `Assets/_Tests` | Framework-wide architecture tests |
+| `STATUS.md` | What is verified, at which commit, and what is open |
 
-```
-Assets/
-  _Framework/           # Framework modules (35+ assemblies)
-    Abilities/
-    AI/
-    Characters/
-    Combat/
-    DI/
-    Dialogue/
-    Events/
-    Inventory/
-    Quests/
-    SaveSystem/
-    StateMachine/
-    UI/
-    ... and more
-  _Tests/              # EditMode tests
-    Editor/
-```
-
-## Requirements
-
-- **Unity:** 6000.0.45f1 or later
-- **Packages:**
-  - Input System 1.11.2
-  - TextMeshPro 3.2.0-pre.10
-  - UGUI 3.0.0
-
-## Installation
-
-1. Clone this repository
-2. Open in Unity 6000.0.45f1 or later
-3. Framework will compile automatically
-
-## Development Status
-
-🚧 **Active Development** - EPIC 25: Infrastructure Enhancement
-
-Current Phase: Phase 1 Complete (DI Enhancement)
-
-See [EPIC-25-INFRASTRUCTURE-PLAN.md](EPIC-25-INFRASTRUCTURE-PLAN.md) for roadmap.
+Each release is a git tag (`v0.2.0`); pin one in the manifest so updates are deliberate.
 
 ## License
 
-MIT License - See LICENSE file for details
-
-## Authors
-
-Aizekhan - [GitHub](https://github.com/Aizekhan)
-
----
-
-🎮 Built with ❤️ for RPG developers
+MIT, see `LICENSE`.
