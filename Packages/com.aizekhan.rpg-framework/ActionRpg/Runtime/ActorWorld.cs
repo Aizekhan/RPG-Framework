@@ -18,8 +18,10 @@ namespace RPGFramework.ActionRpg
     /// subscription: an enemy dies → experience and loot for the killer (the Combat→Quests bridge advances Kill
     /// objectives); an objective completes → the quest is turned in; a quest completes → its rewards; a level-up →
     /// stat growth and a full heal. Every character entering or leaving is announced for the presentation.
+    /// In co-op more players join the party (<see cref="AddPlayer"/>): the party shares the first player's level,
+    /// experience, backpack and quests, and every member's kills count for it.
     /// </summary>
-    public sealed class ActorWorld : IDisposable
+    public sealed class ActorWorld : IActorWorld, IDisposable
     {
         private const string Category = "ActionRpg";
         private const int MaxLogLines = 12;
@@ -37,6 +39,7 @@ namespace RPGFramework.ActionRpg
         private readonly ILogger _logger;
         private readonly Random _random;
         private readonly Dictionary<int, Actor> _actors = new Dictionary<int, Actor>();
+        private readonly List<int> _party = new List<int>();
         private readonly List<string> _log = new List<string>();
         private readonly SubscriptionBag _subscriptions = new SubscriptionBag();
 
@@ -89,6 +92,18 @@ namespace RPGFramework.ActionRpg
 
         public IEnumerable<int> LivingEnemies => _actors.Values.Where(a => !a.IsPlayer && a.IsAlive()).Select(a => a.EntityId);
 
+        /// <summary>
+        /// The party: the first player (<see cref="PlayerId"/>) and everyone who joined.
+        /// </summary>
+        public IReadOnlyList<int> Players => _party;
+
+        public IEnumerable<int> LivingPlayers => _party.Where(id => Get(id)?.IsAlive() == true);
+
+        /// <summary>
+        /// Who a deed counts for: a party member's kills and quest progress count for the party (the first player).
+        /// </summary>
+        public int CreditOf(int entityId) => _party.Contains(entityId) ? PlayerId : entityId;
+
         public Actor Get(int entityId) => _actors.TryGetValue(entityId, out var actor) ? actor : null;
 
         /// <summary>
@@ -126,6 +141,7 @@ namespace RPGFramework.ActionRpg
 
             PlayerId = _entities.CreateEntity();
             Inventory = new InventoryContainer<IItem>(_settings.InventoryCapacity, _bus, PlayerId, "Backpack");
+            _party.Add(PlayerId);
             Add(new Actor(PlayerId, _settings.Player, isPlayer: true));
             _progression.SetLevel(PlayerId, 1);
 
@@ -137,6 +153,36 @@ namespace RPGFramework.ActionRpg
                     _logger?.LogWarning($"Starting quest '{questId}' could not be accepted", Category);
             }
             Write($"{_settings.Player.DisplayName} enters the world");
+        }
+
+        /// <summary>
+        /// A player joins the party (co-op): a new player character at the party's level.
+        /// </summary>
+        /// <param name="character">Their character; null plays the same character as the first player.</param>
+        public int AddPlayer(CharacterData character = null)
+        {
+            ThrowIfNotStarted();
+            character = character ?? _settings.Player;
+            int id = _entities.CreateEntity();
+            _party.Add(id);
+            Add(new Actor(id, character, isPlayer: true, level: Level));
+            Write($"{character.DisplayName} joins the party");
+            return id;
+        }
+
+        /// <summary>
+        /// A player who joined leaves the party. The first player cannot leave.
+        /// </summary>
+        public bool RemovePlayer(int playerId)
+        {
+            if (playerId == PlayerId)
+                throw new InvalidOperationException("The first player cannot leave the party");
+            var player = Get(playerId);
+            if (player == null || !_party.Remove(playerId))
+                return false;
+            Remove(playerId);
+            Write($"{player.DisplayName} leaves the party");
+            return true;
         }
 
         /// <summary>
@@ -284,7 +330,13 @@ namespace RPGFramework.ActionRpg
                 _quests.UpdateObjectiveProgress(PlayerId, questId, objectiveId, target - done);
         }
 
-        public bool RevivePlayer() => IsStarted && _lifeStates.Resurrect(PlayerId, -1, "respawn");
+        public bool RevivePlayer() => RevivePlayer(PlayerId);
+
+        /// <summary>
+        /// Brings a fallen party member back with full health.
+        /// </summary>
+        public bool RevivePlayer(int playerId) =>
+            IsStarted && _party.Contains(playerId) && _lifeStates.Resurrect(playerId, -1, "respawn");
 
         public void Dispose()
         {
@@ -323,11 +375,11 @@ namespace RPGFramework.ActionRpg
                 return;
             }
 
+            bool byParty = _party.Contains(death.KillerEntityId);
             Kills++;
-            _bus.Publish(new ActorKilledEvent(victim.EntityId, victim.CharacterId, death.KillerEntityId,
-                death.KillerEntityId == PlayerId));
+            _bus.Publish(new ActorKilledEvent(victim.EntityId, victim.CharacterId, death.KillerEntityId, byParty));
             Remove(death.EntityId);
-            if (death.KillerEntityId != PlayerId)
+            if (!byParty)
                 return;
 
             Write($"{victim.DisplayName} slain");
@@ -386,6 +438,16 @@ namespace RPGFramework.ActionRpg
                 return;
             // Stat growth for this level-up was already applied: StatGrowthPublisher subscribed before the world did
             Player.RestoreFullHealth();
+            // Everyone else in the party grows with it, by their own character's growth
+            foreach (int member in _party)
+            {
+                var actor = Get(member);
+                if (actor == null || member == PlayerId)
+                    continue;
+                foreach (ActorStat stat in Enum.GetValues(typeof(ActorStat)))
+                    actor.SetBaseStat(stat, actor.Character.StatAt(stat, levelUp.NewLevel));
+                actor.RestoreFullHealth();
+            }
             Write($"Level up! Level {levelUp.NewLevel}");
         }
 

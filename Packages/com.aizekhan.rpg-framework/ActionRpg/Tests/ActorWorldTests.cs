@@ -274,5 +274,95 @@ namespace RPGFramework.ActionRpg.Tests
             Assert.That(problems, Has.Some.Contains("No player"));
             Assert.That(problems, Has.Some.Contains("no enemies"));
         }
+
+        [Test]
+        public void JoiningPlayer_EntersAtThePartyLevel()
+        {
+            StartGame();
+            Slay(World.SpawnEnemy(Goblin));
+            Slay(World.SpawnEnemy(Goblin));
+            Assume.That(World.Level, Is.GreaterThan(1));
+
+            int friend = World.AddPlayer();
+
+            var actor = World.Get(friend);
+            Assert.That(actor.IsPlayer, Is.True);
+            Assert.That(actor.MaxHealth, Is.EqualTo(World.Player.MaxHealth));
+            Assert.That(World.Players, Is.EqualTo(new[] { World.PlayerId, friend }));
+            Assert.That(World.LivingPlayers, Is.EquivalentTo(new[] { World.PlayerId, friend }));
+            Assert.That(_spawned.Last().IsPlayer, Is.True);
+        }
+
+        [Test]
+        public void PartyMemberKill_CountsForTheParty()
+        {
+            StartGame();
+            int friend = World.AddPlayer();
+            var killed = new List<ActorKilledEvent>();
+            _host.Container.Resolve<IEventBus>().Subscribe<ActorKilledEvent>(killed.Add);
+
+            int goblin = World.SpawnEnemy(Goblin);
+            for (int hit = 0; hit < 50 && World.Get(goblin) != null; hit++)
+                World.Attack(friend, goblin);
+
+            Assert.That(killed.Single().ByPlayer, Is.True);
+            Assert.That(World.TotalExperience, Is.EqualTo(40), "experience goes to the party");
+            Assert.That(World.Inventory.Count, Is.EqualTo(1), "loot goes to the party backpack");
+            Assert.That(World.ActiveQuests.Single().Progress.ObjectiveProgress["slay"], Is.EqualTo(1));
+        }
+
+        [Test]
+        public void LevelUp_GrowsAndHealsTheWholeParty()
+        {
+            StartGame();
+            int friend = World.AddPlayer();
+            World.Attack(World.SpawnEnemy(Goblin), friend);
+            Assume.That(World.Get(friend).Health, Is.LessThan(World.Get(friend).MaxHealth));
+
+            foreach (int enemy in World.LivingEnemies.ToList())
+                Slay(enemy);
+            Slay(World.SpawnEnemy(Goblin));
+
+            Assert.That(World.Level, Is.GreaterThan(1));
+            var member = World.Get(friend);
+            Assert.That(member.MaxHealth, Is.EqualTo(World.Player.MaxHealth));
+            Assert.That(member.Attack, Is.EqualTo(World.Player.Attack));
+            Assert.That(member.Health, Is.EqualTo(member.MaxHealth));
+        }
+
+        [Test]
+        public void Waves_GoOnWhileAnyoneInThePartyStands()
+        {
+            StartGame();
+            int friend = World.AddPlayer();
+            var lifeStates = _host.Container.Resolve<ILifeStateManager>();
+            lifeStates.Kill(World.PlayerId, -1, "test");
+
+            Tick(1.5f);
+            Assert.That(World.CurrentWave, Is.EqualTo(1), "the friend still stands");
+
+            foreach (int enemy in World.LivingEnemies.ToList())
+                lifeStates.Kill(enemy, friend, "test");
+            lifeStates.Kill(friend, -1, "test");
+            Tick(5f);
+            Assert.That(World.CurrentWave, Is.EqualTo(1), "everyone is down");
+
+            Assert.That(World.RevivePlayer(friend), Is.True);
+            Tick(2.2f);
+            Assert.That(World.CurrentWave, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void LeavingPlayer_IsRemoved_TheFirstPlayerCannotLeave()
+        {
+            StartGame();
+            int friend = World.AddPlayer();
+
+            Assert.That(World.RemovePlayer(friend), Is.True);
+            Assert.That(World.Get(friend), Is.Null);
+            Assert.That(World.Players, Is.EqualTo(new[] { World.PlayerId }));
+            Assert.That(_despawned.Last().EntityId, Is.EqualTo(friend));
+            Assert.That(() => World.RemovePlayer(World.PlayerId), Throws.InvalidOperationException);
+        }
     }
 }

@@ -5,12 +5,12 @@ namespace RPGFramework.ActionRpg
 {
     /// <summary>
     /// Base of the components on a character prefab. The presenter binds them to the entity the prefab shows;
-    /// they read state from <see cref="ActorWorld"/> and act only through its API. Pooled prefabs are bound again
+    /// they read state from the world (<see cref="IActorWorld"/>) and act only through its API. Pooled prefabs are bound again
     /// every time they are reused. Derive from it for your own per-character behaviour.
     /// </summary>
     public abstract class ActorView : MonoBehaviour
     {
-        protected ActorWorld World { get; private set; }
+        protected IActorWorld World { get; private set; }
         protected IEntityViewRegistry Views { get; private set; }
         protected CharacterDefinition Definition { get; private set; }
         protected int EntityId { get; private set; } = EntityView.Unbound;
@@ -22,7 +22,7 @@ namespace RPGFramework.ActionRpg
         /// </summary>
         protected Actor Actor => World?.Get(EntityId);
 
-        internal void Bind(ActorWorld world, IEntityViewRegistry views, CharacterDefinition definition, int entityId)
+        internal void Bind(IActorWorld world, IEntityViewRegistry views, CharacterDefinition definition, int entityId)
         {
             World = world;
             Views = views;

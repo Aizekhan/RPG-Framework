@@ -114,8 +114,9 @@ namespace RPGFramework.ActionRpg
                 .UseModule(new QuestsModule())
                 .UseModule(new ItemsModule())
                 .UseModule(new LootModule())
-                // Kills count for quests by character id ("goblin")
-                .UseModule(new CombatQuestsModule(entityId => game.World?.QuestTargetOf(entityId)))
+                // Kills count for quests by character id ("goblin"), and for the party whoever in it made them
+                .UseModule(new CombatQuestsModule(entityId => game.World?.QuestTargetOf(entityId),
+                    entityId => game.World?.CreditOf(entityId) ?? entityId))
                 .UseModule(game);
             return game;
         }

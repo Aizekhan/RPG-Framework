@@ -24,7 +24,7 @@ namespace RPGFramework.ActionRpg
         public void Update(float deltaTime)
         {
             var waves = _world.Settings.Waves;
-            if (waves == null || !waves.Enabled || !_world.IsStarted || !_world.Player.IsAlive())
+            if (waves == null || !waves.Enabled || !_world.IsStarted || !_world.LivingPlayers.Any())
                 return;
             if (_world.LivingEnemies.Any())
             {

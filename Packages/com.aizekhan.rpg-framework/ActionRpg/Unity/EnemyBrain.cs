@@ -3,7 +3,7 @@ using UnityEngine;
 namespace RPGFramework.ActionRpg
 {
     /// <summary>
-    /// An enemy runs at the player, keeps a little distance from other enemies and strikes when in reach.
+    /// An enemy runs at the nearest living player, keeps a little distance from other enemies and strikes when in reach.
     /// Speed, reach and attack rate come from its <see cref="CharacterDefinition"/>.
     /// </summary>
     public class EnemyBrain : ActorView
@@ -27,9 +27,7 @@ namespace RPGFramework.ActionRpg
         protected virtual void Update()
         {
             var self = Actor;
-            var player = World?.Player;
-            if (self == null || !self.IsAlive() || player == null || !player.IsAlive()
-                || !TryGetPosition(World.PlayerId, out var playerPosition))
+            if (self == null || !self.IsAlive() || !TryFindNearestPlayer(out int target, out var playerPosition))
                 return;
 
             var toPlayer = Flat(playerPosition - transform.position);
@@ -47,8 +45,27 @@ namespace RPGFramework.ActionRpg
                 _cooldown = Definition.AttackCooldown;
                 if (_strike != null)
                     _strike.Play();
-                World.Attack(EntityId, World.PlayerId);
+                World.Attack(EntityId, target);
             }
+        }
+
+        private bool TryFindNearestPlayer(out int target, out Vector3 position)
+        {
+            target = -1;
+            position = default;
+            float best = float.MaxValue;
+            foreach (int player in World.LivingPlayers)
+            {
+                if (!TryGetPosition(player, out var candidate))
+                    continue;
+                float distance = Flat(candidate - transform.position).sqrMagnitude;
+                if (distance >= best)
+                    continue;
+                best = distance;
+                target = player;
+                position = candidate;
+            }
+            return target >= 0;
         }
 
         private Vector3 Separation()

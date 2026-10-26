@@ -14,7 +14,7 @@ using Random = UnityEngine.Random;
 namespace RPGFramework.ActionRpg
 {
     /// <summary>
-    /// Keeps the scene in step with the <see cref="ActorWorld"/>: a character that spawns gets a view from its
+    /// Keeps the scene in step with the world (<see cref="IActorWorld"/>): a character that spawns gets a view from its
     /// <see cref="CharacterDefinition"/> prefab (or a placeholder capsule), a character that leaves loses it.
     /// Any prefab works: player movement, enemy AI, a strike animation and a health bar are added when missing.
     /// </summary>
@@ -22,7 +22,7 @@ namespace RPGFramework.ActionRpg
     {
         private const string Category = "ActionRpg";
 
-        private readonly ActorWorld _world;
+        private readonly IActorWorld _world;
         private readonly GameSetup _setup;
         private readonly IEventBus _bus;
         private readonly IPrefabSpawner _spawner;
@@ -34,7 +34,7 @@ namespace RPGFramework.ActionRpg
         private readonly HashSet<int> _pending = new HashSet<int>();
         private readonly HashSet<GameObject> _placeholders = new HashSet<GameObject>();
 
-        public ActorPresenter(ActorWorld world, GameSetup setup, IEventBus bus, IPrefabSpawner spawner,
+        public ActorPresenter(IActorWorld world, GameSetup setup, IEventBus bus, IPrefabSpawner spawner,
             IEntityViewRegistry views, Transform root, ILogger logger)
         {
             _world = world ?? throw new ArgumentNullException(nameof(world));

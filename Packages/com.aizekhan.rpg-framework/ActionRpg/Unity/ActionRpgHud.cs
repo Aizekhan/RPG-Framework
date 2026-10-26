@@ -26,7 +26,7 @@ namespace RPGFramework.ActionRpg
         [SerializeField] private bool _showLog = true;
 
         private readonly StringBuilder _text = new StringBuilder();
-        private ActorWorld _world;
+        private IActorWorld _world;
         private Font _font;
         private RectTransform _healthFill;
         private Text _healthLabel;
@@ -49,7 +49,7 @@ namespace RPGFramework.ActionRpg
 
         /// <param name="iconOf">The picture of an item by id (e.g. <see cref="GameSetup.IconOf"/>); null or no
         /// picture shows the item's initials.</param>
-        public void Bind(ActorWorld world, Func<string, Sprite> iconOf = null)
+        public void Bind(IActorWorld world, Func<string, Sprite> iconOf = null)
         {
             _world = world;
             _iconOf = iconOf;

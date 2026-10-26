@@ -89,7 +89,7 @@ namespace RPGFramework.ActionRpg
         /// <summary>
         /// Strikes the nearest living enemy in reach, if the attack is ready.
         /// </summary>
-        /// <returns>True when an enemy was hit.</returns>
+        /// <returns>True when it struck at an enemy (in co-op as a client, the host then deals the damage).</returns>
         public bool TryAttackNearest()
         {
             if (!IsBound || _cooldown > 0f || !TryFindTarget(out int target, out Vector3 targetPosition))
@@ -101,7 +101,8 @@ namespace RPGFramework.ActionRpg
                 transform.rotation = Quaternion.LookRotation(toTarget);
             if (_strike != null)
                 _strike.Play();
-            return World.Attack(EntityId, target) > 0f;
+            World.Attack(EntityId, target);
+            return true;
         }
 
         private void Move(Vector2 input)
