@@ -4,7 +4,8 @@
     "references": [
         "RPGFramework.Networking.Runtime",
         "Unity.Networking.Transport",
-        "Unity.Collections"
+        "Unity.Collections",
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

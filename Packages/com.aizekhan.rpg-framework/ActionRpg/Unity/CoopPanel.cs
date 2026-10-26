@@ -1,7 +1,5 @@
 using System;
 using System.Linq;
-using System.Net;
-using System.Net.Sockets;
 using RPGFramework.ActionRpg.Coop;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -20,7 +18,6 @@ namespace RPGFramework.ActionRpg
         private ActionRpgHost _host;
         private string _address = "";
         private string _name;
-        private string _localAddress;
         private GUIStyle _text;
         private GUIStyle _title;
         private GUIStyle _centered;
@@ -29,23 +26,6 @@ namespace RPGFramework.ActionRpg
         public bool Visible { get; set; }
 
         public void Bind(ActionRpgHost host) => _host = host;
-
-        /// <summary>
-        /// This machine's address on the local network (what friends type to join), or empty when there is none.
-        /// </summary>
-        public static string LocalAddress()
-        {
-            try
-            {
-                var address = Dns.GetHostEntry(Dns.GetHostName()).AddressList
-                    .FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(a));
-                return address?.ToString() ?? "";
-            }
-            catch (Exception)
-            {
-                return "";
-            }
-        }
 
         private void Update()
         {
@@ -104,7 +84,7 @@ namespace RPGFramework.ActionRpg
                 GUILayout.Label("Switching...", _text);
                 return;
             }
-            GUILayout.Label("Play together with friends on the same network: one hosts, up to three join.", _text);
+            GUILayout.Label($"Play together ({_host.SessionProvider.DisplayName}): one hosts, up to three join.", _text);
             GUILayout.BeginHorizontal();
             GUILayout.Label("Your name", _text, GUILayout.Width(100f));
             _name = _name ?? _host.PlayerName;
@@ -115,7 +95,7 @@ namespace RPGFramework.ActionRpg
             if (GUILayout.Button("Host a game", GUILayout.Height(34f)))
                 _host.HostGame();
             GUILayout.Space(10f);
-            GUILayout.Label("Join a friend's game at (their IP address):", _text);
+            GUILayout.Label($"Join a friend's game ({_host.SessionProvider.JoinCodeHint}):", _text);
             GUILayout.BeginHorizontal();
             _address = GUILayout.TextField(_address, 45, GUILayout.Height(30f));
             if (GUILayout.Button("Join", GUILayout.Width(90f), GUILayout.Height(30f)))
@@ -125,9 +105,7 @@ namespace RPGFramework.ActionRpg
 
         private void DrawHosting()
         {
-            _localAddress = _localAddress ?? LocalAddress();
-            string at = _localAddress.Length > 0 ? _localAddress : "this computer's IP address";
-            GUILayout.Label($"Friends join at  <b>{at}</b>  (port {_host.HostingPort})", _rich);
+            GUILayout.Label($"Friends join with  <b>{_host.JoinCode}</b>", _rich);
             GUILayout.Label($"Players  {_host.CoopHost.PlayerCount} / {_host.CoopHost.MaxPlayers}:  {Party()}", _rich);
             if (GUILayout.Button("Stop hosting", GUILayout.Height(34f)))
                 _host.LeaveGame();

@@ -68,6 +68,33 @@ namespace RPGFramework.Networking
             Role = NetworkRole.Client;
         }
 
+        /// <summary>
+        /// Starts as server on a transport that already listens (opened by an <see cref="INetworkSessionProvider"/>).
+        /// </summary>
+        public void StartServer()
+        {
+            if (IsConnected)
+                throw new InvalidOperationException("Already connected");
+            if (!_transport.IsActive)
+                throw new InvalidOperationException("The transport is not listening; open it with a session provider first");
+            Role = NetworkRole.Server;
+            IsConnected = true;
+            LocalConnectionId = 0;
+        }
+
+        /// <summary>
+        /// Starts as client on a transport that already connects (from <see cref="INetworkSessionProvider.JoinAsync"/>);
+        /// <see cref="PeerConnected"/> or <see cref="PeerDisconnected"/> tells how it went.
+        /// </summary>
+        public void StartClient()
+        {
+            if (IsConnected)
+                throw new InvalidOperationException("Already connected");
+            if (!_transport.IsActive)
+                throw new InvalidOperationException("The transport is not connecting; join with a session provider first");
+            Role = NetworkRole.Client;
+        }
+
         public void Stop()
         {
             _transport.Disconnect();

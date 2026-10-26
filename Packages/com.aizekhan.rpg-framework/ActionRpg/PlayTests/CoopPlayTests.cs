@@ -74,6 +74,7 @@ namespace RPGFramework.ActionRpg.PlayTests
             _second.UsePlayerName("Oleh");
             Assert.That(_first.HostGame(), Is.True, _first.CoopStatus);
             Assert.That(_first.Role, Is.EqualTo(CoopRole.Hosting));
+            Assert.That(_first.JoinCode, Does.EndWith(":" + Port), "the code friends type: this machine's address and port");
 
             _second.JoinGame("127.0.0.1");
             yield return WaitUntil(() => _second.CoopClient?.State == Coop.CoopClientState.Playing, "the friend to join");

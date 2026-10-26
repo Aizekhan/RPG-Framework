@@ -8,7 +8,8 @@
         "RPGFramework.Logging.Runtime",
         "RPGFramework.ECS.Runtime",
         "RPGFramework.Serialization.Runtime",
-        "RPGFramework.Networking.UnityTransport"
+        "RPGFramework.Networking.UnityTransport",
+        "UniTask"
     ],
     "includePlatforms": [
         "Editor"

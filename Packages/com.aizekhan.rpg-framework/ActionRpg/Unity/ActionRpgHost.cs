@@ -8,6 +8,8 @@ using RPGFramework.Diagnostics;
 using RPGFramework.Diagnostics.Unity;
 using RPGFramework.Events;
 using RPGFramework.Logging;
+using Cysharp.Threading.Tasks;
+using RPGFramework.Networking;
 using RPGFramework.Networking.UnityTransport;
 using RPGFramework.Presentation;
 using RPGFramework.Progression;
@@ -58,6 +60,7 @@ namespace RPGFramework.ActionRpg
         [Tooltip("Friends can host and join games (F2): up to 4 players, the host's machine runs the rules")]
         [SerializeField] private bool _coop = true;
 
+        [Tooltip("UDP port of games hosted on the local network (the default session provider)")]
         [SerializeField, Range(1024, 65535)] private int _coopPort = CoopProtocol.DefaultPort;
 
         [Tooltip("Players' colours by party seat: the host, then each friend in the order they joined")]
@@ -79,11 +82,13 @@ namespace RPGFramework.ActionRpg
         private DiagnosticsOverlay _overlay;
         private ActionRpgHud _hud;
         private Transform _charactersRoot;
-        private UnityNetworkTransport _transport;
+        private INetworkSessionProvider _sessions;
+        private INetworkTransport _transport;
+        private int _generation;
+        private bool _opening;
         private CoopHost _coopHost;
         private CoopClient _coopClient;
-        private string _joinAddress;
-        private int _joinPort;
+        private string _joinCode;
         private bool _restartPending;
 
         /// <summary>
@@ -138,9 +143,19 @@ namespace RPGFramework.ActionRpg
         public CoopClient CoopClient => _coopClient;
 
         /// <summary>
-        /// The port friends join at while hosting (0 otherwise).
+        /// How games are opened and found: the local network by default (<see cref="LanSessionProvider"/>). Set another
+        /// provider (a relay service, a platform's lobbies) before hosting or joining; the co-op itself stays the same.
         /// </summary>
-        public int HostingPort => _coopHost != null && _transport != null ? _transport.ListeningPort : 0;
+        public INetworkSessionProvider SessionProvider
+        {
+            get => _sessions ?? (_sessions = new LanSessionProvider(_coopPort));
+            set => _sessions = value;
+        }
+
+        /// <summary>
+        /// What friends type to join while hosting (empty otherwise).
+        /// </summary>
+        public string JoinCode { get; private set; } = "";
 
         /// <summary>
         /// The latest co-op news for the player ("The host left the game.").
@@ -182,7 +197,7 @@ namespace RPGFramework.ActionRpg
         /// <summary>
         /// The co-op role is changing: the game restarts at the next frame.
         /// </summary>
-        public bool IsSwitching => _restartPending;
+        public bool IsSwitching => _restartPending || _opening || (_joinCode != null && _coopClient == null);
 
         /// <summary>
         /// Raised when a character's view is in the scene.
@@ -202,7 +217,12 @@ namespace RPGFramework.ActionRpg
         /// <summary>
         /// Sets the co-op port before the host starts (tests, several games on one machine).
         /// </summary>
-        public void UseCoopPort(int port) => _coopPort = port;
+        public void UseCoopPort(int port)
+        {
+            _coopPort = port;
+            if (_sessions is LanSessionProvider lan)
+                lan.Port = port;
+        }
 
         protected sealed override void ConfigureModules(IGameCompositionBuilder builder)
         {
@@ -224,7 +244,7 @@ namespace RPGFramework.ActionRpg
             _content = _setup.BuildContent();
             if (DiagnosticsEnabled)
                 builder.UseModule(new DiagnosticsModule());
-            if (_joinAddress != null)
+            if (_joinCode != null)
             {
                 // Joined: the friend's machine runs the rules, this one shows them
                 _module = null;
@@ -251,16 +271,43 @@ namespace RPGFramework.ActionRpg
         }
 
         /// <summary>
-        /// Opens this game for friends to join on the local network.
+        /// Opens this game for friends to join, through <see cref="SessionProvider"/>. When it is open,
+        /// <see cref="Role"/> is Hosting and <see cref="JoinCode"/> says what friends type; otherwise
+        /// <see cref="CoopStatus"/> says why not.
         /// </summary>
-        /// <param name="port">0 = the 'Coop Port' setting.</param>
-        /// <returns>False when it could not (not playing alone, or the port is taken; see <see cref="CoopStatus"/>).</returns>
-        public bool HostGame(int port = 0)
+        /// <returns>False when it cannot start (not playing alone, or already opening).</returns>
+        public bool HostGame()
         {
-            if (!_coop || Role != CoopRole.Solo || World == null || _presenter == null || _restartPending)
+            if (!_coop || Role != CoopRole.Solo || World == null || _presenter == null || IsSwitching)
                 return false;
-            port = port > 0 ? port : _coopPort;
-            _transport = new UnityNetworkTransport();
+            _opening = true;
+            CoopStatus = "Opening the game...";
+            HostAsync(_generation).Forget();
+            return true;
+        }
+
+        private async UniTaskVoid HostAsync(int generation)
+        {
+            HostedSession session;
+            try
+            {
+                session = await SessionProvider.HostAsync(new SessionOptions { MaxPlayers = CoopProtocol.DefaultMaxPlayers, Name = PlayerName });
+            }
+            catch (NetworkSessionException exception)
+            {
+                _opening = false;
+                CoopStatus = exception.Message;
+                return;
+            }
+            _opening = false;
+            if (this == null || generation != _generation || World == null)
+            {
+                session.Transport.Disconnect();
+                (session.Transport as IDisposable)?.Dispose();
+                return;
+            }
+
+            _transport = session.Transport;
             _coopHost = new CoopHost(World, Host.Container.Resolve<IEventBus>(), CoopProtocol.CreateNetwork(_transport, Host.Logger),
                 _presenter, CoopProtocol.Fingerprint(_settings, _content), Host.Logger)
             {
@@ -268,34 +315,23 @@ namespace RPGFramework.ActionRpg
                 MaxAttackDistance = _setup.Player.AttackRange + 1.5f
             };
             World.SetPlayerName(World.PlayerId, PlayerName);
-            try
-            {
-                _coopHost.Open(port);
-            }
-            catch (InvalidOperationException exception)
-            {
-                StopNetwork();
-                World.SetPlayerName(World.PlayerId, null);
-                CoopStatus = exception.Message;
-                return false;
-            }
-            CoopStatus = $"Hosting on port {HostingPort}";
+            _coopHost.Open();
+            JoinCode = session.JoinCode;
+            CoopStatus = $"Hosting: friends join with {JoinCode}";
             Host.Logger.LogInfo(CoopStatus, Category);
-            return true;
         }
 
         /// <summary>
-        /// Leaves this game and joins a friend's (at the next frame); their machine then runs the rules.
+        /// Leaves this game and joins a friend's (it restarts at the next frame); their machine then runs the rules.
         /// </summary>
-        /// <param name="address">The host's IP address, e.g. 192.168.1.20.</param>
-        /// <param name="port">0 = the 'Coop Port' setting.</param>
-        public void JoinGame(string address, int port = 0)
+        /// <param name="joinCode">What the host's panel shows: with the default provider their IP address
+        /// (192.168.1.20, or 192.168.1.20:7790).</param>
+        public void JoinGame(string joinCode)
         {
-            if (!_coop || string.IsNullOrWhiteSpace(address))
+            if (!_coop || string.IsNullOrWhiteSpace(joinCode))
                 return;
-            _joinAddress = address.Trim();
-            _joinPort = port > 0 ? port : _coopPort;
-            CoopStatus = $"Joining {_joinAddress}...";
+            _joinCode = joinCode.Trim();
+            CoopStatus = $"Joining {_joinCode}...";
             _restartPending = true;
         }
 
@@ -309,7 +345,7 @@ namespace RPGFramework.ActionRpg
                 StopNetwork();
                 CoopStatus = "Stopped hosting.";
             }
-            else if (Role == CoopRole.Joined || _joinAddress != null)
+            else if (Role == CoopRole.Joined || _joinCode != null)
             {
                 ReturnToSolo("You left the game.");
             }
@@ -332,12 +368,17 @@ namespace RPGFramework.ActionRpg
 
         private void StartFromCommandLine(string[] args)
         {
+            for (int i = 0; i < args.Length - 1; i++)
+            {
+                if (args[i] == "-port" && int.TryParse(args[i + 1], out int port))
+                    UseCoopPort(port);
+            }
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "-host")
-                    HostGame(i + 1 < args.Length && int.TryParse(args[i + 1], out int port) ? port : 0);
+                    HostGame();
                 else if (args[i] == "-join" && i + 1 < args.Length)
-                    JoinGame(args[i + 1], i + 2 < args.Length && int.TryParse(args[i + 2], out int port) ? port : 0);
+                    JoinGame(args[i + 1]);
             }
         }
 
@@ -345,18 +386,43 @@ namespace RPGFramework.ActionRpg
         {
             if (Host?.Container == null || !enabled)
                 return; // the start failed and was logged
-            if (_joinAddress != null)
+            if (_joinCode != null)
+                JoinAsync(_generation).Forget();
+            else if (World != null)
+                ShowWorld();
+        }
+
+        private async UniTaskVoid JoinAsync(int generation)
+        {
+            INetworkTransport transport;
+            try
             {
-                _transport = new UnityNetworkTransport();
-                _coopClient = new CoopClient(_settings, _content, Host.Container.Resolve<IEventBus>(),
-                    CoopProtocol.CreateNetwork(_transport, Host.Logger), null, Host.Logger) { PlayerName = PlayerName };
-                _coopClient.Ended += ReturnToSolo;
+                transport = await SessionProvider.JoinAsync(_joinCode);
             }
-            else if (World == null)
+            catch (NetworkSessionException exception)
             {
+                if (generation == _generation)
+                    ReturnToSolo(exception.Message);
+                return;
+            }
+            if (this == null || generation != _generation)
+            {
+                transport.Disconnect();
+                (transport as IDisposable)?.Dispose();
                 return;
             }
 
+            _transport = transport;
+            _coopClient = new CoopClient(_settings, _content, Host.Container.Resolve<IEventBus>(),
+                CoopProtocol.CreateNetwork(_transport, Host.Logger), null, Host.Logger) { PlayerName = PlayerName };
+            _coopClient.Ended += ReturnToSolo;
+            ShowWorld();
+            _coopClient.Motion = _presenter;
+            _coopClient.JoinSession(_joinCode);
+        }
+
+        private void ShowWorld()
+        {
             if (_saveProgress && World != null)
                 StartSaving();
 
@@ -385,19 +451,6 @@ namespace RPGFramework.ActionRpg
 
             if (_coop && GetComponent<CoopPanel>() == null)
                 gameObject.AddComponent<CoopPanel>().Bind(this);
-
-            if (_coopClient != null)
-            {
-                _coopClient.Motion = _presenter;
-                try
-                {
-                    _coopClient.Join(_joinAddress, _joinPort);
-                }
-                catch (ArgumentException exception)
-                {
-                    ReturnToSolo(exception.Message);
-                }
-            }
         }
 
         private void HideGame()
@@ -406,6 +459,8 @@ namespace RPGFramework.ActionRpg
             _saveTriggers.Dispose();
             _saveTriggers = new SubscriptionBag();
             _saves = null;
+            _generation++;
+            _opening = false;
             StopNetwork();
             _presenter?.Dispose();
             _presenter = null;
@@ -419,16 +474,17 @@ namespace RPGFramework.ActionRpg
             _coopHost = null;
             _coopClient?.Dispose();
             _coopClient = null;
-            _transport?.Dispose();
+            (_transport as IDisposable)?.Dispose();
             _transport = null;
+            JoinCode = "";
         }
 
         private void ReturnToSolo(string reason)
         {
             CoopStatus = reason;
-            if (_joinAddress == null)
+            if (_joinCode == null)
                 return;
-            _joinAddress = null;
+            _joinCode = null;
             _restartPending = true;
             Host.Logger.LogInfo($"Back to playing alone: {reason}", Category);
         }

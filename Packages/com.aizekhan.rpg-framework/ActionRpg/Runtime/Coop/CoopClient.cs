@@ -77,7 +77,18 @@ namespace RPGFramework.ActionRpg.Coop
         /// </summary>
         public event Action<string> Ended;
 
-        public void Join(string address, int port = CoopProtocol.DefaultPort)
+        /// <summary>
+        /// Joins the game at this address and port.
+        /// </summary>
+        public void Join(string address, int port) => Begin(address, () => _network.StartClient(address, port));
+
+        /// <summary>
+        /// Joins over a transport that already connects (from <see cref="INetworkSessionProvider.JoinAsync"/>).
+        /// </summary>
+        /// <param name="joinCode">The code it joins with, for messages ("Could not reach a game at ...").</param>
+        public void JoinSession(string joinCode) => Begin(joinCode, () => _network.StartClient());
+
+        private void Begin(string address, Action start)
         {
             if (State == CoopClientState.Connecting || State == CoopClientState.Playing)
                 throw new InvalidOperationException("Already joining a game");
@@ -86,7 +97,7 @@ namespace RPGFramework.ActionRpg.Coop
             State = CoopClientState.Connecting;
             try
             {
-                _network.StartClient(address, port);
+                start();
             }
             catch (Exception e) when (e is ArgumentException || e is InvalidOperationException)
             {

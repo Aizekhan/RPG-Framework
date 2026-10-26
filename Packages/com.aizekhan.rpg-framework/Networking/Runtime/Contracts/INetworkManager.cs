@@ -56,6 +56,16 @@ namespace RPGFramework.Networking
         void StartClient(string address, int port);
 
         /// <summary>
+        /// Start as server on a transport that already listens (opened by an <see cref="INetworkSessionProvider"/>).
+        /// </summary>
+        void StartServer();
+
+        /// <summary>
+        /// Start as client on a transport that already connects (from <see cref="INetworkSessionProvider.JoinAsync"/>).
+        /// </summary>
+        void StartClient();
+
+        /// <summary>
         /// Stop network operations.
         /// </summary>
         void Stop();

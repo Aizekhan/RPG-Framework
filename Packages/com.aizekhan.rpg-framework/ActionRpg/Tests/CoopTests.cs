@@ -374,6 +374,33 @@ namespace RPGFramework.ActionRpg.Tests
         }
 
         [Test]
+        public void ThroughASessionProvider_TheSameGamePlays()
+        {
+            // The co-op does not care how players connect: here a provider hands over ready transports
+            var provider = new LoopbackSessionProvider(_network, firstPort: 9000);
+            var settings = Settings();
+            var content = Content();
+            var session = provider.HostAsync(new SessionOptions()).GetAwaiter().GetResult();
+            var host = new CoopHost(World, _game.Container.Resolve<IEventBus>(), CoopProtocol.CreateNetwork(session.Transport),
+                null, CoopProtocol.Fingerprint(settings, content));
+            host.Open();
+            var guest = new Guest { Bus = new EventBus() };
+            guest.Network = CoopProtocol.CreateNetwork(provider.JoinAsync(session.JoinCode).GetAwaiter().GetResult());
+            guest.Client = new CoopClient(settings, content, guest.Bus, guest.Network, null) { PlayerName = "Ira" };
+            _guests.Add(guest);
+            guest.Client.JoinSession(session.JoinCode);
+            for (int round = 0; round < 4; round++)
+            {
+                host.Update(0.06f);
+                guest.Client.Update(0.06f);
+            }
+
+            Assert.That(guest.Client.State, Is.EqualTo(CoopClientState.Playing));
+            Assert.That(guest.World.Player.DisplayName, Is.EqualTo("Ira"));
+            host.Dispose();
+        }
+
+        [Test]
         public void Fingerprint_IsStable_AndChangesWithTheRules()
         {
             Assert.That(CoopProtocol.Fingerprint(Settings(), Content()), Is.EqualTo(CoopProtocol.Fingerprint(Settings(), Content())));

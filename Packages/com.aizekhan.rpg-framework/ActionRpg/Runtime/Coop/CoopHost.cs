@@ -104,14 +104,29 @@ namespace RPGFramework.ActionRpg.Coop
         public event Action<int> PlayerLeft;
 
         /// <summary>
-        /// Starts listening for players.
+        /// Starts listening for players on this port.
         /// </summary>
-        public void Open(int port = CoopProtocol.DefaultPort)
+        public void Open(int port)
+        {
+            ThrowIfWorldNotStarted();
+            _network.StartServer(port);
+            _logger?.LogInfo($"Co-op open on port {port}", Category);
+        }
+
+        /// <summary>
+        /// Starts taking players on a transport that already listens (from <see cref="INetworkSessionProvider.HostAsync"/>).
+        /// </summary>
+        public void Open()
+        {
+            ThrowIfWorldNotStarted();
+            _network.StartServer();
+            _logger?.LogInfo("Co-op open", Category);
+        }
+
+        private void ThrowIfWorldNotStarted()
         {
             if (!_world.IsStarted)
                 throw new InvalidOperationException("Start the world before opening it to others");
-            _network.StartServer(port);
-            _logger?.LogInfo($"Co-op open on port {port}", Category);
         }
 
         public void Update(float deltaTime)
