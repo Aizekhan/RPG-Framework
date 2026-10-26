@@ -181,7 +181,7 @@ namespace RPGFramework.Tools.QuestEditor.Editor
                 case QuestTemplate.KillQuest:
                     quest.objectives = new[]
                     {
-                        new QuestObjective
+                        new QuestObjectiveEntry
                         {
                             objectiveId = "objective_kill",
                             type = ObjectiveType.Kill,
@@ -192,13 +192,13 @@ namespace RPGFramework.Tools.QuestEditor.Editor
                     };
                     quest.rewards = new[]
                     {
-                        new QuestReward
+                        new QuestRewardEntry
                         {
                             type = RewardType.Experience,
                             rewardId = "reward_xp",
                             amount = 100
                         },
-                        new QuestReward
+                        new QuestRewardEntry
                         {
                             type = RewardType.Currency,
                             rewardId = "reward_gold",
@@ -210,7 +210,7 @@ namespace RPGFramework.Tools.QuestEditor.Editor
                 case QuestTemplate.CollectionQuest:
                     quest.objectives = new[]
                     {
-                        new QuestObjective
+                        new QuestObjectiveEntry
                         {
                             objectiveId = "objective_collect",
                             type = ObjectiveType.Collect,
@@ -221,7 +221,7 @@ namespace RPGFramework.Tools.QuestEditor.Editor
                     };
                     quest.rewards = new[]
                     {
-                        new QuestReward
+                        new QuestRewardEntry
                         {
                             type = RewardType.Item,
                             rewardId = "reward_item",
@@ -233,7 +233,7 @@ namespace RPGFramework.Tools.QuestEditor.Editor
                 case QuestTemplate.TalkToNPC:
                     quest.objectives = new[]
                     {
-                        new QuestObjective
+                        new QuestObjectiveEntry
                         {
                             objectiveId = "objective_talk",
                             type = ObjectiveType.Interact,
@@ -244,7 +244,7 @@ namespace RPGFramework.Tools.QuestEditor.Editor
                     };
                     quest.rewards = new[]
                     {
-                        new QuestReward
+                        new QuestRewardEntry
                         {
                             type = RewardType.Experience,
                             rewardId = "reward_xp",
@@ -256,7 +256,7 @@ namespace RPGFramework.Tools.QuestEditor.Editor
                 case QuestTemplate.ExploreLocation:
                     quest.objectives = new[]
                     {
-                        new QuestObjective
+                        new QuestObjectiveEntry
                         {
                             objectiveId = "objective_explore",
                             type = ObjectiveType.Explore,
@@ -267,7 +267,7 @@ namespace RPGFramework.Tools.QuestEditor.Editor
                     };
                     quest.rewards = new[]
                     {
-                        new QuestReward
+                        new QuestRewardEntry
                         {
                             type = RewardType.Experience,
                             rewardId = "reward_xp",
@@ -280,7 +280,7 @@ namespace RPGFramework.Tools.QuestEditor.Editor
                 default:
                     quest.objectives = new[]
                     {
-                        new QuestObjective
+                        new QuestObjectiveEntry
                         {
                             objectiveId = "objective_1",
                             type = ObjectiveType.Kill,
@@ -291,7 +291,7 @@ namespace RPGFramework.Tools.QuestEditor.Editor
                     };
                     quest.rewards = new[]
                     {
-                        new QuestReward
+                        new QuestRewardEntry
                         {
                             type = RewardType.Experience,
                             rewardId = "reward_xp",

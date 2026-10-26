@@ -47,7 +47,7 @@ namespace RPGFramework.Tools.ItemDatabaseManager
         public string equipmentSlot = "MainHand";
 
         [Tooltip("Stat modifiers (for Equipment type)")]
-        public StatModifier[] statModifiers = new StatModifier[0];
+        public ItemStatModifierEntry[] statModifiers = new ItemStatModifierEntry[0];
 
         [Header("Consumable Properties")]
         [Tooltip("Use duration in seconds (for Consumable type)")]
@@ -192,7 +192,7 @@ namespace RPGFramework.Tools.ItemDatabaseManager
     /// Stat modifier for equipment items.
     /// </summary>
     [System.Serializable]
-    public class StatModifier
+    public class ItemStatModifierEntry
     {
         [Tooltip("Stat name (e.g., Health, Damage, Defense)")]
         public string statName = "StatName";

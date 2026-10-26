@@ -43,10 +43,10 @@ namespace RPGFramework.UI.Panels
         [SerializeField] protected TextMeshProUGUI tooltipStatsText;
 
         // Events
-        public event Action<EquipmentSlot, IItem> OnEquipmentChanged;
+        public event Action<EquipmentSlotType, IItem> OnEquipmentChanged;
         public event Action<IItem> OnItemUnequipped;
 
-        protected Dictionary<EquipmentSlot, EquipmentSlotUI> equipmentSlots = new Dictionary<EquipmentSlot, EquipmentSlotUI>();
+        protected Dictionary<EquipmentSlotType, EquipmentSlotUI> equipmentSlots = new Dictionary<EquipmentSlotType, EquipmentSlotUI>();
 
         protected override void Awake()
         {
@@ -60,17 +60,17 @@ namespace RPGFramework.UI.Panels
 
         protected virtual void InitializeEquipmentSlots()
         {
-            if (headSlot != null) RegisterSlot(EquipmentSlot.Head, headSlot);
-            if (chestSlot != null) RegisterSlot(EquipmentSlot.Chest, chestSlot);
-            if (legsSlot != null) RegisterSlot(EquipmentSlot.Legs, legsSlot);
-            if (feetSlot != null) RegisterSlot(EquipmentSlot.Feet, feetSlot);
-            if (mainHandSlot != null) RegisterSlot(EquipmentSlot.MainHand, mainHandSlot);
-            if (offHandSlot != null) RegisterSlot(EquipmentSlot.OffHand, offHandSlot);
-            if (accessory1Slot != null) RegisterSlot(EquipmentSlot.Accessory1, accessory1Slot);
-            if (accessory2Slot != null) RegisterSlot(EquipmentSlot.Accessory2, accessory2Slot);
+            if (headSlot != null) RegisterSlot(EquipmentSlotType.Head, headSlot);
+            if (chestSlot != null) RegisterSlot(EquipmentSlotType.Chest, chestSlot);
+            if (legsSlot != null) RegisterSlot(EquipmentSlotType.Legs, legsSlot);
+            if (feetSlot != null) RegisterSlot(EquipmentSlotType.Feet, feetSlot);
+            if (mainHandSlot != null) RegisterSlot(EquipmentSlotType.MainHand, mainHandSlot);
+            if (offHandSlot != null) RegisterSlot(EquipmentSlotType.OffHand, offHandSlot);
+            if (accessory1Slot != null) RegisterSlot(EquipmentSlotType.Accessory1, accessory1Slot);
+            if (accessory2Slot != null) RegisterSlot(EquipmentSlotType.Accessory2, accessory2Slot);
         }
 
-        protected virtual void RegisterSlot(EquipmentSlot slotType, EquipmentSlotUI slotUI)
+        protected virtual void RegisterSlot(EquipmentSlotType slotType, EquipmentSlotUI slotUI)
         {
             equipmentSlots[slotType] = slotUI;
 
@@ -85,7 +85,7 @@ namespace RPGFramework.UI.Panels
         /// <summary>
         /// Updates specific equipment slot with item.
         /// </summary>
-        public virtual void UpdateSlot(EquipmentSlot slot, IItem item)
+        public virtual void UpdateSlot(EquipmentSlotType slot, IItem item)
         {
             if (equipmentSlots.TryGetValue(slot, out var slotUI))
             {
@@ -98,7 +98,7 @@ namespace RPGFramework.UI.Panels
         /// <summary>
         /// Clears specific equipment slot.
         /// </summary>
-        public virtual void ClearSlot(EquipmentSlot slot)
+        public virtual void ClearSlot(EquipmentSlotType slot)
         {
             if (equipmentSlots.TryGetValue(slot, out var slotUI))
             {
@@ -173,7 +173,7 @@ namespace RPGFramework.UI.Panels
                 return "0";
         }
 
-        protected virtual void OnSlotClicked(EquipmentSlot slot)
+        protected virtual void OnSlotClicked(EquipmentSlotType slot)
         {
             if (equipmentSlots.TryGetValue(slot, out var slotUI))
             {
@@ -212,7 +212,7 @@ namespace RPGFramework.UI.Panels
     /// <summary>
     /// Equipment slot types.
     /// </summary>
-    public enum EquipmentSlot
+    public enum EquipmentSlotType
     {
         Head,
         Chest,

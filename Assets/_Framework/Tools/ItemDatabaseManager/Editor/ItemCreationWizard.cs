@@ -154,9 +154,9 @@ namespace RPGFramework.Tools.ItemDatabaseManager.Editor
                     item.rarity = ItemRarity.Common;
                     item.equipmentSlot = "MainHand";
                     item.maxStackSize = 1;
-                    item.statModifiers = new StatModifier[]
+                    item.statModifiers = new ItemStatModifierEntry[]
                     {
-                        new StatModifier { statName = "Damage", value = 10 }
+                        new ItemStatModifierEntry { statName = "Damage", value = 10 }
                     };
                     break;
 
@@ -165,9 +165,9 @@ namespace RPGFramework.Tools.ItemDatabaseManager.Editor
                     item.rarity = ItemRarity.Common;
                     item.equipmentSlot = "Chest";
                     item.maxStackSize = 1;
-                    item.statModifiers = new StatModifier[]
+                    item.statModifiers = new ItemStatModifierEntry[]
                     {
-                        new StatModifier { statName = "Defense", value = 15 }
+                        new ItemStatModifierEntry { statName = "Defense", value = 15 }
                     };
                     break;
 
@@ -176,10 +176,10 @@ namespace RPGFramework.Tools.ItemDatabaseManager.Editor
                     item.rarity = ItemRarity.Uncommon;
                     item.equipmentSlot = "Ring";
                     item.maxStackSize = 1;
-                    item.statModifiers = new StatModifier[]
+                    item.statModifiers = new ItemStatModifierEntry[]
                     {
-                        new StatModifier { statName = "Health", value = 20 },
-                        new StatModifier { statName = "Mana", value = 10 }
+                        new ItemStatModifierEntry { statName = "Health", value = 20 },
+                        new ItemStatModifierEntry { statName = "Mana", value = 10 }
                     };
                     break;
 

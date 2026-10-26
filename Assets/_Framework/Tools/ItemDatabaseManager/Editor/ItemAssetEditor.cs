@@ -96,7 +96,7 @@ namespace RPGFramework.Tools.ItemDatabaseManager.Editor
                 if (GUILayout.Button("×", GUILayout.Width(25)))
                 {
                     Undo.RecordObject(item, "Remove Stat");
-                    var list = new System.Collections.Generic.List<StatModifier>(item.statModifiers);
+                    var list = new System.Collections.Generic.List<ItemStatModifierEntry>(item.statModifiers);
                     list.RemoveAt(i);
                     item.statModifiers = list.ToArray();
                     EditorUtility.SetDirty(item);
@@ -108,8 +108,8 @@ namespace RPGFramework.Tools.ItemDatabaseManager.Editor
             if (GUILayout.Button("+ Add Stat Modifier"))
             {
                 Undo.RecordObject(item, "Add Stat");
-                var list = new System.Collections.Generic.List<StatModifier>(item.statModifiers);
-                list.Add(new StatModifier());
+                var list = new System.Collections.Generic.List<ItemStatModifierEntry>(item.statModifiers);
+                list.Add(new ItemStatModifierEntry());
                 item.statModifiers = list.ToArray();
                 EditorUtility.SetDirty(item);
             }

@@ -34,11 +34,11 @@ namespace RPGFramework.Tools.QuestEditor
 
         [Header("Objectives")]
         [Tooltip("Quest objectives that must be completed")]
-        public QuestObjective[] objectives = new QuestObjective[1];
+        public QuestObjectiveEntry[] objectives = new QuestObjectiveEntry[1];
 
         [Header("Rewards")]
         [Tooltip("Rewards granted upon quest completion")]
-        public QuestReward[] rewards = new QuestReward[1];
+        public QuestRewardEntry[] rewards = new QuestRewardEntry[1];
 
         /// <summary>
         /// Convert this ScriptableObject to Framework QuestData struct.
@@ -95,7 +95,7 @@ namespace RPGFramework.Tools.QuestEditor
             // Ensure at least one objective
             if (objectives == null || objectives.Length == 0)
             {
-                objectives = new QuestObjective[1];
+                objectives = new QuestObjectiveEntry[1];
             }
 
             // Initialize null objectives
@@ -103,14 +103,14 @@ namespace RPGFramework.Tools.QuestEditor
             {
                 if (objectives[i] == null)
                 {
-                    objectives[i] = new QuestObjective();
+                    objectives[i] = new QuestObjectiveEntry();
                 }
             }
 
             // Ensure at least one reward
             if (rewards == null || rewards.Length == 0)
             {
-                rewards = new QuestReward[1];
+                rewards = new QuestRewardEntry[1];
             }
 
             // Initialize null rewards
@@ -118,7 +118,7 @@ namespace RPGFramework.Tools.QuestEditor
             {
                 if (rewards[i] == null)
                 {
-                    rewards[i] = new QuestReward();
+                    rewards[i] = new QuestRewardEntry();
                 }
             }
         }
@@ -128,7 +128,7 @@ namespace RPGFramework.Tools.QuestEditor
     /// Serializable quest objective for Unity Inspector.
     /// </summary>
     [System.Serializable]
-    public class QuestObjective
+    public class QuestObjectiveEntry
     {
         [Tooltip("Unique objective identifier")]
         public string objectiveId = "objective_1";
@@ -168,7 +168,7 @@ namespace RPGFramework.Tools.QuestEditor
     /// Serializable quest reward for Unity Inspector.
     /// </summary>
     [System.Serializable]
-    public class QuestReward
+    public class QuestRewardEntry
     {
         [Tooltip("Reward type (Experience, Currency, Item, etc.)")]
         public RewardType type = RewardType.Experience;
