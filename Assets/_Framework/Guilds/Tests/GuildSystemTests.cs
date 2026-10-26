@@ -19,7 +19,7 @@ namespace RPGFramework.Guilds.Tests
         {
             _entityManager = new EntityManager();
             _registry = new GuildRegistry();
-            _manager = new GuildManager(_registry, _entityManager);
+            _manager = new GuildManager(_entityManager, new FactionRegistry(), _registry);
         }
 
         #region Guild Tests
