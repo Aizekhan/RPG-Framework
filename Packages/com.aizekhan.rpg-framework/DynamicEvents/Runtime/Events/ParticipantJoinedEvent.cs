@@ -1,11 +1,13 @@
 using System;
+using RPGFramework.Events;
 
 namespace RPGFramework.DynamicEvents.Runtime
 {
     /// <summary>
     /// Event raised when a participant joins a dynamic event.
+    /// Published by <see cref="EventManager.JoinEvent"/> when a new participant is added (not when an existing one rejoins).
     /// </summary>
-    public class ParticipantJoinedEvent
+    public class ParticipantJoinedEvent : IEvent
     {
         /// <summary>
         /// Event ID that was joined.

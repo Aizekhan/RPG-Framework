@@ -2,7 +2,8 @@
     "name": "RPGFramework.Environment.Runtime",
     "rootNamespace": "RPGFramework.Environment",
     "references": [
-        "RPGFramework.ECS.Runtime"
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Events.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

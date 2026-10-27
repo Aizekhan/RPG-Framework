@@ -1,20 +1,25 @@
 using System.Collections.Generic;
 using System.Linq;
 using RPGFramework.ECS;
+using RPGFramework.Events;
 
 namespace RPGFramework.StatusEffects
 {
     /// <summary>
     /// Implementation of IStatusEffectManager.
     /// ECS-based manager for status effects.
+    /// With an event publisher, raises EffectApplied, EffectTick, EffectExpired and EffectRemoved
+    /// (removal and expiry times are 0: those methods do not receive the current time).
     /// </summary>
     public class StatusEffectManager : IStatusEffectManager
     {
         private readonly IEntityManager _entityManager;
         private readonly Dictionary<string, IStatusEffect> _effectRegistry;
+        private readonly IEventPublisher _events;
 
-        public StatusEffectManager(IEntityManager entityManager)
+        public StatusEffectManager(IEntityManager entityManager, IEventPublisher events = null)
         {
+            _events = events;
             _entityManager = entityManager;
             _effectRegistry = new Dictionary<string, IStatusEffect>();
         }
@@ -64,6 +69,7 @@ namespace RPGFramework.StatusEffects
                     activeEffects.RemoveEffect(effectId);
                     activeEffects.AddEffect(instance.ToData());
                     _entityManager.AddComponent(entityId, activeEffects);
+                    _events?.Publish(new EffectAppliedEvent(entityId, effectId, sourceId, currentTime, instance.CurrentStacks));
                     return true;
                 }
                 else
@@ -75,6 +81,7 @@ namespace RPGFramework.StatusEffects
                     activeEffects.RemoveEffect(effectId);
                     activeEffects.AddEffect(instance.ToData());
                     _entityManager.AddComponent(entityId, activeEffects);
+                    _events?.Publish(new EffectAppliedEvent(entityId, effectId, sourceId, currentTime, instance.CurrentStacks));
                     return true;
                 }
             }
@@ -84,6 +91,7 @@ namespace RPGFramework.StatusEffects
             activeEffects.AddEffect(newInstance.ToData());
             _entityManager.AddComponent(entityId, activeEffects);
 
+            _events?.Publish(new EffectAppliedEvent(entityId, effectId, sourceId, currentTime, newInstance.CurrentStacks));
             return true;
         }
 
@@ -98,13 +106,28 @@ namespace RPGFramework.StatusEffects
             activeEffects.RemoveEffect(effectId);
             _entityManager.AddComponent(entityId, activeEffects);
 
+            _events?.Publish(new EffectRemovedEvent(entityId, effectId, 0f, false));
             return true;
         }
 
         public void RemoveAllEffects(int entityId)
         {
+            List<string> removedIds = null;
+            if (_events != null
+                && _entityManager.TryGetComponent<ActiveEffectsData>(entityId, out var existing)
+                && existing.ActiveInstances != null)
+            {
+                removedIds = existing.ActiveInstances.Select(i => i.EffectId).ToList();
+            }
+
             var activeEffects = ActiveEffectsData.CreateEmpty();
             _entityManager.AddComponent(entityId, activeEffects);
+
+            if (removedIds != null)
+            {
+                foreach (var effectId in removedIds)
+                    _events.Publish(new EffectRemovedEvent(entityId, effectId, 0f, false));
+            }
         }
 
         public void UpdateEffects(int entityId, float deltaTime)
@@ -116,6 +139,7 @@ namespace RPGFramework.StatusEffects
                 return;
 
             var instancesToUpdate = new List<StatusEffectInstanceData>(activeEffects.ActiveInstances);
+            List<string> expiredIds = null;
 
             foreach (var instanceData in instancesToUpdate)
             {
@@ -131,11 +155,26 @@ namespace RPGFramework.StatusEffects
                 {
                     activeEffects.AddEffect(instance.ToData());
                 }
+                else if (_events != null)
+                {
+                    if (expiredIds == null)
+                        expiredIds = new List<string>();
+                    expiredIds.Add(instanceData.EffectId);
+                }
             }
 
             // Remove expired effects
             activeEffects.RemoveExpired();
             _entityManager.AddComponent(entityId, activeEffects);
+
+            if (expiredIds != null)
+            {
+                foreach (var effectId in expiredIds)
+                {
+                    _events.Publish(new EffectExpiredEvent(entityId, effectId, 0f));
+                    _events.Publish(new EffectRemovedEvent(entityId, effectId, 0f, true));
+                }
+            }
         }
 
         public IReadOnlyList<IStatusEffectInstance> GetActiveEffects(int entityId)
@@ -186,6 +225,7 @@ namespace RPGFramework.StatusEffects
                 return;
 
             var instancesToUpdate = new List<StatusEffectInstanceData>(activeEffects.ActiveInstances);
+            List<EffectTickEvent> ticks = null;
 
             foreach (var instanceData in instancesToUpdate)
             {
@@ -213,6 +253,13 @@ namespace RPGFramework.StatusEffects
                     if (totalDamage > 0f || totalHealing > 0f)
                     {
                         onTick?.Invoke(entityId, effect.Id, totalDamage, totalHealing);
+
+                        if (_events != null)
+                        {
+                            if (ticks == null)
+                                ticks = new List<EffectTickEvent>();
+                            ticks.Add(new EffectTickEvent(entityId, effect.Id, totalDamage, totalHealing, currentTime));
+                        }
                     }
 
                     // Update the instance in ActiveEffects
@@ -222,6 +269,12 @@ namespace RPGFramework.StatusEffects
             }
 
             _entityManager.AddComponent(entityId, activeEffects);
+
+            if (ticks != null)
+            {
+                foreach (var tick in ticks)
+                    _events.Publish(tick);
+            }
         }
     }
 }

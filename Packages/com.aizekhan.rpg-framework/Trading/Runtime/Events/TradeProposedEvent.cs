@@ -1,9 +1,13 @@
+using RPGFramework.Events;
+
 namespace RPGFramework.Trading
 {
     /// <summary>
     /// Event raised when a trade offer is proposed to a player.
+    /// Published by <c>TradingManager.ProposeTradeOffer</c> when the offer passes its checks.
+    /// Timestamp is 0: the manager keeps no clock (time is the game layer's job).
     /// </summary>
-    public struct TradeProposedEvent
+    public struct TradeProposedEvent : IEvent
     {
         /// <summary>Entity receiving the trade proposal</summary>
         public int PlayerEntityId;

@@ -3,7 +3,10 @@
     "rootNamespace": "RPGFramework.StatusEffects.Tests",
     "references": [
         "RPGFramework.ECS.Runtime",
-        "RPGFramework.StatusEffects.Runtime"
+        "RPGFramework.StatusEffects.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "UniTask"
     ],
     "includePlatforms": [
         "Editor"

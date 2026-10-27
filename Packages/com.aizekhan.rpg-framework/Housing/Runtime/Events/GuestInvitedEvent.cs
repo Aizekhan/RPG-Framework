@@ -1,11 +1,14 @@
 using System;
+using RPGFramework.Events;
 
 namespace RPGFramework.Housing.Runtime.Events
 {
     /// <summary>
     /// Event raised when a guest is invited to a house with permissions.
+    /// Published by <c>HousePermissions.GrantPermission</c> when an entity gets a new level above Banned
+    /// (permissions created by HousingManager get its publisher). InvitedBy is Guid.Empty: the grant is not told who asked.
     /// </summary>
-    public class GuestInvitedEvent
+    public class GuestInvitedEvent : IEvent
     {
         /// <summary>
         /// ID of the house the guest was invited to.

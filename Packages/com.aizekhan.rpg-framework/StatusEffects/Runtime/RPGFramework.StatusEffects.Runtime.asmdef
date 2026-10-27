@@ -2,7 +2,9 @@
     "name": "RPGFramework.StatusEffects.Runtime",
     "rootNamespace": "RPGFramework.StatusEffects",
     "references": [
-        "RPGFramework.ECS.Runtime"
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Events.Runtime",
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

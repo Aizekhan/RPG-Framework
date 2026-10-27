@@ -1,7 +1,10 @@
 {
     "name": "RPGFramework.Trading.Runtime",
     "rootNamespace": "RPGFramework.Trading",
-    "references": [],
+    "references": [
+        "RPGFramework.Events.Runtime",
+        "UniTask"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

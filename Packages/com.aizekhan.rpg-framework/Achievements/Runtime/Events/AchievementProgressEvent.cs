@@ -1,9 +1,13 @@
+using RPGFramework.Events;
+
 namespace RPGFramework.Achievements
 {
     /// <summary>
     /// Event emitted when achievement progress is updated.
+    /// Published by <c>AchievementManager</c> (when given an event publisher) each time a criterion's value changes,
+    /// from <c>UpdateCriterionProgress</c> or <c>CheckRetroactiveUnlocks</c>.
     /// </summary>
-    public struct AchievementProgressEvent
+    public struct AchievementProgressEvent : IEvent
     {
         /// <summary>
         /// The entity whose progress was updated.

@@ -2,7 +2,9 @@
     "name": "RPGFramework.Achievements.Runtime",
     "rootNamespace": "RPGFramework.Achievements",
     "references": [
-        "RPGFramework.ECS.Runtime"
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Events.Runtime",
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

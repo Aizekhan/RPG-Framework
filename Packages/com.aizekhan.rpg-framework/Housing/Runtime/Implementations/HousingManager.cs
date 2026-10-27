@@ -1,13 +1,18 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using RPGFramework.Events;
 using RPGFramework.Housing.Runtime.Contracts;
 using RPGFramework.Housing.Runtime.Data;
+using RPGFramework.Housing.Runtime.Events;
 
 namespace RPGFramework.Housing.Runtime.Implementations
 {
     /// <summary>
     /// Implementation of IHousingManager managing all houses.
+    /// With an event publisher, raises HousePurchased when a plot is bought, and hands the publisher to the houses it
+    /// builds and the permissions it creates, so those raise their own furniture, upgrade and guest events.
+    /// Houses built elsewhere and passed to <see cref="RegisterHouse"/> raise events only if given a publisher themselves.
     /// </summary>
     public class HousingManager : IHousingManager
     {
@@ -15,14 +20,16 @@ namespace RPGFramework.Housing.Runtime.Implementations
         private readonly Dictionary<Guid, IHousePermissions> _permissions;
         private readonly Dictionary<Guid, List<IHouseStorage>> _storageContainers;
         private readonly Dictionary<Guid, Guid> _houseOwnership; // houseId -> ownerId
+        private readonly IEventPublisher _events;
 
         public IReadOnlyList<IHouse> AllHouses => _houses.Values.ToList();
 
         /// <summary>
         /// Create a new housing manager instance.
         /// </summary>
-        public HousingManager()
+        public HousingManager(IEventPublisher events = null)
         {
+            _events = events;
             _houses = new Dictionary<Guid, IHouse>();
             _permissions = new Dictionary<Guid, IHousePermissions>();
             _storageContainers = new Dictionary<Guid, List<IHouseStorage>>();
@@ -37,7 +44,7 @@ namespace RPGFramework.Housing.Runtime.Implementations
             _houses[house.HouseId] = house;
             _houseOwnership[house.HouseId] = ownerId;
 
-            var permissions = new HousePermissions(house.HouseId, ownerId);
+            var permissions = new HousePermissions(house.HouseId, ownerId, _events);
             _permissions[house.HouseId] = permissions;
 
             _storageContainers[house.HouseId] = new List<IHouseStorage>();
@@ -94,7 +101,7 @@ namespace RPGFramework.Housing.Runtime.Implementations
             _houseOwnership[houseId] = newOwnerId;
 
             // Update permissions
-            var permissions = new HousePermissions(houseId, newOwnerId);
+            var permissions = new HousePermissions(houseId, newOwnerId, _events);
             _permissions[houseId] = permissions;
 
             return true;
@@ -125,13 +132,14 @@ namespace RPGFramework.Housing.Runtime.Implementations
                 plot.WorldLocation.Z
             );
 
-            var house = new House(houseData);
+            var house = new House(houseData, _events);
 
             plot.SetOwner(buyerId);
             plot.SetHouse(houseId);
 
             RegisterHouse(house, buyerId);
 
+            _events?.Publish(new HousePurchasedEvent(houseId, buyerId, plot.PlotId, houseType, plot.PurchasePrice));
             return house;
         }
 

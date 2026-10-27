@@ -1,11 +1,14 @@
 using System;
+using RPGFramework.Events;
 
 namespace RPGFramework.Housing.Runtime.Events
 {
     /// <summary>
     /// Event raised when furniture is removed from a house.
+    /// Published by <c>House.TryRemoveFurniture</c> on success (houses built by HousingManager get its publisher).
+    /// RemovedBy is Guid.Empty: the house is not told who removed it.
     /// </summary>
-    public class FurnitureRemovedEvent
+    public class FurnitureRemovedEvent : IEvent
     {
         /// <summary>
         /// ID of the house where furniture was removed from.

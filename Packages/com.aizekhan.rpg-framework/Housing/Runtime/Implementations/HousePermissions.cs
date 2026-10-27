@@ -1,16 +1,20 @@
 using System;
 using System.Collections.Generic;
+using RPGFramework.Events;
 using RPGFramework.Housing.Runtime.Contracts;
 using RPGFramework.Housing.Runtime.Data;
+using RPGFramework.Housing.Runtime.Events;
 
 namespace RPGFramework.Housing.Runtime.Implementations
 {
     /// <summary>
     /// Implementation of IHousePermissions managing guest access.
+    /// With an event publisher, raises GuestInvited when an entity is granted a new access level.
     /// </summary>
     public class HousePermissions : IHousePermissions
     {
         private readonly Dictionary<Guid, PermissionLevel> _permissions;
+        private readonly IEventPublisher _events;
 
         public Guid HouseId { get; }
         public Guid OwnerId { get; }
@@ -19,8 +23,9 @@ namespace RPGFramework.Housing.Runtime.Implementations
         /// <summary>
         /// Create a new house permissions instance.
         /// </summary>
-        public HousePermissions(Guid houseId, Guid ownerId)
+        public HousePermissions(Guid houseId, Guid ownerId, IEventPublisher events = null)
         {
+            _events = events;
             HouseId = houseId;
             OwnerId = ownerId;
             _permissions = new Dictionary<Guid, PermissionLevel>
@@ -34,7 +39,12 @@ namespace RPGFramework.Housing.Runtime.Implementations
             if (entityId == OwnerId)
                 return; // Cannot change owner's permission
 
+            var previousLevel = GetPermissionLevel(entityId);
             _permissions[entityId] = level;
+
+            // Banned grants no access, and re-granting the same level invites no one
+            if (level > PermissionLevel.Banned && level != previousLevel)
+                _events?.Publish(new GuestInvitedEvent(HouseId, entityId, level, Guid.Empty));
         }
 
         public void RevokePermission(Guid entityId)

@@ -1,11 +1,14 @@
 using System;
+using RPGFramework.Events;
 
 namespace RPGFramework.DynamicEvents.Runtime
 {
     /// <summary>
     /// Event raised when a dynamic event fails.
+    /// Published by <see cref="EventManager"/> during <c>Update</c> when it removes an event that ended in failure
+    /// (time ran out, or <c>End(false)</c> was called); <c>ParticipantCount</c> is the event's active participant count.
     /// </summary>
-    public class EventFailedEvent
+    public class EventFailedEvent : IEvent
     {
         /// <summary>
         /// Event ID that failed.

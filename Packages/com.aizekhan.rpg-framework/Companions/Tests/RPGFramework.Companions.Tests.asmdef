@@ -3,7 +3,10 @@
     "rootNamespace": "RPGFramework.Companions.Tests",
     "references": [
         "RPGFramework.Companions.Runtime",
-        "RPGFramework.ECS.Runtime"
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "UniTask"
     ],
     "includePlatforms": [
         "Editor"

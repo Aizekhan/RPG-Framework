@@ -2,7 +2,9 @@
     "name": "RPGFramework.DynamicEvents.Runtime",
     "rootNamespace": "RPGFramework.DynamicEvents",
     "references": [
-        "RPGFramework.ECS.Runtime"
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Events.Runtime",
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

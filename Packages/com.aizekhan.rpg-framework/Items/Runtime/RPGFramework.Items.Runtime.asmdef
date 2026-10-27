@@ -3,7 +3,9 @@
     "rootNamespace": "RPGFramework.Items",
     "references": [
         "RPGFramework.ECS.Runtime",
-        "RPGFramework.Stats.Runtime"
+        "RPGFramework.Stats.Runtime",
+        "RPGFramework.Events.Runtime",
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -1,11 +1,14 @@
 using System;
+using RPGFramework.Events;
 
 namespace RPGFramework.DynamicEvents.Runtime
 {
     /// <summary>
     /// Event raised when a dynamic event succeeds.
+    /// Published by <see cref="EventManager"/> during <c>Update</c> when it removes an event that ended in success;
+    /// <c>CompletionTime</c> is the time the manager updated the event for, and <c>ParticipantCount</c> its active participants.
     /// </summary>
-    public class EventSucceededEvent
+    public class EventSucceededEvent : IEvent
     {
         /// <summary>
         /// Event ID that succeeded.

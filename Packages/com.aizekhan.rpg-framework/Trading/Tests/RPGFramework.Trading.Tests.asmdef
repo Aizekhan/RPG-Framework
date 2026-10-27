@@ -4,7 +4,10 @@
     "references": [
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
-        "RPGFramework.Trading.Runtime"
+        "RPGFramework.Trading.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "UniTask"
     ],
     "includePlatforms": [
         "Editor"

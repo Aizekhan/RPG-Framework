@@ -1,11 +1,14 @@
 using System;
+using RPGFramework.Events;
 
 namespace RPGFramework.Achievements
 {
     /// <summary>
     /// Event emitted when an achievement is unlocked.
+    /// Published by <c>AchievementManager</c> (when given an event publisher) once per achievement and entity,
+    /// whether it was unlocked by progress, retroactively, or manually through <c>UnlockAchievement</c>.
     /// </summary>
-    public struct AchievementUnlockedEvent
+    public struct AchievementUnlockedEvent : IEvent
     {
         /// <summary>
         /// The entity that unlocked the achievement.
@@ -28,7 +31,7 @@ namespace RPGFramework.Achievements
         public int Points;
 
         /// <summary>
-        /// Timestamp when the achievement was unlocked.
+        /// Timestamp when the achievement was unlocked (UTC, the same moment the manager stores in AchievementData).
         /// </summary>
         public DateTime UnlockedAt;
 

@@ -1,17 +1,22 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using RPGFramework.Events;
 using RPGFramework.Housing.Runtime.Contracts;
 using RPGFramework.Housing.Runtime.Data;
+using RPGFramework.Housing.Runtime.Events;
 
 namespace RPGFramework.Housing.Runtime.Implementations
 {
     /// <summary>
     /// Implementation of IHouse representing a player-owned house.
+    /// With an event publisher, raises FurniturePlaced/FurnitureRemoved/HouseUpgraded when those succeed
+    /// (the acting entity is Guid.Empty: the house is not told who did it).
     /// </summary>
     public class House : IHouse
     {
         private readonly List<IFurniture> _placedFurniture;
+        private readonly IEventPublisher _events;
         private HouseData _data;
 
         public Guid HouseId => _data.HouseId;
@@ -26,8 +31,9 @@ namespace RPGFramework.Housing.Runtime.Implementations
         /// <summary>
         /// Create a new house instance.
         /// </summary>
-        public House(HouseData data)
+        public House(HouseData data, IEventPublisher events = null)
         {
+            _events = events;
             _data = data;
             _placedFurniture = new List<IFurniture>();
         }
@@ -45,6 +51,15 @@ namespace RPGFramework.Housing.Runtime.Implementations
 
             _placedFurniture.Add(furniture);
             _data.CurrentFurnitureCount = _placedFurniture.Count;
+
+            var position = furniture.Position;
+            _events?.Publish(new FurniturePlacedEvent(
+                HouseId,
+                furniture.FurnitureId,
+                furniture.TemplateId,
+                furniture.Category,
+                Guid.Empty,
+                position.X, position.Y, position.Z));
             return true;
         }
 
@@ -56,6 +71,8 @@ namespace RPGFramework.Housing.Runtime.Implementations
 
             _placedFurniture.Remove(furniture);
             _data.CurrentFurnitureCount = _placedFurniture.Count;
+
+            _events?.Publish(new FurnitureRemovedEvent(HouseId, furnitureId, Guid.Empty));
             return true;
         }
 
@@ -69,9 +86,20 @@ namespace RPGFramework.Housing.Runtime.Implementations
             if (!CanUpgrade())
                 return false;
 
+            int previousLevel = _data.UpgradeLevel;
+            int previousCapacity = _data.MaxFurnitureCapacity;
+
             _data.UpgradeLevel++;
             // Increase capacity with upgrades
             _data.MaxFurnitureCapacity += GetCapacityBonusPerLevel();
+
+            _events?.Publish(new HouseUpgradedEvent(
+                HouseId,
+                previousLevel,
+                _data.UpgradeLevel,
+                previousCapacity,
+                _data.MaxFurnitureCapacity,
+                Guid.Empty));
             return true;
         }
 

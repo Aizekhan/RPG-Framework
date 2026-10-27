@@ -16,6 +16,7 @@ namespace RPGFramework.Networking
 
         private readonly Dictionary<int, List<HandlerEntry>> _messageHandlers;
         private readonly ILogger _logger;
+        private readonly RPGFramework.Events.IEventPublisher _events;
         private readonly List<INetworkConnection> _connectionsReadOnly;
         private NetworkStats _stats;
         private float _timeSinceLastPing;
@@ -41,8 +42,12 @@ namespace RPGFramework.Networking
         public event Action<int> PeerDisconnected;
         public event Action<int, PeerDropReason> PeerDropped;
 
-        public NetworkManager(INetworkTransport transport, INetworkSerializer serializer, NetworkConfig config, ILogger logger = null)
+        /// <param name="events">Optional: also publishes connections, losses and received messages on the event bus
+        /// (<see cref="ConnectionEstablishedEvent"/>, <see cref="ConnectionLostEvent"/>, <see cref="MessageReceivedEvent"/>).</param>
+        public NetworkManager(INetworkTransport transport, INetworkSerializer serializer, NetworkConfig config, ILogger logger = null,
+            RPGFramework.Events.IEventPublisher events = null)
         {
+            _events = events;
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
             _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
             Config = config;
@@ -273,9 +278,19 @@ namespace RPGFramework.Networking
                 return;
             }
             PeerConnected?.Invoke(connectionId);
+            _events?.Publish(new ConnectionEstablishedEvent
+            {
+                ConnectionId = connectionId, RemoteAddress = remoteAddress, IsServer = Role == NetworkRole.Server
+            });
         }
 
-        private void HandleDisconnected(int connectionId, string reason)
+        private void RaiseLost(int connectionId, string reason, bool timedOut)
+        {
+            PeerDisconnected?.Invoke(connectionId);
+            _events?.Publish(new ConnectionLostEvent { ConnectionId = connectionId, Reason = reason, WasTimeout = timedOut });
+        }
+
+        private void HandleDisconnected(int connectionId, string reason, bool timedOut = false)
         {
             _silence.Remove(connectionId);
             _badMessages.Remove(connectionId);
@@ -284,13 +299,13 @@ namespace RPGFramework.Networking
                 connection.SetState(ConnectionState.Disconnected);
                 _connections.Remove(connectionId);
                 _connectionsReadOnly.Remove(connection);
-                PeerDisconnected?.Invoke(connectionId);
+                RaiseLost(connectionId, reason, timedOut);
             }
             else if (Role == NetworkRole.Client && (connectionId == LocalConnectionId || !IsConnected))
             {
                 // Lost the server, or never reached it
                 IsConnected = false;
-                PeerDisconnected?.Invoke(connectionId);
+                RaiseLost(connectionId, reason, timedOut);
             }
         }
 
@@ -304,6 +319,8 @@ namespace RPGFramework.Networking
             if (_silence.ContainsKey(connectionId))
                 _silence[connectionId] = 0f;
 
+            int acceptedType = 0;
+            INetworkMessage accepted = null;
             try
             {
                 var (messageTypeId, message) = _serializer.Deserialize(data);
@@ -328,7 +345,9 @@ namespace RPGFramework.Networking
                     return;
                 }
 
-                Dispatch(connectionId, messageTypeId, (INetworkMessage)message);
+                accepted = (INetworkMessage)message;
+                acceptedType = messageTypeId;
+                Dispatch(connectionId, messageTypeId, accepted);
             }
             catch (Exception ex)
             {
@@ -336,6 +355,9 @@ namespace RPGFramework.Networking
                 _logger?.LogError($"Could not deserialize message from connection {connectionId}", LogCategory, ex);
                 CountBadMessage(connectionId);
             }
+
+            if (accepted != null)
+                _events?.Publish(new MessageReceivedEvent { ConnectionId = connectionId, MessageTypeId = acceptedType, Message = accepted });
         }
 
         private void Dispatch(int connectionId, int messageTypeId, INetworkMessage message)
@@ -456,7 +478,7 @@ namespace RPGFramework.Networking
                 (_transport as INetworkPeerDisconnect)?.Disconnect(connectionId);
                 _dropped.Add(connectionId);
                 PeerDropped?.Invoke(connectionId, reason);
-                HandleDisconnected(connectionId, reason.ToString());
+                HandleDisconnected(connectionId, reason.ToString(), reason == PeerDropReason.TimedOut);
             }
             else
             {
@@ -465,7 +487,7 @@ namespace RPGFramework.Networking
                 IsConnected = false;
                 _transport.Disconnect();
                 PeerDropped?.Invoke(connectionId, reason);
-                PeerDisconnected?.Invoke(connectionId);
+                RaiseLost(connectionId, reason.ToString(), reason == PeerDropReason.TimedOut);
             }
         }
 

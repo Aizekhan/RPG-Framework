@@ -5,6 +5,8 @@ namespace RPGFramework.Guilds.Runtime
 {
     /// <summary>
     /// Event raised when resources are deposited into the guild treasury.
+    /// Published by <see cref="GuildTreasury"/> (DepositGold / DepositItem) when it was given an event publisher
+    /// and the deposit succeeded.
     /// </summary>
     public class TreasuryDepositEvent : IEvent
     {

@@ -3,7 +3,9 @@
     "rootNamespace": "RPGFramework.Housing",
     "references": [
         "RPGFramework.ECS.Runtime",
-        "RPGFramework.Inventory.Runtime"
+        "RPGFramework.Inventory.Runtime",
+        "RPGFramework.Events.Runtime",
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

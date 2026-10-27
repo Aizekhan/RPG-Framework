@@ -2,20 +2,24 @@
 
 using System.Collections.Generic;
 using RPGFramework.ECS;
+using RPGFramework.Events;
 
 namespace RPGFramework.Skills
 {
     /// <summary>
     /// Manages skill learning, leveling, and querying for entities.
     /// Works with any component type that contains SkillProgressData.
+    /// With an event publisher, raises SkillLearned and SkillLevelUp (TimeStamp 0: the manager keeps no clock).
     /// </summary>
     public class SkillManager : ISkillManager
     {
         private readonly IEntityManager _entityManager;
         private readonly ISkillTree _skillTree;
+        private readonly IEventPublisher _events;
 
-        public SkillManager(IEntityManager entityManager, ISkillTree skillTree)
+        public SkillManager(IEntityManager entityManager, ISkillTree skillTree, IEventPublisher events = null)
         {
+            _events = events;
             _entityManager = entityManager;
             _skillTree = skillTree;
         }
@@ -43,6 +47,7 @@ namespace RPGFramework.Skills
             progressData.SetSkillLevel(skillId, 1);
             UpdateSkillProgressData(entityId, progressData);
 
+            _events?.Publish(new SkillLearnedEvent { EntityId = entityId, SkillId = skillId, Level = 1 });
             return true;
         }
 
@@ -65,6 +70,10 @@ namespace RPGFramework.Skills
             progressData.SetSkillLevel(skillId, currentLevel + 1);
             UpdateSkillProgressData(entityId, progressData);
 
+            _events?.Publish(new SkillLevelUpEvent
+            {
+                EntityId = entityId, SkillId = skillId, OldLevel = currentLevel, NewLevel = currentLevel + 1
+            });
             return true;
         }
 
@@ -124,7 +133,11 @@ namespace RPGFramework.Skills
         // Helper methods - these would be implemented by game-specific adapters
         // For now, we'll provide a basic implementation that works with a generic component
 
-        private bool TryGetSkillProgressData(int entityId, out SkillProgressData data)
+        /// <summary>
+        /// Reads an entity's skill data. The base version stores nothing and returns false;
+        /// a game-layer subclass overrides this and <see cref="UpdateSkillProgressData"/> to use its own component.
+        /// </summary>
+        protected virtual bool TryGetSkillProgressData(int entityId, out SkillProgressData data)
         {
             // This is a simplified version - actual implementation would depend on component structure
             // Game-layer adapter would override this to work with specific component types
@@ -132,7 +145,10 @@ namespace RPGFramework.Skills
             return false;
         }
 
-        private void UpdateSkillProgressData(int entityId, SkillProgressData data)
+        /// <summary>
+        /// Writes an entity's skill data back. The base version does nothing.
+        /// </summary>
+        protected virtual void UpdateSkillProgressData(int entityId, SkillProgressData data)
         {
             // This is a simplified version - actual implementation would depend on component structure
             // Game-layer adapter would override this to work with specific component types

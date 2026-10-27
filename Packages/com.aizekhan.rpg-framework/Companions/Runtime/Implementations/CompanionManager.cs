@@ -1,26 +1,35 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using RPGFramework.Events;
 
 namespace RPGFramework.Companions.Runtime
 {
     /// <summary>
     /// Default implementation of ICompanionManager.
     /// Manages all companions in the game.
+    /// With an event publisher, raises CompanionFed when a companion is fed and hands the publisher to every
+    /// companion it creates, so those raise their own summon/dismiss/death/level-up/loyalty events.
     /// </summary>
     public class CompanionManager : ICompanionManager
     {
+        private const int FeedHunger = 30;
+        private const int FeedHappiness = 10;
+        private const int FeedLoyalty = 2;
+
         private readonly Dictionary<string, ICompanion> _companions;
         private readonly Dictionary<string, ICompanionStats> _companionStats;
         private readonly Dictionary<string, ICompanionBehavior> _companionBehaviors;
         private readonly Dictionary<string, ICompanionInventory> _companionInventories;
+        private readonly IEventPublisher _events;
         private int _nextEntityId;
 
         public IReadOnlyList<ICompanion> ActiveCompanions =>
             _companions.Values.Where(c => c.IsActive).ToList();
 
-        public CompanionManager()
+        public CompanionManager(IEventPublisher events = null)
         {
+            _events = events;
             _companions = new Dictionary<string, ICompanion>();
             _companionStats = new Dictionary<string, ICompanionStats>();
             _companionBehaviors = new Dictionary<string, ICompanionBehavior>();
@@ -37,7 +46,7 @@ namespace RPGFramework.Companions.Runtime
                 throw new InvalidOperationException($"Companion with ID {companionId} already exists");
 
             int entityId = _nextEntityId++;
-            var companion = new Companion(entityId, companionId, name, type, ownerId);
+            var companion = new Companion(entityId, companionId, name, type, ownerId, _events);
 
             // Create default stats based on companion type
             var stats = CreateDefaultStats(type);
@@ -103,15 +112,34 @@ namespace RPGFramework.Companions.Runtime
             if (!_companionStats.TryGetValue(companionId, out var stats))
                 return false;
 
-            // Feeding logic: restore hunger, increase happiness, boost loyalty
-            stats.ModifyHunger(30); // Restore 30 hunger
-            stats.ModifyHappiness(10); // Increase happiness
-            companion.ModifyLoyalty(2); // Small loyalty boost
+            int hungerBefore = stats.Hunger;
+            int happinessBefore = stats.Happiness;
+            var concreteCompanion = companion as Companion;
+            int loyaltyBefore = concreteCompanion != null ? concreteCompanion.GetData().LoyaltyValue : 0;
 
-            if (companion is Companion concreteCompanion)
+            // Feeding logic: restore hunger, increase happiness, boost loyalty
+            stats.ModifyHunger(FeedHunger); // Restore 30 hunger
+            stats.ModifyHappiness(FeedHappiness); // Increase happiness
+            companion.ModifyLoyalty(FeedLoyalty); // Small loyalty boost
+
+            if (concreteCompanion != null)
             {
                 concreteCompanion.UpdateLastFedTime();
             }
+
+            _events?.Publish(new CompanionFedEvent
+            {
+                CompanionId = companionId,
+                EntityId = companion.EntityId,
+                FoodItemId = foodItemId,
+                HungerRestored = stats.Hunger - hungerBefore,
+                HappinessGained = stats.Happiness - happinessBefore,
+                // Other ICompanion implementations do not expose the loyalty value: report the requested boost
+                LoyaltyGained = concreteCompanion != null
+                    ? concreteCompanion.GetData().LoyaltyValue - loyaltyBefore
+                    : FeedLoyalty,
+                FedAt = DateTime.UtcNow
+            });
 
             return true;
         }

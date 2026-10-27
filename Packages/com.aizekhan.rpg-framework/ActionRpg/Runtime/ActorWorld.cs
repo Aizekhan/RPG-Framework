@@ -456,8 +456,21 @@ namespace RPGFramework.ActionRpg
             var loot = _loot.GenerateLootById(victim.Character.LootTableId, Level, seed: _random.Next());
             if (loot.Drops == null)
                 return;
+            _bus.Publish(new LootGeneratedEvent
+            {
+                TableId = loot.TableId, TriggerEntityId = death.KillerEntityId, SourceEntityId = victim.EntityId,
+                ItemCount = loot.TotalCount
+            });
             foreach (var drop in loot.Drops)
-                GiveItem(drop.ItemId, drop.Quantity);
+            {
+                if (GiveItem(drop.ItemId, drop.Quantity))
+                {
+                    _bus.Publish(new LootDroppedEvent
+                    {
+                        ItemId = drop.ItemId, Quantity = drop.Quantity, ItemEntityId = -1, SourceEntityId = victim.EntityId
+                    });
+                }
+            }
         }
 
         private void OnObjectiveProgressed(ObjectiveProgressedEvent progress)

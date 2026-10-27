@@ -1,11 +1,13 @@
 using System;
+using RPGFramework.Events;
 
 namespace RPGFramework.DynamicEvents.Runtime
 {
     /// <summary>
     /// Event raised when an event objective progresses.
+    /// Published by <see cref="EventManager.UpdateObjectiveProgress"/> when the objective's count actually changed.
     /// </summary>
-    public class ObjectiveProgressEvent
+    public class ObjectiveProgressEvent : IEvent
     {
         /// <summary>
         /// Event ID containing the objective.

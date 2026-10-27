@@ -44,5 +44,25 @@ namespace RPGFramework.Guilds.Tests
                 "disbanded g1"
             }, log);
         }
+
+        [Test]
+        public void WithdrawingItem_PublishesTreasuryWithdraw()
+        {
+            using var bus = new EventBus();
+            var withdrawals = new List<TreasuryWithdrawEvent>();
+            bus.Subscribe<TreasuryWithdrawEvent>(withdrawals.Add);
+            var treasury = new GuildTreasury(GuildTreasuryData.Create("g1"), bus);
+            treasury.DepositItem("gem", 3, 1);
+
+            treasury.WithdrawItem("gem", 2, 7);
+            treasury.WithdrawItem("gem", 5, 7); // only 1 left: refused, no event
+
+            Assert.That(withdrawals, Has.Count.EqualTo(1));
+            Assert.That(withdrawals[0].GuildId, Is.EqualTo("g1"));
+            Assert.That(withdrawals[0].WithdrawerId, Is.EqualTo(7));
+            Assert.That(withdrawals[0].ItemId, Is.EqualTo("gem"));
+            Assert.That(withdrawals[0].ItemQuantity, Is.EqualTo(2));
+            Assert.That(withdrawals[0].GoldAmount, Is.EqualTo(0));
+        }
     }
 }

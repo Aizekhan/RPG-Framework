@@ -3,26 +3,33 @@ using System.Collections.Generic;
 using System.Linq;
 using RPGFramework.Achievements.Runtime;
 using RPGFramework.ECS;
+using RPGFramework.Events;
 
 namespace RPGFramework.Achievements
 {
     /// <summary>
     /// Implementation of IAchievementManager.
     /// ECS-based manager for achievement tracking and unlocking.
+    /// With an event publisher, raises AchievementProgress and CriterionCompleted when criterion values change,
+    /// and AchievementUnlocked when an achievement unlocks.
     /// </summary>
     public class AchievementManager : IAchievementManager
     {
         private readonly IAchievementRegistry _registry;
         private readonly IEntityManager _entityManager;
         private readonly Dictionary<int, Dictionary<string, AchievementProgress>> _entityProgress;
+        private readonly IEventPublisher _events;
 
         /// <summary>
         /// Create an achievement manager.
         /// </summary>
         /// <param name="registry">Achievement registry.</param>
         /// <param name="entityManager">ECS entity manager.</param>
-        public AchievementManager(IAchievementRegistry registry, IEntityManager entityManager)
+        /// <param name="events">Optional publisher for achievement events; null publishes nothing.</param>
+        public AchievementManager(IAchievementRegistry registry, IEntityManager entityManager,
+            IEventPublisher events = null)
         {
+            _events = events;
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
             _entityManager = entityManager ?? throw new ArgumentNullException(nameof(entityManager));
             _entityProgress = new Dictionary<int, Dictionary<string, AchievementProgress>>();
@@ -37,7 +44,7 @@ namespace RPGFramework.Achievements
             if (progress == null)
                 return false;
 
-            bool updated = progress.UpdateCriterion(criterionId, currentValue);
+            bool updated = UpdateCriterion(entityId, progress, criterionId, currentValue);
 
             // Check if achievement can be unlocked
             if (updated && progress.AreAllCriteriaCompleted() && progress.State != AchievementState.Unlocked)
@@ -69,15 +76,20 @@ namespace RPGFramework.Achievements
             var unlockedIds = data.UnlockedAchievementIds?.ToList() ?? new List<string>();
             var timestamps = data.UnlockTimestamps?.ToList() ?? new List<long>();
 
+            var unlockedAt = DateTime.UtcNow;
             if (!unlockedIds.Contains(achievementId))
             {
                 unlockedIds.Add(achievementId);
-                timestamps.Add(DateTime.UtcNow.Ticks);
+                timestamps.Add(unlockedAt.Ticks);
 
                 _entityManager.AddComponent(entityId, new AchievementData(
                     unlockedIds.ToArray(),
                     timestamps.ToArray(),
                     data.TotalPoints + achievement.Points));
+
+                // Only a first-time unlock is news (the entity data may already hold it, e.g. from a save)
+                _events?.Publish(new AchievementUnlockedEvent(
+                    entityId, achievementId, achievement.Tier, achievement.Points, unlockedAt));
             }
 
             return true;
@@ -108,7 +120,7 @@ namespace RPGFramework.Achievements
                 {
                     if (criterionData.TryGetValue(criterion.TargetId, out int value))
                     {
-                        progress.UpdateCriterion(criterion.CriterionId, value);
+                        UpdateCriterion(entityId, progress, criterion.CriterionId, value);
                     }
                 }
 
@@ -196,6 +208,50 @@ namespace RPGFramework.Achievements
             return _registry.GetAchievementsByTier(tier)
                 .Select(a => a.AchievementId)
                 .ToList();
+        }
+
+        /// <summary>
+        /// Update one criterion and publish the progress (and, on completion, criterion completed) events.
+        /// </summary>
+        private bool UpdateCriterion(int entityId, AchievementProgress progress, string criterionId, int currentValue)
+        {
+            var before = progress.GetCriterionProgress(criterionId);
+            if (!progress.UpdateCriterion(criterionId, currentValue))
+                return false;
+
+            if (_events == null || !before.HasValue)
+                return true;
+
+            var after = progress.GetCriterionProgress(criterionId).Value;
+            bool completedNow = after.IsCompleted && !before.Value.IsCompleted;
+
+            _events.Publish(new AchievementProgressEvent(
+                entityId,
+                progress.AchievementId,
+                criterionId,
+                before.Value.CurrentValue,
+                after.CurrentValue,
+                after.RequiredValue,
+                completedNow,
+                progress.CompletionPercentage));
+
+            if (completedNow)
+            {
+                var criterion = _registry.GetAchievement(progress.AchievementId)?.Criteria
+                    .FirstOrDefault(c => c.CriterionId == criterionId);
+                if (criterion != null)
+                {
+                    _events.Publish(new CriterionCompletedEvent(
+                        entityId,
+                        progress.AchievementId,
+                        criterionId,
+                        criterion.Type,
+                        after.CurrentValue,
+                        after.RequiredValue));
+                }
+            }
+
+            return true;
         }
 
         /// <summary>

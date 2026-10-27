@@ -1,3 +1,5 @@
+using System;
+
 namespace RPGFramework.Environment.Runtime
 {
     /// <summary>
@@ -7,6 +9,14 @@ namespace RPGFramework.Environment.Runtime
     {
         private WeatherEffectData _currentEffects;
         private EnvironmentData _currentEnvironment;
+
+        private bool _applied;
+
+        /// <summary>
+        /// Raised when the effects in force change (the first update, then each change of weather), with the effects
+        /// now in force; not on every update.
+        /// </summary>
+        public event Action<EnvironmentEffectAppliedEvent> OnEffectApplied;
 
         /// <summary>
         /// Creates a new environment effect calculator.
@@ -95,8 +105,14 @@ namespace RPGFramework.Environment.Runtime
 
         public void UpdateEffects(EnvironmentData environmentData)
         {
+            bool changed = !_applied || environmentData.Weather != _currentEnvironment.Weather;
+            _applied = true;
             _currentEnvironment = environmentData;
             _currentEffects = GetWeatherEffects(environmentData.Weather);
+
+            if (changed)
+                OnEffectApplied?.Invoke(new EnvironmentEffectAppliedEvent(
+                _currentEnvironment, _currentEffects, IsHarshEnvironment(), GetEnvironmentalDamage()));
         }
 
         private WeatherEffectData GetWeatherEffects(WeatherType weather)

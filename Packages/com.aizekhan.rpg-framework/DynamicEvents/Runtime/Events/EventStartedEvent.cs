@@ -1,11 +1,13 @@
 using System;
+using RPGFramework.Events;
 
 namespace RPGFramework.DynamicEvents.Runtime
 {
     /// <summary>
     /// Event raised when a dynamic event starts.
+    /// Published by <see cref="EventManager.CreateEvent"/> right after the new event is started.
     /// </summary>
-    public class EventStartedEvent
+    public class EventStartedEvent : IEvent
     {
         /// <summary>
         /// Event ID that started.

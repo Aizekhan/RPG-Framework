@@ -1,9 +1,13 @@
+using RPGFramework.Events;
+
 namespace RPGFramework.Trading
 {
     /// <summary>
     /// Event raised when a player declines a trade offer.
+    /// Published by <c>TradingManager.DeclineTrade</c> when a proposed offer is dropped. Reason is null (DeclineTrade
+    /// takes none) and Timestamp is 0 (the manager keeps no clock).
     /// </summary>
-    public struct TradeDeclinedEvent
+    public struct TradeDeclinedEvent : IEvent
     {
         /// <summary>Entity that declined the trade</summary>
         public int PlayerEntityId;

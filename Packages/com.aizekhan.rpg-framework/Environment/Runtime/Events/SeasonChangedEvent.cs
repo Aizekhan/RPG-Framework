@@ -1,9 +1,12 @@
+using RPGFramework.Events;
+
 namespace RPGFramework.Environment.Runtime
 {
     /// <summary>
     /// Event raised when the season changes.
+    /// Raised through <see cref="SeasonSystem.OnSeasonChanged"/>; forward it to an event bus if your game needs one.
     /// </summary>
-    public class SeasonChangedEvent
+    public class SeasonChangedEvent : IEvent
     {
         /// <summary>
         /// The previous season.

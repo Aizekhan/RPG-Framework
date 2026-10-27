@@ -1,11 +1,14 @@
 using System;
+using RPGFramework.Events;
 
 namespace RPGFramework.DynamicEvents.Runtime
 {
     /// <summary>
     /// Event raised when a dynamic event is spawned.
+    /// Published by <see cref="EventManager"/> during <c>Update</c> when a registered spawner reports a spawn.
+    /// The manager does not build the event from the spawner's template; create it from your handler if you need it.
     /// </summary>
-    public class EventSpawnedEvent
+    public class EventSpawnedEvent : IEvent
     {
         /// <summary>
         /// Event ID that was spawned.

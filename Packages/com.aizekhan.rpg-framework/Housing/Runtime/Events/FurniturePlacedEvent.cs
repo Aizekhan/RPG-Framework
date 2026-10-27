@@ -1,11 +1,14 @@
 using System;
+using RPGFramework.Events;
 
 namespace RPGFramework.Housing.Runtime.Events
 {
     /// <summary>
     /// Event raised when furniture is placed in a house.
+    /// Published by <c>House.TryPlaceFurniture</c> on success (houses built by HousingManager get its publisher).
+    /// PlacedBy is Guid.Empty: the house is not told who placed it.
     /// </summary>
-    public class FurniturePlacedEvent
+    public class FurniturePlacedEvent : IEvent
     {
         /// <summary>
         /// ID of the house where furniture was placed.

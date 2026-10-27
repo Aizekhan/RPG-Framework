@@ -1,11 +1,13 @@
 using System;
+using RPGFramework.Events;
 
 namespace RPGFramework.Housing.Runtime.Events
 {
     /// <summary>
     /// Event raised when a house is purchased.
+    /// Published by <c>HousingManager.PurchaseHouse</c> after the plot is taken; Price is the plot's purchase price.
     /// </summary>
-    public class HousePurchasedEvent
+    public class HousePurchasedEvent : IEvent
     {
         /// <summary>
         /// ID of the purchased house.

@@ -128,6 +128,31 @@ namespace RPGFramework.ActionRpg.Tests
         }
 
         [Test]
+        public void Loot_IsAnnounced_RolledThenEachItemHandedOut()
+        {
+            StartGame();
+            var bus = _host.Container.Resolve<IEventBus>();
+            var order = new List<string>();
+            var generated = new List<LootGeneratedEvent>();
+            var dropped = new List<LootDroppedEvent>();
+            bus.Subscribe<LootGeneratedEvent>(e => { generated.Add(e); order.Add("generated"); });
+            bus.Subscribe<LootDroppedEvent>(e => { dropped.Add(e); order.Add("dropped"); });
+            int goblin = World.SpawnEnemy(Goblin);
+
+            Slay(goblin);
+
+            Assert.That(order, Is.EqualTo(new[] { "generated", "dropped" }));
+            Assert.That(generated[0].TableId, Is.EqualTo(Goblin));
+            Assert.That(generated[0].TriggerEntityId, Is.EqualTo(World.PlayerId));
+            Assert.That(generated[0].SourceEntityId, Is.EqualTo(goblin));
+            Assert.That(generated[0].ItemCount, Is.EqualTo(1));
+            Assert.That(dropped[0].ItemId, Is.EqualTo(Ear));
+            Assert.That(dropped[0].Quantity, Is.EqualTo(1));
+            Assert.That(dropped[0].SourceEntityId, Is.EqualTo(goblin));
+            Assert.That(dropped[0].ItemEntityId, Is.EqualTo(-1), "it went straight into the backpack");
+        }
+
+        [Test]
         public void Kill_IsAnnouncedWithTheCharacterAndKiller()
         {
             StartGame();

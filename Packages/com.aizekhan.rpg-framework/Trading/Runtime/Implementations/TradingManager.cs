@@ -1,21 +1,26 @@
 using System.Collections.Generic;
 using System.Linq;
+using RPGFramework.Events;
 
 namespace RPGFramework.Trading
 {
     /// <summary>
     /// Default implementation of ITradingManager.
     /// Manages trading operations and state.
+    /// With an event publisher, raises TradeProposed, TradeDeclined, and TradeAccepted followed by TradeCompleted
+    /// (accepting applies the trade at once). Timestamps are 0: the manager keeps no clock.
     /// </summary>
     public class TradingManager : ITradingManager
     {
         private readonly ITraderRegistry _traderRegistry;
+        private readonly IEventPublisher _events;
         private readonly Dictionary<int, ActiveTradesData> _playerTrades = new Dictionary<int, ActiveTradesData>();
         private readonly Dictionary<string, (int playerId, ITradeOffer offer, float timestamp)> _proposedTrades = new Dictionary<string, (int, ITradeOffer, float)>();
 
-        public TradingManager(ITraderRegistry traderRegistry)
+        public TradingManager(ITraderRegistry traderRegistry, IEventPublisher events = null)
         {
             _traderRegistry = traderRegistry;
+            _events = events;
         }
 
         public bool ProposeTradeOffer(int playerEntityId, string offerId)
@@ -50,6 +55,17 @@ namespace RPGFramework.Trading
 
             // Store proposed trade
             _proposedTrades[offerId] = (playerEntityId, offer, 0f); // Timestamp handled by game layer
+
+            _events?.Publish(new TradeProposedEvent
+            {
+                PlayerEntityId = playerEntityId,
+                TraderId = trader.TraderId,
+                TradeOfferId = offerId,
+                OfferedItemCount = offer.OfferedItems.Count,
+                RequestedItemCount = offer.RequestedItems.Count,
+                GoldAmount = offer.GoldAmount,
+                Timestamp = 0f
+            });
             return true;
         }
 
@@ -85,7 +101,8 @@ namespace RPGFramework.Trading
             else if (offer.GoldAmount < 0)
                 playerData.SpendGold(-offer.GoldAmount);
 
-            playerData.AddReputation(offer.TraderId, trader.GetReputationGain());
+            int reputationGain = trader.GetReputationGain();
+            playerData.AddReputation(offer.TraderId, reputationGain);
             playerData.RecordCompletedTrade(offerId);
             offer.IncrementUse();
 
@@ -95,12 +112,45 @@ namespace RPGFramework.Trading
             // Clean up
             _proposedTrades.Remove(offerId);
 
+            _events?.Publish(new TradeAcceptedEvent
+            {
+                PlayerEntityId = playerEntityId,
+                TraderId = offer.TraderId,
+                TradeOfferId = offerId,
+                ItemsReceivedCount = result.ItemsReceived.Count,
+                ItemsGivenCount = result.ItemsGiven.Count,
+                GoldChange = offer.GoldAmount,
+                ReputationChange = reputationGain,
+                Timestamp = 0f
+            });
+            _events?.Publish(new TradeCompletedEvent
+            {
+                PlayerEntityId = playerEntityId,
+                TraderId = offer.TraderId,
+                TradeOfferId = offerId,
+                TotalValue = offer.GoldAmount < 0 ? -offer.GoldAmount : offer.GoldAmount,
+                NewReputation = playerData.GetReputation(offer.TraderId),
+                Timestamp = 0f
+            });
+
             return result;
         }
 
         public void DeclineTrade(int playerEntityId, string offerId)
         {
+            if (!_proposedTrades.TryGetValue(offerId, out var proposed))
+                return;
+
             _proposedTrades.Remove(offerId);
+
+            _events?.Publish(new TradeDeclinedEvent
+            {
+                PlayerEntityId = playerEntityId,
+                TraderId = proposed.offer.TraderId,
+                TradeOfferId = offerId,
+                Reason = null,
+                Timestamp = 0f
+            });
         }
 
         public IReadOnlyList<ITradeOffer> GetTraderOffers(string traderId, int playerEntityId)

@@ -4,6 +4,9 @@
     "references": [
         "RPGFramework.Achievements.Runtime",
         "RPGFramework.ECS.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "UniTask",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

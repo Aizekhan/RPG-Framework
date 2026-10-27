@@ -1,7 +1,10 @@
 {
     "name": "RPGFramework.Loot.Runtime",
     "rootNamespace": "RPGFramework.Loot",
-    "references": [],
+    "references": [
+        "RPGFramework.Events.Runtime",
+        "UniTask"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

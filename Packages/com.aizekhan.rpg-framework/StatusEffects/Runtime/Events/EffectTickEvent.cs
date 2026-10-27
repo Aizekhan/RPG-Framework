@@ -1,9 +1,13 @@
+using RPGFramework.Events;
+
 namespace RPGFramework.StatusEffects
 {
     /// <summary>
     /// Event fired when a DoT/HoT effect ticks.
+    /// Published by <c>StatusEffectManager.ProcessTicks</c> (when given an event publisher) for each effect that ticks
+    /// with non-zero damage or healing (the same ticks the onTick callback receives); TickTime is the current time passed in.
     /// </summary>
-    public struct EffectTickEvent
+    public struct EffectTickEvent : IEvent
     {
         public int EntityId;
         public string EffectId;

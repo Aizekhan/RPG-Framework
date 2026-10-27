@@ -1,10 +1,13 @@
+using RPGFramework.Events;
+
 namespace RPGFramework.Items
 {
     /// <summary>
     /// Event raised when a new item instance is created.
-    /// Triggered during loot generation, crafting, quest rewards, etc.
+    /// Published by the <see cref="ItemInstance"/> constructor when it is given an event publisher, so pass one
+    /// wherever your game creates items (loot generation, crafting, quest rewards, etc.).
     /// </summary>
-    public struct ItemCreatedEvent
+    public struct ItemCreatedEvent : IEvent
     {
         /// <summary>
         /// Unique instance ID of the created item.
@@ -22,7 +25,7 @@ namespace RPGFramework.Items
         public int Quantity;
 
         /// <summary>
-        /// Timestamp when item was created.
+        /// Timestamp when item was created (the instance's <c>CreatedAt</c>, 0 unless the creator passes a time).
         /// </summary>
         public float Timestamp;
     }

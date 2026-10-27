@@ -10,7 +10,8 @@
         "RPGFramework.Serialization.Runtime",
         "RPGFramework.Networking.UnityTransport",
         "Unity.Networking.Transport",
-        "UniTask"
+        "UniTask",
+        "RPGFramework.Events.Runtime"
     ],
     "includePlatforms": [
         "Editor"

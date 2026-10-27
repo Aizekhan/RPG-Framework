@@ -1,11 +1,14 @@
 using System;
+using RPGFramework.Events;
 
 namespace RPGFramework.Housing.Runtime.Events
 {
     /// <summary>
     /// Event raised when a house is upgraded to a higher level.
+    /// Published by <c>House.TryUpgrade</c> on success (houses built by HousingManager get its publisher).
+    /// UpgradedBy is Guid.Empty: the house is not told who upgraded it.
     /// </summary>
-    public class HouseUpgradedEvent
+    public class HouseUpgradedEvent : IEvent
     {
         /// <summary>
         /// ID of the upgraded house.

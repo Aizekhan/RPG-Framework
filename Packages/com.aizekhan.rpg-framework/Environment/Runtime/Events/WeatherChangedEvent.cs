@@ -1,9 +1,12 @@
+using RPGFramework.Events;
+
 namespace RPGFramework.Environment.Runtime
 {
     /// <summary>
     /// Event raised when the weather changes.
+    /// Raised through <see cref="WeatherSystem.OnWeatherChanged"/>; forward it to an event bus if your game needs one.
     /// </summary>
-    public class WeatherChangedEvent
+    public class WeatherChangedEvent : IEvent
     {
         /// <summary>
         /// The previous weather type.

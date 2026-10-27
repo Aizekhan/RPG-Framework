@@ -1,9 +1,13 @@
+using RPGFramework.Events;
+
 namespace RPGFramework.Achievements
 {
     /// <summary>
     /// Event emitted when a criterion is completed.
+    /// Published by <c>AchievementManager</c> (when given an event publisher) when an update takes a criterion from
+    /// incomplete to complete (its value reaches the required value), right after the matching <see cref="AchievementProgressEvent"/>.
     /// </summary>
-    public struct CriterionCompletedEvent
+    public struct CriterionCompletedEvent : IEvent
     {
         /// <summary>
         /// The entity that completed the criterion.

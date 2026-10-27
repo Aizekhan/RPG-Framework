@@ -1,9 +1,13 @@
+using RPGFramework.Events;
+
 namespace RPGFramework.Environment.Runtime
 {
     /// <summary>
     /// Event raised when environmental effects are applied to gameplay.
+    /// Raised through <see cref="EnvironmentEffect.OnEffectApplied"/> when the effects in force change: the first
+    /// <c>UpdateEffects</c>, then each change of weather (not on every <see cref="EnvironmentManager"/> update).
     /// </summary>
-    public class EnvironmentEffectAppliedEvent
+    public class EnvironmentEffectAppliedEvent : IEvent
     {
         /// <summary>
         /// The current environment state.

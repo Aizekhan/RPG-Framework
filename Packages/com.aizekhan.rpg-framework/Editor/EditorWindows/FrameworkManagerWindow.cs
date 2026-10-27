@@ -132,16 +132,8 @@ namespace RPGFramework.Editor.EditorWindows
             EditorGUILayout.LabelField("Framework Tools", EditorStyles.boldLabel);
             EditorGUILayout.Space(5);
 
-            // TODO: Quest Editor disabled - needs refactoring for struct-based QuestData
-            // DrawToolButton("Quest Editor", "Create and edit quests visually", () => QuestEditorWindow.ShowWindow());
-
-            // TODO: Dialogue Graph Editor disabled - needs refactoring for struct-based DialogueData
-            // DrawToolButton("Dialogue Graph Editor", "Visual dialogue tree editor", () => DialogueGraphEditorWindow.ShowWindow());
-
             DrawToolButton("Item Database", "Browse and manage items", () => ItemDatabaseWindow.ShowWindow());
 
-            // TODO: Faction Relationship Map disabled - needs refactoring for runtime Faction class
-            // DrawToolButton("Faction Relationship Map", "Visualize faction relationships", () => FactionRelationshipMapWindow.ShowWindow());
             DrawToolButton("Achievement Browser", "Browse and search achievements", () => EditorGUILayout.HelpBox("Achievement Browser - Coming Soon", MessageType.Info));
             DrawToolButton("Loot Table Editor", "Edit loot tables and drop chances", () => LootTableEditorWindow.ShowWindow());
 

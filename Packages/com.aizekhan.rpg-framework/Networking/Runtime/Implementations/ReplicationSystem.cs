@@ -13,10 +13,14 @@ namespace RPGFramework.Networking
         private readonly List<INetworkEntity> _entitiesReadOnly;
         private float _timeSinceLastReplication;
         private readonly NetworkConfig _config;
+        private readonly RPGFramework.Events.IEventPublisher _events;
 
-        public ReplicationSystem(NetworkConfig config)
+        /// <param name="events">Optional: publishes <see cref="EntitySpawnedEvent"/>, <see cref="EntityDespawnedEvent"/>
+        /// and <see cref="StateReplicatedEvent"/> on the event bus.</param>
+        public ReplicationSystem(NetworkConfig config, RPGFramework.Events.IEventPublisher events = null)
         {
             _config = config;
+            _events = events;
             _entities = new Dictionary<int, INetworkEntity>();
             _entitiesReadOnly = new List<INetworkEntity>();
         }
@@ -165,18 +169,19 @@ namespace RPGFramework.Networking
             {
                 entity.DeserializeState(stateData);
             }
+            _events?.Publish(new StateReplicatedEvent { NetworkId = networkId, IsDelta = isDelta, DataSize = stateData?.Length ?? 0 });
         }
 
         public void SpawnEntity(int networkId, int ownerId, string prefabId, byte[] initialState)
         {
-            // This is typically handled by game-specific logic
-            // The framework just sends the spawn message
-            // Game code will instantiate the actual entity and register it
+            // Game code instantiates the actual entity (on EntitySpawnedEvent) and registers it
+            _events?.Publish(new EntitySpawnedEvent { NetworkId = networkId, OwnerId = ownerId, PrefabId = prefabId });
         }
 
         public void DespawnEntity(int networkId)
         {
             UnregisterEntity(networkId);
+            _events?.Publish(new EntityDespawnedEvent { NetworkId = networkId });
         }
     }
 }

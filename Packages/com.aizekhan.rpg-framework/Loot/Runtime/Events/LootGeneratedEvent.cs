@@ -1,10 +1,14 @@
+using RPGFramework.Events;
+
 namespace RPGFramework.Loot
 {
     /// <summary>
     /// Event raised when loot is generated from a loot table.
-    /// Triggered during loot generation process.
+    /// Published by the code that rolls loot for something that happened (the generator itself only rolls):
+    /// <c>ActorWorld</c> publishes it when the party kills an enemy with a loot table, before the
+    /// <see cref="LootDroppedEvent"/>s for what was handed out.
     /// </summary>
-    public struct LootGeneratedEvent
+    public struct LootGeneratedEvent : IEvent
     {
         /// <summary>
         /// Loot table ID that was rolled.
@@ -29,7 +33,7 @@ namespace RPGFramework.Loot
         public int ItemCount;
 
         /// <summary>
-        /// Timestamp when loot was generated.
+        /// Timestamp when loot was generated (0 when the publisher keeps no clock).
         /// </summary>
         public float Timestamp;
     }

@@ -1,9 +1,12 @@
+using RPGFramework.Events;
+
 namespace RPGFramework.Environment.Runtime
 {
     /// <summary>
     /// Event raised when the time of day changes.
+    /// Raised through <see cref="TimeSystem.OnTimeChanged"/>; forward it to an event bus if your game needs one.
     /// </summary>
-    public class TimeChangedEvent
+    public class TimeChangedEvent : IEvent
     {
         /// <summary>
         /// The previous time of day.

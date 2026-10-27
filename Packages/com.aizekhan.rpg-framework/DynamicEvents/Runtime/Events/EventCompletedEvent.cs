@@ -1,12 +1,16 @@
 using System;
 using System.Collections.Generic;
+using RPGFramework.Events;
 
 namespace RPGFramework.DynamicEvents.Runtime
 {
     /// <summary>
     /// Event raised when a dynamic event completes (success or failure).
+    /// Published by <see cref="EventManager"/> during <c>Update</c> when it removes an ended event, after
+    /// <see cref="EventSucceededEvent"/> or <see cref="EventFailedEvent"/>; <c>Rewards</c> is what
+    /// <see cref="EventManager.DistributeRewards"/> returns for it and <c>TotalParticipants</c> counts everyone who joined.
     /// </summary>
-    public class EventCompletedEvent
+    public class EventCompletedEvent : IEvent
     {
         /// <summary>
         /// Event ID that completed.

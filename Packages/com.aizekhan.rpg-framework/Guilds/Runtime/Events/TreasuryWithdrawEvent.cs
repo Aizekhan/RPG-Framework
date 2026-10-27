@@ -5,6 +5,8 @@ namespace RPGFramework.Guilds.Runtime
 {
     /// <summary>
     /// Event raised when resources are withdrawn from the guild treasury.
+    /// Published by <see cref="GuildTreasury"/> (WithdrawGold / WithdrawItem) when it was given an event publisher
+    /// and the withdrawal succeeded.
     /// </summary>
     public class TreasuryWithdrawEvent : IEvent
     {

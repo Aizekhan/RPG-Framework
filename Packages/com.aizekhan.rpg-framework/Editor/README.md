@@ -45,13 +45,12 @@ Assets/_Framework/Editor/
 8. **StatusEffectDataEditor.cs** - Status effect modifiers
 9. **LootTableDataEditor.cs** - Loot drop chances and weights
 
-### Editor Windows (6 files)
+### Editor Windows (3 files)
 1. **FrameworkManagerWindow.cs** - Central hub for all Framework tools
-2. **QuestEditorWindow.cs** - Visual quest creation and editing
-3. **DialogueGraphEditorWindow.cs** - Node-based dialogue editor
-4. **ItemDatabaseWindow.cs** - Browse and manage items
-5. **FactionRelationshipMapWindow.cs** - Faction relationships viewer
-6. **LootTableEditorWindow.cs** - Loot table editor with drop visualization
+2. **ItemDatabaseWindow.cs** - Browse and manage items
+3. **LootTableEditorWindow.cs** - Loot table editor with drop visualization
+
+Quests are edited as `QuestAsset`s (`Tools/QuestEditor`). Dialogue and faction editors are planned.
 
 ### Gizmos (1 file)
 - **FrameworkGizmos.cs** - Scene view visualization utilities
@@ -77,10 +76,7 @@ Access all tools from **Tools > RPG Framework** menu:
 
 ### Main Tools
 - **Framework Manager** (Ctrl+Shift+F) - Central hub window
-- Quest Editor
-- Dialogue Graph Editor
 - Item Database
-- Faction Relationship Map
 - Loot Table Editor
 
 ### Utilities
@@ -140,8 +136,8 @@ Access all tools from **Tools > RPG Framework** menu:
 ```
 
 ### Creating a Quest
-1. Tools > RPG Framework > Quest Editor
-2. Click "Create New Quest"
+1. Assets > Create > RPG Framework > Quest Asset
+2. Name the asset
 3. Fill in quest details in the Inspector
 4. Add objectives and rewards
 5. Save

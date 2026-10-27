@@ -1,11 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using RPGFramework.Events;
 
 namespace RPGFramework.DynamicEvents.Runtime
 {
     /// <summary>
     /// Central manager for dynamic events system.
+    /// With an event publisher, raises EventStarted, ParticipantJoined, ObjectiveProgress, EventSpawned (when a spawner
+    /// reports a spawn) and, when an ended event is removed in <see cref="Update"/>, EventSucceeded or EventFailed
+    /// followed by EventCompleted.
     /// </summary>
     public class EventManager : IEventManager
     {
@@ -13,9 +17,20 @@ namespace RPGFramework.DynamicEvents.Runtime
         private readonly Dictionary<string, Dictionary<string, IEventParticipant>> _eventParticipants = new();
         private readonly List<IEventSpawner> _spawners = new();
         private readonly Dictionary<string, Func<string, string, IDynamicEvent>> _eventFactories = new();
+        private readonly Dictionary<string, float> _elapsedTimes = new();
+        private readonly IEventPublisher _events;
 
         public IReadOnlyDictionary<string, IDynamicEvent> ActiveEvents => _activeEvents;
         public IReadOnlyList<IEventSpawner> Spawners => _spawners.AsReadOnly();
+
+        /// <summary>
+        /// Create a new event manager.
+        /// </summary>
+        /// <param name="events">Optional publisher for the dynamic event lifecycle events.</param>
+        public EventManager(IEventPublisher events = null)
+        {
+            _events = events;
+        }
 
         public IDynamicEvent CreateEvent(string templateId, string locationId)
         {
@@ -33,9 +48,12 @@ namespace RPGFramework.DynamicEvents.Runtime
 
             _activeEvents[eventId] = dynamicEvent;
             _eventParticipants[eventId] = new Dictionary<string, IEventParticipant>();
+            _elapsedTimes[eventId] = 0f;
 
             dynamicEvent.Start();
 
+            _events?.Publish(new EventStartedEvent(dynamicEvent.EventId, dynamicEvent.EventType, dynamicEvent.Name,
+                dynamicEvent.LocationId, dynamicEvent.Difficulty));
             return dynamicEvent;
         }
 
@@ -95,6 +113,7 @@ namespace RPGFramework.DynamicEvents.Runtime
             if (dynamicEvent is DynamicEvent de)
                 de.SetParticipantCount(participants.Count);
 
+            _events?.Publish(new ParticipantJoinedEvent(eventId, participantId, participants.Count));
             return participant;
         }
 
@@ -148,7 +167,14 @@ namespace RPGFramework.DynamicEvents.Runtime
             if (objective == null)
                 return;
 
+            var previousCount = objective.CurrentCount;
             objective.UpdateProgress(amount, contributorId);
+
+            if (objective.CurrentCount != previousCount)
+            {
+                _events?.Publish(new ObjectiveProgressEvent(eventId, objectiveId, objective.CurrentCount,
+                    objective.RequiredCount, objective.IsComplete, contributorId));
+            }
 
             // Add contribution to participant if specified
             if (!string.IsNullOrEmpty(contributorId))
@@ -226,8 +252,8 @@ namespace RPGFramework.DynamicEvents.Runtime
                 var eventId = spawner.Update(deltaTime, worldState);
                 if (!string.IsNullOrEmpty(eventId))
                 {
-                    // Spawner created an event, but we need the template registered
-                    // In a real implementation, this would create the event from the template
+                    // The manager does not build the event from the spawner's template; subscribers can.
+                    _events?.Publish(new EventSpawnedEvent(eventId, spawner.EventTemplateId, spawner.LocationId, spawner.SpawnerId));
                 }
             }
 
@@ -237,13 +263,24 @@ namespace RPGFramework.DynamicEvents.Runtime
             foreach (var kvp in _activeEvents.ToList())
             {
                 var dynamicEvent = kvp.Value;
+                var wasActive = dynamicEvent.State == EventState.Active;
                 dynamicEvent.Update(deltaTime);
+
+                _elapsedTimes.TryGetValue(kvp.Key, out var elapsed);
+                if (wasActive)
+                {
+                    elapsed += deltaTime;
+                    _elapsedTimes[kvp.Key] = elapsed;
+                }
 
                 if (dynamicEvent.State == EventState.Success || dynamicEvent.State == EventState.Failed)
                 {
                     // Notify spawners
                     var spawner = _spawners.FirstOrDefault(s => kvp.Key.StartsWith(s.EventTemplateId));
                     spawner?.OnEventEnded(kvp.Key);
+
+                    if (_events != null)
+                        PublishEnded(kvp.Key, dynamicEvent, elapsed);
 
                     eventsToRemove.Add(kvp.Key);
                 }
@@ -254,7 +291,24 @@ namespace RPGFramework.DynamicEvents.Runtime
             {
                 _activeEvents.Remove(eventId);
                 _eventParticipants.Remove(eventId);
+                _elapsedTimes.Remove(eventId);
             }
+        }
+
+        private void PublishEnded(string eventId, IDynamicEvent dynamicEvent, float elapsed)
+        {
+            if (dynamicEvent.State == EventState.Success)
+            {
+                _events.Publish(new EventSucceededEvent(eventId, dynamicEvent.ParticipantCount, elapsed, dynamicEvent.NextEventId));
+            }
+            else
+            {
+                var reason = dynamicEvent.MaxDuration > 0 && elapsed >= dynamicEvent.MaxDuration ? "time expired" : "ended";
+                _events.Publish(new EventFailedEvent(eventId, reason, dynamicEvent.ParticipantCount, dynamicEvent.NextEventId));
+            }
+
+            var totalParticipants = _eventParticipants.TryGetValue(eventId, out var participants) ? participants.Count : 0;
+            _events.Publish(new EventCompletedEvent(eventId, dynamicEvent.State, totalParticipants, DistributeRewards(eventId)));
         }
     }
 }

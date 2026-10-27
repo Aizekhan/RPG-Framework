@@ -2,7 +2,9 @@
     "name": "RPGFramework.Companions.Runtime",
     "rootNamespace": "RPGFramework.Companions",
     "references": [
-        "RPGFramework.ECS.Runtime"
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Events.Runtime",
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
