@@ -11,13 +11,13 @@
 
 | Gate | Result | SHA |
 |---|---|---|
-| Clean-checkout compile (`unity test`, verify worktree) | ✅ 0 `error CS` | `5dcc822` |
-| EditMode tests (Multiplayer Services SDK 2.4.1 installed, so the Unity Relay module and its tests compile) | ✅ **1359 / 1359 passed** (incl. save versioning and recovery, the JSON serializer, co-op over `LoopbackNetwork` with 8 players, lost links and reconnecting, session providers, real UDP incl. a crashed client, Relay provider over a fake service, game rules GA01-GA12) | `5dcc822` |
-| PlayMode tests (Goblin Valley scene, assets-only action RPG, save/reload, **co-op: two hosts over UDP, eight games over UDP**, unreachable address, installed session module offered, **a friend whose link is cut reconnects by itself into the same seat**) | ✅ **9 / 9 passed** | `5dcc822` |
+| Clean-checkout compile (`unity test`, verify worktree) | ✅ 0 `error CS` | `da76940` |
+| EditMode tests (Multiplayer Services SDK 2.4.1 installed, so the Unity Relay module and its tests compile) | ✅ **1436 / 1436 passed** (incl. module events, delta compression, designer assets, the `StatContainer` benchmark, save versioning and recovery, the JSON serializer, co-op over `LoopbackNetwork` with 8 players, lost links and reconnecting, session providers, real UDP incl. a crashed client, Relay provider over a fake service, game rules GA01-GA12) | `5dcc822` |
+| PlayMode tests (Goblin Valley scene, assets-only action RPG, save/reload, **co-op: two hosts over UDP, eight games over UDP**, unreachable address, installed session module offered, **a friend whose link is cut reconnects by itself into the same seat**) | ✅ **9 / 9 passed** | `da76940` |
 | Unity Relay module, clean install (`D:/RPG-Release020`): without the SDK 0 errors and 15/15; with the SDK 0 errors, 15/15, Relay registered with no game code | ✅ | `451afe3` |
 | **Claude Code starter** `START-NEW-GAME.md` run end to end in an empty folder (`D:/RPG-Starter-Test`): project, git, package, New Game + AI guidance, 14/14 EditMode. A planted cut corner (`class Quest`, unrecorded `framework-gap`) fails GA11 and GA12; after recording the gap it is green (16/16) | ✅ | `ed1aaf7` |
-| `.meta` integrity | ✅ 0 problems | `5dcc822` |
-| CI on GitHub (meta check, EditMode, PlayMode) | ✅ green (run `40412738517`) | `5dcc822` |
+| `.meta` integrity | ✅ 0 problems | `da76940` |
+| CI on GitHub (meta check, EditMode, PlayMode) | ✅ green (run `40424501042`) | `da76940` |
 | Fresh Unity 6 project + UniTask + package → New Game → tests → Play | ✅ 14/14 generated tests, played (screenshots) | `675b521` |
 | **Release `v0.2.0`**: fresh Unity 6 project installs the package by git URL `#v0.2.0` (resolves to `01f5af8`), 0 `error CS`, New Game → 14/14 generated tests | ✅ CI green (run `40386565078`) | `01f5af8` |
 
@@ -84,6 +84,7 @@ Not ported on purpose in phase 9: a persistent event store (the `EventRecorder` 
 | 9 | **Co-op stage 3: bad links.** `NetworkManager` connection timeout (was a TODO) and bad-message limit with `PeerDropped`; `INetworkPeerDisconnect`; protocol v3 with rejoin tokens: the host keeps a lost player's seat, name and health for 2 minutes (also when they return before it noticed), the joined game reconnects by itself (3 tries), F2 shows unstable links; impossible counts and non-finite positions refused; host autosave every 60 s | `555f079` | 1322/1322 EditMode (loopback + real UDP crash), 9/9 PlayMode (cut cable → reconnect) |
 | 10 | **Saves outlive their build.** Section versions with `Upgrade` (older upgraded, pre-version saves as v1, newer refused before any change); previous save kept and loaded when the latest is damaged or unusable; unreadable saves set aside, newer-build saves never saved over; games add their own state (`ActionRpgSaves.Register`, `ActionRpgHost.ConfigureSaves`). **Fix:** JSON serializer rewritten (proven broken: quotes/backslashes at string ends, literal `
 `, `:` in keys, stack overflow on `DateTime`/`Guid`, truncated text loaded). Recipe 12 | `5dcc822` | 1359/1359 EditMode, 9/9 PlayMode |
+| 11 | **Weak spots.** `StatContainer` recalculates 18x faster with no garbage (1000 characters x 6 modifiers: 7.32 → 0.4 ms a frame) and whole-number stats stop at their limits (was `OverflowException`). **Fixes proven by failing tests first:** `DeltaSerializer` lost bytes of a growing state, kept stale bytes of a shrinking one, applied deltas for states never received; Tools loot editor showed wrong drop rates (37.5% for 75%), an empty prerequisite slot locked a quest forever, quest checks froze the editor (17 s → 15 ms), quest assets made in code threw; debug tools threw every frame without the legacy input manager. **Events:** 50 of 97 event types were never sent; 45 now publish (Loot, Networking, Achievements, Skills, StatusEffects, Companions, Housing, Trading, DynamicEvents, Items, Environment), each with a test; 2 removed (no such operation), 3 dead `#if FALSE` editor windows removed (both approved by the user) | `9182fda`, `c685e43`, `da76940` | 1436/1436 EditMode, 9/9 PlayMode |
 | 2 | **Playable 3D Goblin Valley.** Framework `Presentation` module (`EntityViewRegistry`). Game: spawn/despawn/wave events, `GoblinWaveSystem`, inspector-tunable `GoblinValleyConfig` + `PrefabCatalog`, presenter spawning prefabs through `PrefabSpawner` (goblins pooled), `HeroController` (Input System: keyboard, mouse, gamepad), `GoblinBrain`, health bars, UGUI HUD, `CameraFollow`. `GoblinValleyBuilder` generates placeholder art, prefabs, config and scene (menu or batch mode). CI runs EditMode + PlayMode | `de2498e` | 1196/1196 EditMode, 1/1 PlayMode |
 
 Roadmap, in order (agreed with the user 2026-10-26):
@@ -121,22 +122,25 @@ Not committed (they duplicated migrated modules; the backup folder was deleted o
 ## Backlog from archived plans
 
 Checked before moving the old plans to `Docs/archive/` (2026-10-26). Ideas that are still open and not listed elsewhere here; none is scheduled:
-- **Performance benchmarks** (CLAUDE.md validation step 4; old KPI: < 16 ms frame with 1000+ entities). None exist yet.
-- **Editor tools:** dialogue graph, skill/ability tree, faction relationship map (the three `#if FALSE` windows below), a combat balancing simulator.
+- **Performance benchmarks** (CLAUDE.md validation step 4; old KPI: < 16 ms frame with 1000+ entities). Only `StatContainer` has one (`9182fda`); ECS, EventBus and `ActorWorld` at 1000+ entities are not measured yet.
+- **Editor tools:** dialogue graph, skill/ability tree, faction relationship map (the old `#if FALSE` windows were removed in `da76940`), a combat balancing simulator.
 - **Bigger features:** procedural generation (dungeons, quests), tactical / boss AI, save versioning and migration, cloud saves.
 - **Release extras:** API reference, tutorials, more sample games of other RPG types, CONTRIBUTING and issue templates, Asset Store submission (licence decision is the owner's).
 
 ## Open issues
 
+**High**
+- **Skills does not work on its own:** `SkillManager` had no storage (private stubs, so `LearnSkill` always failed). Since `da76940` the hooks are `protected virtual`, but the base class still stores nothing; it needs a real ECS component
+
 **Medium**
+- 5 custom inspectors in `Editor/CustomEditors` target types that are not Unity assets (`DialogueData`, `QuestData`, `CraftingRecipeData` structs; `Faction`, `StatusEffectData` classes), so they never show. To decide with the editor tools (step 4)
 - UI panels are thin defaults (EquipmentPanel hard-codes 8 slot types; game layers override). The earlier "listeners never removed" note was wrong: they are on the panel's own child buttons and die with it
-- `StatContainer`: LINQ + boxing on every recalculation; `Convert.ChangeType` banker's rounding for int stats
-- 3 Editor windows wrapped in `#if FALSE` (Quest, DialogueGraph, FactionRelationshipMap)
 - `ICharacter.Inventory`/`Progression` are `object` (keeps Characters free of those modules)
 
 **Low**
-- Modules without tests: DeltaCompression, Editor, Tools
-- Loot `LootGeneratedEvent`/`LootDroppedEvent` are not `IEvent`s and nothing raises them
+- Modules without tests: Editor (Tools and DeltaCompression got tests in `c685e43`)
+- `LootGenerator` with `AllowDuplicates = false` still counts already-dropped entries in the total weight, so it may roll nothing (suspected from reading, not proven)
+- Crafting, Dialogue and Persistence deliver their events as C# `event`s, not on the bus
 - ReferenceGame art is generated placeholders (primitives)
 - Internet co-op (Unity Relay module) is proven only against a fake service; the live two-network test needs the owner's UGS project. Positions are trusted from each player (fine among friends). See `Documentation~/networking.md`
 - CI: the license file is bound to another machine, so GameCI falls back to email/password activation (works)
@@ -145,7 +149,7 @@ Checked before moving the old plans to `Docs/archive/` (2026-10-26). Ideas that 
 
 Agreed with the user (2026-10-26): finish the plan before releasing; **no v0.3.0 release yet** (the starter picks the latest tag, so it stays on v0.2.0 until then).
 1. ~~Network reliability (co-op stage 3)~~ done (`555f079`). Still open: the live Relay test across two networks when the owner provides a UGS project (host creates → friend joins by code → both see and interact → disconnect handled); no host migration (by design for now).
-2. Weak spots: ~~save versioning and migration~~ done (`5dcc822`); benchmarks, then `StatContainer` performance and int rounding; tests for Tools and DeltaCompression; the three `#if FALSE` editor windows (re-enable or delete); loot events as bus events (or remove them).
+2. Weak spots: ~~save versioning~~ (`5dcc822`), ~~`StatContainer`~~ (`9182fda`), ~~Tools and DeltaCompression tests~~ (`c685e43`), ~~`#if FALSE` windows, loot and other dead events~~ (`da76940`). Found on the way and still open: Skills storage (High), dead custom inspectors, benchmarks at 1000+ entities.
 3. PvP as game modes: teams via factions, server-checked movement, duel/arena rules.
 4. Editor tools, a second genre sample.
 5. Release 1.0; the owner decides the licence/selling model.
