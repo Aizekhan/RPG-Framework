@@ -333,6 +333,7 @@ namespace RPGFramework.ActionRpg
 
             _settings = _setup.BuildSettings();
             _content = _setup.BuildContent();
+            ConfigureSettings(_settings, _content);
             // Pools, assets, the prefab spawner and scenes, for the views (also when joined)
             var services = new UnityServicesOptions();
             ConfigureUnityServices(services);
@@ -348,6 +349,16 @@ namespace RPGFramework.ActionRpg
 
             _module = ActionRpgComposition.Configure(builder, _settings, _content);
             ConfigureGameModules(builder);
+        }
+
+        /// <summary>
+        /// Adjusts the rules and content built from the Game Setup before the game starts: a damage calculator of
+        /// your own (<c>settings.DamageCalculator</c>), status effects and abilities (<c>content.StatusEffects</c>,
+        /// <c>content.Abilities</c>), anything the asset does not show. Runs on every machine, also one that joins a
+        /// friend's game, so host and friends agree on the rules (their fingerprints must match).
+        /// </summary>
+        protected virtual void ConfigureSettings(ActionRpgSettings settings, ActionRpgContent content)
+        {
         }
 
         /// <summary>

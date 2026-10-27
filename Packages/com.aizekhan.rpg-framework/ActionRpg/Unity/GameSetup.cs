@@ -47,6 +47,13 @@ namespace RPGFramework.ActionRpg
         [Tooltip("0 = different every run; any other number repeats loot and waves exactly")]
         [SerializeField] private int _seed;
 
+        [Header("Co-op progress")]
+        [Tooltip("Shared: the party has one level, backpack and quests. Per Player: each player has their own, brought from their save and taken home")]
+        [SerializeField] private ProgressMode _progressMode = ProgressMode.Shared;
+
+        [Tooltip("Loot from kills goes into the backpack (the killer's, with Per Player). Off: drops are only announced (LootDroppedEvent) and the game hands them to whoever picks them up (ActorWorld.GiveItem)")]
+        [SerializeField] private bool _lootToBackpack = true;
+
         [Header("PvP")]
         [SerializeField] private PvpSetup _pvp = new PvpSetup();
 
@@ -93,6 +100,15 @@ namespace RPGFramework.ActionRpg
 
         public void SetSeed(int seed) => _seed = seed;
 
+        /// <summary>
+        /// Whose progress it is in co-op, and whether kill loot goes into the backpack (tests, code-built setups).
+        /// </summary>
+        public void SetProgress(ProgressMode mode, bool lootToBackpack = true)
+        {
+            _progressMode = mode;
+            _lootToBackpack = lootToBackpack;
+        }
+
         public ActionRpgSettings BuildSettings()
         {
             var settings = new ActionRpgSettings
@@ -102,6 +118,8 @@ namespace RPGFramework.ActionRpg
                 CompleteQuestsAutomatically = _completeQuestsAutomatically,
                 InventoryCapacity = _inventoryCapacity,
                 Seed = _seed,
+                ProgressMode = _progressMode,
+                LootToBackpack = _lootToBackpack,
                 Pvp = Pvp.ToSettings()
             };
             settings.Enemies.AddRange(_enemies.Where(e => e != null).Select(e => e.ToData()));

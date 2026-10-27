@@ -95,6 +95,7 @@ namespace RPGFramework.ActionRpg.PlayTests
             _host = StartGame<SceneChangingHost>("Game");
             _host.Populate = BuildRun;
             _friend = StartGame<ActionRpgHost>("Friend");
+            yield return null; // the games show themselves on their first frame
             Assert.That(_host.HostGame(), Is.True, _host.CoopStatus);
             yield return WaitUntil(() => _host.Role == CoopRole.Hosting, "hosting");
             _friend.JoinGame("127.0.0.1");

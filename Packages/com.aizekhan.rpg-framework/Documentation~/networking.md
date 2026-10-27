@@ -31,12 +31,13 @@ Status on 2026-10-26. **Action RPGs made with this package can be played in co-o
    changed numbers (health, stats, alive) and the party's progress, each measured against what that player last saw
    (a late joiner gets everything at once). Unreliable, 20 times a second: positions (host → everyone; each player →
    host, their own character only).
-4. **Messages** (ids 1100-1107): `CoopHello` (game fingerprint, brought progress), `CoopWelcome` (accepted with a
+4. **Messages** (ids 1100-1108): `CoopHello` (game fingerprint, brought progress), `CoopWelcome` (accepted with a
    player id, or the reason), `CoopWorld`, `CoopMotion`, `CoopIntent`, `CoopIncomingAttack` / `CoopDefenseResult`
    (defence decided on the owner's machine, `CoopHost.DefenseAuthority = Owner`). Hello and Intent are client-only,
    Welcome and World host-only (`NetworkAuthority`). A game's own messages take ids from 1200
    (`CoopProtocol.FirstGameMessageId`, `CoopGameMessages`; `CoopHost.On/Send/SendToAll`, `CoopClient.On/Send`).
-   Status effects start and end, and cooldown starts, travel reliably with the world.
+   Status effects start and end, and cooldown starts, travel reliably with the world. `CoopScene` (1108, host-only)
+   tells joined machines which scene the game is in (`ActionRpgHost.ChangeScene`).
 5. **Refusals in plain words:** a different build ("The host plays a different version of the game"), a full party,
    nobody at that address (after about 5 seconds), the host leaving. The joined player is then back in a game of
    their own.
@@ -186,12 +187,12 @@ Sources: [Network connection management (Multiplayer Services)](https://docs.uni
 - With shared progress, a friend who joins brings nothing and takes nothing home. With `PerPlayer` the host trusts
   the progress a friend brings (fine among friends).
 - No host migration: when the host's game ends, the game ends for everyone (their own saved games are untouched).
-- Reconnecting restarts the joined player's scene (a second or two); `IRespawnPointProvider` (`CoopHost.RespawnPoints`)
+- Reconnecting restarts the joined player's game (a second or two); `IRespawnPointProvider` (`CoopHost.RespawnPoints`)
   decides where they come back, otherwise the starting ring.
-- The co-op session does not survive a scene change (hub and run in different scenes): keep both in one scene for
-  now.
+- A scene change (`ActionRpgHost.ChangeScene`) keeps the game, the party and the link; joined machines load the
+  host's scene. Enemies and the players' positions come along as they were: the game places players for the new
+  scene in `OnSceneChanged` and removes enemies it does not want there.
 
 ## Next, if wanted
 
 - A Unity Relay session provider for playing over the internet without a VPN (see the comparison above).
-- A co-op session that outlives a scene change (hub ↔ run).

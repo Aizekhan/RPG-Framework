@@ -105,6 +105,20 @@ namespace RPGFramework.ActionRpg.Tests
         }
 
         [Test]
+        public void ProgressMode_SharedUntilChanged_ThenEachPlayersOwnReachesTheGame()
+        {
+            var setup = GoodSetup(out _);
+            Assert.That(setup.BuildSettings().ProgressMode, Is.EqualTo(ProgressMode.Shared));
+            Assert.That(setup.BuildSettings().LootToBackpack, Is.True);
+
+            setup.SetProgress(ProgressMode.PerPlayer, lootToBackpack: false);
+
+            Assert.That(setup.BuildSettings().ProgressMode, Is.EqualTo(ProgressMode.PerPlayer));
+            Assert.That(setup.BuildSettings().LootToBackpack, Is.False);
+            Assert.That(setup.Validate(), Is.Empty);
+        }
+
+        [Test]
         public void PvpSpawnPoints_FaceEachOther_AndTeammatesStandApart()
         {
             var pvp = new PvpSetup();

@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- **The 0.5.0 rules reach games built on `ActionRpgHost`.** Game Setup > **Co-op progress**: Progress Mode (Shared / Per Player) and Loot To Backpack (`GameSetup.SetProgress`). New `ActionRpgHost.ConfigureSettings(settings, content)` adjusts what the asset builds before the game starts (damage calculator, status effects, abilities); it runs on every machine, so host and friends keep the same fingerprint. Recipe 11 lists game messages, per-player progress, scene changes, owner defence, speed boosts and respawn points
+
+- **The game and its co-op session outlive a scene change** (a hub and runs in scenes of their own). `ActionRpgHost.ChangeScene(sceneName)` loads the scene through `ISceneDispatcher` without ending the game: the party, progress, characters and the co-op link stay; an `ActionRpgHost` in the new scene steps aside (so each scene still plays on its own in the Editor); the camera follows the player there; `OnSceneChanged(sceneName)` places the players with the new `TeleportPlayer(playerId, pose)`. Joined machines load the host's scene, and so does anyone who joins later (`CoopHost.ChangeScene`/`Scene`, `CoopClient.Scene`/`SceneChanged`, `CoopSceneMessage`). Co-op protocol version 9: older builds are refused
+- Fix: pools lost their objects on a scene change. `GameObjectPool`'s own container is kept across scene loads (it was a scene object, so loading a scene destroyed the pooled instances the pool still handed out); pools owned by a scene are still released with it
+
 ## [0.5.0] - 2026-10-27
 
 Gaps MythRunner found in the action RPG kit and its co-op (FG-01..FG-08), plus what its design document needs from any co-op action RPG. Co-op protocol version 8: older builds are refused. Install with `#v0.5.0`.
