@@ -20,7 +20,9 @@ Status on 2026-10-26. **Action RPGs made with this package can be played in co-o
 ## How the action RPG co-op works
 
 1. **Host-authoritative.** The host runs `ActorWorld` and the game's own rules. Joining adds a player to the party
-   (`ActorWorld.AddPlayer`); leaving removes them. The party shares level, experience, backpack and quests.
+   (`ActorWorld.AddPlayer`); leaving removes them. The party shares level, experience, backpack and quests, or with
+   `ActionRpgSettings.ProgressMode = PerPlayer` each player has their own, brought from their save (`CoopClient.Profile`)
+   and taken home (`RemoteWorld.CaptureProgress`).
 2. **Joined machines mirror.** `CoopClient` keeps a `RemoteWorld` (an `IActorWorld`) in step and publishes
    `ActorSpawnedEvent`, `ActorDespawnedEvent` and `ActorDamagedEvent` on its own bus, so the presenter, views and HUD
    are the same code as in a solo game. Attacks and revives are sent to the host (`CoopIntentMessage`), which checks
@@ -29,9 +31,12 @@ Status on 2026-10-26. **Action RPGs made with this package can be played in co-o
    changed numbers (health, stats, alive) and the party's progress, each measured against what that player last saw
    (a late joiner gets everything at once). Unreliable, 20 times a second: positions (host → everyone; each player →
    host, their own character only).
-4. **Messages** (ids 1100-1104): `CoopHello` (game fingerprint), `CoopWelcome` (accepted with a player id, or the
-   reason), `CoopWorld`, `CoopMotion`, `CoopIntent`. Hello and Intent are client-only, Welcome and World host-only
-   (`NetworkAuthority`).
+4. **Messages** (ids 1100-1107): `CoopHello` (game fingerprint, brought progress), `CoopWelcome` (accepted with a
+   player id, or the reason), `CoopWorld`, `CoopMotion`, `CoopIntent`, `CoopIncomingAttack` / `CoopDefenseResult`
+   (defence decided on the owner's machine, `CoopHost.DefenseAuthority = Owner`). Hello and Intent are client-only,
+   Welcome and World host-only (`NetworkAuthority`). A game's own messages take ids from 1200
+   (`CoopProtocol.FirstGameMessageId`, `CoopGameMessages`; `CoopHost.On/Send/SendToAll`, `CoopClient.On/Send`).
+   Status effects start and end, and cooldown starts, travel reliably with the world.
 5. **Refusals in plain words:** a different build ("The host plays a different version of the game"), a full party,
    nobody at that address (after about 5 seconds), the host leaving. The joined player is then back in a game of
    their own.
@@ -45,8 +50,9 @@ Status on 2026-10-26. **Action RPGs made with this package can be played in co-o
 7. **Broken or hostile messages** are dropped and counted; past 20 from one peer it is dropped. Counts no real message
    has are refused before anything is allocated, and positions that are not numbers are ignored.
 8. **Saves.** The host's progress is saved on level-up, finished quests, every 60 seconds (**Autosave Seconds**) and on
-   quit, so a crash loses at most a minute. A joined player's own saved game is not touched while they play with
-   someone else.
+   quit, so a crash loses at most a minute. With shared progress a joined player's own saved game is not touched while
+   they play with someone else; with progress of their own (`PerPlayer`) only its progress section is written
+   (`ActionRpgSaves.ForProgressOnly`).
 
 ## Connecting players: session providers
 
@@ -177,12 +183,15 @@ Sources: [Network connection management (Multiplayer Services)](https://docs.uni
 - Positions are trusted from each player for their own character (the host checks reach for attacks). Fine among
   friends; a competitive game would need server-side movement.
 - No client-side prediction: a joined player's hits show after one round trip (a few milliseconds on a LAN).
-- Progress is saved on the host only; a friend who joins brings nothing and takes nothing home.
+- With shared progress, a friend who joins brings nothing and takes nothing home. With `PerPlayer` the host trusts
+  the progress a friend brings (fine among friends).
 - No host migration: when the host's game ends, the game ends for everyone (their own saved games are untouched).
-- Reconnecting restarts the joined player's scene (a second or two) and puts them at the starting ring, not where
-  they stood.
+- Reconnecting restarts the joined player's scene (a second or two); `IRespawnPointProvider` (`CoopHost.RespawnPoints`)
+  decides where they come back, otherwise the starting ring.
+- The co-op session does not survive a scene change (hub and run in different scenes): keep both in one scene for
+  now.
 
 ## Next, if wanted
 
 - A Unity Relay session provider for playing over the internet without a VPN (see the comparison above).
-- Per-player backpacks or loot rolls, if a game wants them instead of the shared party.
+- A co-op session that outlives a scene change (hub ↔ run).
