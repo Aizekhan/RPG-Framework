@@ -52,6 +52,9 @@ namespace RPGFramework.ActionRpg.Coop
             public float Health;
             public float Since;
             public ActorPose? Pose;
+
+            // Their own progress, when every player has their own: they come back with it
+            public PlayerProgress Progress;
         }
 
         private struct Happening
@@ -549,13 +552,14 @@ namespace RPGFramework.ActionRpg.Coop
 
             if (kept != null)
             {
-                guest.PlayerId = _world.AddPlayer(name: kept.Name, seat: kept.Seat);
+                guest.PlayerId = _world.AddPlayer(name: kept.Name, seat: kept.Seat, progress: kept.Progress);
                 // Back with the health they had (at least a little): reconnecting is not a way to heal
                 _world.Get(guest.PlayerId)?.SetHealth(Math.Max(1f, kept.Health));
             }
             else
             {
-                guest.PlayerId = _world.AddPlayer(name: hello.Name, seat: FreeSeat());
+                // With progress of their own, they bring it: trusted, as among friends
+                guest.PlayerId = _world.AddPlayer(name: hello.Name, seat: FreeSeat(), progress: hello.Profile);
             }
             guest.Token = Guid.NewGuid().ToString("N");
             _network.Send(connectionId, new CoopWelcomeMessage
@@ -574,7 +578,11 @@ namespace RPGFramework.ActionRpg.Coop
                 pose = guest.Place;
             else if (_motion != null && _motion.TryGetPose(player.EntityId, out var seen))
                 pose = seen;
-            return new KeptSeat { Seat = player.Seat, Name = player.PlayerName, Health = player.Health, Pose = pose };
+            return new KeptSeat
+            {
+                Seat = player.Seat, Name = player.PlayerName, Health = player.Health, Pose = pose,
+                Progress = _world.ProgressMode == ProgressMode.PerPlayer ? _world.CaptureProgress(player.EntityId) : null
+            };
         }
 
         // The game's checkpoint for this player, if it has one
@@ -876,11 +884,17 @@ namespace RPGFramework.ActionRpg.Coop
                     message.States.Add(state);
                 }
 
-                party = party ?? PartyStatus.Of(_world).ToBytes();
-                if (guest.Party == null || !guest.Party.SequenceEqual(party))
+                // Shared progress is the same for everyone; progress of their own is each player's
+                var status = _world.ProgressMode == ProgressMode.PerPlayer ? PartyStatus.Of(_world, guest.PlayerId) : null;
+                byte[] bytes;
+                if (status != null)
+                    bytes = status.ToBytes();
+                else
+                    bytes = party = party ?? PartyStatus.Of(_world).ToBytes();
+                if (guest.Party == null || !guest.Party.SequenceEqual(bytes))
                 {
-                    guest.Party = party;
-                    message.Party = PartyStatus.Of(_world);
+                    guest.Party = bytes;
+                    message.Party = status ?? PartyStatus.Of(_world);
                 }
 
                 if (!message.IsEmpty)

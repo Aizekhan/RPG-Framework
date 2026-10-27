@@ -58,7 +58,7 @@ namespace RPGFramework.ActionRpg.Coop
         /// <summary>
         /// Changes whenever the messages change, so older and newer builds refuse each other instead of misreading.
         /// </summary>
-        public const int Version = 7;
+        public const int Version = 8;
 
         public const int DefaultPort = 7777;
         public const int DefaultMaxPlayers = 4;
@@ -144,6 +144,54 @@ namespace RPGFramework.ActionRpg.Coop
             return count;
         }
 
+        internal static void WriteProgress(BinaryWriter writer, PlayerProgress progress)
+        {
+            writer.Write(progress.Level);
+            writer.Write(progress.TotalExperience);
+            writer.Write(progress.Kills);
+            writer.Write(progress.Items.Count);
+            foreach (var item in progress.Items)
+                writer.Write(item ?? "");
+            writer.Write(progress.ActiveQuests.Count);
+            foreach (var quest in progress.ActiveQuests)
+            {
+                writer.Write(quest.QuestId ?? "");
+                writer.Write(quest.Objectives.Count);
+                foreach (var objective in quest.Objectives)
+                {
+                    writer.Write(objective.ObjectiveId ?? "");
+                    writer.Write(objective.Progress);
+                }
+            }
+            writer.Write(progress.CompletedQuests.Count);
+            foreach (var quest in progress.CompletedQuests)
+                writer.Write(quest ?? "");
+        }
+
+        internal static PlayerProgress ReadProgress(BinaryReader reader)
+        {
+            var progress = new PlayerProgress
+            {
+                Level = reader.ReadInt32(), TotalExperience = reader.ReadInt64(), Kills = reader.ReadInt32()
+            };
+            int items = ReadCount(reader);
+            for (int i = 0; i < items; i++)
+                progress.Items.Add(reader.ReadString());
+            int quests = ReadCount(reader);
+            for (int i = 0; i < quests; i++)
+            {
+                var record = new QuestRecord { QuestId = reader.ReadString() };
+                int objectives = ReadCount(reader);
+                for (int o = 0; o < objectives; o++)
+                    record.Objectives.Add(new ObjectiveRecord { ObjectiveId = reader.ReadString(), Progress = reader.ReadInt32() });
+                progress.ActiveQuests.Add(record);
+            }
+            int completed = ReadCount(reader);
+            for (int i = 0; i < completed; i++)
+                progress.CompletedQuests.Add(reader.ReadString());
+            return progress;
+        }
+
         /// <summary>
         /// A short id of the game's rules and content: host and client must have the same to play together.
         /// </summary>
@@ -170,6 +218,8 @@ namespace RPGFramework.ActionRpg.Coop
             foreach (var enemy in settings.Enemies.Where(e => e != null).OrderBy(e => e.Id, StringComparer.Ordinal))
                 Character(enemy);
             Number(settings.InventoryCapacity);
+            Number((int)settings.ProgressMode);
+            text.Append(settings.LootToBackpack ? "bag|" : "drop|");
             if (settings.Pvp != null)
             {
                 var pvp = settings.Pvp;
@@ -220,11 +270,20 @@ namespace RPGFramework.ActionRpg.Coop
         /// </summary>
         public string RejoinToken = "";
 
+        /// <summary>
+        /// The progress the player brings (their own save) when every player has their own
+        /// (<see cref="ProgressMode.PerPlayer"/>); null for none.
+        /// </summary>
+        public PlayerProgress Profile;
+
         public void Write(BinaryWriter writer)
         {
             writer.Write(Fingerprint ?? "");
             writer.Write(Name ?? "");
             writer.Write(RejoinToken ?? "");
+            writer.Write(Profile != null);
+            if (Profile != null)
+                CoopProtocol.WriteProgress(writer, Profile);
         }
 
         public void Read(BinaryReader reader)
@@ -232,6 +291,7 @@ namespace RPGFramework.ActionRpg.Coop
             Fingerprint = reader.ReadString();
             Name = reader.ReadString();
             RejoinToken = reader.ReadString();
+            Profile = reader.ReadBoolean() ? CoopProtocol.ReadProgress(reader) : null;
         }
     }
 
@@ -493,7 +553,7 @@ namespace RPGFramework.ActionRpg.Coop
     }
 
     /// <summary>
-    /// The party's shared progress as the HUD shows it.
+    /// The progress a player sees in the HUD: the party's when it is shared, otherwise their own.
     /// </summary>
     public sealed class PartyStatus
     {
@@ -512,21 +572,29 @@ namespace RPGFramework.ActionRpg.Coop
         /// </summary>
         public PvpStatus Pvp;
 
-        public static PartyStatus Of(ActorWorld world)
+        public static PartyStatus Of(ActorWorld world) => Of(world, world.PlayerId);
+
+        /// <summary>
+        /// What this party member sees: their own progress (<see cref="ProgressMode.PerPlayer"/>) or the party's.
+        /// </summary>
+        public static PartyStatus Of(ActorWorld world, int playerId)
         {
+            if (world.ProgressOwnerOf(playerId) < 0)
+                playerId = world.PlayerId;
             var status = new PartyStatus
             {
-                Level = world.Level, TotalExperience = world.TotalExperience,
-                ExperienceForNextLevel = world.ExperienceForNextLevel, Kills = world.Kills, Wave = world.CurrentWave
+                Level = world.LevelOf(playerId), TotalExperience = world.ExperienceOf(playerId),
+                ExperienceForNextLevel = world.ExperienceForNextLevelOf(playerId), Kills = world.KillsOf(playerId),
+                Wave = world.CurrentWave
             };
-            status.Items.AddRange(world.Inventory.GetAllItems().Where(i => i != null).Select(i => i.ItemId));
-            foreach (var (quest, progress) in world.ActiveQuests)
+            status.Items.AddRange(world.InventoryOf(playerId).GetAllItems().Where(i => i != null).Select(i => i.ItemId));
+            foreach (var (quest, progress) in world.ActiveQuestsOf(playerId))
             {
                 var record = new QuestRecord { QuestId = quest.Id };
                 record.Objectives.AddRange(progress.ObjectiveProgress.Select(p => new ObjectiveRecord { ObjectiveId = p.Key, Progress = p.Value }));
                 status.ActiveQuests.Add(record);
             }
-            status.CompletedQuests.AddRange(world.CompletedQuests);
+            status.CompletedQuests.AddRange(world.CompletedQuestsOf(playerId));
             status.Log.AddRange(world.Log);
             if (world.Match != null && world.Settings.Pvp != null)
             {

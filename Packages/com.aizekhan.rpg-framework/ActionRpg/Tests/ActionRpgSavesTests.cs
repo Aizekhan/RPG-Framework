@@ -233,5 +233,32 @@ namespace RPGFramework.ActionRpg.Tests
             Assert.That(saves.Save(), Is.Null);
             Assert.That(saves.HasSave, Is.True);
         }
+    
+        [Test]
+        public void ProgressOnly_ForAGuest_SavesWhatTheHostReported_AndKeepsTheRestOfTheSave()
+        {
+            var first = StartSession();
+            Assert.That(new ActionRpgSaves(first, _directory).Register(new Shop { Coins = 25 }).Save(), Is.Null);
+
+            // A guest loads what they bring, then saves what the host reported
+            PlayerProgress brought = null;
+            var reported = new PlayerProgress { Level = 4 };
+            reported.Items.Add(Ear);
+            PlayerProgress current = null;
+            var guest = ActionRpgSaves.ForProgressOnly(_directory, "1.0.0", () => current, progress => brought = progress);
+            Assert.That(guest.Load(), Is.Null);
+            Assert.That(brought.Level, Is.EqualTo(1));
+            Assert.That(guest.Save(), Is.Null, "nothing reported yet: nothing to save");
+            current = reported;
+            Assert.That(guest.Save(), Is.Null);
+
+            // Back alone: the progress from the friend's game, and the shop as it was
+            var shop = new Shop();
+            var world = StartSession();
+            Assert.That(new ActionRpgSaves(world, _directory).Register(shop).Load(), Is.Null);
+            Assert.That(world.Level, Is.EqualTo(4));
+            Assert.That(world.Inventory.GetAllItems().Select(i => i.ItemId), Is.EqualTo(new[] { Ear }));
+            Assert.That(shop.Coins, Is.EqualTo(25), "the guest's save did not erase the game's own section");
+        }
     }
 }

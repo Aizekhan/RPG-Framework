@@ -108,6 +108,34 @@ namespace RPGFramework.ActionRpg.Coop
             return true;
         }
 
+        /// <summary>
+        /// This player's progress as the host last reported it (their own with <see cref="ProgressMode.PerPlayer"/>,
+        /// otherwise the party's): what to save at home. Null before joining.
+        /// </summary>
+        public PlayerProgress CaptureProgress()
+        {
+            if (!IsStarted)
+                return LastProgress;
+            var progress = new PlayerProgress
+            {
+                Level = Math.Max(1, _party.Level), TotalExperience = _party.TotalExperience, Kills = _party.Kills
+            };
+            progress.Items.AddRange(_party.Items);
+            foreach (var record in _party.ActiveQuests)
+            {
+                var copy = new QuestRecord { QuestId = record.QuestId };
+                copy.Objectives.AddRange(record.Objectives.Select(o => new ObjectiveRecord { ObjectiveId = o.ObjectiveId, Progress = o.Progress }));
+                progress.ActiveQuests.Add(copy);
+            }
+            progress.CompletedQuests.AddRange(_party.CompletedQuests);
+            return progress;
+        }
+
+        /// <summary>
+        /// The progress as it was when the game with the host ended (the link was lost, the host left); null before.
+        /// </summary>
+        public PlayerProgress LastProgress { get; private set; }
+
         public float CooldownLeft(string abilityId) =>
             abilityId != null && _cooldownEnds.TryGetValue(abilityId, out float end) ? Math.Max(0f, end - _clock) : 0f;
 
@@ -131,6 +159,8 @@ namespace RPGFramework.ActionRpg.Coop
         /// </summary>
         internal void End()
         {
+            if (IsStarted)
+                LastProgress = CaptureProgress();
             foreach (int id in _actors.Keys.ToList())
                 Despawn(id);
             PlayerId = -1;

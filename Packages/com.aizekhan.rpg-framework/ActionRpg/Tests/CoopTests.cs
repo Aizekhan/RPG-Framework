@@ -195,7 +195,7 @@ namespace RPGFramework.ActionRpg.Tests
             _logger.Dispose();
         }
 
-        private Guest Join(ActionRpgSettings settings = null, string name = "", string rejoinToken = "")
+        private Guest Join(ActionRpgSettings settings = null, string name = "", string rejoinToken = "", PlayerProgress profile = null)
         {
             var guest = new Guest { Bus = new EventBus(), Motion = new Motion() };
             guest.Bus.Subscribe<ActorSpawnedEvent>(guest.Spawned.Add);
@@ -205,7 +205,7 @@ namespace RPGFramework.ActionRpg.Tests
             guest.Network = CoopProtocol.CreateNetwork(guest.Transport, gameMessages: GameMessages());
             guest.Client = new CoopClient(settings ?? _settings(), Content(), guest.Bus, guest.Network, guest.Motion)
             {
-                PlayerName = name, RejoinToken = rejoinToken
+                PlayerName = name, RejoinToken = rejoinToken, Profile = profile
             };
             _guests.Add(guest);
             guest.Client.Join("127.0.0.1", Port);
@@ -1191,6 +1191,53 @@ namespace RPGFramework.ActionRpg.Tests
             Run(0.7f);
             Assert.That(World.Get(friend).Health, Is.LessThan(full));
             Assert.That(guest.Damaged.Last().Context.Tags, Is.EqualTo(2));
+        }
+    
+        [Test]
+        public void PerPlayer_TheFriendBringsTheirProgress_SeesTheirOwn_AndComesBackWithIt()
+        {
+            PlayWith(() =>
+            {
+                var settings = Settings();
+                settings.ProgressMode = ProgressMode.PerPlayer;
+                return settings;
+            });
+            var brought = new PlayerProgress { Level = 3 };
+            brought.Items.Add(Ear);
+            var guest = Join(name: "Ann", profile: brought);
+            int friend = guest.World.PlayerId;
+
+            Assert.That(World.LevelOf(friend), Is.EqualTo(3));
+            Assert.That(guest.World.Level, Is.EqualTo(3), "the friend sees their own level");
+            Assert.That(World.Level, Is.EqualTo(1));
+            Assert.That(guest.World.Inventory.GetAllItems().Select(i => i.ItemId), Is.EqualTo(new[] { Ear }));
+
+            int goblin = World.SpawnEnemy(Goblin);
+            for (int round = 0; round < 10 && World.Get(goblin) != null; round++)
+            {
+                guest.World.Attack(friend, goblin);
+                Pump();
+            }
+            Assert.That(guest.World.TotalExperience, Is.EqualTo(World.ExperienceOf(friend)).And.GreaterThan(0));
+            Assert.That(World.TotalExperience, Is.Zero);
+            Assert.That(guest.World.Inventory.Count, Is.EqualTo(2), "the kill's loot is theirs");
+
+            // What they take home
+            var home = guest.World.CaptureProgress();
+            Assert.That(home.Level, Is.EqualTo(3));
+            Assert.That(home.TotalExperience, Is.EqualTo(World.ExperienceOf(friend)));
+            Assert.That(home.Items, Is.EqualTo(new[] { Ear, Ear }));
+
+            // A lost link: they come back with it, whatever their client brings
+            string token = guest.Client.RejoinToken;
+            guest.Transport.GoSilent();
+            Run(CoopProtocol.ConnectionTimeout + 0.5f);
+            Assert.That(guest.World.LastProgress.TotalExperience, Is.EqualTo(home.TotalExperience),
+                "the last report is kept after the link is gone");
+            var back = Join(name: "Ann", rejoinToken: token, profile: new PlayerProgress());
+            Assert.That(World.LevelOf(back.World.PlayerId), Is.EqualTo(3));
+            Assert.That(World.InventoryOf(back.World.PlayerId).Count, Is.EqualTo(2));
+            Assert.That(back.World.CaptureProgress().TotalExperience, Is.EqualTo(home.TotalExperience));
         }
     }
 }

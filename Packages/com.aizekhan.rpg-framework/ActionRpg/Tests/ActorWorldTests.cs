@@ -482,5 +482,87 @@ namespace RPGFramework.ActionRpg.Tests
             Assert.That(World.Log.Last(), Does.Contain("brings"));
             Assert.That(World.RevivePlayer(friend, World.PlayerId, 0.3f), Is.False, "the living need no revive");
         }
+    
+        [Test]
+        public void PerPlayer_EachHasTheirOwnLevelBackpackQuestsAndKills()
+        {
+            _settings.ProgressMode = ProgressMode.PerPlayer;
+            StartGame();
+            int friend = World.AddPlayer();
+            int goblin = World.SpawnEnemy(Goblin);
+
+            for (int round = 0; round < 50 && World.Get(goblin) != null; round++)
+                World.Attack(friend, goblin);
+
+            Assert.That(World.ExperienceOf(friend), Is.EqualTo(40));
+            Assert.That(World.TotalExperience, Is.Zero, "the host earned nothing");
+            Assert.That(World.InventoryOf(friend).Count, Is.EqualTo(1));
+            Assert.That(World.Inventory.Count, Is.Zero);
+            Assert.That(World.KillsOf(friend), Is.EqualTo(1));
+            Assert.That(World.Kills, Is.Zero);
+            Assert.That(World.ActiveQuestsOf(friend).Single().Progress.ObjectiveProgress["slay"], Is.EqualTo(1));
+            Assert.That(World.ActiveQuests.Single().Progress.ObjectiveProgress.TryGetValue("slay", out int mine) ? mine : 0, Is.Zero);
+            Assert.That(World.CreditOf(friend), Is.EqualTo(friend));
+        }
+
+        [Test]
+        public void PerPlayer_APlayerBringsTheirProgress_GrowsAlone_AndTakesItHome()
+        {
+            _settings.ProgressMode = ProgressMode.PerPlayer;
+            StartGame();
+            var brought = new PlayerProgress { Level = 3, Kills = 9 };
+            brought.Items.Add(Ear);
+
+            int friend = World.AddPlayer(progress: brought);
+
+            Assert.That(World.LevelOf(friend), Is.EqualTo(3));
+            Assert.That(World.Get(friend).MaxHealth, Is.EqualTo(140f), "their character at their level");
+            Assert.That(World.Level, Is.EqualTo(1));
+            Assert.That(World.Player.MaxHealth, Is.EqualTo(100f));
+
+            World.GrantExperience(friend, World.ExperienceForNextLevelOf(friend) - World.ExperienceOf(friend));
+            Assert.That(World.LevelOf(friend), Is.EqualTo(4));
+            Assert.That(World.Get(friend).MaxHealth, Is.EqualTo(160f));
+            Assert.That(World.Level, Is.EqualTo(1), "only they grew");
+            Assert.That(World.Player.MaxHealth, Is.EqualTo(100f));
+
+            var home = World.CaptureProgress(friend);
+            Assert.That(home.Level, Is.EqualTo(4));
+            Assert.That(home.Kills, Is.EqualTo(9));
+            Assert.That(home.Items, Is.EqualTo(new[] { Ear }));
+            Assert.That(home.ActiveQuests.Select(q => q.QuestId), Is.EqualTo(new[] { HuntQuest }));
+        }
+
+        [Test]
+        public void Shared_AJoinersProgressIsIgnored_AndTheyFillTheSharedBackpack()
+        {
+            StartGame();
+            int friend = World.AddPlayer(progress: new PlayerProgress { Level = 9 });
+
+            Assert.That(World.LevelOf(friend), Is.EqualTo(1));
+            Assert.That(World.GiveItem(friend, Ear, 2), Is.True);
+            Assert.That(World.Inventory.Count, Is.EqualTo(2));
+            Assert.That(World.InventoryOf(friend), Is.SameAs(World.Inventory));
+            Assert.That(World.GiveItem(999, Ear, 1), Is.False, "not in the party");
+        }
+
+        [Test]
+        public void LootNotToTheBackpack_IsOnlyAnnounced_AndGoesToWhoeverPicksItUp()
+        {
+            _settings.ProgressMode = ProgressMode.PerPlayer;
+            _settings.LootToBackpack = false;
+            StartGame();
+            var drops = new List<LootDroppedEvent>();
+            _host.Container.Resolve<IEventBus>().Subscribe<LootDroppedEvent>(drops.Add);
+            int friend = World.AddPlayer();
+
+            Slay(World.SpawnEnemy(Goblin));
+
+            Assert.That(World.Inventory.Count, Is.Zero);
+            Assert.That(drops.Single().ItemId, Is.EqualTo(Ear));
+            Assert.That(World.GiveItem(friend, drops[0].ItemId, drops[0].Quantity), Is.True, "the friend picked it up");
+            Assert.That(World.InventoryOf(friend).Count, Is.EqualTo(1));
+            Assert.That(World.Inventory.Count, Is.Zero);
+        }
     }
 }

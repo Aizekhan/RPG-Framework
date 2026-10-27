@@ -84,6 +84,9 @@ namespace RPGFramework.ActionRpg
         private IPrefabSpawner _spawner;
         private ActorPresenter _presenter;
         private ActionRpgSaves _saves;
+
+        // A guest's own progress, loaded from the save to bring along (ProgressMode.PerPlayer)
+        private PlayerProgress _profile;
         private SubscriptionBag _saveTriggers = new SubscriptionBag();
         private SubscriptionBag _pvpTriggers = new SubscriptionBag();
         private DiagnosticsOverlay _overlay;
@@ -565,11 +568,21 @@ namespace RPGFramework.ActionRpg
             }
 
             _transport = transport;
+            // With progress of their own, a guest brings their saved progress and saves what the host reports back
+            if (_saveProgress && _settings.ProgressMode == ProgressMode.PerPlayer)
+            {
+                _saves = ActionRpgSaves.ForProgressOnly(SaveDirectory, Application.version,
+                    () => _coopClient?.World.CaptureProgress(), progress => _profile = progress);
+                string loadError = _saves.Load();
+                if (loadError != null)
+                    Host.Logger.LogError($"Saved progress could not be loaded: {loadError}", Category);
+            }
             _coopClient = new CoopClient(_settings, _content, Host.Container.Resolve<IEventBus>(),
                 CoopProtocol.CreateNetwork(_transport, Host.Logger, ConnectionTimeout, GameMessages()), null, Host.Logger)
             {
                 PlayerName = PlayerName,
-                RejoinToken = _rejoinCode == _joinCode ? _rejoinToken : ""
+                RejoinToken = _rejoinCode == _joinCode ? _rejoinToken : "",
+                Profile = _profile
             };
             OnCoopClientCreated(_coopClient);
             _coopClient.Joined += OnJoined;
@@ -728,7 +741,8 @@ namespace RPGFramework.ActionRpg
         /// </summary>
         public bool SaveProgress()
         {
-            if (_saves == null || World == null || World.IsRestoring)
+            // A guest saves only with progress of their own; their World is the host's
+            if (_saves == null || (World == null && _coopClient == null) || (World != null && World.IsRestoring))
                 return false;
             string error = _saves.Save();
             if (error == null)

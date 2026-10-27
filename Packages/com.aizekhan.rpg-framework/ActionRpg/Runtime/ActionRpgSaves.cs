@@ -14,24 +14,54 @@ namespace RPGFramework.ActionRpg
     {
         public const string Slot = "autosave";
 
-        private readonly ActorWorld _world;
+        private readonly Func<PlayerProgress> _capture;
+        private readonly Func<string> _playerName;
+        private readonly Func<int> _level;
         private readonly SaveSystem _saveSystem;
         private readonly SaveGameCoordinator _coordinator;
         private readonly string _gameVersion;
         private string _cannotSave;
 
         public ActionRpgSaves(ActorWorld world, string directory, string gameVersion = "1.0.0")
+            : this(directory, gameVersion, CheckWorld(world).CaptureProgress, world.RestoreProgress,
+                () => world.Player?.DisplayName ?? "", () => world.Level)
         {
-            _world = world ?? throw new ArgumentNullException(nameof(world));
+        }
+
+        /// <summary>
+        /// Saves of a player whose game runs elsewhere: a co-op guest with progress of their own
+        /// (<see cref="ProgressMode.PerPlayer"/>) loads it to bring along and saves what the host reports back. Only
+        /// the player's progress is written; the other sections of the save on disk are kept as they are.
+        /// </summary>
+        /// <param name="capture">The progress to save; null skips the save (nothing to save yet).</param>
+        /// <param name="restore">Receives the loaded progress.</param>
+        public static ActionRpgSaves ForProgressOnly(string directory, string gameVersion, Func<PlayerProgress> capture,
+            Action<PlayerProgress> restore)
+        {
+            var saves = new ActionRpgSaves(directory, gameVersion, capture, restore, () => "", () => capture()?.Level ?? 1);
+            saves._coordinator.KeepUnknownSections = true;
+            return saves;
+        }
+
+        private ActionRpgSaves(string directory, string gameVersion, Func<PlayerProgress> capture,
+            Action<PlayerProgress> restore, Func<string> playerName, Func<int> level)
+        {
             if (string.IsNullOrEmpty(directory))
                 throw new ArgumentException("A save directory is required", nameof(directory));
+            _capture = capture ?? throw new ArgumentNullException(nameof(capture));
+            if (restore == null)
+                throw new ArgumentNullException(nameof(restore));
+            _playerName = playerName;
+            _level = level;
             _gameVersion = gameVersion;
             _saveSystem = new SaveSystem(directory, 1, new JsonSaveSerializer(), new SaveValidator(gameVersion))
             {
                 AutoSaveEnabled = false
             };
-            _coordinator = new SaveGameCoordinator(_saveSystem).Register(new PlayerProgressSave(world));
+            _coordinator = new SaveGameCoordinator(_saveSystem).Register(new PlayerProgressSave(capture, restore));
         }
+
+        private static ActorWorld CheckWorld(ActorWorld world) => world ?? throw new ArgumentNullException(nameof(world));
 
         public bool HasSave => _saveSystem.HasSave(Slot);
 
@@ -61,8 +91,10 @@ namespace RPGFramework.ActionRpg
         {
             if (_cannotSave != null)
                 return _cannotSave;
-            var player = _world.Player;
-            var result = _coordinator.Save(Slot, new SaveMetadata(_gameVersion, player?.DisplayName ?? "", 0f, "", _world.Level));
+            // Nothing to save yet (a guest before the host reported their progress)
+            if (_capture() == null)
+                return null;
+            var result = _coordinator.Save(Slot, new SaveMetadata(_gameVersion, _playerName(), 0f, "", _level()));
             return result.Success ? null : result.ErrorMessage;
         }
 
@@ -95,15 +127,18 @@ namespace RPGFramework.ActionRpg
 
         private sealed class PlayerProgressSave : SaveParticipant<PlayerProgress>
         {
-            private readonly ActorWorld _world;
+            private readonly Func<PlayerProgress> _capture;
+            private readonly Action<PlayerProgress> _restore;
 
-            public PlayerProgressSave(ActorWorld world) => _world = world;
+            public PlayerProgressSave(Func<PlayerProgress> capture, Action<PlayerProgress> restore)
+            {
+                _capture = capture;
+                _restore = restore;
+            }
 
             public override string SaveKey => "actionrpg.player";
-
-            protected override PlayerProgress CaptureState() => _world.CaptureProgress();
-
-            protected override void RestoreState(PlayerProgress state) => _world.RestoreProgress(state);
+            protected override PlayerProgress CaptureState() => _capture();
+            protected override void RestoreState(PlayerProgress state) => _restore(state);
         }
     }
 }

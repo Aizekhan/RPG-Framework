@@ -33,6 +33,17 @@ namespace RPGFramework.ActionRpg
         public int InventoryCapacity { get; set; } = 40;
 
         /// <summary>
+        /// In co-op: one progress for the whole party (the first player's), or each player their own.
+        /// </summary>
+        public ProgressMode ProgressMode { get; set; } = ProgressMode.Shared;
+
+        /// <summary>
+        /// Loot of a kill goes straight into the killer's backpack; off: it is only announced
+        /// (<c>LootDroppedEvent</c>) and the game hands it to whoever picks it up with <see cref="ActorWorld.GiveItem(int, string, int)"/>.
+        /// </summary>
+        public bool LootToBackpack { get; set; } = true;
+
+        /// <summary>
         /// Fixed random seed (loot, wave composition); 0 picks a new one every run.
         /// </summary>
         public int Seed { get; set; }
@@ -127,6 +138,22 @@ namespace RPGFramework.ActionRpg
             }
             return problems;
         }
+    }
+
+    /// <summary>
+    /// Whose level, experience, backpack and quests a co-op player plays with.
+    /// </summary>
+    public enum ProgressMode
+    {
+        /// <summary>
+        /// The party shares the first player's (the host's): everyone's deeds count for it.
+        /// </summary>
+        Shared = 0,
+
+        /// <summary>
+        /// Each player has their own: brought along when joining and taken home.
+        /// </summary>
+        PerPlayer = 1
     }
 
     /// <summary>

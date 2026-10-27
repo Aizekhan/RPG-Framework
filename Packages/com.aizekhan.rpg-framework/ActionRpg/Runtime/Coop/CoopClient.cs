@@ -183,6 +183,12 @@ namespace RPGFramework.ActionRpg.Coop
         public string RejoinToken { get; set; } = "";
 
         /// <summary>
+        /// The progress this player brings when every player has their own (<see cref="ProgressMode.PerPlayer"/>):
+        /// their saved progress, set before <see cref="Join"/>. Take it home with <see cref="RemoteWorld.CaptureProgress"/>.
+        /// </summary>
+        public PlayerProgress Profile { get; set; }
+
+        /// <summary>
         /// The host put this player back into the seat they had.
         /// </summary>
         public bool Rejoined { get; private set; }
@@ -287,7 +293,7 @@ namespace RPGFramework.ActionRpg.Coop
 
         private void OnConnected(int connectionId) => _network.SendToServer(new CoopHelloMessage
         {
-            Fingerprint = _fingerprint, Name = PlayerName, RejoinToken = RejoinToken ?? ""
+            Fingerprint = _fingerprint, Name = PlayerName, RejoinToken = RejoinToken ?? "", Profile = Profile
         });
 
         private void OnDisconnected(int connectionId)

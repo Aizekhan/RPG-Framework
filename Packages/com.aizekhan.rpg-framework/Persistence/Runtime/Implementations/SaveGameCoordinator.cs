@@ -73,6 +73,13 @@ namespace RPGFramework.Persistence
         /// </summary>
         public IReadOnlyList<string> LastUpgradedSections => _upgradedSections;
 
+        /// <summary>
+        /// Sections in the save on disk that no registered participant owns are carried over when saving, instead of
+        /// being dropped: a mode of the game that runs only some of its systems (a co-op guest saving just their
+        /// progress) does not erase the rest. Off by default.
+        /// </summary>
+        public bool KeepUnknownSections { get; set; }
+
         public SaveGameCoordinator Register(ISaveParticipant participant)
         {
             if (participant == null)
@@ -95,7 +102,26 @@ namespace RPGFramework.Persistence
         {
             if (!TryCapture(out var state, out var error))
                 return SaveResult.CreateFailure(slotId, SaveError.SerializationFailed, error);
+            if (KeepUnknownSections)
+                CarryOverUnknownSections(slotId, state);
             return _saveSystem.Save(slotId, state, metadata);
+        }
+
+        private void CarryOverUnknownSections(string slotId, SaveGameState state)
+        {
+            if (!_saveSystem.HasSave(slotId))
+                return;
+            var existing = _saveSystem.Load<SaveGameState>(slotId);
+            if (!existing.Success || !(existing.GameState is SaveGameState saved) || saved.Sections == null)
+                return;
+            foreach (var section in saved.Sections)
+            {
+                if (state.Sections.ContainsKey(section.Key))
+                    continue;
+                state.Sections[section.Key] = section.Value;
+                if (saved.SectionVersions != null && saved.SectionVersions.TryGetValue(section.Key, out int version))
+                    state.SectionVersions[section.Key] = version;
+            }
         }
 
         public LoadResult Load(string slotId)

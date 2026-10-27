@@ -190,5 +190,29 @@ namespace RPGFramework.Persistence.Tests
             Assert.That(_coordinator.Unregister("inventory"), Is.False);
             CollectionAssert.AreEqual(new[] { "quests" }, _coordinator.ParticipantKeys);
         }
+    
+        [Test]
+        public void KeepUnknownSections_ASaveOfSomeSystems_DoesNotEraseTheOthers()
+        {
+            Assert.That(_coordinator.Save("slot_0", new SaveMetadata()).Success, Is.True);
+
+            // A mode that runs only the inventory saves over the same slot
+            var partial = new SaveGameCoordinator(_saveSystem) { KeepUnknownSections = true }.Register(_inventory);
+            _inventory.Gold = 7;
+            Assert.That(partial.Save("slot_0", new SaveMetadata()).Success, Is.True);
+
+            _quests.Completed.Clear();
+            _inventory.Gold = 0;
+            Assert.That(_coordinator.Load("slot_0").Success, Is.True);
+            Assert.That(_inventory.Gold, Is.EqualTo(7), "the new inventory");
+            CollectionAssert.AreEqual(new[] { "intro" }, _quests.Completed, "the quests carried over");
+
+            // Without it, they are dropped
+            var dropping = new SaveGameCoordinator(_saveSystem).Register(_inventory);
+            dropping.Save("slot_0", new SaveMetadata());
+            _quests.Completed.Clear();
+            _coordinator.Load("slot_0");
+            CollectionAssert.AreEqual(new[] { "quests" }, _coordinator.LastMissingSections);
+        }
     }
 }

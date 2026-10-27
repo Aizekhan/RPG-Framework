@@ -18,8 +18,10 @@ namespace RPGFramework.ActionRpg
     /// subscription: an enemy dies → experience and loot for the killer (the Combat→Quests bridge advances Kill
     /// objectives); an objective completes → the quest is turned in; a quest completes → its rewards; a level-up →
     /// stat growth and a full heal. Every character entering or leaving is announced for the presentation.
-    /// In co-op more players join the party (<see cref="AddPlayer"/>): the party shares the first player's level,
-    /// experience, backpack and quests, and every member's kills count for it.
+    /// In co-op more players join the party (<see cref="AddPlayer"/>). With <see cref="ProgressMode.Shared"/> the party
+    /// shares the first player's level, experience, backpack and quests, and every member's kills count for it; with
+    /// <see cref="ProgressMode.PerPlayer"/> every player has their own, brought in when they join
+    /// (<see cref="AddPlayer"/> with their saved progress) and taken home (<see cref="CaptureProgress(int)"/>).
     /// </summary>
     public sealed class ActorWorld : IActorWorld, IDisposable
     {
@@ -45,6 +47,8 @@ namespace RPGFramework.ActionRpg
         private readonly Random _random;
         private readonly Dictionary<int, Actor> _actors = new Dictionary<int, Actor>();
         private readonly List<int> _party = new List<int>();
+        private readonly Dictionary<int, IInventoryContainer<IItem>> _inventories = new Dictionary<int, IInventoryContainer<IItem>>();
+        private readonly Dictionary<int, int> _kills = new Dictionary<int, int>();
         private readonly List<string> _log = new List<string>();
         private readonly SubscriptionBag _subscriptions = new SubscriptionBag();
 
@@ -101,15 +105,74 @@ namespace RPGFramework.ActionRpg
         public bool IsStarted => PlayerId >= 0;
         public int PlayerId { get; private set; } = -1;
         public Actor Player => PlayerId >= 0 && _actors.TryGetValue(PlayerId, out var player) ? player : null;
-        public IInventoryContainer<IItem> Inventory { get; private set; }
-        public int Kills { get; private set; }
-        public int Level => IsStarted ? _progression.GetLevel(PlayerId) : 0;
-        public long TotalExperience => IsStarted ? _progression.GetTotalXP(PlayerId) : 0;
+        public IInventoryContainer<IItem> Inventory => InventoryOf(PlayerId);
+        public int Kills => KillsOf(PlayerId);
+        public int Level => LevelOf(PlayerId);
+        public long TotalExperience => ExperienceOf(PlayerId);
 
         /// <summary>
         /// Total experience at which the player reaches the next level.
         /// </summary>
-        public long ExperienceForNextLevel => IsStarted ? _progression.GetXPRequiredForLevel(Level + 1) : 0;
+        public long ExperienceForNextLevel => ExperienceForNextLevelOf(PlayerId);
+
+        public ProgressMode ProgressMode => _settings.ProgressMode;
+
+        /// <summary>
+        /// Whose progress a player's deeds go to: their own (<see cref="ProgressMode.PerPlayer"/>) or the first
+        /// player's, which the party shares. -1 for someone not in the party.
+        /// </summary>
+        public int ProgressOwnerOf(int playerId)
+        {
+            if (!_party.Contains(playerId))
+                return -1;
+            return _settings.ProgressMode == ProgressMode.PerPlayer ? playerId : PlayerId;
+        }
+
+        /// <summary>
+        /// The backpack a player fills (the party's shared one, or their own); null for someone not in the party.
+        /// </summary>
+        public IInventoryContainer<IItem> InventoryOf(int playerId)
+        {
+            int owner = ProgressOwnerOf(playerId);
+            return owner >= 0 && _inventories.TryGetValue(owner, out var inventory) ? inventory : null;
+        }
+
+        public int KillsOf(int playerId)
+        {
+            int owner = ProgressOwnerOf(playerId);
+            return owner >= 0 && _kills.TryGetValue(owner, out int kills) ? kills : 0;
+        }
+
+        public int LevelOf(int playerId)
+        {
+            int owner = ProgressOwnerOf(playerId);
+            return owner >= 0 ? _progression.GetLevel(owner) : 0;
+        }
+
+        public long ExperienceOf(int playerId)
+        {
+            int owner = ProgressOwnerOf(playerId);
+            return owner >= 0 ? _progression.GetTotalXP(owner) : 0;
+        }
+
+        public long ExperienceForNextLevelOf(int playerId)
+        {
+            int owner = ProgressOwnerOf(playerId);
+            return owner >= 0 ? _progression.GetXPRequiredForLevel(_progression.GetLevel(owner) + 1) : 0;
+        }
+
+        /// <summary>
+        /// Experience for a player (their own, or the party's); for game rules such as a reward split at a finish.
+        /// </summary>
+        /// <returns>False for someone not in the party.</returns>
+        public bool GrantExperience(int playerId, long amount)
+        {
+            int owner = ProgressOwnerOf(playerId);
+            if (owner < 0 || amount <= 0)
+                return false;
+            _progression.AddExperience(owner, amount);
+            return true;
+        }
 
         /// <summary>
         /// Number of the last wave started (0 before the first one).
@@ -136,9 +199,10 @@ namespace RPGFramework.ActionRpg
         public IEnumerable<int> LivingPlayers => _party.Where(id => Get(id)?.IsAlive() == true);
 
         /// <summary>
-        /// Who a deed counts for: a party member's kills and quest progress count for the party (the first player).
+        /// Who a deed counts for: a party member's kills and quest progress count for whoever owns their progress
+        /// (<see cref="ProgressOwnerOf"/>).
         /// </summary>
-        public int CreditOf(int entityId) => _party.Contains(entityId) ? PlayerId : entityId;
+        public int CreditOf(int entityId) => _party.Contains(entityId) ? ProgressOwnerOf(entityId) : entityId;
 
         public Actor Get(int entityId) => _actors.TryGetValue(entityId, out var actor) ? actor : null;
 
@@ -171,13 +235,23 @@ namespace RPGFramework.ActionRpg
         /// <summary>
         /// Quests the player has taken, with their progress.
         /// </summary>
-        public IEnumerable<(IQuest Quest, IQuestProgress Progress)> ActiveQuests =>
-            IsStarted
-                ? _quests.GetActiveQuests(PlayerId).Select(p => (_questRegistry.GetQuest(p.QuestId), p)).Where(q => q.Item1 != null)
-                : Enumerable.Empty<(IQuest, IQuestProgress)>();
+        public IEnumerable<(IQuest Quest, IQuestProgress Progress)> ActiveQuests => ActiveQuestsOf(PlayerId);
 
-        public IReadOnlyList<string> CompletedQuests =>
-            IsStarted ? _quests.GetCompletedQuests(PlayerId) : (IReadOnlyList<string>)Array.Empty<string>();
+        public IReadOnlyList<string> CompletedQuests => CompletedQuestsOf(PlayerId);
+
+        public IEnumerable<(IQuest Quest, IQuestProgress Progress)> ActiveQuestsOf(int playerId)
+        {
+            int owner = ProgressOwnerOf(playerId);
+            return owner >= 0
+                ? _quests.GetActiveQuests(owner).Select(p => (_questRegistry.GetQuest(p.QuestId), p)).Where(q => q.Item1 != null)
+                : Enumerable.Empty<(IQuest, IQuestProgress)>();
+        }
+
+        public IReadOnlyList<string> CompletedQuestsOf(int playerId)
+        {
+            int owner = ProgressOwnerOf(playerId);
+            return owner >= 0 ? _quests.GetCompletedQuests(owner) : (IReadOnlyList<string>)Array.Empty<string>();
+        }
 
         /// <summary>
         /// Subscribes the rules, creates the player and gives them the starting quests.
@@ -197,19 +271,25 @@ namespace RPGFramework.ActionRpg
             _bus.Subscribe<ItemAddedEvent<IItem>>(OnItemAdded).AddTo(_subscriptions);
 
             PlayerId = _entities.CreateEntity();
-            Inventory = new InventoryContainer<IItem>(_settings.InventoryCapacity, _bus, PlayerId, "Backpack");
             _party.Add(PlayerId);
             Add(new Actor(PlayerId, _settings.Player, isPlayer: true) { Seat = 0 });
-            _progression.SetLevel(PlayerId, 1);
+            BeginProgress(PlayerId);
+            Write($"{_settings.Player.DisplayName} enters the world");
+        }
 
+        // A fresh progress: level 1, an empty backpack, the starting quests
+        private void BeginProgress(int owner)
+        {
+            _inventories[owner] = new InventoryContainer<IItem>(_settings.InventoryCapacity, _bus, owner, "Backpack");
+            _kills[owner] = 0;
+            _progression.SetLevel(owner, 1);
             foreach (var questId in _settings.StartingQuests)
             {
-                if (_quests.AcceptQuest(PlayerId, questId))
+                if (_quests.AcceptQuest(owner, questId))
                     Write($"New quest: {_questRegistry.GetQuest(questId)?.Title ?? questId}");
                 else
                     _logger?.LogWarning($"Starting quest '{questId}' could not be accepted", Category);
             }
-            Write($"{_settings.Player.DisplayName} enters the world");
         }
 
         /// <summary>
@@ -218,7 +298,9 @@ namespace RPGFramework.ActionRpg
         /// <param name="character">Their character; null plays the same character as the first player.</param>
         /// <param name="name">Their name (cleaned, made unique in the party); empty gives "Player 2" and so on.</param>
         /// <param name="seat">The seat they want (a player coming back); taken or negative gives the first free one.</param>
-        public int AddPlayer(CharacterData character = null, string name = null, int seat = -1)
+        /// <param name="progress">With <see cref="ProgressMode.PerPlayer"/>: the progress they bring (their own save);
+        /// null starts them fresh. Ignored when the party shares progress.</param>
+        public int AddPlayer(CharacterData character = null, string name = null, int seat = -1, PlayerProgress progress = null)
         {
             ThrowIfNotStarted();
             character = character ?? _settings.Player;
@@ -230,9 +312,16 @@ namespace RPGFramework.ActionRpg
             }
             int id = _entities.CreateEntity();
             _party.Add(id);
-            var player = new Actor(id, character, isPlayer: true, level: Level) { Seat = seat };
+            bool own = _settings.ProgressMode == ProgressMode.PerPlayer;
+            var player = new Actor(id, character, isPlayer: true, level: own ? 1 : Level) { Seat = seat };
             player.PlayerName = UniqueName(CleanName(name) ?? $"Player {seat + 1}", id);
             Add(player);
+            if (own)
+            {
+                BeginProgress(id);
+                if (progress != null)
+                    RestoreProgress(id, progress);
+            }
             Write($"{player.DisplayName} joins the party");
             return id;
         }
@@ -295,8 +384,11 @@ namespace RPGFramework.ActionRpg
             if (playerId == PlayerId)
                 throw new InvalidOperationException("The first player cannot leave the party");
             var player = Get(playerId);
-            if (player == null || !_party.Remove(playerId))
+            if (player == null || !_party.Contains(playerId))
                 return false;
+            _party.Remove(playerId);
+            _inventories.Remove(playerId);
+            _kills.Remove(playerId);
             Remove(playerId);
             Write($"{player.DisplayName} leaves the party");
             return true;
@@ -425,15 +517,29 @@ namespace RPGFramework.ActionRpg
         public PlayerProgress CaptureProgress()
         {
             ThrowIfNotStarted();
-            var progress = new PlayerProgress { Level = Level, TotalExperience = TotalExperience, Kills = Kills };
-            progress.Items.AddRange(Inventory.GetAllItems().Where(i => i != null).Select(i => i.ItemId));
-            foreach (var active in _quests.GetActiveQuests(PlayerId))
+            return CaptureProgress(PlayerId);
+        }
+
+        /// <summary>
+        /// A party member's progress (their own, or the party's when it is shared): what they take home.
+        /// </summary>
+        public PlayerProgress CaptureProgress(int playerId)
+        {
+            int owner = ProgressOwnerOf(playerId);
+            if (owner < 0)
+                throw new ArgumentException($"{playerId} is not a player in the party", nameof(playerId));
+            var progress = new PlayerProgress
+            {
+                Level = _progression.GetLevel(owner), TotalExperience = _progression.GetTotalXP(owner), Kills = KillsOf(owner)
+            };
+            progress.Items.AddRange(_inventories[owner].GetAllItems().Where(i => i != null).Select(i => i.ItemId));
+            foreach (var active in _quests.GetActiveQuests(owner))
             {
                 var record = new QuestRecord { QuestId = active.QuestId };
                 record.Objectives.AddRange(active.ObjectiveProgress.Select(p => new ObjectiveRecord { ObjectiveId = p.Key, Progress = p.Value }));
                 progress.ActiveQuests.Add(record);
             }
-            progress.CompletedQuests.AddRange(_quests.GetCompletedQuests(PlayerId));
+            progress.CompletedQuests.AddRange(_quests.GetCompletedQuests(owner));
             return progress;
         }
 
@@ -444,43 +550,57 @@ namespace RPGFramework.ActionRpg
         public void RestoreProgress(PlayerProgress progress)
         {
             ThrowIfNotStarted();
+            RestoreProgress(PlayerId, progress);
+        }
+
+        /// <summary>
+        /// Puts a party member's progress back (with <see cref="ProgressMode.PerPlayer"/>: what they brought along).
+        /// </summary>
+        public void RestoreProgress(int playerId, PlayerProgress progress)
+        {
+            ThrowIfNotStarted();
             if (progress == null)
                 throw new ArgumentNullException(nameof(progress));
+            int owner = ProgressOwnerOf(playerId);
+            if (owner < 0)
+                throw new ArgumentException($"{playerId} is not a player in the party", nameof(playerId));
+            var inventory = _inventories[owner];
 
             IsRestoring = true;
             try
             {
                 int level = Math.Max(1, progress.Level);
-                _progression.SetLevel(PlayerId, level);
-                long missing = progress.TotalExperience - _progression.GetTotalXP(PlayerId);
+                _progression.SetLevel(owner, level);
+                long missing = progress.TotalExperience - _progression.GetTotalXP(owner);
                 if (missing > 0)
-                    _progression.AddExperience(PlayerId, missing);
+                    _progression.AddExperience(owner, missing);
+                var actor = Get(owner);
                 foreach (ActorStat stat in Enum.GetValues(typeof(ActorStat)))
-                    Player.SetBaseStat(stat, _settings.Player.StatAt(stat, Level));
-                Player.RestoreFullHealth();
-                Kills = progress.Kills;
+                    actor.SetBaseStat(stat, actor.Character.StatAt(stat, _progression.GetLevel(owner)));
+                actor.RestoreFullHealth();
+                _kills[owner] = Math.Max(0, progress.Kills);
 
-                Inventory.Clear();
+                inventory.Clear();
                 foreach (var itemId in progress.Items ?? new List<string>())
                 {
                     var item = _items.GetItem(itemId);
                     if (item == null)
                         _logger?.LogWarning($"Saved item '{itemId}' is no longer in the game; skipped", Category);
-                    else if (!Inventory.Add(item))
+                    else if (!inventory.Add(item))
                         break;
                 }
 
-                var completed = _quests.GetCompletedQuests(PlayerId);
+                var completed = _quests.GetCompletedQuests(owner);
                 foreach (var questId in progress.CompletedQuests ?? new List<string>())
                 {
                     var quest = _questRegistry.GetQuest(questId);
                     if (quest == null || completed.Contains(questId))
                         continue;
-                    if (_quests.GetQuestProgress(PlayerId, questId) == null)
-                        _quests.AcceptQuest(PlayerId, questId);
+                    if (_quests.GetQuestProgress(owner, questId) == null)
+                        _quests.AcceptQuest(owner, questId);
                     foreach (var objective in quest.Objectives)
-                        SetObjective(questId, objective.Id, objective.RequiredCount);
-                    _quests.CompleteQuest(PlayerId, questId);
+                        SetObjective(owner, questId, objective.Id, objective.RequiredCount);
+                    _quests.CompleteQuest(owner, questId);
                 }
 
                 foreach (var record in progress.ActiveQuests ?? new List<QuestRecord>())
@@ -490,25 +610,27 @@ namespace RPGFramework.ActionRpg
                         _logger?.LogWarning($"Saved quest '{record.QuestId}' is no longer in the game; skipped", Category);
                         continue;
                     }
-                    if (_quests.GetQuestProgress(PlayerId, record.QuestId) == null && !_quests.AcceptQuest(PlayerId, record.QuestId))
+                    if (_quests.GetQuestProgress(owner, record.QuestId) == null && !_quests.AcceptQuest(owner, record.QuestId))
                         continue;
                     foreach (var objective in record.Objectives ?? new List<ObjectiveRecord>())
-                        SetObjective(record.QuestId, objective.ObjectiveId, objective.Progress);
+                        SetObjective(owner, record.QuestId, objective.ObjectiveId, objective.Progress);
                 }
             }
             finally
             {
                 IsRestoring = false;
             }
-            Write($"Welcome back: level {Level}, {Inventory.Count} items");
+            Write(owner == PlayerId
+                ? $"Welcome back: level {Level}, {inventory.Count} items"
+                : $"{Get(owner)?.DisplayName} brings level {_progression.GetLevel(owner)}, {inventory.Count} items");
         }
 
-        private void SetObjective(string questId, string objectiveId, int target)
+        private void SetObjective(int owner, string questId, string objectiveId, int target)
         {
-            var current = _quests.GetQuestProgress(PlayerId, questId);
+            var current = _quests.GetQuestProgress(owner, questId);
             int done = current != null && current.ObjectiveProgress.TryGetValue(objectiveId, out int value) ? value : 0;
             if (target > done)
-                _quests.UpdateObjectiveProgress(PlayerId, questId, objectiveId, target - done);
+                _quests.UpdateObjectiveProgress(owner, questId, objectiveId, target - done);
         }
 
         public bool RevivePlayer() => _settings.Pvp == null && RevivePlayer(PlayerId);
@@ -579,7 +701,10 @@ namespace RPGFramework.ActionRpg
             }
 
             bool byParty = _party.Contains(death.KillerEntityId);
-            Kills++;
+            // Every kill counts on the shared tally; with own progress, only a player's own kills count for them
+            int owner = byParty ? ProgressOwnerOf(death.KillerEntityId) : PlayerId;
+            if (byParty || _settings.ProgressMode == ProgressMode.Shared)
+                _kills[owner] = KillsOf(owner) + 1;
             _bus.Publish(new ActorKilledEvent(victim.EntityId, victim.CharacterId, death.KillerEntityId, byParty));
             Remove(death.EntityId);
             if (!byParty)
@@ -587,11 +712,11 @@ namespace RPGFramework.ActionRpg
 
             Write($"{victim.DisplayName} slain");
             if (victim.Character.ExperienceReward > 0)
-                _progression.AddExperience(PlayerId, victim.Character.ExperienceReward);
+                _progression.AddExperience(owner, victim.Character.ExperienceReward);
 
             if (string.IsNullOrEmpty(victim.Character.LootTableId))
                 return;
-            var loot = _loot.GenerateLootById(victim.Character.LootTableId, Level, seed: _random.Next());
+            var loot = _loot.GenerateLootById(victim.Character.LootTableId, _progression.GetLevel(owner), seed: _random.Next());
             if (loot.Drops == null)
                 return;
             _bus.Publish(new LootGeneratedEvent
@@ -601,7 +726,8 @@ namespace RPGFramework.ActionRpg
             });
             foreach (var drop in loot.Drops)
             {
-                if (GiveItem(drop.ItemId, drop.Quantity))
+                // Without the backpack, the drop is only announced: the game puts it on the ground for someone to pick up
+                if (!_settings.LootToBackpack || GiveItem(death.KillerEntityId, drop.ItemId, drop.Quantity))
                 {
                     _bus.Publish(new LootDroppedEvent
                     {
@@ -613,7 +739,7 @@ namespace RPGFramework.ActionRpg
 
         private void OnObjectiveProgressed(ObjectiveProgressedEvent progress)
         {
-            if (progress.EntityId != PlayerId || IsRestoring)
+            if (!OwnsProgress(progress.EntityId) || IsRestoring)
                 return;
             string title = _questRegistry.GetQuest(progress.QuestId)?.Title ?? progress.QuestId;
             Write($"{title}: {progress.CurrentProgress}/{progress.RequiredProgress}");
@@ -624,7 +750,7 @@ namespace RPGFramework.ActionRpg
 
         private void OnQuestCompleted(QuestCompletedEvent completed)
         {
-            if (completed.EntityId != PlayerId || IsRestoring)
+            if (!OwnsProgress(completed.EntityId) || IsRestoring)
                 return;
             Write($"Quest complete: {_questRegistry.GetQuest(completed.QuestId)?.Title ?? completed.QuestId}");
             if (completed.Rewards == null)
@@ -638,7 +764,7 @@ namespace RPGFramework.ActionRpg
                         _progression.AddExperience(completed.EntityId, reward.Amount);
                         break;
                     case RewardType.Item:
-                        GiveItem(reward.RewardId, reward.Amount);
+                        GiveItem(completed.EntityId, reward.RewardId, reward.Amount);
                         break;
                     default:
                         _logger?.LogWarning($"Reward type {reward.Type} is not handled by ActorWorld; subscribe to " +
@@ -648,8 +774,22 @@ namespace RPGFramework.ActionRpg
             }
         }
 
+        // The entity holds a progress of its own: the first player, or anyone in the party when progress is per player
+        private bool OwnsProgress(int entityId) => entityId == PlayerId
+            || (_settings.ProgressMode == ProgressMode.PerPlayer && _party.Contains(entityId));
+
         private void OnLevelUp(LevelUpEvent levelUp)
         {
+            if (_settings.ProgressMode == ProgressMode.PerPlayer && levelUp.EntityId != PlayerId && _party.Contains(levelUp.EntityId))
+            {
+                // Their own level: only they grow, by their own character
+                var member = Get(levelUp.EntityId);
+                foreach (ActorStat stat in Enum.GetValues(typeof(ActorStat)))
+                    member.SetBaseStat(stat, member.Character.StatAt(stat, levelUp.NewLevel));
+                member.RestoreFullHealth();
+                Write($"{member.DisplayName} reaches level {levelUp.NewLevel}");
+                return;
+            }
             if (levelUp.EntityId != PlayerId)
                 return;
             // Stat growth for this level-up was already applied: StatGrowthPublisher subscribed before the world did
@@ -658,7 +798,7 @@ namespace RPGFramework.ActionRpg
             foreach (int member in _party)
             {
                 var actor = Get(member);
-                if (actor == null || member == PlayerId)
+                if (actor == null || member == PlayerId || _settings.ProgressMode == ProgressMode.PerPlayer)
                     continue;
                 foreach (ActorStat stat in Enum.GetValues(typeof(ActorStat)))
                     actor.SetBaseStat(stat, actor.Character.StatAt(stat, levelUp.NewLevel));
@@ -688,6 +828,19 @@ namespace RPGFramework.ActionRpg
         public bool GiveItem(string itemId, int quantity = 1)
         {
             ThrowIfNotStarted();
+            return GiveItem(PlayerId, itemId, quantity);
+        }
+
+        /// <summary>
+        /// Puts items into the backpack a party member fills (their own, or the party's): loot they picked up.
+        /// </summary>
+        /// <returns>False for someone not in the party, an unknown item, or a full backpack.</returns>
+        public bool GiveItem(int playerId, string itemId, int quantity)
+        {
+            ThrowIfNotStarted();
+            var inventory = InventoryOf(playerId);
+            if (inventory == null)
+                return false;
             var item = _items.GetItem(itemId);
             if (item == null)
             {
@@ -697,7 +850,7 @@ namespace RPGFramework.ActionRpg
 
             for (int i = 0; i < quantity; i++)
             {
-                if (!Inventory.Add(item))
+                if (!inventory.Add(item))
                 {
                     Write("Backpack is full");
                     return false;
