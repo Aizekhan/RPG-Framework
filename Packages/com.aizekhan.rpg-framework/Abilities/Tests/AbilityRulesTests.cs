@@ -389,5 +389,46 @@ namespace RPGFramework.Abilities.Tests
             Assert.That(executor.IsChanneling(Caster), Is.False);
             Assert.That(_log[_log.Count - 1], Is.EqualTo("canceled beam at 2 (canceled)"));
         }
+
+        // ---- Targets that are a whole side ----
+
+        [Test]
+        public void AllEnemiesAndAllAllies_NeedNoPickedTargetAndIgnoreRange()
+        {
+            Register("quake", target: TargetType.AllEnemies, range: 5f);
+            Register("rally", target: TargetType.AllAllies, range: 5f);
+            var executor = Executor(distance: (a, b) => 100f, isEnemy: (a, b) => b == Foe);
+
+            Assert.That(Use(executor, "quake", 0f, target: -1).Success, Is.True);
+            Assert.That(Use(executor, "rally", 0f, target: -1).Success, Is.True);
+            Assert.That(_landed, Is.EqualTo(new[] { "quake", "rally" }));
+        }
+
+        // ---- Forgetting an entity ----
+
+        [Test]
+        public void UnregisterEntity_DropsCastsTogglesCooldownsQuietly()
+        {
+            Register("aura", AbilityType.Toggle);
+            Register("bolt", cooldown: 10f);
+            Register("nova", castTime: 2f);
+            var executor = Executor();
+            Use(executor, "aura", 0f);
+            Use(executor, "bolt", 0f);
+            const int other = 9;
+            executor.ExecuteAbility("bolt", other, Foe, 0f, null, null, null);
+            Assert.That(Use(executor, "nova", 0f).CastStarted, Is.True);
+            int logged = _log.Count;
+
+            executor.UnregisterEntity(Caster);
+
+            Assert.That(executor.IsCasting(Caster), Is.False);
+            Assert.That(executor.IsToggledOn(Caster, "aura"), Is.False);
+            Assert.That(_tracker.IsOnCooldown(Caster, "bolt", 1f), Is.False);
+            Assert.That(_tracker.IsOnCooldown(other, "bolt", 1f), Is.True, "other entities keep their state");
+            Assert.That(executor.Update(5f), Is.EqualTo(0), "the dropped cast never lands");
+            Assert.That(_log.Count, Is.EqualTo(logged), "forgetting raises no events");
+            Assert.That(Use(executor, "bolt", 1f).Success, Is.True, "a fresh start");
+        }
     }
 }

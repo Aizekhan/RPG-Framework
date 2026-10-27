@@ -335,6 +335,32 @@ namespace RPGFramework.Progression.Tests
             Assert.That(stats.ContainsKey("HP"), Is.True);
         }
 
+        [Test]
+        public void StatGrowthFormula_Profiles_OverrideSharedGrowthPerEntity()
+        {
+            var formula = new StatGrowthFormula();
+            formula.RegisterStatGrowth(new StatGrowthData("Strength", 10f, 2f));
+            formula.RegisterStatGrowth("rogue", new StatGrowthData("Strength", 6f, 1f));
+            formula.RegisterStatGrowth("rogue", new StatGrowthData("Agility", 12f, 3f));
+            formula.AssignProfile(7, "rogue");
+
+            Assert.That(formula.GetProfile(7), Is.EqualTo("rogue"));
+            Assert.That(formula.GetProfile(8), Is.Null);
+            Assert.That(formula.CalculateStatAtLevel(7, "Strength", 5), Is.EqualTo(10f));
+            Assert.That(formula.CalculateStatAtLevel(8, "Strength", 5), Is.EqualTo(18f));
+            Assert.That(formula.CalculateStatAtLevel("Strength", 5), Is.EqualTo(18f), "the shared table is untouched");
+            Assert.That(formula.HasStatGrowth(7, "Agility"), Is.True);
+            Assert.That(formula.HasStatGrowth(8, "Agility"), Is.False);
+            Assert.That(formula.HasStatGrowth("Agility"), Is.False);
+            Assert.That(formula.GetStatChangesForLevelUp(7, 1, 2),
+                Is.EquivalentTo(new Dictionary<string, float> { ["Strength"] = 7f, ["Agility"] = 15f }));
+
+            formula.AssignProfile(7, null);
+
+            Assert.That(formula.GetProfile(7), Is.Null);
+            Assert.That(formula.CalculateStatAtLevel(7, "Strength", 5), Is.EqualTo(18f));
+        }
+
         // ==================== Unlock System Tests ====================
 
         [Test]

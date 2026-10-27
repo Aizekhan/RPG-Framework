@@ -55,6 +55,33 @@ namespace RPGFramework.Progression.Tests
         }
 
         [Test]
+        public void StatGrowthPublisher_UsesEachEntitysProfile()
+        {
+            var bus = new EventBus();
+            var formula = new StatGrowthFormula();
+            formula.RegisterStatGrowth(new StatGrowthData("Strength", 10f, 1f));
+            formula.RegisterStatGrowth("mage", new StatGrowthData("Magic", 8f, 3f));
+            formula.RegisterStatGrowth("knight", new StatGrowthData("Strength", 12f, 4f));
+            formula.AssignProfile(1, "mage");
+            formula.AssignProfile(2, "knight");
+            var increased = new List<StatIncreasedEvent>();
+            bus.Subscribe<StatIncreasedEvent>(increased.Add);
+            using var publisher = new StatGrowthPublisher(bus, formula);
+
+            bus.Publish(new LevelUpEvent { EntityId = 1, OldLevel = 1, NewLevel = 2, LevelsGained = 1 });
+            bus.Publish(new LevelUpEvent { EntityId = 2, OldLevel = 1, NewLevel = 2, LevelsGained = 1 });
+            bus.Publish(new LevelUpEvent { EntityId = 3, OldLevel = 1, NewLevel = 2, LevelsGained = 1 });
+
+            Assert.That(increased.Count, Is.EqualTo(4));
+            Assert.That(increased.FindAll(e => e.EntityId == 1).ConvertAll(e => (e.StatId, e.NewValue)),
+                Is.EquivalentTo(new[] { ("Strength", 11f), ("Magic", 11f) }), "a mage keeps the shared Strength");
+            var knight = increased.Find(e => e.EntityId == 2);
+            Assert.That((knight.StatId, knight.OldValue, knight.NewValue), Is.EqualTo(("Strength", 12f, 16f)));
+            var plain = increased.Find(e => e.EntityId == 3);
+            Assert.That((plain.StatId, plain.NewValue), Is.EqualTo(("Strength", 11f)), "no profile: shared growth");
+        }
+
+        [Test]
         public void StatGrowthPublisher_StopsAfterDispose()
         {
             var bus = new EventBus();

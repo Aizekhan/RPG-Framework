@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using RPGFramework.Progression;
 
 namespace RPGFramework.TurnBased
 {
@@ -63,25 +64,28 @@ namespace RPGFramework.TurnBased
         /// <summary>
         /// The stat at a level, before status effects.
         /// </summary>
-        public float StatAt(CombatStat stat, int level)
+        public float StatAt(CombatStat stat, int level) => Growth(stat).CalculateAtLevel(level);
+
+        /// <summary>
+        /// How the stat grows, as Progression growth (linear: the base value plus the per-level gain above level 1).
+        /// The world registers it as the hero's growth profile, so level-ups publish <see cref="StatIncreasedEvent"/>.
+        /// </summary>
+        public StatGrowthData Growth(CombatStat stat)
         {
-            int above = Math.Max(0, level - 1);
+            string id = stat.ToString();
             switch (stat)
             {
-                case CombatStat.MaxHealth: return MaxHealth + HealthPerLevel * above;
-                case CombatStat.MaxMana: return MaxMana + ManaPerLevel * above;
-                case CombatStat.Attack: return Attack + AttackPerLevel * above;
-                case CombatStat.Defense: return Defense + DefensePerLevel * above;
-                case CombatStat.Magic: return Magic + MagicPerLevel * above;
-                case CombatStat.Speed: return Speed + SpeedPerLevel * above;
+                case CombatStat.MaxHealth: return new StatGrowthData(id, MaxHealth, HealthPerLevel);
+                case CombatStat.MaxMana: return new StatGrowthData(id, MaxMana, ManaPerLevel);
+                case CombatStat.Attack: return new StatGrowthData(id, Attack, AttackPerLevel);
+                case CombatStat.Defense: return new StatGrowthData(id, Defense, DefensePerLevel);
+                case CombatStat.Magic: return new StatGrowthData(id, Magic, MagicPerLevel);
+                case CombatStat.Speed: return new StatGrowthData(id, Speed, SpeedPerLevel);
                 default: throw new ArgumentOutOfRangeException(nameof(stat), stat, null);
             }
         }
     }
 
-    /// <summary>
-    /// The stats of a combatant. Status effects change them by name (a Stat modifier with TargetId "Attack").
-    /// </summary>
     public enum CombatStat
     {
         MaxHealth,

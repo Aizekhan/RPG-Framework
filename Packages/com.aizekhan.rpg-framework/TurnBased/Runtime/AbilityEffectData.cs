@@ -92,14 +92,16 @@ namespace RPGFramework.TurnBased
     {
         /// <summary>
         /// The scope an ability's target type means in a turn-based battle: Enemy → one enemy, Ally → one ally,
-        /// Area → every enemy, Self/None → the caster, Any → one enemy.
+        /// Area/AllEnemies → every enemy, AllAllies → every ally, Self/None → the caster, Any → one enemy.
         /// </summary>
         public static TargetScope FromTargetType(TargetType type)
         {
             switch (type)
             {
                 case TargetType.Ally: return TargetScope.SingleAlly;
-                case TargetType.Area: return TargetScope.AllEnemies;
+                case TargetType.Area:
+                case TargetType.AllEnemies: return TargetScope.AllEnemies;
+                case TargetType.AllAllies: return TargetScope.AllAllies;
                 case TargetType.Self:
                 case TargetType.None: return TargetScope.Self;
                 default: return TargetScope.SingleEnemy;

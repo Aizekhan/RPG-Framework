@@ -65,6 +65,11 @@ namespace RPGFramework.Abilities
                 case TargetType.Ground:
                     // AoE and ground targeting always valid (position validation is game-specific)
                     return true;
+
+                case TargetType.AllEnemies:
+                case TargetType.AllAllies:
+                    // The whole side is hit; who is on it is the game's to resolve in its effect callback
+                    return true;
             }
 
             // Check range if specified

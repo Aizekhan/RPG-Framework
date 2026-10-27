@@ -260,6 +260,14 @@ namespace RPGFramework.Abilities
             return _toggledOn.TryGetValue(entityId, out var on) && on.Contains(abilityId);
         }
 
+        public void UnregisterEntity(int entityId)
+        {
+            _abilityInstances.Remove(entityId);
+            _casts.Remove(entityId);
+            _toggledOn.Remove(entityId);
+            _cooldownTracker?.ClearAllCooldowns(entityId);
+        }
+
         // Pays, applies, starts the cooldown and raises the events; then begins the channel if the ability has one.
         private AbilityExecutionResult Land(ActiveCast cast, int casterEntityId, float currentTime)
         {

@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+Gaps the turn-based rules found, closed before the API is frozen in 1.0.
+
+- **Stat growth per hero or class.** `IStatGrowthFormula` takes growth profiles: `RegisterStatGrowth(profileId, data)`, `AssignProfile(entityId, profileId)`, `GetProfile`, and entity overloads of `CalculateStatAtLevel`, `GetStatChangesForLevelUp` and `HasStatGrowth`. A profile overrides the stats it has; the rest use the shared growth, which works as before. `StatGrowthPublisher` publishes each entity's own growth. Implementers of `IStatGrowthFormula` add the new members. TurnBased registers every hero's `CombatantData` as a profile (`TurnBasedWorld.GrowthProfilePrefix`), so its level-ups now publish `StatIncreasedEvent`; `CombatantData.Growth(stat)` gives the Progression growth and `StatAt` uses it
+- **Abilities that hit a whole side.** `TargetType.AllEnemies` and `TargetType.AllAllies` need no picked target and ignore range; the game resolves the side in its effect callback. TurnBased maps them to `TargetScope.AllEnemies` / `AllAllies`
+- `IAbilityExecutor.UnregisterEntity(id)` forgets an entity: ability instances and charges, a cast or channel in progress (dropped without events), toggles and cooldowns. TurnBased calls it for the enemies of a finished battle, so a new enemy with a reused id starts fresh. Implementers add it
+- **New feature modules** `AbilitiesModule` (`IAbilityRegistry`, `ICooldownTracker`, `ITargetValidator`, `IAbilityExecutor`; `AbilitiesOptions` for range, relationships and resource maximums) and `StatusEffectsModule` (`IStatusEffectManager`; `StatusEffectsOptions.Target` or a registered `IStatusEffectTarget`) in `RPGFramework.Bootstrap.Gameplay`
+- `IStatusEffectManager.RegisterEffect` (both overloads) is on the interface, so a manager resolved from the container can be filled. Implementers add them
+
 ## [0.3.0] - 2026-10-27
 
 Co-op stage 3 (reliability) and PvP, saves that outlive builds, designer assets for every content module, modules that do what their assets say, the rules of a turn-based party RPG, and core services wired in and enforced for games (GA13). Install with `#v0.3.0`.

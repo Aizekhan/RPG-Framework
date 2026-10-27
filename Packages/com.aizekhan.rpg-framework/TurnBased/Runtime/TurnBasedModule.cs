@@ -62,7 +62,8 @@ namespace RPGFramework.TurnBased
                 c.Resolve<IAbilityRegistry>(),
                 c.Resolve<ICooldownTracker>(),
                 c.Resolve<IEventBus>(),
-                c.Resolve<ILogger>()));
+                c.Resolve<ILogger>(),
+                c.Resolve<IStatGrowthFormula>()));
         }
 
         protected override void OnInitialize()

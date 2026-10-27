@@ -25,6 +25,12 @@ namespace RPGFramework.Abilities
         Ground = 5,
 
         /// <summary>Targets any entity</summary>
-        Any = 6
+        Any = 6,
+
+        /// <summary>Hits every enemy of the caster; no target is picked</summary>
+        AllEnemies = 7,
+
+        /// <summary>Hits every ally of the caster, the caster included; no target is picked</summary>
+        AllAllies = 8
     }
 }

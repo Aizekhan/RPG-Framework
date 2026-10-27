@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using RPGFramework.Abilities;
 using static RPGFramework.TurnBased.Tests.TurnBasedTestGame;
 
 namespace RPGFramework.TurnBased.Tests
@@ -26,6 +27,18 @@ namespace RPGFramework.TurnBased.Tests
         }
 
         private Combatant Enemy(Battle battle, int slot) => battle.Enemies[slot];
+
+        // ---- Target types ----
+
+        [Test]
+        public void TargetTypes_MapToBattleScopes()
+        {
+            Assert.That(TargetScopes.FromTargetType(TargetType.AllEnemies), Is.EqualTo(TargetScope.AllEnemies));
+            Assert.That(TargetScopes.FromTargetType(TargetType.AllAllies), Is.EqualTo(TargetScope.AllAllies));
+            Assert.That(TargetScopes.FromTargetType(TargetType.Area), Is.EqualTo(TargetScope.AllEnemies));
+            Assert.That(TargetScopes.FromTargetType(TargetType.Ally), Is.EqualTo(TargetScope.SingleAlly));
+            Assert.That(TargetScopes.FromTargetType(TargetType.None), Is.EqualTo(TargetScope.Self));
+        }
 
         // ---- Turn order ----
 

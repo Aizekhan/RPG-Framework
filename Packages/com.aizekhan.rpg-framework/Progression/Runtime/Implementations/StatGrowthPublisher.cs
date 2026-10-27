@@ -5,7 +5,8 @@ namespace RPGFramework.Progression
 {
     /// <summary>
     /// Turns level-ups into stat growth: on every <see cref="LevelUpEvent"/> it publishes one
-    /// <see cref="StatIncreasedEvent"/> per stat registered in the <see cref="IStatGrowthFormula"/> whose value changed.
+    /// <see cref="StatIncreasedEvent"/> per stat of the entity's growth in the <see cref="IStatGrowthFormula"/> (its
+    /// profile, or the shared growth) whose value changed.
     /// The game applies the new values to its own stat storage by subscribing to <see cref="StatIncreasedEvent"/>.
     /// Dispose to stop listening.
     /// </summary>
@@ -37,17 +38,18 @@ namespace RPGFramework.Progression
                 return;
 
             float now = _clock?.Invoke() ?? levelUp.Timestamp;
-            // The keys are every stat with growth; the values are only the new ones, so compute the old ones too
-            foreach (var pair in _formula.GetStatChangesForLevelUp(levelUp.OldLevel, levelUp.NewLevel))
+            // The keys are every stat the entity grows; the values are only the new ones, so compute the old ones too
+            int entityId = levelUp.EntityId;
+            foreach (var pair in _formula.GetStatChangesForLevelUp(entityId, levelUp.OldLevel, levelUp.NewLevel))
             {
-                float oldValue = _formula.CalculateStatAtLevel(pair.Key, levelUp.OldLevel);
+                float oldValue = _formula.CalculateStatAtLevel(entityId, pair.Key, levelUp.OldLevel);
                 if (pair.Value.Equals(oldValue))
                     continue;
 
                 PublishedCount++;
                 _bus.Publish(new StatIncreasedEvent
                 {
-                    EntityId = levelUp.EntityId,
+                    EntityId = entityId,
                     StatId = pair.Key,
                     OldValue = oldValue,
                     NewValue = pair.Value,

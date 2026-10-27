@@ -30,11 +30,17 @@ namespace RPGFramework.TurnBased
         private const string Category = "TurnBased";
         private const int MaxLogLines = 20;
 
+        /// <summary>
+        /// Growth profiles of the heroes in the <see cref="IStatGrowthFormula"/> are this plus the hero's data id.
+        /// </summary>
+        public const string GrowthProfilePrefix = "TurnBased.";
+
         private readonly TurnBasedSettings _settings;
         private readonly IEntityManager _entities;
         private readonly IProgressionTracker _progression;
         private readonly ILootGenerator _loot;
         private readonly IItemRegistry _items;
+        private readonly IStatGrowthFormula _growth;
         private readonly Dictionary<string, AbilityEffectData> _abilityEffects = new Dictionary<string, AbilityEffectData>();
         private readonly List<Combatant> _party = new List<Combatant>();
         private readonly List<string> _log = new List<string>();
@@ -44,7 +50,7 @@ namespace RPGFramework.TurnBased
 
         public TurnBasedWorld(TurnBasedSettings settings, TurnBasedContent content, IEntityManager entities,
             IProgressionTracker progression, ILootGenerator loot, IItemRegistry items, IAbilityRegistry abilities,
-            ICooldownTracker cooldowns, IEventBus bus, ILogger logger = null)
+            ICooldownTracker cooldowns, IEventBus bus, ILogger logger = null, IStatGrowthFormula growth = null)
         {
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
             _entities = entities ?? throw new ArgumentNullException(nameof(entities));
@@ -55,6 +61,7 @@ namespace RPGFramework.TurnBased
             Cooldowns = cooldowns ?? throw new ArgumentNullException(nameof(cooldowns));
             Bus = bus ?? throw new ArgumentNullException(nameof(bus));
             Logger = logger;
+            _growth = growth;
             content = content ?? new TurnBasedContent();
 
             Random = settings.Seed != 0 ? new Random(settings.Seed) : new Random();
@@ -140,6 +147,7 @@ namespace RPGFramework.TurnBased
             {
                 int id = _entities.CreateEntity();
                 _progression.SetLevel(id, 1);
+                RegisterGrowth(id, data);
                 _party.Add(new Combatant(id, data, BattleSide.Party, slot++, data.DisplayName, 1));
             }
             Inventory = new InventoryContainer<IItem>(_settings.InventoryCapacity, Bus, -1, "Party");
@@ -332,6 +340,7 @@ namespace RPGFramework.TurnBased
             EndBattleQuietly();
             foreach (var member in _party)
             {
+                _growth?.AssignProfile(member.Id, null);
                 if (_entities.Exists(member.Id))
                     _entities.DestroyEntity(member.Id);
             }
@@ -489,10 +498,23 @@ namespace RPGFramework.TurnBased
             Battle = null;
         }
 
+        // Each hero grows by its own data: a growth profile per hero kind, so Progression publishes the stat gains
+        private void RegisterGrowth(int memberId, CombatantData data)
+        {
+            if (_growth == null)
+                return;
+            string profileId = GrowthProfilePrefix + data.Id;
+            foreach (CombatStat stat in Enum.GetValues(typeof(CombatStat)))
+                _growth.RegisterStatGrowth(profileId, data.Growth(stat));
+            _growth.AssignProfile(memberId, profileId);
+        }
+
         private void RemoveEnemies(Battle battle)
         {
             foreach (var enemy in battle.Enemies)
             {
+                // Entity ids come back for new entities; a new enemy must not inherit this one's ability state
+                Executor.UnregisterEntity(enemy.Id);
                 if (_entities.Exists(enemy.Id))
                     _entities.DestroyEntity(enemy.Id);
             }

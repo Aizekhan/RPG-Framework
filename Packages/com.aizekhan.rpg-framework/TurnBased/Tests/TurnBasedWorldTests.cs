@@ -4,6 +4,7 @@ using System.Linq;
 using NUnit.Framework;
 using RPGFramework.Abilities;
 using RPGFramework.Items;
+using RPGFramework.Progression;
 using static RPGFramework.TurnBased.Tests.TurnBasedTestGame;
 
 namespace RPGFramework.TurnBased.Tests
@@ -85,6 +86,33 @@ namespace RPGFramework.TurnBased.Tests
             Assert.That(world.EncounterIndex, Is.EqualTo(1));
             Assert.That(world.NextEncounter.Id, Is.EqualTo("camp"));
             Assert.That(world.IsInBattle, Is.False);
+        }
+
+        [Test]
+        public void LevelUps_PublishEachHerosOwnStatGrowth_ThroughProgression()
+        {
+            _game.EnemiesDefend();
+            var world = _game.Start();
+            var gains = new List<StatIncreasedEvent>();
+            _game.Bus.Subscribe<StatIncreasedEvent>(gains.Add);
+            var knight = _game.Member(Knight);
+            var mage = _game.Member(Mage);
+            var growth = _game.Host.Container.Resolve<IStatGrowthFormula>();
+
+            PlayToTheEnd(world.StartBattle());
+
+            Assert.That(growth.GetProfile(knight.Id), Is.EqualTo(TurnBasedWorld.GrowthProfilePrefix + Knight));
+            string Gain(Combatant member, CombatStat stat)
+            {
+                var gain = gains.Single(g => g.EntityId == member.Id && g.StatId == stat.ToString());
+                return $"{gain.OldValue}->{gain.NewValue}";
+            }
+            Assert.That(Gain(knight, CombatStat.Attack), Is.EqualTo($"{knight.Data.Attack}->{knight.Attack}"));
+            Assert.That(Gain(knight, CombatStat.MaxHealth), Is.EqualTo($"{knight.Data.MaxHealth}->{knight.MaxHealth}"));
+            Assert.That(Gain(mage, CombatStat.Magic), Is.EqualTo($"{mage.Data.Magic}->{mage.Data.Magic + mage.Data.MagicPerLevel}"),
+                "the mage grows by its own data, not the knight's");
+            Assert.That(gains.Where(g => g.EntityId == knight.Id).Select(g => g.StatId),
+                Is.EquivalentTo(Enum.GetNames(typeof(CombatStat))), "every stat of the knight grows");
         }
 
         [Test]

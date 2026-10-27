@@ -115,12 +115,12 @@ namespace RPGFramework.TurnBased.Tests
 
             Content.Abilities.Add(Ability(PowerStrike, TargetType.Enemy, mana: 4, cooldown: 2));
             Content.Abilities.Add(Ability(Fire, TargetType.Enemy, mana: 6));
-            Content.Abilities.Add(Ability(Blizzard, TargetType.Area, mana: 12));
+            Content.Abilities.Add(Ability(Blizzard, TargetType.AllEnemies, mana: 12));
             Content.Abilities.Add(Ability(PoisonDart, TargetType.Enemy, mana: 2));
             Content.Abilities.Add(Ability(StunBolt, TargetType.Enemy, mana: 5));
             Content.Abilities.Add(Ability(Heal, TargetType.Ally, mana: 5));
             Content.Abilities.Add(Ability(Raise, TargetType.Ally, mana: 15));
-            Content.Abilities.Add(Ability(Bless, TargetType.None, mana: 6));
+            Content.Abilities.Add(Ability(Bless, TargetType.AllAllies, mana: 6));
             Content.Abilities.Add(Ability(Mend, TargetType.Ally, mana: 5));
             Content.Abilities.Add(Ability(Spark, TargetType.Enemy, mana: 3));
 

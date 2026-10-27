@@ -8,6 +8,18 @@ namespace RPGFramework.StatusEffects
     public interface IStatusEffectManager
     {
         /// <summary>
+        /// Register an effect definition.
+        /// </summary>
+        /// <returns>False if an effect with this id is already registered; the first one is kept.</returns>
+        bool RegisterEffect(IStatusEffect effect);
+
+        /// <summary>
+        /// Register an effect from data.
+        /// </summary>
+        /// <returns>False if an effect with this id is already registered; the first one is kept.</returns>
+        bool RegisterEffect(StatusEffectData data);
+
+        /// <summary>
         /// Apply a status effect to an entity.
         /// </summary>
         /// <param name="entityId">Target entity</param>

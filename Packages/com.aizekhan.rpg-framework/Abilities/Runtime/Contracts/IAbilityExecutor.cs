@@ -60,5 +60,12 @@ namespace RPGFramework.Abilities
 
         /// <summary>Whether a toggle ability is switched on for the entity</summary>
         bool IsToggledOn(int entityId, string abilityId);
+
+        /// <summary>
+        /// Forget everything about an entity that is gone (despawned, removed after a battle): its ability instances
+        /// and charges, a cast or channel in progress (dropped without events or effect), toggles and cooldowns.
+        /// Its next ability use starts fresh.
+        /// </summary>
+        void UnregisterEntity(int entityId);
     }
 }

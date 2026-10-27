@@ -10,6 +10,9 @@
         "RPGFramework.Systems.Runtime",
         "RPGFramework.ECS.Runtime",
         "RPGFramework.Timers.Runtime",
+        "RPGFramework.Bootstrap.Gameplay",
+        "RPGFramework.Abilities.Runtime",
+        "RPGFramework.StatusEffects.Runtime",
         "UniTask",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
