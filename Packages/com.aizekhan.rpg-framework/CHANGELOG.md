@@ -2,7 +2,9 @@
 
 ## [Unreleased]
 
-Gaps the turn-based rules found, closed before the API is frozen in 1.0.
+## [0.4.0] - 2026-10-27
+
+Gaps the turn-based rules found, closed before the API is frozen in 1.0: stat growth per hero, abilities that hit a whole side, forgetting an entity, Abilities and StatusEffects feature modules. Some interfaces gained members (listed below); implementers add them. Install with `#v0.4.0`.
 
 - **Stat growth per hero or class.** `IStatGrowthFormula` takes growth profiles: `RegisterStatGrowth(profileId, data)`, `AssignProfile(entityId, profileId)`, `GetProfile`, and entity overloads of `CalculateStatAtLevel`, `GetStatChangesForLevelUp` and `HasStatGrowth`. A profile overrides the stats it has; the rest use the shared growth, which works as before. `StatGrowthPublisher` publishes each entity's own growth. Implementers of `IStatGrowthFormula` add the new members. TurnBased registers every hero's `CombatantData` as a profile (`TurnBasedWorld.GrowthProfilePrefix`), so its level-ups now publish `StatIncreasedEvent`; `CombatantData.Growth(stat)` gives the Progression growth and `StatAt` uses it
 - **Abilities that hit a whole side.** `TargetType.AllEnemies` and `TargetType.AllAllies` need no picked target and ignore range; the game resolves the side in its effect callback. TurnBased maps them to `TargetScope.AllEnemies` / `AllAllies`
