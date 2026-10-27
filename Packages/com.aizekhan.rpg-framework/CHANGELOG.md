@@ -2,7 +2,9 @@
 
 ## [Unreleased]
 
-Gaps MythRunner found in the action RPG kit and its co-op (FG-01..FG-08), plus what its design document needs from any co-op action RPG. Co-op protocol version 8: older builds are refused.
+## [0.5.0] - 2026-10-27
+
+Gaps MythRunner found in the action RPG kit and its co-op (FG-01..FG-08), plus what its design document needs from any co-op action RPG. Co-op protocol version 8: older builds are refused. Install with `#v0.5.0`.
 
 - **Attacks carry their context (FG-03).** `AttackContext` (attacker, target, a tag mask, a source id, effect damage or not) goes through `ActorWorld.Attack(a, t, context)` and `DealDamage(attacker, target, amount, context)` to `IContextualDamageCalculator`; `ActionRpgSettings.DamageCalculator` sets a game's own (otherwise the container's). `ActorDamagedEvent.Context`; effect damage ignores defence in the default calculator. The tags travel to co-op guests
 - **Status effects and abilities in the action RPG kit (FG-04, FG-05)**, optional: `ActionRpgSettings.UseStatusEffects` / `UseAbilities` (on when the content has any). `ActorEffects` (apply, remove, ticks; stats, health, movement and controls through `ActorEffectTarget`; cleared on death and despawn), `ActorAbilities` (`SetEffect(abilityId, effect)`, stun and silence block casting, `ReduceCooldowns`). `IActorWorld.EffectsOn`, `UseAbility`, `CooldownLeft`; `Actor.MoveMultiplier`, `IsStunned`, controls. In co-op only effect start and end and cooldown starts travel, reliably; late joiners get what is on
