@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using RPGFramework.ECS;
 
 namespace RPGFramework.Skills
 {
@@ -10,7 +11,7 @@ namespace RPGFramework.Skills
     /// This is the data structure stored in ECS components.
     /// </summary>
     [Serializable]
-    public struct SkillProgressData
+    public struct SkillProgressData : IComponent
     {
         /// <summary>
         /// Dictionary mapping skill IDs to their current levels.

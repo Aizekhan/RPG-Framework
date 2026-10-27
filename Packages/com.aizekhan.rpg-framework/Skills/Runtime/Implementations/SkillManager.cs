@@ -8,7 +8,9 @@ namespace RPGFramework.Skills
 {
     /// <summary>
     /// Manages skill learning, leveling, and querying for entities.
-    /// Works with any component type that contains SkillProgressData.
+    /// Each entity's skills are stored on it as a <see cref="SkillProgressData"/> component (added on the first skill);
+    /// entities that do not exist learn nothing. A game can store them elsewhere by overriding
+    /// <see cref="TryGetSkillProgressData"/> and <see cref="UpdateSkillProgressData"/>.
     /// With an event publisher, raises SkillLearned and SkillLevelUp (TimeStamp 0: the manager keeps no clock).
     /// </summary>
     public class SkillManager : ISkillManager
@@ -130,28 +132,30 @@ namespace RPGFramework.Skills
             UpdateSkillProgressData(entityId, progressData);
         }
 
-        // Helper methods - these would be implemented by game-specific adapters
-        // For now, we'll provide a basic implementation that works with a generic component
-
         /// <summary>
-        /// Reads an entity's skill data. The base version stores nothing and returns false;
-        /// a game-layer subclass overrides this and <see cref="UpdateSkillProgressData"/> to use its own component.
+        /// Reads an entity's skill data: its <see cref="SkillProgressData"/> component, or empty data when it has
+        /// learned nothing yet. False when the entity does not exist.
         /// </summary>
         protected virtual bool TryGetSkillProgressData(int entityId, out SkillProgressData data)
         {
-            // This is a simplified version - actual implementation would depend on component structure
-            // Game-layer adapter would override this to work with specific component types
-            data = SkillProgressData.CreateEmpty();
-            return false;
+            if (_entityManager == null || !_entityManager.Exists(entityId))
+            {
+                data = default;
+                return false;
+            }
+
+            if (!_entityManager.TryGetComponent(entityId, out data) || data.SkillLevels == null)
+                data = SkillProgressData.CreateEmpty();
+            return true;
         }
 
         /// <summary>
-        /// Writes an entity's skill data back. The base version does nothing.
+        /// Writes an entity's skill data back as its <see cref="SkillProgressData"/> component.
         /// </summary>
         protected virtual void UpdateSkillProgressData(int entityId, SkillProgressData data)
         {
-            // This is a simplified version - actual implementation would depend on component structure
-            // Game-layer adapter would override this to work with specific component types
+            if (_entityManager != null && _entityManager.Exists(entityId))
+                _entityManager.AddComponent(entityId, data);
         }
     }
 }

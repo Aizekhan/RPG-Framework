@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- **Fix: Skills works on its own.** `SkillManager` stored nothing, so learning a skill always failed (proven by failing tests). Skills are now kept on the entity as a `SkillProgressData` component (now an `IComponent`), added with the first skill; a game can still store them elsewhere by overriding the two storage methods (`SkillManagerTests`)
+- **Fix: loot without duplicates could hand out less than the table promised.** Items already dropped still counted in the total weight, so a roll could land on nothing (a 3-item table asking for 3 drops gave 2). Each roll now weighs only the items still allowed; tables with duplicates roll exactly as before (`LootGeneratorTests`)
+- `IEntityManager.GetEntitiesWith<T1, T2>(List<int>)` and `<T1, T2, T3>(List<int>)`: allocation-free queries for several components (the array versions allocate on every call)
+- **Benchmarks** (printed to the test output, generous budgets that catch regressions): ECS 1000 moving of 10000 entities 0.24 ms a frame with no garbage; EventBus 1000 events x 3 subscribers 0.13 ms with no garbage; `ActorWorld` with 1000 enemies, systems and 200 attacks 0.07 ms (rules only, without Unity views)
 - **Events that were declared but never sent now arrive.** An audit found 50 of 97 event types that nothing ever created (a game could subscribe and wait forever). They now implement `IEvent` and are published where the thing happens, each proven by a test; managers take an optional `IEventPublisher` as their last constructor parameter (existing calls compile unchanged):
   - **Loot**: `ActorWorld` publishes `LootGeneratedEvent` then a `LootDroppedEvent` per item handed out when the party kills an enemy
   - **Networking**: `NetworkManager(..., events)` publishes `ConnectionEstablishedEvent`, `ConnectionLostEvent` (`WasTimeout` after a silent peer) and `MessageReceivedEvent`; `ReplicationSystem(config, events)` publishes `EntitySpawnedEvent` (from `SpawnEntity`, which did nothing), `EntityDespawnedEvent` and `StateReplicatedEvent`

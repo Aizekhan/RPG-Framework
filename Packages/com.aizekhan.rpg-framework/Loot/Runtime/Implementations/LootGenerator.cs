@@ -66,15 +66,22 @@ namespace RPGFramework.Loot
             // Determine how many items to drop
             int dropCount = random.Next(lootTable.MinDrops, lootTable.MaxDrops + 1);
 
-            // Calculate total weight with luck modifier
-            float totalWeight = validEntries.Sum(e => e.Weight * luckModifier);
-
             // Track dropped items (for duplicate prevention)
             var droppedItems = new HashSet<string>();
 
             for (int i = 0; i < dropCount; i++)
             {
-                // Weighted random selection
+                // Weighted random selection among the entries still allowed: without duplicates, items already
+                // dropped leave the pool, so their weight no longer counts (otherwise a roll could land on nothing)
+                float totalWeight = 0f;
+                foreach (var entry in validEntries)
+                {
+                    if (lootTable.AllowDuplicates || !droppedItems.Contains(entry.ItemId))
+                        totalWeight += entry.Weight * luckModifier;
+                }
+                if (totalWeight <= 0f)
+                    break;
+
                 float roll = (float)random.NextDouble() * totalWeight;
                 float cumulative = 0f;
 

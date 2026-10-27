@@ -118,6 +118,52 @@ namespace RPGFramework.ECS
                 pool.CopyEntities(results);
         }
 
+        public void GetEntitiesWith<T1, T2>(List<int> results)
+            where T1 : IComponent
+            where T2 : IComponent
+        {
+            if (results == null)
+                throw new ArgumentNullException(nameof(results));
+            results.Clear();
+            if (!TryGetPool<T1>(out var first) || !TryGetPool<T2>(out var second))
+                return;
+            var smallest = first.Count <= second.Count ? (ComponentPool)first : second;
+            smallest.CopyEntities(results);
+            KeepWhereAll(results, first, second, null);
+        }
+
+        public void GetEntitiesWith<T1, T2, T3>(List<int> results)
+            where T1 : IComponent
+            where T2 : IComponent
+            where T3 : IComponent
+        {
+            if (results == null)
+                throw new ArgumentNullException(nameof(results));
+            results.Clear();
+            if (!TryGetPool<T1>(out var first) || !TryGetPool<T2>(out var second) || !TryGetPool<T3>(out var third))
+                return;
+            ComponentPool smallest = first;
+            if (second.Count < smallest.Count)
+                smallest = second;
+            if (third.Count < smallest.Count)
+                smallest = third;
+            smallest.CopyEntities(results);
+            KeepWhereAll(results, first, second, third);
+        }
+
+        // Filters in place (no closure, no copy): keeps the entities every given pool contains
+        private static void KeepWhereAll(List<int> results, ComponentPool a, ComponentPool b, ComponentPool c)
+        {
+            int kept = 0;
+            for (int i = 0; i < results.Count; i++)
+            {
+                int entityId = results[i];
+                if (a.Contains(entityId) && b.Contains(entityId) && (c == null || c.Contains(entityId)))
+                    results[kept++] = entityId;
+            }
+            results.RemoveRange(kept, results.Count - kept);
+        }
+
         public int CountWith<TComponent>() where TComponent : IComponent =>
             TryGetPool<TComponent>(out var pool) ? pool.Count : 0;
 

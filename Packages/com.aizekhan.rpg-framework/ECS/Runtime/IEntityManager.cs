@@ -74,6 +74,21 @@ namespace RPGFramework.ECS
         void GetEntitiesWith<TComponent>(List<int> results)
             where TComponent : IComponent;
 
+        /// <summary>
+        /// Allocation-free variant: clears <paramref name="results"/> and fills it with the entities that have both.
+        /// </summary>
+        void GetEntitiesWith<T1, T2>(List<int> results)
+            where T1 : IComponent
+            where T2 : IComponent;
+
+        /// <summary>
+        /// Allocation-free variant: clears <paramref name="results"/> and fills it with the entities that have all three.
+        /// </summary>
+        void GetEntitiesWith<T1, T2, T3>(List<int> results)
+            where T1 : IComponent
+            where T2 : IComponent
+            where T3 : IComponent;
+
         int CountWith<TComponent>()
             where TComponent : IComponent;
 
