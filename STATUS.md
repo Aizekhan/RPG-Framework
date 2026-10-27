@@ -19,6 +19,7 @@
 | `.meta` integrity | ✅ 0 problems | `79c5e2a` |
 | CI on GitHub (meta check, EditMode, PlayMode) | ✅ green (run `40441589664`; release commit `ba55e62` run `40441959682`) | `79c5e2a` |
 | Fresh Unity 6 project + UniTask + package → New Game → tests → Play | ✅ 14/14 generated tests, played (screenshots) | `675b521` |
+| **Release `v0.4.0`**: clean install (`D:/RPG-Release040`, the 0.3.0 starter game without `Library`, manifest `#v0.4.0`, lock entry removed) resolves to `efd339f`, version 0.4.0, 0 `error CS` → 17/17 game tests (GA01-GA13). GameKit templates unchanged since v0.3.0 | ✅ CI green (run `40496713676`) | `efd339f` |
 | **Release `v0.3.0`**: fresh Unity 6 project (`D:/RPG-Release030`) installs the package by git URL `#v0.3.0` (resolves to `ba55e62`, version 0.3.0), 0 `error CS`, New Game + AI guidance → 17/17 generated tests (GA01-GA13) | ✅ CI green (run `40441959682`) | `ba55e62` |
 | **Release `v0.2.0`**: fresh Unity 6 project installs the package by git URL `#v0.2.0` (resolves to `01f5af8`), 0 `error CS`, New Game → 14/14 generated tests | ✅ CI green (run `40386565078`) | `01f5af8` |
 
@@ -159,5 +160,5 @@ Agreed with the user (2026-10-26, 2026-10-27): the plan is finished and released
 2. Weak spots: ~~save versioning~~ (`5dcc822`), ~~`StatContainer`~~ (`9182fda`), ~~Tools and DeltaCompression tests~~ (`c685e43`), ~~`#if FALSE` windows, loot and other dead events~~ (`da76940`), ~~Skills storage, loot weights, benchmarks~~ (`df0e768`), ~~dead custom inspectors~~ (`baa8dde`).
 3. ~~PvP as game modes~~ done (`ba094c9`): teams and factions, server-checked movement, Duel / Team Deathmatch / Free For All.
 4. ~~Designer assets~~ done (`baa8dde`); ~~modules honour what the assets hold~~ (`41e990e`); ~~turn-based rules, core services + GA13~~ (`79c5e2a`); ~~release v0.3.0~~ (`ba55e62`).
-5. Next: the owner's game, started with `START-NEW-GAME.md` (it installs v0.3.0). Framework gaps it finds go to its `FRAMEWORK-GAPS.md` and are fixed here.
-6. ~~Turn-based gaps before 1.0~~ done (`09db450`): growth profiles in `IStatGrowthFormula`, `TargetType.AllEnemies`/`AllAllies`, `IAbilityExecutor.UnregisterEntity`, `AbilitiesModule`, `StatusEffectsModule`, `IStatusEffectManager.RegisterEffect`. Next: release 0.4.0, then 1.0 prep, then 1.0 on the owner's yes. The live Relay test when the owner provides a UGS project.
+5. Next: the owner's game, started with `START-NEW-GAME.md` (it installs the newest tag, v0.4.0). Framework gaps it finds go to its `FRAMEWORK-GAPS.md` and are fixed here.
+6. ~~Turn-based gaps before 1.0~~ done (`09db450`): growth profiles in `IStatGrowthFormula`, `TargetType.AllEnemies`/`AllAllies`, `IAbilityExecutor.UnregisterEntity`, `AbilitiesModule`, `StatusEffectsModule`, `IStatusEffectManager.RegisterEffect`. Released as **v0.4.0** (tag on `efd339f`, clean install verified). Next: the owner's game (`START-NEW-GAME.md` installs v0.4.0); 1.0 prep once the game is playable and stops hitting the framework daily; 1.0 on the owner's yes. The live Relay test when the owner provides a UGS project.
