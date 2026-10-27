@@ -176,6 +176,7 @@ namespace RPGFramework.ActionRpg.Coop
 
         public void Update(float deltaTime)
         {
+            World.Tick(deltaTime);
             _network.Update(deltaTime);
             if (_pendingEnd != null)
             {

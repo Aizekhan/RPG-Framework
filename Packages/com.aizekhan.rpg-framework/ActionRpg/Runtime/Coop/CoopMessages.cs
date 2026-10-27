@@ -51,7 +51,7 @@ namespace RPGFramework.ActionRpg.Coop
         /// <summary>
         /// Changes whenever the messages change, so older and newer builds refuse each other instead of misreading.
         /// </summary>
-        public const int Version = 5;
+        public const int Version = 6;
 
         public const int DefaultPort = 7777;
         public const int DefaultMaxPlayers = 4;
@@ -171,6 +171,10 @@ namespace RPGFramework.ActionRpg.Coop
                     text.Append(item.ItemId).Append('|');
                 foreach (var quest in content.Quests.Where(q => q != null).OrderBy(q => q.Id, StringComparer.Ordinal))
                     text.Append(quest.Id).Append('|');
+                foreach (var effect in content.StatusEffects.Where(e => e != null).OrderBy(e => e.Id, StringComparer.Ordinal))
+                    text.Append("fx:").Append(effect.Id).Append('|');
+                foreach (var ability in content.Abilities.Where(e => e != null).OrderBy(e => e.AbilityId, StringComparer.Ordinal))
+                    text.Append("ab:").Append(ability.AbilityId).Append('|');
             }
 
             // FNV-1a: stable across runs and machines, unlike string.GetHashCode
@@ -270,15 +274,27 @@ namespace RPGFramework.ActionRpg.Coop
         /// </summary>
         public string Team;
 
+        /// <summary>
+        /// <see cref="Actor.MoveMultiplier"/> from status effects.
+        /// </summary>
+        public float MoveMultiplier;
+
+        /// <summary>
+        /// <see cref="Actor.Controls"/>, sorted and joined by commas; empty for none.
+        /// </summary>
+        public string Controls;
+
         public static ActorState Of(Actor actor) => new ActorState
         {
             Id = actor.EntityId, Health = actor.Health, MaxHealth = actor.MaxHealth, Attack = actor.Attack,
-            Defense = actor.Defense, Alive = actor.IsAlive(), Team = actor.Team
+            Defense = actor.Defense, Alive = actor.IsAlive(), Team = actor.Team, MoveMultiplier = actor.MoveMultiplier,
+            Controls = actor.Controls.Count == 0 ? "" : string.Join(",", actor.Controls.OrderBy(c => c, StringComparer.Ordinal))
         };
 
         public bool SameAs(ActorState other) =>
             Health == other.Health && MaxHealth == other.MaxHealth && Attack == other.Attack && Defense == other.Defense
-            && Alive == other.Alive && Team == other.Team;
+            && Alive == other.Alive && Team == other.Team && MoveMultiplier == other.MoveMultiplier
+            && (Controls ?? "") == (other.Controls ?? "");
     }
 
     /// <summary>
@@ -290,7 +306,22 @@ namespace RPGFramework.ActionRpg.Coop
         {
             Spawn = 1,
             Despawn = 2,
-            Hit = 3
+            Hit = 3,
+
+            /// <summary>
+            /// A status effect went on a character or changed its stacks (Name = effect id).
+            /// </summary>
+            EffectOn = 4,
+
+            /// <summary>
+            /// A status effect came off a character (Name = effect id).
+            /// </summary>
+            EffectOff = 5,
+
+            /// <summary>
+            /// A character's ability went on cooldown (Name = ability id, Amount = seconds).
+            /// </summary>
+            Cooldown = 6
         }
 
         public struct Change
@@ -311,6 +342,11 @@ namespace RPGFramework.ActionRpg.Coop
             public int Tags;
             public int SourceId;
             public bool FromEffect;
+
+            /// <summary>
+            /// Stacks of an effect.
+            /// </summary>
+            public int Stacks;
         }
 
         public override int MessageTypeId => CoopProtocol.WorldId;
@@ -347,6 +383,19 @@ namespace RPGFramework.ActionRpg.Coop
                         writer.Write(change.SourceId);
                         writer.Write(change.FromEffect);
                         break;
+                    case ChangeKind.EffectOn:
+                        writer.Write(change.Name ?? "");
+                        writer.Write(change.Stacks);
+                        writer.Write(change.AttackerId);
+                        writer.Write(change.Amount);
+                        break;
+                    case ChangeKind.EffectOff:
+                        writer.Write(change.Name ?? "");
+                        break;
+                    case ChangeKind.Cooldown:
+                        writer.Write(change.Name ?? "");
+                        writer.Write(change.Amount);
+                        break;
                 }
             }
             writer.Write(States.Count);
@@ -359,6 +408,8 @@ namespace RPGFramework.ActionRpg.Coop
                 writer.Write(state.Defense);
                 writer.Write(state.Alive);
                 writer.Write(state.Team ?? "");
+                writer.Write(state.MoveMultiplier);
+                writer.Write(state.Controls ?? "");
             }
             writer.Write(Party != null);
             Party?.Write(writer);
@@ -386,6 +437,19 @@ namespace RPGFramework.ActionRpg.Coop
                         change.SourceId = reader.ReadInt32();
                         change.FromEffect = reader.ReadBoolean();
                         break;
+                    case ChangeKind.EffectOn:
+                        change.Name = reader.ReadString();
+                        change.Stacks = reader.ReadInt32();
+                        change.AttackerId = reader.ReadInt32();
+                        change.Amount = reader.ReadSingle();
+                        break;
+                    case ChangeKind.EffectOff:
+                        change.Name = reader.ReadString();
+                        break;
+                    case ChangeKind.Cooldown:
+                        change.Name = reader.ReadString();
+                        change.Amount = reader.ReadSingle();
+                        break;
                 }
                 Changes.Add(change);
             }
@@ -399,6 +463,8 @@ namespace RPGFramework.ActionRpg.Coop
                 };
                 string team = reader.ReadString();
                 state.Team = team.Length > 0 ? team : null;
+                state.MoveMultiplier = reader.ReadSingle();
+                state.Controls = reader.ReadString();
                 States.Add(state);
             }
             if (reader.ReadBoolean())
@@ -598,7 +664,12 @@ namespace RPGFramework.ActionRpg.Coop
             /// <summary>
             /// The player leaves on purpose: no seat is kept for them.
             /// </summary>
-            Leave = 3
+            Leave = 3,
+
+            /// <summary>
+            /// The player uses an ability (<see cref="AbilityId"/>) on <see cref="TargetId"/>.
+            /// </summary>
+            UseAbility = 4
         }
 
         public override int MessageTypeId => CoopProtocol.IntentId;
@@ -611,12 +682,15 @@ namespace RPGFramework.ActionRpg.Coop
         public int Tags;
         public int SourceId;
 
+        public string AbilityId = "";
+
         public void Write(BinaryWriter writer)
         {
             writer.Write((byte)Kind);
             writer.Write(TargetId);
             writer.Write(Tags);
             writer.Write(SourceId);
+            writer.Write(AbilityId ?? "");
         }
 
         public void Read(BinaryReader reader)
@@ -625,6 +699,7 @@ namespace RPGFramework.ActionRpg.Coop
             TargetId = reader.ReadInt32();
             Tags = reader.ReadInt32();
             SourceId = reader.ReadInt32();
+            AbilityId = reader.ReadString();
         }
     }
 }

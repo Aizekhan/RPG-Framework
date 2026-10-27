@@ -79,6 +79,24 @@ namespace RPGFramework.ActionRpg
 
         public PvpStatus PvpStatus => _settings.Pvp != null ? Match?.Status : null;
 
+        /// <summary>
+        /// Status effects on characters; null unless the game uses them (<see cref="ActionRpgSettings.UseStatusEffects"/>).
+        /// </summary>
+        public ActorEffects Effects { get; internal set; }
+
+        /// <summary>
+        /// Abilities of characters; null unless the game uses them (<see cref="ActionRpgSettings.UseAbilities"/>).
+        /// </summary>
+        public ActorAbilities Abilities { get; internal set; }
+
+        public IEnumerable<ActorEffect> EffectsOn(int entityId) =>
+            Effects?.On(entityId) ?? Enumerable.Empty<ActorEffect>();
+
+        public bool UseAbility(string abilityId, int targetId = -1) =>
+            IsStarted && Abilities != null && Abilities.Use(PlayerId, abilityId, targetId).Success;
+
+        public float CooldownLeft(string abilityId) => Abilities?.CooldownLeft(PlayerId, abilityId) ?? 0f;
+
         public ActionRpgSettings Settings => _settings;
         public bool IsStarted => PlayerId >= 0;
         public int PlayerId { get; private set; } = -1;
@@ -348,6 +366,19 @@ namespace RPGFramework.ActionRpg
             if (attacker != null && attacker != target && !AreHostile(attackerId, targetId))
                 return 0f;
             return Hit(target, amount, context.Between(attacker != null ? attackerId : -1, targetId));
+        }
+
+        /// <summary>
+        /// Gives back health to a living character (a potion, healing over time).
+        /// </summary>
+        /// <returns>Health actually restored.</returns>
+        public float Heal(int entityId, float amount)
+        {
+            var actor = Get(entityId);
+            float restored = actor?.Heal(amount) ?? 0f;
+            if (restored > 0f)
+                _bus.Publish(new ActorHealedEvent(entityId, restored, actor.Health));
+            return restored;
         }
 
         private float Hit(Actor target, float baseDamage, AttackContext context)

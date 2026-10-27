@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using RPGFramework.Abilities;
 using RPGFramework.Combat;
 using RPGFramework.Events;
 using RPGFramework.Inventory.Runtime;
 using RPGFramework.Items;
 using RPGFramework.Quests;
+using RPGFramework.StatusEffects;
 
 namespace RPGFramework.ActionRpg.Coop
 {
@@ -23,6 +25,10 @@ namespace RPGFramework.ActionRpg.Coop
         private readonly InventoryContainer<IItem> _inventory;
         private PartyStatus _party = new PartyStatus();
         private List<(IQuest, IQuestProgress)> _activeQuests = new List<(IQuest, IQuestProgress)>();
+        private readonly Dictionary<int, Dictionary<string, (ActorEffect Effect, float Since)>> _effects =
+            new Dictionary<int, Dictionary<string, (ActorEffect, float)>>();
+        private readonly Dictionary<string, float> _cooldownEnds = new Dictionary<string, float>();
+        private float _clock;
 
         public RemoteWorld(ActionRpgSettings settings, ActionRpgContent content, IEventBus bus, Action<CoopIntentMessage> send)
         {
@@ -78,6 +84,38 @@ namespace RPGFramework.ActionRpg.Coop
             return 0f;
         }
 
+        /// <summary>
+        /// Effects as the host last reported them, with their time counted down here.
+        /// </summary>
+        public IEnumerable<ActorEffect> EffectsOn(int entityId)
+        {
+            if (!_effects.TryGetValue(entityId, out var effects))
+                return Enumerable.Empty<ActorEffect>();
+            return effects.Values.Select(e => e.Effect.Remaining < 0f
+                ? e.Effect
+                : new ActorEffect(e.Effect.EffectId, e.Effect.Stacks, e.Effect.SourceId, Math.Max(0f, e.Effect.Remaining - (_clock - e.Since))))
+                .ToList();
+        }
+
+        /// <summary>
+        /// Asks the host to use the ability; refused here only while it is still cooling down.
+        /// </summary>
+        public bool UseAbility(string abilityId, int targetId = -1)
+        {
+            if (!IsStarted || string.IsNullOrEmpty(abilityId) || Player?.IsAlive() != true || CooldownLeft(abilityId) > 0f)
+                return false;
+            _send(new CoopIntentMessage { Kind = CoopIntentMessage.IntentKind.UseAbility, AbilityId = abilityId, TargetId = targetId });
+            return true;
+        }
+
+        public float CooldownLeft(string abilityId) =>
+            abilityId != null && _cooldownEnds.TryGetValue(abilityId, out float end) ? Math.Max(0f, end - _clock) : 0f;
+
+        /// <summary>
+        /// Time passes here (cooldowns and effects count down between the host's reports).
+        /// </summary>
+        internal void Tick(float deltaTime) => _clock += deltaTime;
+
         public bool RevivePlayer()
         {
             if (!IsStarted || Player == null || Player.IsAlive() || Settings.Pvp != null)
@@ -96,6 +134,8 @@ namespace RPGFramework.ActionRpg.Coop
             foreach (int id in _actors.Keys.ToList())
                 Despawn(id);
             PlayerId = -1;
+            _effects.Clear();
+            _cooldownEnds.Clear();
             _party = new PartyStatus();
             _activeQuests.Clear();
             _inventory.Clear();
@@ -129,6 +169,27 @@ namespace RPGFramework.ActionRpg.Coop
                             .Between(change.AttackerId, change.Id);
                         _bus.Publish(new ActorDamagedEvent(change.Id, change.AttackerId, change.Amount, change.HealthLeft, context));
                         break;
+                    case CoopWorldMessage.ChangeKind.EffectOn:
+                        if (Get(change.Id) == null || string.IsNullOrEmpty(change.Name))
+                            break;
+                        if (!_effects.TryGetValue(change.Id, out var effects))
+                            _effects[change.Id] = effects = new Dictionary<string, (ActorEffect, float)>();
+                        effects[change.Name] = (new ActorEffect(change.Name, change.Stacks, change.AttackerId, change.Amount), _clock);
+                        _bus.Publish(new EffectAppliedEvent(change.Id, change.Name, change.AttackerId.ToString(), _clock, change.Stacks));
+                        break;
+                    case CoopWorldMessage.ChangeKind.EffectOff:
+                        if (_effects.TryGetValue(change.Id, out effects) && effects.Remove(change.Name ?? ""))
+                            _bus.Publish(new EffectRemovedEvent(change.Id, change.Name, _clock, false));
+                        break;
+                    case CoopWorldMessage.ChangeKind.Cooldown:
+                        if (change.Id != PlayerId || string.IsNullOrEmpty(change.Name))
+                            break;
+                        _cooldownEnds[change.Name] = _clock + Math.Max(0f, change.Amount);
+                        _bus.Publish(new CooldownStartedEvent
+                        {
+                            AbilityId = change.Name, EntityId = change.Id, Duration = change.Amount, Timestamp = _clock
+                        });
+                        break;
                 }
             }
 
@@ -141,6 +202,10 @@ namespace RPGFramework.ActionRpg.Coop
                 actor.SetBaseStat(ActorStat.Attack, state.Attack);
                 actor.SetBaseStat(ActorStat.Defense, state.Defense);
                 actor.SetHealth(state.Health);
+                actor.MoveMultiplier = state.MoveMultiplier;
+                actor.SetControls(string.IsNullOrEmpty(state.Controls)
+                    ? Enumerable.Empty<string>()
+                    : state.Controls.Split(','));
                 if (state.Alive != actor.IsAlive())
                     actor.OnLifeStateChanged(actor.CurrentState, state.Alive ? LifeState.Alive : LifeState.Dead);
                 if (actor.Team != state.Team)
@@ -184,6 +249,7 @@ namespace RPGFramework.ActionRpg.Coop
             if (!_actors.TryGetValue(entityId, out var actor))
                 return;
             _actors.Remove(entityId);
+            _effects.Remove(entityId);
             _bus.Publish(new ActorDespawnedEvent(entityId, actor.CharacterId, actor.IsPlayer));
         }
     }

@@ -21,7 +21,9 @@
         "UniTask",
         "RPGFramework.Persistence.Runtime",
         "RPGFramework.Networking.Runtime",
-        "RPGFramework.Factions.Runtime"
+        "RPGFramework.Factions.Runtime",
+        "RPGFramework.Abilities.Runtime",
+        "RPGFramework.StatusEffects.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

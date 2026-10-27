@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using RPGFramework.Abilities;
 using RPGFramework.Combat;
 using RPGFramework.Items;
+using RPGFramework.StatusEffects;
 using RPGFramework.Loot;
 using RPGFramework.Quests;
 
@@ -52,6 +54,20 @@ namespace RPGFramework.ActionRpg
         /// <see cref="IContextualDamageCalculator"/> as well to see hit tags and effect damage.
         /// </summary>
         public IDamageCalculator DamageCalculator { get; set; }
+
+        /// <summary>
+        /// Characters can have status effects (<see cref="ActorWorld.Effects"/>); also on when the content has any.
+        /// </summary>
+        public bool UseStatusEffects { get; set; }
+
+        /// <summary>
+        /// Characters can use abilities (<see cref="ActorWorld.Abilities"/>); also on when the content has any.
+        /// </summary>
+        public bool UseAbilities { get; set; }
+
+        public bool UsesStatusEffects(ActionRpgContent content) => UseStatusEffects || (content?.StatusEffects.Count ?? 0) > 0;
+
+        public bool UsesAbilities(ActionRpgContent content) => UseAbilities || (content?.Abilities.Count ?? 0) > 0;
 
         public IEnumerable<CharacterData> Characters => Player != null ? Enemies.Prepend(Player) : Enemies;
 
@@ -121,5 +137,15 @@ namespace RPGFramework.ActionRpg
         public List<IItem> Items { get; } = new List<IItem>();
         public List<ILootTable> LootTables { get; } = new List<ILootTable>();
         public List<IQuest> Quests { get; } = new List<IQuest>();
+
+        /// <summary>
+        /// Status effects the game knows (poison, stun, a speed boost); registered when the game starts.
+        /// </summary>
+        public List<StatusEffectData> StatusEffects { get; } = new List<StatusEffectData>();
+
+        /// <summary>
+        /// Abilities the game knows; what each does is set with <see cref="ActorAbilities.SetEffect"/>.
+        /// </summary>
+        public List<IAbility> Abilities { get; } = new List<IAbility>();
     }
 }

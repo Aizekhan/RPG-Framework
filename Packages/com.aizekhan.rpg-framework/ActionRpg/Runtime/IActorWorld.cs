@@ -68,5 +68,21 @@ namespace RPGFramework.ActionRpg
         /// Brings this machine's player back after a fall. Refused in PvP, where the match brings players back.
         /// </summary>
         bool RevivePlayer();
+
+        /// <summary>
+        /// Status effects on a character now (empty when the game has none).
+        /// </summary>
+        IEnumerable<ActorEffect> EffectsOn(int entityId);
+
+        /// <summary>
+        /// This machine's player uses an ability (on a target, or -1). On a co-op client it is sent to the host.
+        /// </summary>
+        /// <returns>False when it was refused here; a client cannot know yet and returns true once sent.</returns>
+        bool UseAbility(string abilityId, int targetId = -1);
+
+        /// <summary>
+        /// Seconds until this machine's player can use the ability again (0 when it can).
+        /// </summary>
+        float CooldownLeft(string abilityId);
     }
 }

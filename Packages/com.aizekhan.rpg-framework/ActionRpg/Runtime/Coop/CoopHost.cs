@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using RPGFramework.Abilities;
 using RPGFramework.Combat;
 using RPGFramework.Events;
 using RPGFramework.Logging;
 using RPGFramework.Networking;
+using RPGFramework.StatusEffects;
 
 namespace RPGFramework.ActionRpg.Coop
 {
@@ -60,6 +62,8 @@ namespace RPGFramework.ActionRpg.Coop
             public float Amount;
             public float HealthLeft;
             public AttackContext Context;
+            public string Name;
+            public int Stacks;
         }
 
         private readonly ActorWorld _world;
@@ -96,6 +100,9 @@ namespace RPGFramework.ActionRpg.Coop
             bus.Subscribe<ActorSpawnedEvent>(OnSpawned).AddTo(_subscriptions);
             bus.Subscribe<ActorDespawnedEvent>(OnDespawned).AddTo(_subscriptions);
             bus.Subscribe<ActorDamagedEvent>(OnDamaged).AddTo(_subscriptions);
+            bus.Subscribe<EffectAppliedEvent>(OnEffectApplied).AddTo(_subscriptions);
+            bus.Subscribe<EffectRemovedEvent>(OnEffectRemoved).AddTo(_subscriptions);
+            bus.Subscribe<CooldownStartedEvent>(OnCooldownStarted).AddTo(_subscriptions);
 
             _network.PeerConnected += OnPeerConnected;
             _network.PeerDisconnected += OnPeerDisconnected;
@@ -441,6 +448,10 @@ namespace RPGFramework.ActionRpg.Coop
                 case CoopIntentMessage.IntentKind.Leave:
                     guest.LeavingOnPurpose = true;
                     break;
+                case CoopIntentMessage.IntentKind.UseAbility:
+                    if (_world.Abilities != null && !string.IsNullOrEmpty(intent.AbilityId))
+                        _world.Abilities.Use(guest.PlayerId, intent.AbilityId, intent.TargetId);
+                    break;
             }
         }
 
@@ -492,8 +503,10 @@ namespace RPGFramework.ActionRpg.Coop
                 return true;
             }
 
-            // A boost that was on at any time since the last accepted place counts for the whole stretch
+            // A boost that was on at any time since the last accepted place counts for the whole stretch; a status
+            // effect that speeds the character up counts too
             float boost = guest.BoostUntil >= guest.PlacedAt ? guest.Boost : 1f;
+            boost = Math.Max(boost, _world.Get(playerId)?.MoveMultiplier ?? 1f);
             float reach = speed * boost * MoveSpeedTolerance * (_clock - guest.PlacedAt) + MoveSlack;
             float dx = pose.X - guest.Place.X, dz = pose.Z - guest.Place.Z;
             float distance = (float)Math.Sqrt(dx * dx + dz * dz);
@@ -563,6 +576,36 @@ namespace RPGFramework.ActionRpg.Coop
             });
         }
 
+        private void OnEffectApplied(EffectAppliedEvent applied)
+        {
+            if (!_present.TryGetValue(applied.EntityId, out var actor))
+                return;
+            var effect = _world.EffectsOn(applied.EntityId).FirstOrDefault(e => e.EffectId == applied.EffectId);
+            _happenings.Add(new Happening
+            {
+                Kind = CoopWorldMessage.ChangeKind.EffectOn, Actor = actor, Name = applied.EffectId,
+                Stacks = applied.Stacks, AttackerId = effect.EffectId != null ? effect.SourceId : -1,
+                Amount = effect.EffectId != null ? effect.Remaining : -1f
+            });
+        }
+
+        private void OnEffectRemoved(EffectRemovedEvent removed)
+        {
+            if (_present.TryGetValue(removed.EntityId, out var actor))
+                _happenings.Add(new Happening { Kind = CoopWorldMessage.ChangeKind.EffectOff, Actor = actor, Name = removed.EffectId });
+        }
+
+        private void OnCooldownStarted(CooldownStartedEvent started)
+        {
+            if (_present.TryGetValue(started.EntityId, out var actor))
+            {
+                _happenings.Add(new Happening
+                {
+                    Kind = CoopWorldMessage.ChangeKind.Cooldown, Actor = actor, Name = started.AbilityId, Amount = started.Duration
+                });
+            }
+        }
+
         private void SendWorld()
         {
             if (!_network.IsConnected)
@@ -604,6 +647,18 @@ namespace RPGFramework.ActionRpg.Coop
                                 });
                             }
                             break;
+                        case CoopWorldMessage.ChangeKind.EffectOn:
+                        case CoopWorldMessage.ChangeKind.EffectOff:
+                        case CoopWorldMessage.ChangeKind.Cooldown:
+                            if (guest.Known.TryGetValue(actor.EntityId, out known) && known == actor)
+                            {
+                                message.Changes.Add(new CoopWorldMessage.Change
+                                {
+                                    Kind = happening.Kind, Id = actor.EntityId, Name = happening.Name,
+                                    Stacks = happening.Stacks, AttackerId = happening.AttackerId, Amount = happening.Amount
+                                });
+                            }
+                            break;
                     }
                 }
 
@@ -635,7 +690,7 @@ namespace RPGFramework.ActionRpg.Coop
             _happenings.Clear();
         }
 
-        private static void Show(Guest guest, CoopWorldMessage message, Actor actor)
+        private void Show(Guest guest, CoopWorldMessage message, Actor actor)
         {
             if (guest.Known.TryGetValue(actor.EntityId, out var known))
             {
@@ -650,6 +705,15 @@ namespace RPGFramework.ActionRpg.Coop
                 Kind = CoopWorldMessage.ChangeKind.Spawn, Id = actor.EntityId, CharacterId = actor.CharacterId,
                 IsPlayer = actor.IsPlayer, Name = actor.PlayerName, Seat = actor.Seat
             });
+            // Effects it already has, for someone who sees it for the first time
+            foreach (var effect in _world.EffectsOn(actor.EntityId))
+            {
+                message.Changes.Add(new CoopWorldMessage.Change
+                {
+                    Kind = CoopWorldMessage.ChangeKind.EffectOn, Id = actor.EntityId, Name = effect.EffectId,
+                    Stacks = effect.Stacks, AttackerId = effect.SourceId, Amount = effect.Remaining
+                });
+            }
         }
 
         private static void Hide(Guest guest, CoopWorldMessage message, int entityId)

@@ -27,7 +27,7 @@ namespace RPGFramework.ActionRpg
         protected virtual void Update()
         {
             var self = Actor;
-            if (self == null || !self.IsAlive() || !TryFindNearestPlayer(out int target, out var playerPosition))
+            if (self == null || !self.IsAlive() || self.IsStunned || !TryFindNearestPlayer(out int target, out var playerPosition))
                 return;
 
             var toPlayer = Flat(playerPosition - transform.position);
@@ -37,7 +37,7 @@ namespace RPGFramework.ActionRpg
             var step = Separation();
             if (distance > Definition.AttackRange * 0.9f)
                 step += toPlayer / Mathf.Max(distance, 0.001f);
-            transform.position += Vector3.ClampMagnitude(step, 1f) * (Definition.MoveSpeed * Time.deltaTime);
+            transform.position += Vector3.ClampMagnitude(step, 1f) * (Definition.MoveSpeed * self.MoveMultiplier * Time.deltaTime);
 
             _cooldown -= Time.deltaTime;
             if (distance <= Definition.AttackRange && _cooldown <= 0f)

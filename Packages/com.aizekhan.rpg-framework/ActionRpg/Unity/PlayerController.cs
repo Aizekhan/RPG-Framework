@@ -79,10 +79,10 @@ namespace RPGFramework.ActionRpg
                 return;
             }
 
-            Move(_move.ReadValue<Vector2>());
-
             _cooldown -= Time.deltaTime;
-            if (_attack.IsPressed())
+            // A stunned player stands still (but still falls)
+            Move(player.IsStunned ? Vector2.zero : _move.ReadValue<Vector2>());
+            if (!player.IsStunned && _attack.IsPressed())
                 TryAttackNearest();
         }
 
@@ -116,7 +116,7 @@ namespace RPGFramework.ActionRpg
             if (view != null)
                 direction = Quaternion.Euler(0f, view.transform.eulerAngles.y, 0f) * direction;
 
-            var velocity = direction * Definition.MoveSpeed;
+            var velocity = direction * (Definition.MoveSpeed * (Actor?.MoveMultiplier ?? 1f));
             if (_body != null)
             {
                 // No ground anywhere below (an empty test scene): stay at this height instead of falling forever

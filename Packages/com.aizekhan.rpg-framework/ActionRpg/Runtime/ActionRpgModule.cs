@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using RPGFramework.Abilities;
 using RPGFramework.Bootstrap;
 using RPGFramework.Bootstrap.Gameplay;
 using RPGFramework.Combat;
@@ -11,6 +13,7 @@ using RPGFramework.Logging;
 using RPGFramework.Loot;
 using RPGFramework.Progression;
 using RPGFramework.Quests;
+using RPGFramework.StatusEffects;
 
 namespace RPGFramework.ActionRpg
 {
@@ -49,6 +52,12 @@ namespace RPGFramework.ActionRpg
         /// </summary>
         public PvpMatch Pvp { get; private set; }
 
+        /// <summary>
+        /// Distance between two characters for ability range (the presentation knows where they are); null counts
+        /// every target as in range.
+        /// </summary>
+        public Func<int, int, float> Distance { get; set; }
+
         protected override void OnConfigure()
         {
             Container.RegisterInstance(_settings);
@@ -67,6 +76,18 @@ namespace RPGFramework.ActionRpg
                 c.Resolve<ILogger>()));
             AddSystem<WaveSystem>();
             AddSystem<PvpMatch>();
+            if (_settings.UsesStatusEffects(_content))
+            {
+                Container.RegisterFactory(c => new ActorEffects(c.Resolve<ActorWorld>(), c.Resolve<IStatusEffectManager>(),
+                    c.Resolve<IEventBus>()));
+                AddSystem<ActorEffects>();
+            }
+            if (_settings.UsesAbilities(_content))
+            {
+                Container.RegisterFactory(c => new ActorAbilities(c.Resolve<ActorWorld>(), c.Resolve<IAbilityExecutor>(),
+                    c.Resolve<ICooldownTracker>(), c.Resolve<IAbilityRegistry>(), c.Resolve<IEventBus>()));
+                AddSystem<ActorAbilities>();
+            }
         }
 
         protected override void OnInitialize()
@@ -93,6 +114,20 @@ namespace RPGFramework.ActionRpg
 
             World = Container.Resolve<ActorWorld>();
             Pvp = Container.Resolve<PvpMatch>();
+            if (_settings.UsesStatusEffects(_content))
+            {
+                var effects = Container.Resolve<IStatusEffectManager>();
+                foreach (var effect in _content.StatusEffects.Where(e => e != null))
+                    effects.RegisterEffect(effect);
+                World.Effects = Container.Resolve<ActorEffects>();
+            }
+            if (_settings.UsesAbilities(_content))
+            {
+                var abilities = Container.Resolve<IAbilityRegistry>();
+                foreach (var ability in _content.Abilities.Where(a => a != null))
+                    abilities.RegisterAbility(ability);
+                World.Abilities = Container.Resolve<ActorAbilities>();
+            }
             World.Start();
         }
 
@@ -116,6 +151,22 @@ namespace RPGFramework.ActionRpg
                 throw new ArgumentNullException(nameof(builder));
 
             var game = new ActionRpgModule(settings, content);
+            if (settings != null && settings.UsesStatusEffects(content))
+            {
+                builder.UseModule(new StatusEffectsModule(new StatusEffectsOptions
+                {
+                    Target = new ActorEffectTarget(() => game.World)
+                }));
+            }
+            if (settings != null && settings.UsesAbilities(content))
+            {
+                builder.UseModule(new AbilitiesModule(new AbilitiesOptions
+                {
+                    // Positions live in the presentation: a game that checks range sets ActionRpgModule.Distance
+                    DistanceCheck = (a, b) => game.Distance?.Invoke(a, b) ?? 0f,
+                    RelationshipCheck = (a, b) => game.World?.AreHostile(a, b) ?? false
+                }));
+            }
             builder
                 .UseModule(new CombatModule())
                 .UseModule(new ProgressionModule())

@@ -92,6 +92,23 @@ namespace RPGFramework.ActionRpg
     }
 
     /// <summary>
+    /// A character got health back (healing numbers).
+    /// </summary>
+    public readonly struct ActorHealedEvent : IEvent
+    {
+        public ActorHealedEvent(int entityId, float amount, float health)
+        {
+            EntityId = entityId;
+            Amount = amount;
+            Health = health;
+        }
+
+        public int EntityId { get; }
+        public float Amount { get; }
+        public float Health { get; }
+    }
+
+    /// <summary>
     /// A new wave of enemies started.
     /// </summary>
     public readonly struct WaveStartedEvent : IEvent

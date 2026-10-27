@@ -94,9 +94,23 @@ namespace RPGFramework.ActionRpg.Tests
             return settings;
         }
 
-        private static ActionRpgContent Content()
+        // Games with status effects and abilities (PlayWithPowers)
+        private bool _powers;
+
+        private ActionRpgContent Content()
         {
             var content = new ActionRpgContent();
+            if (_powers)
+            {
+                content.StatusEffects.Add(RPGFramework.StatusEffects.StatusEffectData.CreateDoT("poison", "Poison", 10f, 1f, 2f));
+                var haste = RPGFramework.StatusEffects.StatusEffectData.Create("haste", "Haste", RPGFramework.StatusEffects.EffectType.Buff);
+                haste.Duration = 5f;
+                haste.Modifiers.Add(RPGFramework.StatusEffects.EffectModifierData.Create(RPGFramework.StatusEffects.ModifierType.Movement,
+                    "Speed", 2f, RPGFramework.StatusEffects.ModifierOperation.Multiply));
+                content.StatusEffects.Add(haste);
+                content.Abilities.Add(new RPGFramework.Abilities.Ability(new RPGFramework.Abilities.AbilityMetadata("bolt", "Bolt", cooldown: 3f),
+                    targetType: RPGFramework.Abilities.TargetType.Enemy));
+            }
             content.Items.Add(new Item(Ear, "Goblin Ear", "Proof", ItemType.Crafting, maxStackSize: 99));
             content.LootTables.Add(LootTableBuilder.Create(Goblin, "Goblin").AddGuaranteedDrop(Ear).WithDrops(0, 0).Build());
             content.Quests.Add(new Quest(HuntQuest, "The Hunt", "Slay 2 goblins",
@@ -111,6 +125,7 @@ namespace RPGFramework.ActionRpg.Tests
         {
             _logger = new Logger(LogSeverity.Warning, new MemoryLogSink(256));
             _settings = () => Settings();
+            _powers = false;
             StartHost();
         }
 
@@ -976,6 +991,77 @@ namespace RPGFramework.ActionRpg.Tests
 
             Assert.That(back.Client.Rejoined, Is.True);
             Assert.That(back.Motion.Teleports, Is.Empty);
+        }
+    
+        [Test]
+        public void EffectsAndCooldowns_ReachFriends_AndFriendsUseAbilitiesThroughTheHost()
+        {
+            _powers = true;
+            PlayWith(() => Settings());
+            int goblin = World.SpawnEnemy(Goblin);
+            World.Effects.Apply(goblin, "poison", World.PlayerId);
+            var bolts = new List<(int Caster, int Target)>();
+            World.Abilities.SetEffect("bolt", (caster, target) => bolts.Add((caster, target)));
+
+            var guest = Join();
+            var applied = new List<RPGFramework.StatusEffects.EffectAppliedEvent>();
+            var removed = new List<RPGFramework.StatusEffects.EffectRemovedEvent>();
+            guest.Bus.Subscribe<RPGFramework.StatusEffects.EffectAppliedEvent>(applied.Add);
+            guest.Bus.Subscribe<RPGFramework.StatusEffects.EffectRemovedEvent>(removed.Add);
+            Pump();
+
+            Assert.That(guest.World.EffectsOn(goblin).Select(e => e.EffectId), Is.EqualTo(new[] { "poison" }),
+                "a friend joining late sees effects already on");
+            Assert.That(guest.World.EffectsOn(goblin).Single().SourceId, Is.EqualTo(World.PlayerId));
+
+            int friend = guest.World.PlayerId;
+            World.Effects.Apply(friend, "haste");
+            Pump();
+            Assert.That(applied.Select(a => a.EffectId), Has.Member("haste"));
+            Assert.That(guest.World.Player.MoveMultiplier, Is.EqualTo(2f));
+
+            World.Effects.Remove(friend, "haste");
+            Pump();
+            Assert.That(removed.Select(r => r.EffectId), Is.EqualTo(new[] { "haste" }));
+            Assert.That(guest.World.EffectsOn(friend), Is.Empty);
+            Assert.That(guest.World.Player.MoveMultiplier, Is.EqualTo(1f));
+
+            Assert.That(guest.World.UseAbility("bolt", goblin), Is.True);
+            Pump();
+            Assert.That(bolts, Is.EqualTo(new[] { (friend, goblin) }), "the host ran it for the friend");
+            Assert.That(guest.World.CooldownLeft("bolt"), Is.GreaterThan(2.5f).And.LessThanOrEqualTo(3f));
+            Assert.That(guest.World.UseAbility("bolt", goblin), Is.False, "the friend sees the cooldown too");
+
+            Run(3.2f);
+            Assert.That(guest.World.CooldownLeft("bolt"), Is.Zero);
+        }
+
+        [Test]
+        public void AHasteEffect_RaisesTheSpeedTheHostAllows()
+        {
+            _powers = true;
+            PlayWith(() =>
+            {
+                var settings = Settings();
+                settings.Player.MoveSpeed = 5f;
+                return settings;
+            });
+            var guest = Join();
+            int friend = guest.World.PlayerId;
+            var pose = new ActorPose(0f, 0f, 0f, 0f);
+            guest.Motion.Poses[friend] = pose;
+            Run(0.3f);
+            World.Effects.Apply(friend, "haste");
+
+            // 15 units a second: too fast on foot, fine at twice the speed
+            for (int step = 0; step < 8; step++)
+            {
+                pose.X += 1.5f;
+                guest.Motion.Poses[friend] = pose;
+                Run(0.1f);
+            }
+
+            Assert.That(_host.MovementCorrections, Is.Zero);
         }
     }
 }
