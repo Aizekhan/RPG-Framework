@@ -110,7 +110,9 @@ namespace RPGFramework.Tools.AbilityEditor.Tests
         {
             var registry = new AbilityRegistry();
             registry.RegisterAbility(Fireball().ToAbility());
-            var executor = Executor(registry);
+            // The HP cost is 10% of maximum HP, so the executor needs to read that maximum
+            var executor = new AbilityExecutor(registry, new CooldownTracker(), new TargetValidator(),
+                resourceMaximum: (entity, resource) => resource == "HP" ? 200f : 100f);
             var takenResources = new List<string>();
             var takenAmounts = new List<float>();
             string landed = null;
@@ -127,7 +129,7 @@ namespace RPGFramework.Tools.AbilityEditor.Tests
             Assert.That(first.Success, Is.True, first.FailureReason);
             Assert.That(landed, Is.EqualTo("fireball"));
             Assert.That(takenResources, Is.EqualTo(new[] { "MP", "HP" }));
-            Assert.That(takenAmounts, Is.EqualTo(new[] { 30f, 0.1f }));
+            Assert.That(takenAmounts, Is.EqualTo(new[] { 30f, 20f }), "10% of 200 HP is 20");
 
             Assert.That(executor.CanExecuteAbility("fireball", 1, 4.9f), Is.False, "still on its 5 second cooldown");
             var second = executor.ExecuteAbility("fireball", 1, 2, 4.9f, null, null, null);

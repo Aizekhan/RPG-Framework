@@ -1,11 +1,12 @@
 using System;
+using RPGFramework.Events;
 
 namespace RPGFramework.Dialogue
 {
     /// <summary>
     /// Event emitted when a player selects a dialogue choice.
     /// </summary>
-    public struct ChoiceSelectedEvent
+    public struct ChoiceSelectedEvent : IEvent
     {
         /// <summary>
         /// The entity that made the choice.

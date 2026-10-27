@@ -909,8 +909,9 @@ namespace RPGFramework.Dialogue.Tests
             // Act
             var availableChoices = manager.GetAvailableChoices(1);
 
-            // Assert
-            Assert.That(availableChoices.Count, Is.EqualTo(2));
+            // Assert: no context is given, so the quest condition cannot pass and choice_002 is hidden
+            Assert.That(availableChoices.Count, Is.EqualTo(1));
+            Assert.That(availableChoices[0].Id, Is.EqualTo("choice_001"));
         }
 
         [Test]

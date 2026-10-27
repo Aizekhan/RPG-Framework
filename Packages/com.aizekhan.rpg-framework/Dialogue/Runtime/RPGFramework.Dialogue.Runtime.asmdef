@@ -2,7 +2,9 @@
     "name": "RPGFramework.Dialogue.Runtime",
     "rootNamespace": "RPGFramework.Dialogue",
     "references": [
-        "RPGFramework.ECS.Runtime"
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Events.Runtime",
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

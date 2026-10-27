@@ -20,7 +20,7 @@ namespace RPGFramework.Dialogue
         /// Advance the dialogue to the next node.
         /// </summary>
         /// <param name="entityId">The entity advancing the dialogue.</param>
-        /// <param name="choiceId">Optional ID of the choice to select. If null, progresses to the first next node.</param>
+        /// <param name="choiceId">Optional ID of the choice to select. If null, progresses to the first next node whose condition passes (Branch nodes are passed through).</param>
         /// <returns>True if the dialogue advanced successfully, false if dialogue ended or error occurred.</returns>
         bool AdvanceDialogue(int entityId, string? choiceId = null);
 

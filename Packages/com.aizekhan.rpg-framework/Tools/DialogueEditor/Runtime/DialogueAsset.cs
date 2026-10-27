@@ -240,7 +240,7 @@ namespace RPGFramework.Tools.DialogueEditor
         [TextArea(2, 5)]
         public string text = "";
 
-        [Tooltip("Where the conversation goes after this node when the player does not pick a choice (the first one is used)")]
+        [Tooltip("Where the conversation goes after this node when the player does not pick a choice (the first one whose condition passes)")]
         public List<string> nextNodeIds = new List<string>();
 
         [Tooltip("Answers the player can pick at this node")]

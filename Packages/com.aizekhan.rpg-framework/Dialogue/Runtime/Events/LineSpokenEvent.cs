@@ -1,11 +1,12 @@
 using System;
+using RPGFramework.Events;
 
 namespace RPGFramework.Dialogue
 {
     /// <summary>
     /// Event emitted when a dialogue line is displayed.
     /// </summary>
-    public struct LineSpokenEvent
+    public struct LineSpokenEvent : IEvent
     {
         /// <summary>
         /// The entity engaged in the dialogue.

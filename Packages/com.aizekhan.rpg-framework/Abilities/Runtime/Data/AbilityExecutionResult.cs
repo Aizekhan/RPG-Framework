@@ -24,6 +24,12 @@ namespace RPGFramework.Abilities
         /// <summary>Timestamp of execution</summary>
         public float Timestamp;
 
+        /// <summary>True when the ability began a cast: it pays and lands when the cast completes</summary>
+        public bool CastStarted;
+
+        /// <summary>True when this use switched a toggle ability off (nothing paid, nothing applied)</summary>
+        public bool ToggledOff;
+
         public static AbilityExecutionResult CreateSuccess(string abilityId, int casterEntityId, int targetEntityId, float timestamp)
         {
             return new AbilityExecutionResult

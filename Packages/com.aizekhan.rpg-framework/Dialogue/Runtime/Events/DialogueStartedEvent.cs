@@ -1,11 +1,12 @@
 using System;
+using RPGFramework.Events;
 
 namespace RPGFramework.Dialogue
 {
     /// <summary>
     /// Event emitted when a dialogue is initiated.
     /// </summary>
-    public struct DialogueStartedEvent
+    public struct DialogueStartedEvent : IEvent
     {
         /// <summary>
         /// The entity that started the dialogue.

@@ -28,13 +28,16 @@ namespace RPGFramework.Skills
             _skillLookup = new Dictionary<string, ISkill>();
         }
 
+        /// <exception cref="System.ArgumentException">A skill with the same id is already in the tree.</exception>
         public void AddSkill(ISkill skill)
         {
-            if (!_skillLookup.ContainsKey(skill.Id))
-            {
-                _skills.Add(skill);
-                _skillLookup[skill.Id] = skill;
-            }
+            if (skill == null)
+                throw new System.ArgumentNullException(nameof(skill));
+            if (_skillLookup.ContainsKey(skill.Id))
+                throw new System.ArgumentException($"The tree '{Id}' already has a skill '{skill.Id}'", nameof(skill));
+
+            _skills.Add(skill);
+            _skillLookup[skill.Id] = skill;
         }
 
         public bool ContainsSkill(string skillId)

@@ -35,10 +35,13 @@ namespace RPGFramework.Factions
             ReputationModifier = Math.Clamp(reputationModifier, -1f, 1f);
         }
 
-        public bool InvolvesFunction(string factionId)
+        public bool Involves(string factionId)
         {
             return FactionId1 == factionId || FactionId2 == factionId;
         }
+
+        [System.Obsolete("Misspelt; use Involves")]
+        public bool InvolvesFunction(string factionId) => Involves(factionId);
 
         public string GetOtherFaction(string knownFactionId)
         {

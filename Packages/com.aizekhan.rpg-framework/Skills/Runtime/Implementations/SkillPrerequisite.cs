@@ -31,11 +31,11 @@ namespace RPGFramework.Skills
             if (RequiredCharacterLevel > 0 && characterLevel < RequiredCharacterLevel)
                 return false;
 
-            // Check skill requirement
+            // A named skill must at least be known, even when no level is given
             if (!string.IsNullOrEmpty(RequiredSkillId))
             {
                 int skillLevel = progress.GetSkillLevel(RequiredSkillId);
-                if (skillLevel < RequiredSkillLevel)
+                if (skillLevel < System.Math.Max(1, RequiredSkillLevel))
                     return false;
             }
 

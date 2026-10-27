@@ -10,13 +10,15 @@ namespace RPGFramework.Crafting
     /// Manages active crafting operations across all entities: <see cref="UpdateCrafting"/> moves every craft on, and
     /// a craft whose time is up completes with the results that came out (each by its success chance), or fails when
     /// nothing did. With an <see cref="ICraftingInventory"/>, ingredients are taken at the start, given back on cancel,
-    /// and results handed out on completion.
+    /// and results handed out on completion. A recipe's requirements are checked before it starts (see
+    /// <see cref="ICraftingRequirementChecker"/>).
     /// </summary>
     public class CraftingManager : ICraftingManager
     {
         private readonly IEntityManager _entityManager;
         private readonly ICraftingRecipeRegistry _recipeRegistry;
         private readonly ICraftingInventory _inventory;
+        private readonly ICraftingRequirementChecker _requirements;
         private readonly Random _random;
         private readonly List<int> _crafters = new List<int>();
         private readonly List<int> _finished = new List<int>();
@@ -40,13 +42,42 @@ namespace RPGFramework.Crafting
         /// </summary>
         /// <param name="inventory">Where crafters keep their items; null leaves items to the game.</param>
         /// <param name="random">Rolls success chances; null picks a new seed.</param>
+        /// <param name="requirements">Judges skill, quest and tool requirements; without it such recipes are refused.</param>
         public CraftingManager(IEntityManager entityManager, ICraftingRecipeRegistry recipeRegistry,
-            ICraftingInventory inventory = null, Random random = null)
+            ICraftingInventory inventory = null, Random random = null, ICraftingRequirementChecker requirements = null)
         {
             _entityManager = entityManager ?? throw new ArgumentNullException(nameof(entityManager));
             _recipeRegistry = recipeRegistry ?? throw new ArgumentNullException(nameof(recipeRegistry));
             _inventory = inventory;
+            _requirements = requirements;
             _random = random ?? new Random();
+        }
+
+        /// <summary>
+        /// Whether one requirement of a recipe is met for this crafter at this station. Stations are checked here
+        /// (the parameter is a station id or a station type, the value a minimum station level); tools through the
+        /// inventory when there is one; everything else through the game's checker. Nothing is taken as met unchecked.
+        /// </summary>
+        public bool IsRequirementMet(int entityId, ICraftingRequirement requirement, ICraftingStation station)
+        {
+            if (requirement == null)
+                return true;
+
+            switch (requirement.Type)
+            {
+                case RequirementType.StationRequired:
+                    if (station == null)
+                        return false;
+                    bool sameStation = string.Equals(station.StationId, requirement.ParameterId, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(station.StationType.ToString(), requirement.ParameterId, StringComparison.OrdinalIgnoreCase);
+                    return sameStation && station.Level >= requirement.Value;
+
+                case RequirementType.ToolRequired when _inventory != null:
+                    return _inventory.Has(entityId, requirement.ParameterId, Math.Max(1, requirement.Value));
+
+                default:
+                    return _requirements != null && _requirements.IsSatisfied(entityId, requirement);
+            }
         }
 
         /// <inheritdoc/>
@@ -66,6 +97,12 @@ namespace RPGFramework.Crafting
 
             if (!recipe.CanCraft(entityId))
                 return -1;
+
+            foreach (var requirement in recipe.Requirements)
+            {
+                if (!IsRequirementMet(entityId, requirement, station))
+                    return -1;
+            }
 
             if (!station.IsAvailable())
                 return -1;

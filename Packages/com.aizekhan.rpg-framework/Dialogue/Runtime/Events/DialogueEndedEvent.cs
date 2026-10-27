@@ -1,11 +1,12 @@
 using System;
+using RPGFramework.Events;
 
 namespace RPGFramework.Dialogue
 {
     /// <summary>
     /// Event emitted when a dialogue is concluded.
     /// </summary>
-    public struct DialogueEndedEvent
+    public struct DialogueEndedEvent : IEvent
     {
         /// <summary>
         /// The entity that ended the dialogue.

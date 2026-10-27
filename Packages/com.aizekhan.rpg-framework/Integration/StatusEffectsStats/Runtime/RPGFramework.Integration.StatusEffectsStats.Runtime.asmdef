@@ -1,0 +1,20 @@
+{
+    "name": "RPGFramework.Integration.StatusEffectsStats.Runtime",
+    "rootNamespace": "RPGFramework.Integration.StatusEffectsStats",
+    "references": [
+        "RPGFramework.StatusEffects.Runtime",
+        "RPGFramework.Stats.Runtime",
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Serialization.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

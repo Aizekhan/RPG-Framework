@@ -37,7 +37,7 @@ namespace RPGFramework.Factions
         /// </summary>
         /// <param name="factionId">Faction ID to check.</param>
         /// <returns>True if this faction is part of the relationship.</returns>
-        bool InvolvesFunction(string factionId);
+        bool Involves(string factionId);
 
         /// <summary>
         /// Get the other faction ID in this relationship.

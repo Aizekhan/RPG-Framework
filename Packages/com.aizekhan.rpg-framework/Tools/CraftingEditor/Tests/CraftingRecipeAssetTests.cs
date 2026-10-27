@@ -75,6 +75,16 @@ namespace RPGFramework.Tools.CraftingEditor.Tests
             return recipe;
         }
 
+        private sealed class SmithingSkill : ICraftingRequirementChecker
+        {
+            private readonly int _level;
+
+            public SmithingSkill(int level) => _level = level;
+
+            public bool IsSatisfied(int entityId, ICraftingRequirement requirement) =>
+                requirement.Type == RequirementType.SkillLevel && requirement.ParameterId == "smithing" && _level >= requirement.Value;
+        }
+
         private static void AssertHasError(List<string> errors, string fragment)
         {
             Assert.That(errors.Any(e => e.Contains(fragment)), Is.True,
@@ -96,8 +106,10 @@ namespace RPGFramework.Tools.CraftingEditor.Tests
             var entities = new EntityManager();
             var smith = entities.CreateEntity();
             var registry = database.ToRecipeRegistry();
-            var manager = new CraftingManager(entities, registry);
             var forge = new CraftingStation("forge_1", "Forge", CraftingStationType.Forge, 2, new[] { "recipe_iron_bar" });
+            Assert.That(new CraftingManager(entities, registry).StartCrafting(smith, "recipe_iron_bar", forge), Is.EqualTo(-1),
+                "the smithing requirement is never taken as met unchecked");
+            var manager = new CraftingManager(entities, registry, requirements: new SmithingSkill(5));
 
             CraftingStartedEvent started = null;
             manager.CraftingStarted += (_, e) => started = e;

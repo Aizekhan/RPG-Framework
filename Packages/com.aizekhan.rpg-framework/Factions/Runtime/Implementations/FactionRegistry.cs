@@ -80,7 +80,7 @@ namespace RPGFramework.Factions
         public IReadOnlyList<IFactionRelationship> GetRelationshipsForFaction(string factionId)
         {
             return _relationships
-                .Where(r => r.InvolvesFunction(factionId))
+                .Where(r => r.Involves(factionId))
                 .ToList();
         }
     }

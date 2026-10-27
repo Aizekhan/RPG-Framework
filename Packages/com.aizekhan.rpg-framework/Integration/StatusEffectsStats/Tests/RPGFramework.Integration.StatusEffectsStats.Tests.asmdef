@@ -1,0 +1,31 @@
+{
+    "name": "RPGFramework.Integration.StatusEffectsStats.Tests",
+    "rootNamespace": "RPGFramework.Integration.StatusEffectsStats.Tests",
+    "references": [
+        "RPGFramework.Integration.StatusEffectsStats.Runtime",
+        "RPGFramework.StatusEffects.Runtime",
+        "RPGFramework.Stats.Runtime",
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Serialization.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "UniTask",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

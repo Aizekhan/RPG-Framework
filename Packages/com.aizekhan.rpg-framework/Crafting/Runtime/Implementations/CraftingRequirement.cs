@@ -29,11 +29,13 @@ namespace RPGFramework.Crafting
             Value = value;
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// A plain requirement knows nothing about the crafter, so it raises no objection of its own. The crafting
+        /// manager checks it for real (<see cref="CraftingManager.IsRequirementMet"/>); a game may also write its own
+        /// <see cref="ICraftingRequirement"/> that checks itself here.
+        /// </summary>
         public bool IsSatisfied(int entityId)
         {
-            // This is a default implementation that always returns true
-            // Game layer implementations should override this with actual validation logic
             return true;
         }
 

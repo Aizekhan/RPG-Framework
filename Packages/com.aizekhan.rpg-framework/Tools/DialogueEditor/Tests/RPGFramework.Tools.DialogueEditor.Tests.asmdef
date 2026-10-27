@@ -5,6 +5,8 @@
         "RPGFramework.Tools.DialogueEditor.Runtime",
         "RPGFramework.Dialogue.Runtime",
         "RPGFramework.ECS.Runtime",
+        "RPGFramework.Events.Runtime",
+        "UniTask",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

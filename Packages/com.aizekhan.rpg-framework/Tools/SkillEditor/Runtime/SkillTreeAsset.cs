@@ -30,7 +30,7 @@ namespace RPGFramework.Tools.SkillEditor
 
         /// <summary>
         /// Adds every skill of this tree to <paramref name="tree"/>. Empty slots are skipped; a skill whose id is
-        /// already in the tree is ignored by the tree (see <see cref="Validate"/>).
+        /// already in the tree makes the tree throw (<see cref="Validate"/> reports duplicates first).
         /// </summary>
         public void RegisterInto(SkillTree tree)
         {

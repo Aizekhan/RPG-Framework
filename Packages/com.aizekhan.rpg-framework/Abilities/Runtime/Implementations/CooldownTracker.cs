@@ -22,6 +22,9 @@ namespace RPGFramework.Abilities
             _events = events;
         }
 
+        // Lets the executor skip its own CooldownStarted when this tracker already raises it on the same publisher.
+        internal IEventPublisher Events => _events;
+
         /// <summary>
         /// Removes cooldowns that have ended and raises CooldownExpired for each. Call it once per frame (or tick)
         /// when something listens for expirations; queries work without it.
