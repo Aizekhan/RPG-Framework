@@ -807,5 +807,175 @@ namespace RPGFramework.ActionRpg.Tests
                 }
             Assert.That(PlayerTagView.ColorOf(3, null), Is.Not.EqualTo(UnityEngine.Color.white), "no palette still colours seats");
         }
+    
+        private sealed class Checkpoints : IRespawnPointProvider
+        {
+            public readonly ActorPose Point = new ActorPose(100f, 1f, 0f, 90f);
+            public readonly List<(int PlayerId, int Seat, RespawnReason Reason, ActorPose? Last)> Asked =
+                new List<(int, int, RespawnReason, ActorPose?)>();
+
+            public bool TryGetRespawnPoint(int playerId, int seat, RespawnReason reason, ActorPose? lastPose, out ActorPose pose)
+            {
+                Asked.Add((playerId, seat, reason, lastPose));
+                pose = Point;
+                return true;
+            }
+        }
+
+        private sealed class HeadshotCalculator : RPGFramework.Combat.DamageCalculator
+        {
+            public override float CalculateDamage(float baseDamage, float defenseValue, RPGFramework.Combat.AttackContext context) =>
+                context.HasAny(1) ? 20f : 5f;
+        }
+
+        [Test]
+        public void FriendsAttack_CarriesTagsAndSource_TheHostMayRefuseAClaim()
+        {
+            PlayWith(() =>
+            {
+                var settings = Settings();
+                settings.Enemies[0].MaxHealth = 1000f;
+                settings.DamageCalculator = new HeadshotCalculator();
+                return settings;
+            });
+            _host.AcceptAttack = (player, target, context) => !context.HasAny(4);
+            var guest = Join();
+            int goblin = World.SpawnEnemy(Goblin);
+            Pump();
+
+            guest.World.Attack(guest.World.PlayerId, goblin, new RPGFramework.Combat.AttackContext(tags: 1, sourceId: 9));
+            Pump();
+
+            Assert.That(World.Get(goblin).Health, Is.EqualTo(980f), "the host's calculator saw the head tag");
+            var hit = guest.Damaged.Single(d => d.TargetId == goblin);
+            Assert.That(hit.Context.Tags, Is.EqualTo(1));
+            Assert.That(hit.Context.SourceId, Is.EqualTo(9));
+            Assert.That(hit.Context.FromEffect, Is.False);
+
+            guest.World.Attack(guest.World.PlayerId, goblin, new RPGFramework.Combat.AttackContext(tags: 4));
+            Pump();
+            Assert.That(World.Get(goblin).Health, Is.EqualTo(980f), "the game refused that claim");
+
+            World.DealDamage(World.PlayerId, goblin, 3f, RPGFramework.Combat.AttackContext.Effect(5));
+            Pump();
+            Assert.That(guest.Damaged.Last().Context.FromEffect, Is.True, "effect damage is shown as such");
+        }
+
+        [Test]
+        public void ABoost_LetsAFriendRunFaster_ForItsTimeOnly()
+        {
+            PlayWith(() =>
+            {
+                var settings = Settings();
+                settings.Player.MoveSpeed = 5f;
+                return settings;
+            });
+            var guest = Join();
+            int friend = guest.World.PlayerId;
+            var pose = new ActorPose(0f, 0f, 0f, 0f);
+            guest.Motion.Poses[friend] = pose;
+            Run(0.3f);
+            Assert.That(_host.SetAllowedSpeedMultiplier(friend, 3f, 1f), Is.True);
+            Assert.That(_host.AllowedSpeedMultiplier(friend), Is.EqualTo(3f));
+            Assert.That(_host.SetAllowedSpeedMultiplier(World.PlayerId, 3f, 1f), Is.False, "the host moves itself");
+
+            // 14 units a second: too fast on foot, fine with the boost
+            for (int step = 0; step < 8; step++)
+            {
+                pose.X += 1.4f;
+                guest.Motion.Poses[friend] = pose;
+                Run(0.1f);
+            }
+            Assert.That(_host.MovementCorrections, Is.EqualTo(0));
+
+            Run(1f);
+            Assert.That(_host.AllowedSpeedMultiplier(friend), Is.EqualTo(1f));
+            for (int step = 0; step < 8; step++)
+            {
+                pose.X += 1.4f;
+                guest.Motion.Poses[friend] = pose;
+                Run(0.1f);
+            }
+            Assert.That(_host.MovementCorrections, Is.GreaterThan(0), "the boost is over");
+        }
+
+        [Test]
+        public void PosesSentBeforeATeleportArrived_AreNotCorrected()
+        {
+            PlayWith(() =>
+            {
+                var settings = Settings();
+                settings.Player.MoveSpeed = 5f;
+                return settings;
+            });
+            var guest = Join();
+            int friend = guest.World.PlayerId;
+            guest.Motion.Poses[friend] = new ActorPose(0f, 0f, 0f, 0f);
+            Run(0.3f);
+
+            _host.Teleport(friend, new ActorPose(50f, 0f, 0f, 0f));
+            // The friend has not heard yet and still reports the old place
+            guest.Client.SendMotion();
+            _host.Update(0.01f);
+
+            Assert.That(_host.MovementCorrections, Is.Zero);
+            Assert.That(_hostMotion.Poses[friend].X, Is.EqualTo(50f));
+
+            Run(_host.SettleTime + 0.5f);
+            Assert.That(guest.Motion.Poses[friend].X, Is.EqualTo(50f));
+            Assert.That(_host.MovementCorrections, Is.Zero);
+        }
+
+        [Test]
+        public void Rejoin_AndRevive_GoToTheGamesRespawnPoint()
+        {
+            var checkpoints = new Checkpoints();
+            _host.RespawnPoints = checkpoints;
+            var ann = Join(name: "Ann");
+            int annId = ann.World.PlayerId;
+            ann.Motion.Poses[annId] = new ActorPose(3f, 0f, 4f, 0f);
+            Run(0.3f);
+            string token = ann.Client.RejoinToken;
+
+            ann.Transport.GoSilent();
+            Run(CoopProtocol.ConnectionTimeout + 0.5f);
+            var back = Join(name: "Ann", rejoinToken: token);
+            Pump();
+
+            int backId = back.World.PlayerId;
+            var asked = checkpoints.Asked.Single();
+            Assert.That(asked.PlayerId, Is.EqualTo(backId));
+            Assert.That(asked.Seat, Is.EqualTo(1));
+            Assert.That(asked.Reason, Is.EqualTo(RespawnReason.Rejoin));
+            Assert.That(asked.Last.HasValue && asked.Last.Value.X == 3f && asked.Last.Value.Z == 4f, Is.True,
+                "the game learns where they were");
+            Assert.That(_hostMotion.Teleports, Has.Member((backId, checkpoints.Point)));
+            Assert.That(back.Motion.Teleports, Has.Member((backId, checkpoints.Point)));
+
+            int goblin = World.SpawnEnemy(Goblin);
+            for (int round = 0; round < 200 && World.Get(backId).IsAlive(); round++)
+                World.Attack(goblin, backId);
+            Pump();
+            back.World.RevivePlayer();
+            Pump();
+
+            Assert.That(checkpoints.Asked.Last().Reason, Is.EqualTo(RespawnReason.Revive));
+            Assert.That(back.Motion.Teleports.Count(t => t.Id == backId), Is.EqualTo(2));
+        }
+
+        [Test]
+        public void WithoutRespawnPoints_ARejoiningPlayerIsNotMoved()
+        {
+            var ann = Join(name: "Ann");
+            string token = ann.Client.RejoinToken;
+            ann.Transport.GoSilent();
+            Run(CoopProtocol.ConnectionTimeout + 0.5f);
+
+            var back = Join(name: "Ann", rejoinToken: token);
+            Pump();
+
+            Assert.That(back.Client.Rejoined, Is.True);
+            Assert.That(back.Motion.Teleports, Is.Empty);
+        }
     }
 }

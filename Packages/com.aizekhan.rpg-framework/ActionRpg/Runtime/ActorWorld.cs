@@ -316,19 +316,49 @@ namespace RPGFramework.ActionRpg
             _bus.Publish(new WaveStartedEvent(CurrentWave, enemies));
         }
 
+        /// <summary>
+        /// A strike of the attacker on the target, with what kind of hit it is (tags such as a hit zone, the
+        /// ability or weapon that dealt it). The damage calculator sees the context when it implements
+        /// <see cref="IContextualDamageCalculator"/>.
+        /// </summary>
         /// <returns>Damage dealt (0 when either side is missing or dead, or they are not hostile).</returns>
-        public float Attack(int attackerId, int targetId)
+        public float Attack(int attackerId, int targetId, AttackContext context = default)
         {
             var attacker = Get(attackerId);
             var target = Get(targetId);
             if (attacker == null || target == null || !attacker.IsAlive() || !target.IsAlive()
                 || !AreHostile(attackerId, targetId))
                 return 0f;
+            return Hit(target, attacker.Attack, context.Between(attackerId, targetId));
+        }
 
-            float dealt = target.ApplyDamage(_damage.CalculateDamage(attacker.Attack, target.Defense));
-            _bus.Publish(new ActorDamagedEvent(targetId, attackerId, dealt, target.Health));
+        /// <summary>
+        /// Damage of a set amount that is not the attacker's strike: an effect ticking (poison, burning; use
+        /// <see cref="AttackContext.Effect"/>), a trap, an explosion. The calculator still decides the final number
+        /// (the framework's ignores defense for effect damage).
+        /// </summary>
+        /// <param name="attackerId">Who it counts for (kills, credit); -1 for nobody.</param>
+        /// <returns>Damage dealt (0 when the target is missing or dead, or the attacker may not hurt it).</returns>
+        public float DealDamage(int attackerId, int targetId, float amount, AttackContext context = default)
+        {
+            var target = Get(targetId);
+            if (target == null || !target.IsAlive() || amount <= 0f || float.IsNaN(amount))
+                return 0f;
+            var attacker = Get(attackerId);
+            if (attacker != null && attacker != target && !AreHostile(attackerId, targetId))
+                return 0f;
+            return Hit(target, amount, context.Between(attacker != null ? attackerId : -1, targetId));
+        }
+
+        private float Hit(Actor target, float baseDamage, AttackContext context)
+        {
+            float damage = _damage is IContextualDamageCalculator contextual
+                ? contextual.CalculateDamage(baseDamage, target.Defense, context)
+                : _damage.CalculateDamage(baseDamage, target.Defense);
+            float dealt = target.ApplyDamage(damage);
+            _bus.Publish(new ActorDamagedEvent(target.EntityId, context.AttackerId, dealt, target.Health, context));
             if (target.Health <= 0f)
-                _lifeStates.Kill(targetId, attackerId, "slain");
+                _lifeStates.Kill(target.EntityId, context.AttackerId, context.FromEffect ? "effect" : "slain");
             return dealt;
         }
 
@@ -435,8 +465,26 @@ namespace RPGFramework.ActionRpg
         /// <summary>
         /// Brings a fallen party member back with full health.
         /// </summary>
-        public bool RevivePlayer(int playerId) =>
-            IsStarted && _party.Contains(playerId) && _lifeStates.Resurrect(playerId, -1, "respawn");
+        public bool RevivePlayer(int playerId) => RevivePlayer(playerId, -1, 1f);
+
+        /// <summary>
+        /// Brings a fallen party member back, raised by someone (an ally running through them; -1 for nobody) with
+        /// part of their health.
+        /// </summary>
+        /// <param name="healthFraction">Share of max health they come back with (0..1; at least 1 health point).</param>
+        public bool RevivePlayer(int playerId, int reviverId, float healthFraction)
+        {
+            if (!IsStarted || !_party.Contains(playerId))
+                return false;
+            if (!_lifeStates.Resurrect(playerId, reviverId, reviverId >= 0 ? "revived" : "respawn"))
+                return false;
+            var player = Get(playerId);
+            if (player != null && healthFraction < 1f)
+                player.SetHealth(Math.Max(1f, player.MaxHealth * Math.Max(0f, healthFraction)));
+            if (reviverId >= 0 && reviverId != playerId)
+                Write($"{Get(reviverId)?.DisplayName ?? "Someone"} brings {player?.DisplayName} back");
+            return true;
+        }
 
         public void Dispose()
         {

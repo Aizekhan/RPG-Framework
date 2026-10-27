@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using RPGFramework.Combat;
 using RPGFramework.Events;
 using RPGFramework.Logging;
 using RPGFramework.Networking;
@@ -33,6 +34,13 @@ namespace RPGFramework.ActionRpg.Coop
             public bool Placed;
             public ActorPose Place;
             public float PlacedAt;
+
+            // A boost the game allows (speed multiplier until a time on the host's clock)
+            public float Boost = 1f;
+            public float BoostUntil = float.NegativeInfinity;
+
+            // After a teleport or a correction: until then, poses sent before the player got there are dropped
+            public float SettlingUntil = float.NegativeInfinity;
         }
 
         private sealed class KeptSeat
@@ -41,6 +49,7 @@ namespace RPGFramework.ActionRpg.Coop
             public string Name;
             public float Health;
             public float Since;
+            public ActorPose? Pose;
         }
 
         private struct Happening
@@ -50,6 +59,7 @@ namespace RPGFramework.ActionRpg.Coop
             public int AttackerId;
             public float Amount;
             public float HealthLeft;
+            public AttackContext Context;
         }
 
         private readonly ActorWorld _world;
@@ -121,9 +131,59 @@ namespace RPGFramework.ActionRpg.Coop
         public float MoveSlack { get; set; } = 0.5f;
 
         /// <summary>
+        /// Seconds after a teleport or a correction during which a joined player's poses that do not fit are
+        /// dropped quietly: they were sent before the player got the news.
+        /// </summary>
+        public float SettleTime { get; set; } = 0.5f;
+
+        /// <summary>
         /// Times a joined player moved too fast and was put back.
         /// </summary>
         public int MovementCorrections { get; private set; }
+
+        /// <summary>
+        /// Where players come back after a lost link or a revive (the game's checkpoints); null leaves them where
+        /// the game puts new players.
+        /// </summary>
+        public IRespawnPointProvider RespawnPoints { get; set; }
+
+        /// <summary>
+        /// Decides whether a joined player's attack, with the tags and source they claim, is accepted
+        /// (player id, target id, context); null accepts every attack in reach. The host's own rules
+        /// (hostility, <see cref="MaxAttackDistance"/>) apply either way.
+        /// </summary>
+        public Func<int, int, AttackContext, bool> AcceptAttack { get; set; }
+
+        /// <summary>
+        /// Lets a joined player move this many times faster than their character for a while (a boost, a
+        /// trampoline, a dash), so the speed check does not put them back. A new call replaces the last one.
+        /// </summary>
+        /// <param name="multiplier">At least 1 (slowing a player down needs no permission).</param>
+        /// <param name="duration">Seconds on the host's clock.</param>
+        /// <returns>False when nobody who joined plays that player.</returns>
+        public bool SetAllowedSpeedMultiplier(int playerId, float multiplier, float duration)
+        {
+            if (float.IsNaN(multiplier) || float.IsNaN(duration))
+                throw new ArgumentException("Multiplier and duration must be numbers");
+            var guest = GuestOf(playerId);
+            if (guest == null)
+                return false;
+            guest.Boost = Math.Max(1f, multiplier);
+            guest.BoostUntil = _clock + Math.Max(0f, duration);
+            return true;
+        }
+
+        /// <summary>
+        /// How many times faster than their character this player may move right now (1 without a boost).
+        /// </summary>
+        public float AllowedSpeedMultiplier(int playerId)
+        {
+            var guest = GuestOf(playerId);
+            return guest != null && guest.BoostUntil >= _clock ? guest.Boost : 1f;
+        }
+
+        private Guest GuestOf(int playerId) =>
+            playerId < 0 ? null : _guests.Values.FirstOrDefault(g => g.PlayerId == playerId);
 
         public bool IsOpen => _network.IsConnected;
 
@@ -253,7 +313,7 @@ namespace RPGFramework.ActionRpg.Coop
             var player = _world.Get(guest.PlayerId);
             if (!guest.LeavingOnPurpose && RejoinWindow > 0f && player != null)
             {
-                _keptSeats[guest.Token] = new KeptSeat { Seat = player.Seat, Name = player.PlayerName, Health = player.Health };
+                _keptSeats[guest.Token] = KeepSeat(guest, player);
                 _logger?.LogInfo($"Lost {player.DisplayName}; their seat waits {RejoinWindow:0} s", Category);
             }
             _world.RemovePlayer(guest.PlayerId);
@@ -296,7 +356,27 @@ namespace RPGFramework.ActionRpg.Coop
             {
                 Accepted = true, PlayerId = guest.PlayerId, RejoinToken = guest.Token, Rejoined = kept != null
             });
+            if (kept != null)
+                PutBack(guest.PlayerId, kept.Seat, RespawnReason.Rejoin, kept.Pose);
             PlayerJoined?.Invoke(guest.PlayerId);
+        }
+
+        private KeptSeat KeepSeat(Guest guest, Actor player)
+        {
+            ActorPose? pose = null;
+            if (guest.Placed)
+                pose = guest.Place;
+            else if (_motion != null && _motion.TryGetPose(player.EntityId, out var seen))
+                pose = seen;
+            return new KeptSeat { Seat = player.Seat, Name = player.PlayerName, Health = player.Health, Pose = pose };
+        }
+
+        // The game's checkpoint for this player, if it has one
+        private void PutBack(int playerId, int seat, RespawnReason reason, ActorPose? lastPose)
+        {
+            if (RespawnPoints != null && RespawnPoints.TryGetRespawnPoint(playerId, seat, reason, lastPose, out var pose)
+                && pose.IsFinite)
+                Teleport(playerId, pose);
         }
 
         /// <summary>
@@ -321,7 +401,7 @@ namespace RPGFramework.ActionRpg.Coop
                 _guests.Remove(pair.Key);
                 if (player == null)
                     return null;
-                kept = new KeptSeat { Seat = player.Seat, Name = player.PlayerName, Health = player.Health };
+                kept = KeepSeat(old, player);
                 _world.RemovePlayer(old.PlayerId);
                 PlayerLeft?.Invoke(old.PlayerId);
                 _logger?.LogInfo($"{player.DisplayName} came back on a new link", Category);
@@ -346,13 +426,17 @@ namespace RPGFramework.ActionRpg.Coop
             {
                 case CoopIntentMessage.IntentKind.Attack:
                     var target = _world.Get(intent.TargetId);
-                    if (target != null && _world.AreHostile(guest.PlayerId, target.EntityId) && InReach(guest.PlayerId, target.EntityId))
-                        _world.Attack(guest.PlayerId, target.EntityId);
+                    // A player's claim is a strike: only the host's rules deal effect damage
+                    var context = new AttackContext(intent.Tags, intent.SourceId).Between(guest.PlayerId, intent.TargetId);
+                    if (target != null && _world.AreHostile(guest.PlayerId, target.EntityId) && InReach(guest.PlayerId, target.EntityId)
+                        && (AcceptAttack == null || AcceptAttack(guest.PlayerId, target.EntityId, context)))
+                        _world.Attack(guest.PlayerId, target.EntityId, context);
                     break;
                 case CoopIntentMessage.IntentKind.Revive:
                     // In PvP the match brings players back, nobody revives on demand
-                    if (_world.Settings.Pvp == null)
-                        _world.RevivePlayer(guest.PlayerId);
+                    var fallen = _world.Get(guest.PlayerId);
+                    if (_world.Settings.Pvp == null && fallen != null && _world.RevivePlayer(guest.PlayerId))
+                        PutBack(guest.PlayerId, fallen.Seat, RespawnReason.Revive, guest.Placed ? guest.Place : (ActorPose?)null);
                     break;
                 case CoopIntentMessage.IntentKind.Leave:
                     guest.LeavingOnPurpose = true;
@@ -384,8 +468,13 @@ namespace RPGFramework.ActionRpg.Coop
                     _motion.SetTargetPose(id, pose);
                     continue;
                 }
+                // Sent before the player got to where they were put: not cheating, just late
+                if (_clock <= guest.SettlingUntil)
+                    continue;
                 MovementCorrections++;
                 _logger?.LogWarning($"Player {id} moved faster than their character can; put back", Category);
+                Place(guest, allowed);
+                guest.SettlingUntil = _clock + SettleTime;
                 _motion.SetTargetPose(id, allowed);
                 _network.Send(connectionId, new CoopCorrectionMessage { Pose = allowed });
             }
@@ -403,7 +492,9 @@ namespace RPGFramework.ActionRpg.Coop
                 return true;
             }
 
-            float reach = speed * MoveSpeedTolerance * (_clock - guest.PlacedAt) + MoveSlack;
+            // A boost that was on at any time since the last accepted place counts for the whole stretch
+            float boost = guest.BoostUntil >= guest.PlacedAt ? guest.Boost : 1f;
+            float reach = speed * boost * MoveSpeedTolerance * (_clock - guest.PlacedAt) + MoveSlack;
             float dx = pose.X - guest.Place.X, dz = pose.Z - guest.Place.Z;
             float distance = (float)Math.Sqrt(dx * dx + dz * dz);
             if (distance <= reach)
@@ -414,7 +505,6 @@ namespace RPGFramework.ActionRpg.Coop
 
             float part = reach / distance;
             allowed = new ActorPose(guest.Place.X + dx * part, pose.Y, guest.Place.Z + dz * part, pose.Yaw);
-            Place(guest, allowed);
             return false;
         }
 
@@ -439,6 +529,7 @@ namespace RPGFramework.ActionRpg.Coop
                 if (pair.Value.PlayerId != playerId)
                     continue;
                 Place(pair.Value, pose);
+                pair.Value.SettlingUntil = _clock + SettleTime;
                 if (_network.IsConnected)
                     _network.Send(pair.Key, new CoopCorrectionMessage { Pose = pose });
             }
@@ -468,7 +559,7 @@ namespace RPGFramework.ActionRpg.Coop
             _happenings.Add(new Happening
             {
                 Kind = CoopWorldMessage.ChangeKind.Hit, Actor = actor, AttackerId = damaged.AttackerId,
-                Amount = damaged.Amount, HealthLeft = damaged.HealthLeft
+                Amount = damaged.Amount, HealthLeft = damaged.HealthLeft, Context = damaged.Context
             });
         }
 
@@ -508,7 +599,8 @@ namespace RPGFramework.ActionRpg.Coop
                                 {
                                     Kind = CoopWorldMessage.ChangeKind.Hit, Id = actor.EntityId,
                                     AttackerId = happening.AttackerId, Amount = happening.Amount,
-                                    HealthLeft = happening.HealthLeft
+                                    HealthLeft = happening.HealthLeft, Tags = happening.Context.Tags,
+                                    SourceId = happening.Context.SourceId, FromEffect = happening.Context.FromEffect
                                 });
                             }
                             break;

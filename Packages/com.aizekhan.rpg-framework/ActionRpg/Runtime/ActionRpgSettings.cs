@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using RPGFramework.Combat;
 using RPGFramework.Items;
 using RPGFramework.Loot;
 using RPGFramework.Quests;
@@ -44,6 +45,13 @@ namespace RPGFramework.ActionRpg
         /// <see cref="HostilityRules.Coop"/> otherwise. Set a <see cref="FactionHostility"/> for teams that are factions.
         /// </summary>
         public IHostilityRules Hostility { get; set; }
+
+        /// <summary>
+        /// How much a hit hurts; null uses the registered <see cref="IDamageCalculator"/> (the framework's
+        /// <see cref="Combat.DamageCalculator"/> unless a game module registers its own). Implement
+        /// <see cref="IContextualDamageCalculator"/> as well to see hit tags and effect damage.
+        /// </summary>
+        public IDamageCalculator DamageCalculator { get; set; }
 
         public IEnumerable<CharacterData> Characters => Player != null ? Enemies.Prepend(Player) : Enemies;
 

@@ -7,8 +7,10 @@ namespace RPGFramework.Combat
     /// <summary>
     /// Default implementation of damage calculator using standard RPG formulas
     /// Formula: finalDamage = (baseDamage * totalMultiplier) * (100 / (100 + effectiveDefense))
+    /// With an <see cref="AttackContext"/>, damage from an effect ignores defense; tags change nothing (a game's
+    /// own calculator reads them).
     /// </summary>
-    public class DamageCalculator : IDamageCalculator
+    public class DamageCalculator : IDamageCalculator, IContextualDamageCalculator
     {
         private static readonly Random _random = new Random();
 
@@ -56,6 +58,9 @@ namespace RPGFramework.Combat
             // Ensure minimum damage of 1 (damage cannot be 0 or negative)
             return Math.Max(1f, finalDamage);
         }
+
+        public virtual float CalculateDamage(float baseDamage, float defenseValue, AttackContext context) =>
+            context.FromEffect ? Math.Max(0f, baseDamage) : CalculateDamage(baseDamage, defenseValue);
 
         /// <summary>
         /// Calculate damage with full result breakdown and random critical hit roll

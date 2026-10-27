@@ -61,11 +61,20 @@ namespace RPGFramework.ActionRpg.Coop
         public IInventoryContainer<IItem> Inventory => _inventory;
         public PvpStatus PvpStatus => _party.Pvp;
 
-        public float Attack(int attackerId, int targetId)
+        /// <summary>
+        /// Asks the host to strike; the tags and source go with it (effect damage is the host's alone to deal).
+        /// </summary>
+        public float Attack(int attackerId, int targetId, AttackContext context = default)
         {
             if (IsStarted && attackerId == PlayerId && Player?.IsAlive() == true && Get(targetId)?.IsAlive() == true
                 && AreHostile(attackerId, targetId))
-                _send(new CoopIntentMessage { Kind = CoopIntentMessage.IntentKind.Attack, TargetId = targetId });
+            {
+                _send(new CoopIntentMessage
+                {
+                    Kind = CoopIntentMessage.IntentKind.Attack, TargetId = targetId, Tags = context.Tags,
+                    SourceId = context.SourceId
+                });
+            }
             return 0f;
         }
 
@@ -116,7 +125,9 @@ namespace RPGFramework.ActionRpg.Coop
                         if (target == null)
                             break;
                         target.SetHealth(change.HealthLeft);
-                        _bus.Publish(new ActorDamagedEvent(change.Id, change.AttackerId, change.Amount, change.HealthLeft));
+                        var context = new AttackContext(change.Tags, change.SourceId, change.FromEffect)
+                            .Between(change.AttackerId, change.Id);
+                        _bus.Publish(new ActorDamagedEvent(change.Id, change.AttackerId, change.Amount, change.HealthLeft, context));
                         break;
                 }
             }

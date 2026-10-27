@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using RPGFramework.Combat;
 using RPGFramework.Inventory.Runtime;
 using RPGFramework.Items;
 using RPGFramework.Quests;
@@ -57,10 +58,11 @@ namespace RPGFramework.ActionRpg
         PvpStatus PvpStatus { get; }
 
         /// <summary>
-        /// An attack. On a co-op client it is sent to the host, which decides the outcome.
+        /// An attack, with what kind of hit it is (tags such as a hit zone, the ability or weapon that dealt it).
+        /// On a co-op client it is sent to the host, which decides the outcome.
         /// </summary>
         /// <returns>Damage dealt; 0 when nothing was hit, or on a client where the host deals it.</returns>
-        float Attack(int attackerId, int targetId);
+        float Attack(int attackerId, int targetId, AttackContext context = default);
 
         /// <summary>
         /// Brings this machine's player back after a fall. Refused in PvP, where the match brings players back.

@@ -1,3 +1,4 @@
+using RPGFramework.Combat;
 using RPGFramework.Events;
 
 namespace RPGFramework.ActionRpg
@@ -56,22 +57,38 @@ namespace RPGFramework.ActionRpg
     }
 
     /// <summary>
-    /// A hit landed (hit effects, damage numbers).
+    /// A hit landed (hit effects, damage numbers), with what kind of hit it was.
     /// </summary>
     public readonly struct ActorDamagedEvent : IEvent
     {
         public ActorDamagedEvent(int targetId, int attackerId, float amount, float healthLeft)
+            : this(targetId, attackerId, amount, healthLeft, default)
+        {
+        }
+
+        public ActorDamagedEvent(int targetId, int attackerId, float amount, float healthLeft, AttackContext context)
         {
             TargetId = targetId;
             AttackerId = attackerId;
             Amount = amount;
             HealthLeft = healthLeft;
+            Context = context;
         }
 
         public int TargetId { get; }
+
+        /// <summary>
+        /// Who dealt it; -1 when nobody did (a trap, the world).
+        /// </summary>
         public int AttackerId { get; }
+
         public float Amount { get; }
         public float HealthLeft { get; }
+
+        /// <summary>
+        /// Tags, source and whether it came from an effect (<see cref="AttackContext.FromEffect"/>).
+        /// </summary>
+        public AttackContext Context { get; }
     }
 
     /// <summary>

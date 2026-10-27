@@ -57,7 +57,7 @@ namespace RPGFramework.ActionRpg
                 _settings,
                 c.Resolve<IEntityManager>(),
                 c.Resolve<ILifeStateManager>(),
-                c.Resolve<IDamageCalculator>(),
+                _settings.DamageCalculator ?? c.Resolve<IDamageCalculator>(),
                 c.Resolve<IProgressionTracker>(),
                 c.Resolve<IQuestManager>(),
                 c.Resolve<IQuestRegistry>(),

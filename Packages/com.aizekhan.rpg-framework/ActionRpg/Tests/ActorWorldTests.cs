@@ -389,5 +389,98 @@ namespace RPGFramework.ActionRpg.Tests
             Assert.That(_despawned.Last().EntityId, Is.EqualTo(friend));
             Assert.That(() => World.RemovePlayer(World.PlayerId), Throws.InvalidOperationException);
         }
+    
+        /// <summary>
+        /// Head hits (tag 1) hurt twice as much; effect damage is a flat amount.
+        /// </summary>
+        private sealed class ZoneCalculator : DamageCalculator
+        {
+            public readonly List<AttackContext> Seen = new List<AttackContext>();
+
+            public override float CalculateDamage(float baseDamage, float defenseValue, AttackContext context)
+            {
+                Seen.Add(context);
+                if (context.FromEffect)
+                    return baseDamage;
+                return context.HasAny(1) ? 20f : 10f;
+            }
+        }
+
+        [Test]
+        public void Attack_WithAContext_TheGamesCalculatorSeesTheWholeHit_AndTheEventCarriesIt()
+        {
+            var calculator = new ZoneCalculator();
+            _settings.DamageCalculator = calculator;
+            _settings.Enemies[0].MaxHealth = 100f;
+            StartGame();
+            var hits = new List<ActorDamagedEvent>();
+            _host.Container.Resolve<IEventBus>().Subscribe<ActorDamagedEvent>(hits.Add);
+            int goblin = World.SpawnEnemy(Goblin);
+
+            Assert.That(World.Attack(World.PlayerId, goblin), Is.EqualTo(10f), "no tags: a plain strike");
+            Assert.That(World.Attack(World.PlayerId, goblin, new AttackContext(tags: 1, sourceId: 42)), Is.EqualTo(20f));
+
+            var head = calculator.Seen.Last();
+            Assert.That(head.AttackerId, Is.EqualTo(World.PlayerId));
+            Assert.That(head.TargetId, Is.EqualTo(goblin));
+            Assert.That(head.SourceId, Is.EqualTo(42));
+            Assert.That(hits.Last().Context.Tags, Is.EqualTo(1));
+            Assert.That(hits.Last().Context.SourceId, Is.EqualTo(42));
+            Assert.That(hits.Last().Context.FromEffect, Is.False);
+            Assert.That(hits.First().Context.Tags, Is.Zero);
+        }
+
+        [Test]
+        public void DealDamage_FromAnEffect_IgnoresDefense_IsMarked_AndCanKill()
+        {
+            _settings.Enemies[0].Defense = 100f;
+            StartGame();
+            var hits = new List<ActorDamagedEvent>();
+            var deaths = new List<DeathEvent>();
+            var bus = _host.Container.Resolve<IEventBus>();
+            bus.Subscribe<ActorDamagedEvent>(hits.Add);
+            bus.Subscribe<DeathEvent>(deaths.Add);
+            int goblin = World.SpawnEnemy(Goblin);
+
+            Assert.That(World.DealDamage(World.PlayerId, goblin, 12f, AttackContext.Effect(sourceId: 7)), Is.EqualTo(12f),
+                "the framework's calculator lets effect damage through armour");
+            Assert.That(hits.Single().Context.FromEffect, Is.True);
+            Assert.That(hits.Single().Context.SourceId, Is.EqualTo(7));
+            Assert.That(World.DealDamage(World.PlayerId, goblin, 12f), Is.LessThan(12f), "a plain hit meets defense");
+
+            World.DealDamage(World.PlayerId, goblin, 100f, AttackContext.Effect(7));
+
+            Assert.That(World.Get(goblin), Is.Null);
+            Assert.That(World.Kills, Is.EqualTo(1));
+            Assert.That(deaths.Single().KillerEntityId, Is.EqualTo(World.PlayerId), "the poisoner gets the kill");
+        }
+
+        [Test]
+        public void DealDamage_FromNobody_Hurts_ButNeverAnAlly()
+        {
+            StartGame();
+            int friend = World.AddPlayer();
+
+            Assert.That(World.DealDamage(-1, World.PlayerId, 30f), Is.GreaterThan(0f), "a trap hurts anyone");
+            Assert.That(World.DealDamage(friend, World.PlayerId, 30f), Is.Zero, "a friend's effect does not");
+            Assert.That(World.DealDamage(-1, World.PlayerId, float.NaN), Is.Zero);
+            Assert.That(World.DealDamage(-1, 999, 5f), Is.Zero);
+        }
+
+        [Test]
+        public void Revive_ByAnAlly_WithPartOfTheHealth()
+        {
+            StartGame();
+            int friend = World.AddPlayer();
+            World.DealDamage(-1, friend, 1000f);
+            Assert.That(World.Get(friend).IsAlive(), Is.False);
+
+            Assert.That(World.RevivePlayer(friend, World.PlayerId, 0.3f), Is.True);
+
+            Assert.That(World.Get(friend).IsAlive(), Is.True);
+            Assert.That(World.Get(friend).Health, Is.EqualTo(World.Get(friend).MaxHealth * 0.3f).Within(0.001f));
+            Assert.That(World.Log.Last(), Does.Contain("brings"));
+            Assert.That(World.RevivePlayer(friend, World.PlayerId, 0.3f), Is.False, "the living need no revive");
+        }
     }
 }

@@ -51,7 +51,7 @@ namespace RPGFramework.ActionRpg.Coop
         /// <summary>
         /// Changes whenever the messages change, so older and newer builds refuse each other instead of misreading.
         /// </summary>
-        public const int Version = 4;
+        public const int Version = 5;
 
         public const int DefaultPort = 7777;
         public const int DefaultMaxPlayers = 4;
@@ -304,6 +304,13 @@ namespace RPGFramework.ActionRpg.Coop
             public int AttackerId;
             public float Amount;
             public float HealthLeft;
+
+            /// <summary>
+            /// The hit's <see cref="RPGFramework.Combat.AttackContext"/>: tags, source, effect damage.
+            /// </summary>
+            public int Tags;
+            public int SourceId;
+            public bool FromEffect;
         }
 
         public override int MessageTypeId => CoopProtocol.WorldId;
@@ -336,6 +343,9 @@ namespace RPGFramework.ActionRpg.Coop
                         writer.Write(change.AttackerId);
                         writer.Write(change.Amount);
                         writer.Write(change.HealthLeft);
+                        writer.Write(change.Tags);
+                        writer.Write(change.SourceId);
+                        writer.Write(change.FromEffect);
                         break;
                 }
             }
@@ -372,6 +382,9 @@ namespace RPGFramework.ActionRpg.Coop
                         change.AttackerId = reader.ReadInt32();
                         change.Amount = reader.ReadSingle();
                         change.HealthLeft = reader.ReadSingle();
+                        change.Tags = reader.ReadInt32();
+                        change.SourceId = reader.ReadInt32();
+                        change.FromEffect = reader.ReadBoolean();
                         break;
                 }
                 Changes.Add(change);
@@ -592,16 +605,26 @@ namespace RPGFramework.ActionRpg.Coop
         public IntentKind Kind;
         public int TargetId = -1;
 
+        /// <summary>
+        /// An attack's <see cref="RPGFramework.Combat.AttackContext.Tags"/> and source, as the player claims them.
+        /// </summary>
+        public int Tags;
+        public int SourceId;
+
         public void Write(BinaryWriter writer)
         {
             writer.Write((byte)Kind);
             writer.Write(TargetId);
+            writer.Write(Tags);
+            writer.Write(SourceId);
         }
 
         public void Read(BinaryReader reader)
         {
             Kind = (IntentKind)reader.ReadByte();
             TargetId = reader.ReadInt32();
+            Tags = reader.ReadInt32();
+            SourceId = reader.ReadInt32();
         }
     }
 }
