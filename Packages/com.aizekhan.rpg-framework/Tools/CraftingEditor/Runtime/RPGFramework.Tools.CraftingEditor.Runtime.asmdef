@@ -1,0 +1,17 @@
+{
+    "name": "RPGFramework.Tools.CraftingEditor.Runtime",
+    "rootNamespace": "RPGFramework.Tools.CraftingEditor",
+    "references": [
+        "RPGFramework.Crafting.Runtime",
+        "RPGFramework.Tools.ItemDatabaseManager.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

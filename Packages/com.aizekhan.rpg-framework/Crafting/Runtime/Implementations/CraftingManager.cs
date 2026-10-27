@@ -7,12 +7,20 @@ namespace RPGFramework.Crafting
 {
     /// <summary>
     /// Default ECS-based implementation of ICraftingManager.
-    /// Manages active crafting operations across all entities.
+    /// Manages active crafting operations across all entities: <see cref="UpdateCrafting"/> moves every craft on, and
+    /// a craft whose time is up completes with the results that came out (each by its success chance), or fails when
+    /// nothing did. With an <see cref="ICraftingInventory"/>, ingredients are taken at the start, given back on cancel,
+    /// and results handed out on completion.
     /// </summary>
     public class CraftingManager : ICraftingManager
     {
         private readonly IEntityManager _entityManager;
         private readonly ICraftingRecipeRegistry _recipeRegistry;
+        private readonly ICraftingInventory _inventory;
+        private readonly Random _random;
+        private readonly List<int> _crafters = new List<int>();
+        private readonly List<int> _finished = new List<int>();
+        private readonly List<ICraftingResult> _made = new List<ICraftingResult>();
         private int _nextOperationId = 1;
 
         /// <inheritdoc/>
@@ -30,10 +38,15 @@ namespace RPGFramework.Crafting
         /// <summary>
         /// Create a new crafting manager.
         /// </summary>
-        public CraftingManager(IEntityManager entityManager, ICraftingRecipeRegistry recipeRegistry)
+        /// <param name="inventory">Where crafters keep their items; null leaves items to the game.</param>
+        /// <param name="random">Rolls success chances; null picks a new seed.</param>
+        public CraftingManager(IEntityManager entityManager, ICraftingRecipeRegistry recipeRegistry,
+            ICraftingInventory inventory = null, Random random = null)
         {
             _entityManager = entityManager ?? throw new ArgumentNullException(nameof(entityManager));
             _recipeRegistry = recipeRegistry ?? throw new ArgumentNullException(nameof(recipeRegistry));
+            _inventory = inventory;
+            _random = random ?? new Random();
         }
 
         /// <inheritdoc/>
@@ -56,6 +69,17 @@ namespace RPGFramework.Crafting
 
             if (!station.IsAvailable())
                 return -1;
+
+            if (_inventory != null)
+            {
+                foreach (var ingredient in recipe.Ingredients)
+                {
+                    if (!_inventory.Has(entityId, ingredient.ItemId, ingredient.Quantity))
+                        return -1;
+                }
+                foreach (var ingredient in recipe.Ingredients)
+                    _inventory.Take(entityId, ingredient.ItemId, ingredient.Quantity);
+            }
 
             // Get or create active crafting component
             var activeCrafts = _entityManager.GetComponent<ActiveCraftingData>(entityId);
@@ -98,9 +122,61 @@ namespace RPGFramework.Crafting
             if (deltaTimeSeconds < 0)
                 throw new ArgumentException("Delta time cannot be negative", nameof(deltaTimeSeconds));
 
-            // This would iterate through all entities with ActiveCraftingData
-            // and update their crafting progress
-            // Since we don't have direct access to all entities, this is a simplified version
+            _entityManager.GetEntitiesWith<ActiveCraftingData>(_crafters);
+            foreach (int entityId in _crafters)
+            {
+                var activeCrafts = _entityManager.GetComponent<ActiveCraftingData>(entityId);
+                if (activeCrafts.ActiveCrafts == null || activeCrafts.ActiveCrafts.Count == 0)
+                    continue;
+
+                _finished.Clear();
+                foreach (var operationId in activeCrafts.ActiveCrafts.Keys.ToList())
+                {
+                    var operation = activeCrafts.ActiveCrafts[operationId];
+                    if (operation.State != CraftingState.InProgress)
+                        continue;
+                    operation.ElapsedTimeSeconds = Math.Min(operation.RequiredTimeSeconds,
+                        operation.ElapsedTimeSeconds + deltaTimeSeconds);
+                    activeCrafts.ActiveCrafts[operationId] = operation;
+                    if (operation.ElapsedTimeSeconds >= operation.RequiredTimeSeconds)
+                        _finished.Add(operationId);
+                }
+
+                // Oldest first, so crafts that end in the same update finish in the order they started
+                _finished.Sort();
+                foreach (int operationId in _finished)
+                    Finish(entityId, operationId, activeCrafts.ActiveCrafts[operationId].RecipeId);
+            }
+        }
+
+        private void Finish(int entityId, int operationId, string recipeId)
+        {
+            var recipe = _recipeRegistry.GetRecipe(recipeId);
+            if (recipe == null)
+            {
+                FailCrafting(entityId, operationId, $"The recipe '{recipeId}' no longer exists");
+                return;
+            }
+
+            _made.Clear();
+            foreach (var result in recipe.Results)
+            {
+                if (result.SuccessChance >= 100f || _random.NextDouble() * 100.0 < result.SuccessChance)
+                    _made.Add(result);
+            }
+            if (recipe.Results.Count > 0 && _made.Count == 0)
+            {
+                FailCrafting(entityId, operationId, "Nothing came out of it");
+                return;
+            }
+
+            var made = _made.ToList();
+            if (_inventory != null)
+            {
+                foreach (var result in made)
+                    _inventory.Give(entityId, result.ItemId, result.Quantity);
+            }
+            CompleteCrafting(entityId, operationId, made);
         }
 
         /// <inheritdoc/>
@@ -116,6 +192,14 @@ namespace RPGFramework.Crafting
             activeCrafts.ActiveCrafts.Remove(operationId);
             _entityManager.RemoveComponent<ActiveCraftingData>(entityId);
             _entityManager.AddComponent(entityId, activeCrafts);
+
+            // Nothing was made: the ingredients go back
+            var recipe = _recipeRegistry.GetRecipe(recipeId);
+            if (_inventory != null && recipe != null)
+            {
+                foreach (var ingredient in recipe.Ingredients)
+                    _inventory.Give(entityId, ingredient.ItemId, ingredient.Quantity);
+            }
 
             CraftingCancelled?.Invoke(this, new CraftingCancelledEvent(entityId, recipeId, timeSpent));
 

@@ -1,0 +1,16 @@
+{
+    "name": "RPGFramework.Tools.DialogueEditor.Runtime",
+    "rootNamespace": "RPGFramework.Tools.DialogueEditor",
+    "references": [
+        "RPGFramework.Dialogue.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

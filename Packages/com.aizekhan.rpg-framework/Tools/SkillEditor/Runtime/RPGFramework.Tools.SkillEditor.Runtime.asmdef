@@ -1,0 +1,16 @@
+{
+    "name": "RPGFramework.Tools.SkillEditor.Runtime",
+    "rootNamespace": "RPGFramework.Tools.SkillEditor",
+    "references": [
+        "RPGFramework.Skills.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

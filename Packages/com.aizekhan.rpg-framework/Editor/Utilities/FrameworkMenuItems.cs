@@ -67,34 +67,52 @@ namespace RPGFramework.Editor.Utilities
 
         // ===== Quick Create =====
 
-        [MenuItem(MENU_ROOT + "Create/Quest Data", false, 300)]
-        public static void CreateQuestData()
+        [MenuItem(MENU_ROOT + "Create/Quest", false, 300)]
+        public static void CreateQuestAsset()
         {
-            CreateScriptableObjectAsset("QuestData", "New Quest");
+            CreateScriptableObjectAsset("QuestAsset", "New Quest");
         }
 
-        [MenuItem(MENU_ROOT + "Create/Dialogue Data", false, 301)]
-        public static void CreateDialogueData()
+        [MenuItem(MENU_ROOT + "Create/Dialogue", false, 301)]
+        public static void CreateDialogueAsset()
         {
-            CreateScriptableObjectAsset("DialogueData", "New Dialogue");
+            CreateScriptableObjectAsset("DialogueAsset", "New Dialogue");
         }
 
-        [MenuItem(MENU_ROOT + "Create/Faction Data", false, 302)]
-        public static void CreateFactionData()
+        [MenuItem(MENU_ROOT + "Create/Faction Database", false, 302)]
+        public static void CreateFactionDatabase()
         {
-            CreateScriptableObjectAsset("Faction", "New Faction");
+            CreateScriptableObjectAsset("FactionDatabase", "Factions");
         }
 
-        [MenuItem(MENU_ROOT + "Create/Crafting Recipe", false, 303)]
-        public static void CreateCraftingRecipe()
+        [MenuItem(MENU_ROOT + "Create/Skill", false, 303)]
+        public static void CreateSkillAsset()
         {
-            CreateScriptableObjectAsset("CraftingRecipeData", "New Recipe");
+            CreateScriptableObjectAsset("SkillAsset", "New Skill");
         }
 
-        [MenuItem(MENU_ROOT + "Create/Status Effect", false, 304)]
-        public static void CreateStatusEffect()
+        [MenuItem(MENU_ROOT + "Create/Skill Tree", false, 304)]
+        public static void CreateSkillTreeAsset()
         {
-            CreateScriptableObjectAsset("StatusEffectData", "New Status Effect");
+            CreateScriptableObjectAsset("SkillTreeAsset", "New Skill Tree");
+        }
+
+        [MenuItem(MENU_ROOT + "Create/Ability", false, 305)]
+        public static void CreateAbilityAsset()
+        {
+            CreateScriptableObjectAsset("AbilityAsset", "New Ability");
+        }
+
+        [MenuItem(MENU_ROOT + "Create/Crafting Recipe", false, 306)]
+        public static void CreateCraftingRecipeAsset()
+        {
+            CreateScriptableObjectAsset("CraftingRecipeAsset", "New Recipe");
+        }
+
+        [MenuItem(MENU_ROOT + "Create/Status Effect", false, 307)]
+        public static void CreateStatusEffectAsset()
+        {
+            CreateScriptableObjectAsset("StatusEffectAsset", "New Status Effect");
         }
 
         // ===== Help =====

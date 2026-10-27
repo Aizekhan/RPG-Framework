@@ -1,0 +1,29 @@
+{
+    "name": "RPGFramework.Tools.CraftingEditor.Tests",
+    "rootNamespace": "RPGFramework.Tools.CraftingEditor.Tests",
+    "references": [
+        "RPGFramework.Tools.CraftingEditor.Runtime",
+        "RPGFramework.Tools.ItemDatabaseManager.Runtime",
+        "RPGFramework.Crafting.Runtime",
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Items.Runtime",
+        "RPGFramework.Core.Runtime",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

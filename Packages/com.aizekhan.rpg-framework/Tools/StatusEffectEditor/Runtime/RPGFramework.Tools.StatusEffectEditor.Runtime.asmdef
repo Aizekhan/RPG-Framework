@@ -1,0 +1,16 @@
+{
+    "name": "RPGFramework.Tools.StatusEffectEditor.Runtime",
+    "rootNamespace": "RPGFramework.Tools.StatusEffectEditor",
+    "references": [
+        "RPGFramework.StatusEffects.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

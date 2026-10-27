@@ -1,0 +1,19 @@
+{
+    "name": "RPGFramework.Tools.FactionEditor.Editor",
+    "rootNamespace": "RPGFramework.Tools.FactionEditor.Editor",
+    "references": [
+        "RPGFramework.Factions.Runtime",
+        "RPGFramework.Tools.FactionEditor.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

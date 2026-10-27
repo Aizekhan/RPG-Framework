@@ -1,0 +1,26 @@
+{
+    "name": "RPGFramework.Tools.DialogueEditor.Tests",
+    "rootNamespace": "RPGFramework.Tools.DialogueEditor.Tests",
+    "references": [
+        "RPGFramework.Tools.DialogueEditor.Runtime",
+        "RPGFramework.Dialogue.Runtime",
+        "RPGFramework.ECS.Runtime",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
