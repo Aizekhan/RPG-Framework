@@ -1112,12 +1112,8 @@ namespace RPGFramework.ActionRpg.Tests
             Assert.That(votes, Is.EqualTo(new[] { (guest.World.PlayerId, 2) }), "the host knows who voted");
             Assert.That(seeds, Is.EqualTo(new[] { 42, 7 }));
 
-            // Only the host may send a seed
-            var forged = new List<SeedMessage>();
-            _host.On<SeedMessage>((player, seed) => forged.Add(seed));
-            guest.Client.Send(new SeedMessage { Seed = 666 });
-            Pump();
-            Assert.That(forged, Is.Empty);
+            // Only the host may send a seed: a client refuses to send one at all
+            Assert.That(() => guest.Client.Send(new SeedMessage { Seed = 666 }), Throws.InvalidOperationException);
 
             Assert.That(() => new CoopGameMessages().Add<VoteMessage>(CoopProtocol.HelloId, MessageAuthority.Client),
                 Throws.TypeOf<System.ArgumentOutOfRangeException>(), "the framework's ids are taken");
