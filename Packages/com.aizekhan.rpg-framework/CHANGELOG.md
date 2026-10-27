@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-27
+
+Co-op stage 3 (reliability) and PvP, saves that outlive builds, designer assets for every content module, modules that do what their assets say, the rules of a turn-based party RPG, and core services wired in and enforced for games (GA13). Install with `#v0.3.0`.
+
 - **A second genre: the rules of a turn-based party RPG** (`TurnBased`, JRPG style), built on the framework's modules rather than beside them: Abilities (mana costs, cooldowns in rounds), StatusEffects (poison and regen tick on the affected combatant's turn, stun skips it, stat buffs and debuffs), Progression (levels and per-hero growth), Items, Inventory and Loot (consumables, rewards). `Battle`: turn order by Speed, `Perform(BattleAction)` for Attack, Ability, Defend, Item and Flee, refusals in plain words, `IBattleAi` (default `SimpleBattleAi`), `IBattleFormula` (seeded). `TurnBasedWorld` / `ITurnBasedWorld`: the party, inventory, gold, a run of encounters, rewards, rest, restart; `TurnBasedSaves`; events on the bus; `TurnBasedComposition.Configure`. No battle screen yet: the game builds its views (recipe 15). 47 tests, including a whole run played to the end and a save mid-run
 - `StatusEffectManager.RemoveAllEffects` on an entity that no longer exists does nothing (it threw)
 - The package README lists the genres and what each one gives; recipe 15 (turn-based) and the AI guidance point a new game at the right kit
