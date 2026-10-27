@@ -11,6 +11,7 @@
 
 | Gate | Result | SHA |
 |---|---|---|
+| **Co-op across scene changes** (`ActionRpgHost.ChangeScene`, `CoopSceneMessage`, protocol v9, pools survive scene loads) + Game Setup progress mode and `ConfigureSettings`: EditMode / PlayMode in the verify worktree | ✅ **1790 / 1790** (`7bbc287`), **12 / 12** (`e67e640`, incl. a hub → run change with a friend over UDP and pooled objects across a scene load). `EcsPerformanceTests.AMovementFrame_AllocatesNothing` failed once at `189eccb` and passed at `7bbc287` (flaky, untouched code). CI green (run `40542922481`) | `e67e640` |
 | **MythRunner gaps FG-01..FG-08** (attack context, status effects and abilities in the action RPG kit, speed boosts, owner-decided defence, game messages over co-op, respawn points, ally revive, per-player progress and backpacks), EditMode in the verify worktree | ✅ **1788 / 1788 passed** (`D:/RPG-Results/edit-96bf79d.xml`) | `96bf79d` |
 | PlayMode in the verify worktree | ✅ **10 / 10 passed** (`D:/RPG-Results/play-ea78e3a.xml`) | `ea78e3a` |
 | **Release `v0.5.0`** (tag on `46c7033`, GitHub release): CI green (run `40528839344`; PlayMode job re-run once after a game-ci 403 from the GitHub API) | ✅ | `46c7033` |
