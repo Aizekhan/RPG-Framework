@@ -8,7 +8,10 @@
 
 ## Where things stand
 
-- Last code-verified SHA: **`79c5e2a`** (release commit `ba55e62` on top changes only version and docs): compile 0 errors, **1752/1752 EditMode**, **10/10 PlayMode** (Multiplayer Services SDK 2.4.1 installed in the main project), meta check clean, CI green (run `40441589664`; `ba55e62` run `40441959682`).
+- **2026-10-27 (later): licence decided — the framework stays MIT**, so 1.0 is no longer blocked. Agreed order: release 0.4.0 → 1.0 prep (public API review, CONTRIBUTING, issue templates, stable-API note) → tag 1.0 only on the owner's explicit yes.
+- **Turn-based gaps closed** (`09db450`, verified: 0 `error CS`, **1760/1760 EditMode**, **10/10 PlayMode**, meta check clean; CI not yet run, not pushed): `IStatGrowthFormula` growth profiles (`RegisterStatGrowth(profile, data)`, `AssignProfile`, entity overloads; TurnBased registers each hero as `TurnBasedWorld.GrowthProfilePrefix + id`), `TargetType.AllEnemies`/`AllAllies`, `IAbilityExecutor.UnregisterEntity` (TurnBased forgets finished enemies), `AbilitiesModule` + `StatusEffectsModule` in `Bootstrap.Gameplay`, `IStatusEffectManager.RegisterEffect`. CHANGELOG `[Unreleased]` and recipe 07 describe them.
+- Verify worktree was at `58ffd60` with the `79c5e2a` work uncommitted on top (identical files); backed up in the session scratchpad (`verify-dirty-backup.tar`) and switched to `09db450`.
+- Previous code-verified SHA: **`79c5e2a`** (release commit `ba55e62` on top changes only version and docs): compile 0 errors, **1752/1752 EditMode**, **10/10 PlayMode** (Multiplayer Services SDK 2.4.1 installed in the main project), meta check clean, CI green (run `40441589664`; `ba55e62` run `40441959682`).
 - **Released `v0.3.0`** (tag on `ba55e62`), proven by a clean install in `D:/RPG-Release030` (git URL `#v0.3.0`, New Game + AI guidance, 17/17 tests incl. GA13). `v0.2.0` is on `01f5af8`. **1.0 waits for the owner's licence decision.**
 - **Unity Relay** (steps 1-3 done): `9d08fd4` opened `UnityNetworkTransport` for relays; `451afe3` added the optional module `Networking/UnityRelay` (asmdef define `RPG_MULTIPLAYER_SERVICES`, self-registers in `NetworkSessionProviders`, F2 panel toolbar, `-provider unity-relay`). Proven with a fake cloud only, and by a clean install with and without the SDK (`D:/RPG-Release020`). **Open gate:** live test across two networks with the owner's UGS project; check Unity's current Relay terms before calling it free.
 - **Claude Code starter** (`ed1aaf7`): `START-NEW-GAME.md` at the repo root (README links it). The developer drops it into an empty folder and Claude Code follows steps 0-10. Run end to end in `D:/RPG-Starter-Test`. New rules GA11/GA12 plus `GAME.md` / `FRAMEWORK-GAPS.md` / `DEVLOG.md` stop an assistant from rebuilding framework modules or hiding gaps. Selling only the file is not possible while the repo is public MIT (licence is the owner's decision, near 1.0).
@@ -67,7 +70,7 @@ Create the worktree with `git worktree add --detach D:/RPG-Framework-verify <sha
 - Don't write regex escapes (`\b`) through bash heredocs into C#; use the Edit tool.
 
 - Batch-mode Unity exits with code 2 when any test fails. Read the NUnit XML, not the exit code.
-- A test assembly whose plugin fails to load reports **0 tests, not an error**. Compare totals between runs (expected: 1752 EditMode, 10 PlayMode, with the Multiplayer Services SDK installed).
+- A test assembly whose plugin fails to load reports **0 tests, not an error**. Compare totals between runs (expected: 1760 EditMode, 10 PlayMode, with the Multiplayer Services SDK installed).
 - The verify worktree gets NuGetForUnity files generated on import; remove them there before `checkout`, or checkout aborts and the old commit is tested. Check the SHA the run actually used.
 - A MonoBehaviour must live in a file of its own name (enforced by `FrameworkArchitectureTests`). Test MonoBehaviours go in a `*.TestSupport` runtime assembly.
 - Test assemblies that construct `EventBus` need `RPGFramework.Logging.Runtime` (CS0012 otherwise). Runtime assemblies that call `IEventPublisher` reference both `RPGFramework.Events.Runtime` and `UniTask`.
