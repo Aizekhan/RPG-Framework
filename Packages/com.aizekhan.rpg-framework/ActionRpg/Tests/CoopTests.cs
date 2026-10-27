@@ -62,6 +62,36 @@ namespace RPGFramework.ActionRpg.Tests
             public RemoteWorld World => Client.World;
         }
 
+        /// <summary>
+        /// A game's own message: players vote for the next map.
+        /// </summary>
+        public sealed class VoteMessage : NetworkMessage, INetworkPayload
+        {
+            public override int MessageTypeId => CoopProtocol.FirstGameMessageId;
+            public int Choice;
+
+            public void Write(BinaryWriter writer) => writer.Write(Choice);
+
+            public void Read(BinaryReader reader) => Choice = reader.ReadInt32();
+        }
+
+        /// <summary>
+        /// A game's own message: the host tells everyone the seed of the next map.
+        /// </summary>
+        public sealed class SeedMessage : NetworkMessage, INetworkPayload
+        {
+            public override int MessageTypeId => CoopProtocol.FirstGameMessageId + 1;
+            public int Seed;
+
+            public void Write(BinaryWriter writer) => writer.Write(Seed);
+
+            public void Read(BinaryReader reader) => Seed = reader.ReadInt32();
+        }
+
+        private static CoopGameMessages GameMessages() => new CoopGameMessages()
+            .Add<VoteMessage>(CoopProtocol.FirstGameMessageId, MessageAuthority.Client)
+            .Add<SeedMessage>(CoopProtocol.FirstGameMessageId + 1, MessageAuthority.Server);
+
         private Logger _logger;
         private LoopbackNetwork _network;
         private GameHost _game;
@@ -149,7 +179,7 @@ namespace RPGFramework.ActionRpg.Tests
             _game.Start(builder => _module = ActionRpgComposition.Configure(builder, settings, content));
             _hostMotion = new Motion();
             _hostTransport = _network.CreateTransport();
-            _host = new CoopHost(World, _game.Container.Resolve<IEventBus>(), CoopProtocol.CreateNetwork(_hostTransport),
+            _host = new CoopHost(World, _game.Container.Resolve<IEventBus>(), CoopProtocol.CreateNetwork(_hostTransport, gameMessages: GameMessages()),
                 _hostMotion, CoopProtocol.Fingerprint(settings, content));
             _host.Open(Port);
         }
@@ -172,7 +202,7 @@ namespace RPGFramework.ActionRpg.Tests
             guest.Bus.Subscribe<ActorDespawnedEvent>(guest.Despawned.Add);
             guest.Bus.Subscribe<ActorDamagedEvent>(guest.Damaged.Add);
             guest.Transport = _network.CreateTransport();
-            guest.Network = CoopProtocol.CreateNetwork(guest.Transport);
+            guest.Network = CoopProtocol.CreateNetwork(guest.Transport, gameMessages: GameMessages());
             guest.Client = new CoopClient(settings ?? _settings(), Content(), guest.Bus, guest.Network, guest.Motion)
             {
                 PlayerName = name, RejoinToken = rejoinToken
@@ -1062,6 +1092,109 @@ namespace RPGFramework.ActionRpg.Tests
             }
 
             Assert.That(_host.MovementCorrections, Is.Zero);
+        }
+    
+        [Test]
+        public void GameMessages_GoBothWays_OnlyTheWayTheyMay()
+        {
+            var votes = new List<(int Player, int Choice)>();
+            _host.On<VoteMessage>((player, vote) => votes.Add((player, vote.Choice)));
+            var guest = Join();
+            var seeds = new List<int>();
+            guest.Client.On<SeedMessage>(seed => seeds.Add(seed.Seed));
+
+            Assert.That(guest.Client.Send(new VoteMessage { Choice = 2 }), Is.True);
+            _host.SendToAll(new SeedMessage { Seed = 42 });
+            Assert.That(_host.Send(guest.World.PlayerId, new SeedMessage { Seed = 7 }), Is.True);
+            Assert.That(_host.Send(World.PlayerId, new SeedMessage { Seed = 1 }), Is.False, "the host is not a guest");
+            Pump();
+
+            Assert.That(votes, Is.EqualTo(new[] { (guest.World.PlayerId, 2) }), "the host knows who voted");
+            Assert.That(seeds, Is.EqualTo(new[] { 42, 7 }));
+
+            // Only the host may send a seed
+            var forged = new List<SeedMessage>();
+            _host.On<SeedMessage>((player, seed) => forged.Add(seed));
+            guest.Client.Send(new SeedMessage { Seed = 666 });
+            Pump();
+            Assert.That(forged, Is.Empty);
+
+            Assert.That(() => new CoopGameMessages().Add<VoteMessage>(CoopProtocol.HelloId, MessageAuthority.Client),
+                Throws.TypeOf<System.ArgumentOutOfRangeException>(), "the framework's ids are taken");
+            Assert.That(() => new CoopGameMessages().Add<VoteMessage>(CoopProtocol.FirstGameMessageId + 5, MessageAuthority.Client),
+                Throws.ArgumentException, "the id must be the message's own");
+        }
+
+        [Test]
+        public void OwnerDefense_TheFriendsMachineDodgesAndBlocks_SilenceLands_ForgeriesAreRejected()
+        {
+            _host.DefenseAuthority = DefenseAuthority.Owner;
+            _host.DefenseWindow = 1f;
+            var resolved = new List<DefenseResolvedEvent>();
+            _game.Container.Resolve<IEventBus>().Subscribe<DefenseResolvedEvent>(resolved.Add);
+            var guest = Join();
+            var incoming = new List<IncomingAttackEvent>();
+            guest.Bus.Subscribe<IncomingAttackEvent>(incoming.Add);
+            int friend = guest.World.PlayerId;
+            int goblin = World.SpawnEnemy(Goblin);
+            Pump();
+            float full = World.Get(friend).Health;
+
+            // Dodged on the friend's own machine
+            Assert.That(World.Attack(goblin, friend), Is.Zero, "the host waits for the friend's answer");
+            Assert.That(_host.PendingAttacks, Is.EqualTo(1));
+            Pump();
+            var attack = incoming.Single();
+            Assert.That(attack.AttackerId, Is.EqualTo(goblin));
+            Assert.That(guest.Client.Defend(attack.AttackId, DefenseOutcome.Dodged), Is.True);
+            Assert.That(guest.Client.Defend(attack.AttackId, DefenseOutcome.Dodged), Is.False, "answered once");
+            Pump();
+            Assert.That(World.Get(friend).Health, Is.EqualTo(full));
+            Assert.That(resolved.Single().Outcome, Is.EqualTo(DefenseOutcome.Dodged));
+            Assert.That(resolved.Single().Answered, Is.True);
+
+            // Blocked: half of it lands
+            World.Attack(goblin, friend);
+            Pump();
+            guest.Client.Defend(incoming.Last().AttackId, DefenseOutcome.Blocked, 0.5f);
+            Pump();
+            float halfHit = full - World.Get(friend).Health;
+            Assert.That(halfHit, Is.GreaterThan(0f));
+
+            // No answer: it lands in full once the window is over
+            float before = World.Get(friend).Health;
+            World.Attack(goblin, friend);
+            Run(1.3f);
+            Assert.That(before - World.Get(friend).Health, Is.EqualTo(halfHit * 2f).Within(0.01f));
+            Assert.That(resolved.Last().Answered, Is.False);
+            Assert.That(resolved.Last().Outcome, Is.EqualTo(DefenseOutcome.Hit));
+            Assert.That(_host.PendingAttacks, Is.Zero);
+
+            // An answer to an attack that never was, or came too late
+            guest.Network.SendToServer(new CoopDefenseResultMessage { AttackId = 999, Outcome = DefenseOutcome.Dodged });
+            guest.Network.SendToServer(new CoopDefenseResultMessage { AttackId = incoming.Last().AttackId, Outcome = DefenseOutcome.Dodged });
+            Pump();
+            Assert.That(_host.RejectedDefenseResults, Is.EqualTo(2));
+
+            // The host's own player is defended by the host's rules at once
+            Assert.That(World.Attack(goblin, World.PlayerId), Is.GreaterThan(0f));
+        }
+
+        [Test]
+        public void AnnouncedAttack_LandsWhenItsWindUpIsOver()
+        {
+            var guest = Join();
+            int friend = guest.World.PlayerId;
+            int goblin = World.SpawnEnemy(Goblin);
+            float full = World.Get(friend).Health;
+
+            _host.AnnounceAttack(goblin, friend, 1f, new RPGFramework.Combat.AttackContext(tags: 2));
+            Run(0.5f);
+            Assert.That(World.Get(friend).Health, Is.EqualTo(full));
+
+            Run(0.7f);
+            Assert.That(World.Get(friend).Health, Is.LessThan(full));
+            Assert.That(guest.Damaged.Last().Context.Tags, Is.EqualTo(2));
         }
     }
 }

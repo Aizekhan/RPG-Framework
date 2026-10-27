@@ -76,8 +76,27 @@ namespace RPGFramework.ActionRpg.Coop
         private readonly List<Happening> _happenings = new List<Happening>();
         private readonly SubscriptionBag _subscriptions = new SubscriptionBag();
         private readonly Dictionary<string, KeptSeat> _keptSeats = new Dictionary<string, KeptSeat>();
+        private readonly IEventBus _bus;
+        private readonly List<AnnouncedAttack> _announced = new List<AnnouncedAttack>();
+        private int _nextAttackId = 1;
+        private bool _settling;
         private float _sinceSend;
         private float _clock;
+
+        private sealed class AnnouncedAttack
+        {
+            public int Id;
+            public int AttackerId;
+            public int TargetId;
+            public AttackContext Context;
+            public float HitAt;
+
+            // Waiting for the attacked player's machine to answer
+            public bool AskedOwner;
+            public bool Answered;
+            public DefenseOutcome Outcome;
+            public float Share = 1f;
+        }
 
         /// <param name="world">The game this machine runs.</param>
         /// <param name="bus">The game's event bus (to hear characters enter, leave and get hit).</param>
@@ -91,6 +110,7 @@ namespace RPGFramework.ActionRpg.Coop
             if (bus == null)
                 throw new ArgumentNullException(nameof(bus));
             _network = network ?? throw new ArgumentNullException(nameof(network));
+            _bus = bus;
             _motion = motion;
             _fingerprint = fingerprint ?? "";
             _logger = logger;
@@ -109,6 +129,181 @@ namespace RPGFramework.ActionRpg.Coop
             _network.RegisterMessageHandler<CoopHelloMessage>(OnHello).AddTo(_subscriptions);
             _network.RegisterMessageHandler<CoopIntentMessage>(OnIntent).AddTo(_subscriptions);
             _network.RegisterMessageHandler<CoopMotionMessage>(OnMotion).AddTo(_subscriptions);
+            _network.RegisterMessageHandler<CoopDefenseResultMessage>(OnDefenseResult).AddTo(_subscriptions);
+            _world.HoldAttack = HoldAttack;
+        }
+
+        /// <summary>
+        /// Who decides dodges and blocks of attacks on joined players (<see cref="Coop.DefenseAuthority"/>).
+        /// </summary>
+        public DefenseAuthority DefenseAuthority { get; set; } = DefenseAuthority.Host;
+
+        /// <summary>
+        /// Seconds after an announced strike the host waits for the attacked player's answer before it lands.
+        /// </summary>
+        public float DefenseWindow { get; set; } = 0.3f;
+
+        /// <summary>
+        /// Answers about attacks that were never announced to that player, or came too late.
+        /// </summary>
+        public int RejectedDefenseResults { get; private set; }
+
+        /// <summary>
+        /// Attacks announced and not settled yet.
+        /// </summary>
+        public int PendingAttacks => _announced.Count;
+
+        /// <summary>
+        /// Announces an attack that lands in <paramref name="delay"/> seconds (a wind-up the players can see coming).
+        /// With <see cref="DefenseAuthority.Owner"/> a joined player's own machine says how they met it; otherwise
+        /// the host's rules settle it when it lands.
+        /// </summary>
+        /// <returns>The attack's id.</returns>
+        public int AnnounceAttack(int attackerId, int targetId, float delay, AttackContext context = default)
+        {
+            if (float.IsNaN(delay) || delay < 0f)
+                throw new ArgumentOutOfRangeException(nameof(delay));
+            var attack = new AnnouncedAttack
+            {
+                Id = _nextAttackId++, AttackerId = attackerId, TargetId = targetId,
+                Context = context.Between(attackerId, targetId), HitAt = _clock + delay
+            };
+            int owner = DefenseAuthority == DefenseAuthority.Owner ? ConnectionOf(targetId) : -1;
+            if (owner >= 0 && _network.IsConnected)
+            {
+                attack.AskedOwner = true;
+                _network.Send(owner, new CoopIncomingAttackMessage
+                {
+                    AttackId = attack.Id, AttackerId = attackerId, TargetId = targetId, HitIn = delay,
+                    Tags = context.Tags, SourceId = context.SourceId
+                });
+            }
+            _announced.Add(attack);
+            return attack.Id;
+        }
+
+        // An attack on a joined player whose own machine defends: announced now, settled by their answer
+        private bool HoldAttack(int attackerId, int targetId, AttackContext context)
+        {
+            if (_settling || DefenseAuthority != DefenseAuthority.Owner || ConnectionOf(targetId) < 0)
+                return false;
+            AnnounceAttack(attackerId, targetId, 0f, context);
+            return true;
+        }
+
+        private int ConnectionOf(int playerId)
+        {
+            foreach (var pair in _guests)
+            {
+                if (playerId >= 0 && pair.Value.PlayerId == playerId)
+                    return pair.Key;
+            }
+            return -1;
+        }
+
+        private void OnDefenseResult(int connectionId, CoopDefenseResultMessage result)
+        {
+            var attack = _guests.TryGetValue(connectionId, out var guest) && guest.PlayerId >= 0
+                ? _announced.FirstOrDefault(a => a.Id == result.AttackId && a.AskedOwner && !a.Answered && a.TargetId == guest.PlayerId)
+                : null;
+            if (attack == null || _clock > attack.HitAt + DefenseWindow || !Enum.IsDefined(typeof(DefenseOutcome), result.Outcome))
+            {
+                RejectedDefenseResults++;
+                return;
+            }
+            attack.Answered = true;
+            attack.Outcome = result.Outcome;
+            switch (result.Outcome)
+            {
+                case DefenseOutcome.Dodged:
+                    attack.Share = 0f;
+                    break;
+                case DefenseOutcome.Blocked:
+                    float share = result.DamageMultiplier;
+                    attack.Share = float.IsNaN(share) ? 0f : Math.Max(0f, Math.Min(1f, share));
+                    break;
+            }
+            // The answer is in: land it at its time (now, if that has passed)
+            SettleDueAttacks();
+        }
+
+        // Attacks whose time has come: answered ones as answered, the host's own at once, unanswered ones once the
+        // window is over
+        private void SettleDueAttacks()
+        {
+            if (_announced.Count == 0)
+                return;
+            foreach (var attack in _announced.ToList())
+            {
+                bool due = attack.AskedOwner && !attack.Answered
+                    ? _clock > attack.HitAt + DefenseWindow
+                    : _clock >= attack.HitAt;
+                if (!due)
+                    continue;
+                _announced.Remove(attack);
+                var outcome = attack.Answered ? attack.Outcome : DefenseOutcome.Hit;
+                float damage = 0f;
+                if (attack.Share > 0f)
+                {
+                    _settling = true;
+                    try
+                    {
+                        damage = _world.Strike(attack.AttackerId, attack.TargetId, attack.Context, attack.Share);
+                    }
+                    finally
+                    {
+                        _settling = false;
+                    }
+                }
+                _bus.Publish(new DefenseResolvedEvent(attack.Id, attack.AttackerId, attack.TargetId, outcome,
+                    attack.Answered, damage));
+            }
+        }
+
+        /// <summary>
+        /// Handles a game message from joined players (<see cref="CoopGameMessages"/>), with the sender's player id.
+        /// Messages from someone not playing yet are dropped. Dispose the result to stop.
+        /// </summary>
+        public IDisposable On<T>(Action<int, T> handler) where T : INetworkMessage
+        {
+            if (handler == null)
+                throw new ArgumentNullException(nameof(handler));
+            return _network.RegisterMessageHandler<T>((connectionId, message) =>
+            {
+                if (_guests.TryGetValue(connectionId, out var guest) && guest.PlayerId >= 0)
+                    handler(guest.PlayerId, message);
+            });
+        }
+
+        /// <summary>
+        /// Sends a game message to the machine of one joined player.
+        /// </summary>
+        /// <returns>False when nobody who joined plays that player.</returns>
+        public bool Send(int playerId, INetworkMessage message, bool reliable = true)
+        {
+            if (message == null)
+                throw new ArgumentNullException(nameof(message));
+            int connection = ConnectionOf(playerId);
+            if (connection < 0 || !_network.IsConnected)
+                return false;
+            _network.Send(connection, message, reliable);
+            return true;
+        }
+
+        /// <summary>
+        /// Sends a game message to everyone who joined.
+        /// </summary>
+        public void SendToAll(INetworkMessage message, bool reliable = true)
+        {
+            if (message == null)
+                throw new ArgumentNullException(nameof(message));
+            if (!_network.IsConnected)
+                return;
+            foreach (var pair in _guests)
+            {
+                if (pair.Value.PlayerId >= 0)
+                    _network.Send(pair.Key, message, reliable);
+            }
         }
 
         /// <summary>
@@ -260,6 +455,7 @@ namespace RPGFramework.ActionRpg.Coop
             _clock += deltaTime;
             _network.Update(deltaTime);
             ForgetOldSeats(deltaTime);
+            SettleDueAttacks();
             if (!_network.IsConnected)
                 return;
             _sinceSend += deltaTime;
@@ -281,6 +477,9 @@ namespace RPGFramework.ActionRpg.Coop
 
         public void Dispose()
         {
+            if (_world.HoldAttack == HoldAttack)
+                _world.HoldAttack = null;
+            _announced.Clear();
             _subscriptions.Dispose();
             _network.PeerConnected -= OnPeerConnected;
             _network.PeerDisconnected -= OnPeerDisconnected;

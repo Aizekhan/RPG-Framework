@@ -367,6 +367,37 @@ namespace RPGFramework.ActionRpg
         {
         }
 
+        /// <summary>
+        /// Adds your game's own co-op messages (ids from <see cref="CoopProtocol.FirstGameMessageId"/>):
+        /// <c>messages.Add&lt;VoteMessage&gt;(1200, MessageAuthority.Client)</c>. Runs on the host and on every client.
+        /// </summary>
+        protected virtual void ConfigureCoopMessages(CoopGameMessages messages)
+        {
+        }
+
+        /// <summary>
+        /// The co-op host was just opened: set <see cref="Coop.CoopHost.DefenseAuthority"/>, respawn points, attack
+        /// checks, and handle your messages with <c>host.On&lt;T&gt;</c>.
+        /// </summary>
+        protected virtual void OnCoopHostOpened(CoopHost host)
+        {
+        }
+
+        /// <summary>
+        /// This machine joined a friend's game: handle your messages with <c>client.On&lt;T&gt;</c>, answer
+        /// <see cref="IncomingAttackEvent"/>s with <c>client.Defend</c>.
+        /// </summary>
+        protected virtual void OnCoopClientCreated(CoopClient client)
+        {
+        }
+
+        private CoopGameMessages GameMessages()
+        {
+            var messages = new CoopGameMessages();
+            ConfigureCoopMessages(messages);
+            return messages;
+        }
+
         protected virtual void Start()
         {
             ShowGame();
@@ -412,7 +443,7 @@ namespace RPGFramework.ActionRpg
             }
 
             _transport = session.Transport;
-            _coopHost = new CoopHost(World, Host.Container.Resolve<IEventBus>(), CoopProtocol.CreateNetwork(_transport, Host.Logger, ConnectionTimeout),
+            _coopHost = new CoopHost(World, Host.Container.Resolve<IEventBus>(), CoopProtocol.CreateNetwork(_transport, Host.Logger, ConnectionTimeout, GameMessages()),
                 _presenter, CoopProtocol.Fingerprint(_settings, _content), Host.Logger)
             {
                 // A friend's strike is checked against where this machine sees them, with slack for lag
@@ -421,6 +452,7 @@ namespace RPGFramework.ActionRpg
             };
             World.SetPlayerName(World.PlayerId, PlayerName);
             _coopHost.Open();
+            OnCoopHostOpened(_coopHost);
             JoinCode = session.JoinCode;
             CoopStatus = $"Hosting: friends join with {JoinCode}";
             Host.Logger.LogInfo(CoopStatus, Category);
@@ -534,11 +566,12 @@ namespace RPGFramework.ActionRpg
 
             _transport = transport;
             _coopClient = new CoopClient(_settings, _content, Host.Container.Resolve<IEventBus>(),
-                CoopProtocol.CreateNetwork(_transport, Host.Logger, ConnectionTimeout), null, Host.Logger)
+                CoopProtocol.CreateNetwork(_transport, Host.Logger, ConnectionTimeout, GameMessages()), null, Host.Logger)
             {
                 PlayerName = PlayerName,
                 RejoinToken = _rejoinCode == _joinCode ? _rejoinToken : ""
             };
+            OnCoopClientCreated(_coopClient);
             _coopClient.Joined += OnJoined;
             _coopClient.Ended += OnClientEnded;
             ShowWorld();

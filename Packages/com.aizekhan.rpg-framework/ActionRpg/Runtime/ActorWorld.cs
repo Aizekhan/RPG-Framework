@@ -342,12 +342,32 @@ namespace RPGFramework.ActionRpg
         /// <returns>Damage dealt (0 when either side is missing or dead, or they are not hostile).</returns>
         public float Attack(int attackerId, int targetId, AttackContext context = default)
         {
+            if (!CanStrike(attackerId, targetId))
+                return 0f;
+            // Someone else settles this one later (the attacked player's machine, in co-op)
+            if (HoldAttack != null && HoldAttack(attackerId, targetId, context.Between(attackerId, targetId)))
+                return 0f;
+            return Strike(attackerId, targetId, context, 1f);
+        }
+
+        /// <summary>
+        /// Takes an attack over before it lands (attacker, target, context); true when it is taken.
+        /// </summary>
+        internal Func<int, int, AttackContext, bool> HoldAttack { get; set; }
+
+        internal bool CanStrike(int attackerId, int targetId)
+        {
             var attacker = Get(attackerId);
             var target = Get(targetId);
-            if (attacker == null || target == null || !attacker.IsAlive() || !target.IsAlive()
-                || !AreHostile(attackerId, targetId))
+            return attacker != null && target != null && attacker.IsAlive() && target.IsAlive() && AreHostile(attackerId, targetId);
+        }
+
+        // An attack as it lands, with a share of its damage (a partial block)
+        internal float Strike(int attackerId, int targetId, AttackContext context, float share)
+        {
+            if (!CanStrike(attackerId, targetId))
                 return 0f;
-            return Hit(target, attacker.Attack, context.Between(attackerId, targetId));
+            return Hit(Get(targetId), Get(attackerId).Attack, context.Between(attackerId, targetId), share);
         }
 
         /// <summary>
@@ -365,7 +385,7 @@ namespace RPGFramework.ActionRpg
             var attacker = Get(attackerId);
             if (attacker != null && attacker != target && !AreHostile(attackerId, targetId))
                 return 0f;
-            return Hit(target, amount, context.Between(attacker != null ? attackerId : -1, targetId));
+            return Hit(target, amount, context.Between(attacker != null ? attackerId : -1, targetId), 1f);
         }
 
         /// <summary>
@@ -381,12 +401,12 @@ namespace RPGFramework.ActionRpg
             return restored;
         }
 
-        private float Hit(Actor target, float baseDamage, AttackContext context)
+        private float Hit(Actor target, float baseDamage, AttackContext context, float share)
         {
             float damage = _damage is IContextualDamageCalculator contextual
                 ? contextual.CalculateDamage(baseDamage, target.Defense, context)
                 : _damage.CalculateDamage(baseDamage, target.Defense);
-            float dealt = target.ApplyDamage(damage);
+            float dealt = target.ApplyDamage(damage * share);
             _bus.Publish(new ActorDamagedEvent(target.EntityId, context.AttackerId, dealt, target.Health, context));
             if (target.Health <= 0f)
                 _lifeStates.Kill(target.EntityId, context.AttackerId, context.FromEffect ? "effect" : "slain");

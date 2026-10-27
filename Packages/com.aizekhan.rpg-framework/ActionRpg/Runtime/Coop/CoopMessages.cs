@@ -47,11 +47,18 @@ namespace RPGFramework.ActionRpg.Coop
         public const int MotionId = 1103;
         public const int IntentId = 1104;
         public const int CorrectionId = 1105;
+        public const int IncomingAttackId = 1106;
+        public const int DefenseResultId = 1107;
+
+        /// <summary>
+        /// The first id a game may give its own messages (<see cref="CoopGameMessages"/>).
+        /// </summary>
+        public const int FirstGameMessageId = 1200;
 
         /// <summary>
         /// Changes whenever the messages change, so older and newer builds refuse each other instead of misreading.
         /// </summary>
-        public const int Version = 6;
+        public const int Version = 7;
 
         public const int DefaultPort = 7777;
         public const int DefaultMaxPlayers = 4;
@@ -96,6 +103,8 @@ namespace RPGFramework.ActionRpg.Coop
             serializer.RegisterMessageType<CoopMotionMessage>(MotionId);
             serializer.RegisterMessageType<CoopIntentMessage>(IntentId);
             serializer.RegisterMessageType<CoopCorrectionMessage>(CorrectionId);
+            serializer.RegisterMessageType<CoopIncomingAttackMessage>(IncomingAttackId);
+            serializer.RegisterMessageType<CoopDefenseResultMessage>(DefenseResultId);
             return serializer;
         }
 
@@ -105,16 +114,24 @@ namespace RPGFramework.ActionRpg.Coop
             .Set(WelcomeId, MessageAuthority.Server)
             .Set(WorldId, MessageAuthority.Server)
             .Set(CorrectionId, MessageAuthority.Server)
+            .Set(IncomingAttackId, MessageAuthority.Server)
+            .Set(DefenseResultId, MessageAuthority.Client)
             .Set(MotionId, MessageAuthority.Any);
 
         /// <param name="connectionTimeout">Seconds of silence before the link counts as lost (tests use less).</param>
+        /// <param name="gameMessages">The game's own messages; the same set on the host and every client.</param>
         public static NetworkManager CreateNetwork(INetworkTransport transport, ILogger logger = null,
-            float connectionTimeout = ConnectionTimeout) =>
-            new NetworkManager(transport, CreateSerializer(),
+            float connectionTimeout = ConnectionTimeout, CoopGameMessages gameMessages = null)
+        {
+            var serializer = CreateSerializer();
+            var authority = CreateAuthority();
+            gameMessages?.RegisterOn(serializer, authority);
+            return new NetworkManager(transport, serializer,
                 new NetworkConfig { PingInterval = 1f, ConnectionTimeout = connectionTimeout, MaxBadMessages = 20 }, logger)
             {
-                Authority = CreateAuthority()
+                Authority = authority
             };
+        }
 
         /// <summary>
         /// Reads how many entries follow, refusing a count no real message has.

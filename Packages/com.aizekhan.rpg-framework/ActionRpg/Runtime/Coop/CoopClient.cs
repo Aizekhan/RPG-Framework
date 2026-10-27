@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using RPGFramework.Combat;
 using RPGFramework.Events;
 using RPGFramework.Logging;
 using RPGFramework.Networking;
@@ -64,6 +66,8 @@ namespace RPGFramework.ActionRpg.Coop
         private readonly string _fingerprint;
         private readonly ILogger _logger;
         private readonly SubscriptionBag _subscriptions = new SubscriptionBag();
+        private readonly IEventBus _bus;
+        private readonly HashSet<int> _incoming = new HashSet<int>();
         private string _address = "";
         private float _sinceSend;
         private string _pendingEnd;
@@ -80,6 +84,7 @@ namespace RPGFramework.ActionRpg.Coop
             Motion = motion;
             _logger = logger;
             _fingerprint = CoopProtocol.Fingerprint(settings, content);
+            _bus = bus;
             World = new RemoteWorld(settings, content, bus, intent => _network.SendToServer(intent));
 
             _network.PeerConnected += OnConnected;
@@ -89,6 +94,61 @@ namespace RPGFramework.ActionRpg.Coop
             _network.RegisterMessageHandler<CoopWorldMessage>((_, message) => World.Apply(message)).AddTo(_subscriptions);
             _network.RegisterMessageHandler<CoopMotionMessage>(OnMotion).AddTo(_subscriptions);
             _network.RegisterMessageHandler<CoopCorrectionMessage>(OnCorrection).AddTo(_subscriptions);
+            _network.RegisterMessageHandler<CoopIncomingAttackMessage>(OnIncomingAttack).AddTo(_subscriptions);
+        }
+
+        /// <summary>
+        /// Handles a game message from the host (<see cref="CoopGameMessages"/>). Dispose the result to stop.
+        /// </summary>
+        public IDisposable On<T>(Action<T> handler) where T : INetworkMessage
+        {
+            if (handler == null)
+                throw new ArgumentNullException(nameof(handler));
+            return _network.RegisterMessageHandler<T>((_, message) => handler(message));
+        }
+
+        /// <summary>
+        /// Sends a game message to the host (<see cref="CoopGameMessages"/>).
+        /// </summary>
+        /// <returns>False when not playing.</returns>
+        public bool Send(INetworkMessage message, bool reliable = true)
+        {
+            if (message == null)
+                throw new ArgumentNullException(nameof(message));
+            if (State != CoopClientState.Playing || !_network.IsConnected)
+                return false;
+            _network.SendToServer(message, reliable);
+            return true;
+        }
+
+        /// <summary>
+        /// Attacks on this player the host is waiting to hear about (<see cref="DefenseAuthority.Owner"/>).
+        /// </summary>
+        public IReadOnlyCollection<int> IncomingAttacks => _incoming;
+
+        /// <summary>
+        /// Answers an announced attack (<see cref="IncomingAttackEvent"/>): dodged, blocked (with the share of
+        /// damage that still lands) or hit. Each attack is answered once.
+        /// </summary>
+        /// <returns>False when there is no such attack waiting.</returns>
+        public bool Defend(int attackId, DefenseOutcome outcome, float damageMultiplier = 0f)
+        {
+            if (!_incoming.Remove(attackId) || State != CoopClientState.Playing)
+                return false;
+            _network.SendToServer(new CoopDefenseResultMessage
+            {
+                AttackId = attackId, Outcome = outcome, DamageMultiplier = damageMultiplier
+            });
+            return true;
+        }
+
+        private void OnIncomingAttack(int connectionId, CoopIncomingAttackMessage attack)
+        {
+            if (State != CoopClientState.Playing || attack.TargetId != World.PlayerId)
+                return;
+            _incoming.Add(attack.AttackId);
+            var context = new AttackContext(attack.Tags, attack.SourceId).Between(attack.AttackerId, attack.TargetId);
+            _bus?.Publish(new IncomingAttackEvent(attack.AttackId, attack.AttackerId, attack.TargetId, attack.HitIn, context));
         }
 
         public RemoteWorld World { get; }
@@ -301,6 +361,7 @@ namespace RPGFramework.ActionRpg.Coop
             if (_network.IsConnected || _network.Role != NetworkRole.None)
                 _network.Stop();
             World.End();
+            _incoming.Clear();
             State = CoopClientState.Ended;
             EndReason = reason;
             EndKind = kind;
