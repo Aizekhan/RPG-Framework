@@ -142,6 +142,10 @@ namespace RPGFramework.StatusEffects
 
         public void RemoveAllEffects(int entityId)
         {
+            // An entity that is gone has nothing left to remove
+            if (!_entityManager.Exists(entityId))
+                return;
+
             List<string> removedIds = null;
             if (_entityManager.TryGetComponent<ActiveEffectsData>(entityId, out var existing)
                 && existing.ActiveInstances != null)

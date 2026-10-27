@@ -1,8 +1,8 @@
 # RPG Framework
 
 Reusable building blocks for RPGs in Unity 6, shipped as one UPM package: composition and events, combat, stats,
-progression, quests, items, inventory, loot, saving, UI navigation, an action RPG made from inspector assets, and co-op
-for 2-8 players. The framework owns the rules and infrastructure; each game owns its content, presentation and the
+progression, quests, items, inventory, loot, saving, UI navigation, an action RPG made from inspector assets, co-op
+for 2-8 players and PvP, and the rules of a turn-based party RPG. The framework owns the rules and infrastructure; each game owns its content, presentation and the
 rules that make it unique.
 
 ## Start a new game with Claude Code (recommended)
@@ -14,7 +14,8 @@ rules that make it unique.
 
 Claude Code checks your tools, creates the Unity project, installs the latest framework release, generates a playable
 game, fills `GAME.md` with you and then builds the game feature by feature. What the framework lacks is recorded in
-`FRAMEWORK-GAPS.md` instead of being worked around (architecture rules GA11 and GA12 check it).
+`FRAMEWORK-GAPS.md` instead of being worked around (architecture rules GA11 and GA12 check it), and the framework's
+core services (pooling, assets, spawning, scenes, timers, logging) are used instead of hand-made copies (GA13).
 
 ## Start a new game by hand
 

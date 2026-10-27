@@ -56,7 +56,7 @@ Assets/MyGame/
   Scripts/Core/   MyGame.Core: your rules and modules (no UnityEngine)
   Scripts/        MyGame: MyGameHost (an ActionRpgHost), your views and input
   Scenes/         MyGame.unity: host, camera, light, ground
-  Tests/          boot test, scene test, MyGameArchitectureTests (rules GA01-GA10)
+  Tests/          boot test, scene test, MyGameArchitectureTests (rules GA01-GA13)
 ```
 
 The tests keep the game healthy: the setup is valid, the game boots and plays a wave, the code follows the
@@ -90,13 +90,21 @@ Under the hood (for games that outgrow the action RPG template):
 
 The `Assets/ReferenceGame` project in the repository (Goblin Valley) is a complete, playable example.
 
+## Genres
+
+| Genre | What you get | Start with |
+|---|---|---|
+| **Action RPG** (real-time, top-down or third person) | A playable game: hero, enemies, waves, loot, quests, HUD, saves, co-op for 2-8 players and PvP, all set up from inspector assets | **New Game** in the Game Kit (recipe 01) |
+| **Turn-based party RPG** (JRPG style) | The rules, tested: turn order, attacks, abilities with mana and cooldowns, defend, items, flee, status effects, enemy AI, rewards, levels, a run of encounters, saves. **No battle screen yet**: the game builds its own views on `ITurnBasedWorld` | `TurnBasedComposition.Configure` (recipe 15) |
+| Anything else (roguelike, narrative, survival...) | The gameplay modules below, the core services (recipe 14) and the architecture rules | A New Game, then replace what does not fit |
+
 ## Modules
 
 | Area | Assemblies |
 |---|---|
-| Composition | `Core` (modules, builder), `DI`, `Bootstrap` (`GameHost`, `GameHostBehaviour`), `Bootstrap.Gameplay` (ready-made gameplay modules) |
+| Composition | `Core` (modules, builder), `DI`, `Bootstrap` (`GameHost`, `GameHostBehaviour`), `Bootstrap.Gameplay` (ready-made gameplay modules), `Bootstrap.UnityServices` (`UnityServicesModule`: shared pools, assets, prefab spawner, scenes) |
 | Runtime | `Events` (bus), `Systems` (update loop), `ECS` (entities, components), `Timers`, `Logging`, `Diagnostics` |
-| Game templates | `ActionRpg` (Game Setup and Character assets, `ActionRpgHost`, player controls, enemy AI, health bars, HUD) |
+| Game templates | `ActionRpg` (Game Setup and Character assets, `ActionRpgHost`, player controls, enemy AI, health bars, HUD); `TurnBased` (party battles in turns, rules only) |
 | Gameplay | `Combat`, `Stats`, `StatusEffects`, `Abilities`, `Progression`, `Quests`, `Items`, `Inventory`, `Loot`, `Crafting`, `Dialogue`, `Factions`, `Guilds`, `Trading`, `Housing`, `Companions`, `Achievements`, `Skills`, `DynamicEvents` |
 | Content & scenes | `AssetManagement` (Resources and Addressables providers), `Pooling`, `Spawning` (`PrefabSpawner`, `PrefabCatalog`), `Presentation` (`EntityViewRegistry`: entity ↔ GameObject), `Scenes`, `Persistence` |
 | UI | `UINavigation` (screens, modals, transitions), `UI` (RPG panels and HUD) |

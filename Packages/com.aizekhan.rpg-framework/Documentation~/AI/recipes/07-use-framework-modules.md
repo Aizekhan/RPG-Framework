@@ -22,3 +22,5 @@ builder
    at start if the module is missing, instead of failing later.
 3. Register content (items, loot tables, quests) in your module's `OnInitialize` through the registries.
 4. `ActionRpgComposition` and Goblin Valley (`GoblinValleyComposition`, `GoblinValleyModule`) use all of them.
+5. For plumbing (spawning, pooling, assets, scenes, timers, logging, state machines, paths, UI screens) use the core
+   services in recipe 14, never a copy of them.

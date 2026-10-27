@@ -136,7 +136,7 @@ namespace RPGFramework.ActionRpg
             // Gone while the prefab was loading
             if (_lifetime.IsCancellationRequested || _world.Get(entityId) == null)
             {
-                Destroy(instance);
+                ReleaseView(instance);
                 return;
             }
 
@@ -227,13 +227,13 @@ namespace RPGFramework.ActionRpg
                 return;
             foreach (var part in instance.GetComponentsInChildren<ActorView>(true))
                 part.Unbind();
-            Destroy(instance);
+            ReleaseView(instance);
         }
 
-        private void Destroy(GameObject instance)
+        private void ReleaseView(GameObject instance)
         {
             if (_placeholders.Remove(instance))
-                Object.Destroy(instance);
+                Object.Destroy(instance); // framework-ok: a placeholder built from primitives, the spawner never made it
             else
                 _spawner.Despawn(instance);
         }

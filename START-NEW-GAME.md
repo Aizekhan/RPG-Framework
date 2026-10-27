@@ -32,9 +32,33 @@ installs tell you everything you need. Follow these rules for the whole project:
    open, tests can run in its Test Runner (Window > General > Test Runner).
 6. **Never edit the framework inside `Library/PackageCache`** (it is read-only and replaced on update). What the
    framework lacks is recorded in `FRAMEWORK-GAPS.md` (see the development loop).
+7. **Use the framework's core services; never write your own** (see "Core services" below and
+   `Docs/RPGFramework/recipes/14-core-services.md` once installed).
 
 Commands below are for Git Bash or PowerShell on Windows; adapt paths on macOS/Linux. `<Unity>` is the full path
 of the Unity 6 editor executable found in step 1; `<Game>` is the game's name in PascalCase.
+
+### Core services — always use these
+
+The game resolves them from the host's container (`Host.Container.Resolve<T>()`) or takes them as constructor
+parameters in its rules. The architecture test GA13 fails on the hand-made versions.
+
+| Need | Use | Not |
+|---|---|---|
+| Spawn/despawn many objects | `IPrefabSpawner` (`ConfigurePool`, `SpawnAsync`, `Despawn`) | `Instantiate`, `Destroy` |
+| Pool plain C# objects | `ObjectPool<T>` registered in `IPoolManager` | a `Stack<T>` by hand |
+| Load assets | `IAssetManager.LoadAsync<T>`, dispose the handle | `Resources.Load` |
+| Change scenes | `ISceneDispatcher` | `SceneManager.LoadScene` |
+| Delayed or repeating calls | `ITimerService` (`Schedule`, `Repeat`, `DelayAsync`) | `Invoke`, coroutines with `WaitForSeconds` |
+| Per-frame logic, game phases | systems (`SystemBase`, `AddSystem<T>()`), `PhaseTracker` | `Update()` full of rules |
+| Logs | `ILogger` | `Debug.Log` |
+| Messages between features | the event bus (`Publish`, `Subscribe`) | direct calls, singletons |
+| Entities, templates, queries | `IEntityManager`, `ArchetypeCatalog`, `GetEntitiesWith<T1, T2>(list)` | dictionaries of data |
+| AI, paths | `StateMachine<T>`, `AsyncStateMachine<T>`, `BehaviorTree`, `AStarPathfinder` | hand-written FSM / A* |
+| UI screens | `INavigationService`, `PrefabViewFactory` | toggling panels by hand |
+| Saves | `SaveParticipant<T>` (recipe 12) | `PlayerPrefs`, own JSON files |
+
+A line that truly needs the Unity call ends with `// framework-ok: <reason>`.
 
 ### Checklist (copy into `SETUP.md` in step 0)
 
@@ -186,7 +210,10 @@ see; if something is wrong, look at the Console with them. Then commit:
 sensible default they can accept or change:
 
 1. The pitch in one or two sentences.
-2. Genre and view; single player or co-op (how many); PvP or not.
+2. Genre and view; single player or co-op (how many); PvP or not. A real-time action RPG starts from the generated
+   game (`ActionRpg`); a turn-based party RPG uses the `TurnBased` rules (recipe 15: turns, abilities, effects, enemy
+   AI, rewards and saves are done; the battle screen is the game's to build); other genres use the modules and the
+   core services (recipe 14).
 3. The core loop: what the player does every 30 seconds, every 10 minutes, every session.
 4. Features in priority order. Push for a **small first milestone** that is playable on its own (a "vertical
    slice": one area, one enemy type more, one quest chain, one new rule), not the whole game.
@@ -228,7 +255,8 @@ and tell the developer the setup is complete and what the first feature will be.
 2. **Look in the framework first.** The package README lists the modules; the source is in
    `Library/PackageCache/com.aizekhan.rpg-framework*`. Use what exists: combat, stats, progression, quests,
    inventory, items, loot, dialogue, crafting, factions, persistence, UI navigation, spawning, pooling, timers,
-   co-op networking.
+   co-op networking. For plumbing (spawning, pooling, assets, scenes, timers, logging, state machines, paths, UI
+   screens) follow recipe 14: the core services above, never a copy of them.
 3. **If something is missing, never cut the corner.** Do not rebuild the module inside the game, do not shrink the
    feature, do not fake it. Tell the developer what is missing. Add a section `## <id>` to `FRAMEWORK-GAPS.md`
    (needed for, missing, wanted API, stand-in). Write the smallest stand-in behind an interface in `<Game>.Core`
@@ -266,4 +294,4 @@ section to "Resolved".
 | Tests: total is lower than before, or 0 | A test assembly did not compile or load: search the log for `error` near the assembly's name |
 | Licence or sign-in errors | The developer signs in to Unity Hub and activates a licence |
 | A `.meta` is missing or Unity ignores a file | Let Unity import (open the Editor or run a batch command); never invent a GUID |
-| An architecture test fails | Its message names the rule (GA01-GA12) and the fix; `Docs/RPGFramework/architecture.md` explains it |
+| An architecture test fails | Its message names the rule (GA01-GA13) and the fix; `Docs/RPGFramework/architecture.md` explains it |

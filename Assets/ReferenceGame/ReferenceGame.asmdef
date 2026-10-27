@@ -6,6 +6,7 @@
         "RPGFramework.Bootstrap.Runtime",
         "RPGFramework.Bootstrap.Unity",
         "RPGFramework.Bootstrap.Gameplay",
+        "RPGFramework.Bootstrap.UnityServices",
         "RPGFramework.Core.Runtime",
         "RPGFramework.DI.Runtime",
         "RPGFramework.ECS.Runtime",

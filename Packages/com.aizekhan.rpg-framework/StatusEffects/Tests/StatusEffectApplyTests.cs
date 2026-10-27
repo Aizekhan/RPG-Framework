@@ -126,6 +126,16 @@ namespace RPGFramework.StatusEffects.Tests
             Assert.That(_target.Stats, Is.Empty);
         }
 
+        [Test]
+        public void RemoveAllEffects_OnAnEntityThatIsGone_DoesNothing()
+        {
+            int gone = _entities.CreateEntity();
+            _entities.DestroyEntity(gone);
+
+            Assert.DoesNotThrow(() => _manager.RemoveAllEffects(gone));
+            Assert.That(_entities.Exists(gone), Is.False);
+        }
+
         // ---- Resources ----
 
         private void RegisterTicking(string id, float tickInterval, EffectModifierData modifier, int maxStacks = 1)

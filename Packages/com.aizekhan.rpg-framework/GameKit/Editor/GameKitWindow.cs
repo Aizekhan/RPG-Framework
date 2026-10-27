@@ -66,6 +66,13 @@ namespace RPGFramework.GameKit.Editor
             if (GUILayout.Button("Install AI Guidance (CLAUDE.md, Docs/RPGFramework)"))
                 Run(AIGuidance.InstallFromMenu, "Installed CLAUDE.md and Docs/RPGFramework.");
 
+            EditorGUILayout.Space();
+            EditorGUILayout.HelpBox(
+                "New Game makes a real-time action RPG (ActionRpg). For a turn-based party RPG, compose TurnBased " +
+                "(TurnBasedComposition.Configure: turns, abilities, effects, enemy AI, rewards, saves) and build its " +
+                "battle screen; see recipe 15. Recipe 14 lists the core services every game should use.",
+                MessageType.None);
+
             if (!string.IsNullOrEmpty(_message))
                 EditorGUILayout.HelpBox(_message, _messageType);
         }

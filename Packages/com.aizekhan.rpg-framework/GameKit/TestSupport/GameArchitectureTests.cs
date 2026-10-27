@@ -75,6 +75,9 @@ namespace RPGFramework.GameKit.TestSupport
         [Test]
         public void GA12_FrameworkGapsAreRecorded() => Check(GameArchitectureRules.FrameworkGapsAreRecorded);
 
+        [Test]
+        public void GA13_GameUsesCoreServices() => Check(GameArchitectureRules.GameUsesCoreServices);
+
         private void Check(Func<GameCodebase, IEnumerable<ArchitectureViolation>> rule)
         {
             var violations = rule(_codebase).ToList();

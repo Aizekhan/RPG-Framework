@@ -55,6 +55,6 @@ survives. Batch mode:
   a wave comes and dies with experience and loot; the kill streak gives its bonus, resets when the hero is hurt and
   can be turned off.
 - `Tests/GoblinValleySceneTests`: one host, wired to the setup and a camera, saving on, no missing scripts.
-- `Tests/ReferenceGameArchitectureTests`: the game architecture rules GA01-GA10.
+- `Tests/ReferenceGameArchitectureTests`: the game architecture rules GA01-GA13.
 - `PlayTests/GoblinValleyPlayTests` (PlayMode): plays the scene: the model prefabs appear with controls and AI,
   goblins chase, the hero's strike lands, slain goblins leave and the streak counts.

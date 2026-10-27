@@ -108,7 +108,7 @@ namespace RPGFramework.ActionRpg
         private void OnDestroy()
         {
             if (_ringMaterial != null)
-                Destroy(_ringMaterial);
+                Destroy(_ringMaterial); // framework-ok: a material this view made, not a spawned object
         }
 
         protected override void OnBound()

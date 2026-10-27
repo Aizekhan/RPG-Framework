@@ -17,6 +17,10 @@
 - **GameHost** builds the game from modules: `FrameworkCoreModule` (event bus, entities, systems, timers) and the
   modules listed in `<Game>Composition.Configure`. A module registers services in the container and declares the
   modules it depends on; the host starts them in dependency order and fails loudly when one is missing.
+- **Core services** are shared by the whole game and resolved from the container, never rebuilt in it: logger,
+  event bus, timers, entities and systems (`FrameworkCoreModule`); object pools, assets, the prefab spawner and scene
+  loading (`UnityServicesModule`, which `ActionRpgHost` adds). Recipe 14 lists every need and its service; GA13
+  checks it.
 - **Rules** are plain C# classes resolved from the container. They own the state and publish events when
   something happens.
 - **Systems** (`IUpdateSystem`, added with `AddSystem<T>()`) are rules that run every frame (waves, regeneration,
@@ -31,8 +35,9 @@ The reference game `Assets/ReferenceGame` (Goblin Valley) follows all of this. R
 ## Rules
 
 Each rule is a test in `<Game>ArchitectureTests`. A failure prints the rule id, the place and the fix.
-A single source line may opt out of a source rule (GA05, GA08, GA11) with a reason:
-`// architecture: allow GA05 (third-party plugin needs it)`. Use it rarely.
+A single source line may opt out of a source rule (GA05, GA08, GA11, GA13) with a reason:
+`// architecture: allow GA05 (third-party plugin needs it)`. GA13 also accepts `// framework-ok: <reason>` at the end
+of the line. Use it rarely.
 
 ### GA01 Game code lives in assembly definitions
 Scripts without an `.asmdef` compile into `Assembly-CSharp`, where no boundary can be checked.
@@ -87,3 +92,21 @@ game needed, what the framework lacks, the API the framework should offer, and w
 without a section fails this rule. The file is the framework's backlog with proof; when the framework gains the
 feature, the stand-in is deleted and the section moved to "Resolved".
 
+### GA13 The game uses the framework's core services
+Game code (rules and runtime assemblies; editor builders and tests are exempt, so is code inside `#if UNITY_EDITOR`)
+does not do by hand what a framework service already does. Recipe 14 (`recipes/14-core-services.md`) maps every
+need to its service. The rule catches the usual re-inventions:
+
+| Found in game code | Use instead |
+|---|---|
+| `Resources.Load*` | `IAssetManager.LoadAsync<T>(key)`, dispose the handle |
+| `SceneManager.LoadScene` / `LoadSceneAsync` / `UnloadSceneAsync` | `ISceneDispatcher` |
+| `Debug.Log*` | the game's `ILogger` |
+| `Invoke("...")` / `InvokeRepeating`, `new WaitForSeconds` | `ITimerService` (`Schedule`, `Repeat`, `DelayAsync`) |
+| `Instantiate(...)` | `IPrefabSpawner.SpawnAsync` (+ `ConfigurePool`), or `IAssetManager.InstantiateAsync` |
+| `Destroy(...)` of an object (removing a `GetComponent<...>()` component is fine) | `IPrefabSpawner.Despawn` |
+| `Stack<GameObject>`, `Queue<GameObject>`, a collection named `*pool*` | `ConfigurePool` / `ObjectPool<T>` + `IPoolManager` |
+
+Text in strings and comments does not count. When a line really needs the Unity call (a context object for the
+console, an object the spawner never made, a material the view created), end it with `// framework-ok: <reason>`;
+the reason is required.

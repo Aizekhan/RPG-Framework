@@ -4,6 +4,7 @@
     "references": [
         "RPGFramework.ActionRpg.Runtime",
         "RPGFramework.ActionRpg.Unity",
+        "RPGFramework.Bootstrap.UnityServices",
         "RPGFramework.Presentation.Unity",
         "RPGFramework.Cameras.Unity",
         "RPGFramework.Bootstrap.Runtime",

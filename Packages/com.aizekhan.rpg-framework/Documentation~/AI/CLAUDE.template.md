@@ -5,11 +5,31 @@ This game is built on the RPG Framework package (`com.aizekhan.rpg-framework`). 
 Automated tests enforce the architecture, so a change that breaks it fails.
 
 ## Read before changing code
-- `Docs/RPGFramework/architecture.md`: the layers and the rules GA01–GA12 (test failures name the rule).
+- `Docs/RPGFramework/architecture.md`: the layers and the rules GA01–GA13 (test failures name the rule).
 - `Docs/RPGFramework/recipes/`: step-by-step recipes. Find the one that matches the task and follow it.
 - The framework's own README (`Packages/com.aizekhan.rpg-framework/README.md`, or the package in `Library/PackageCache`)
   lists the modules. **Use a framework module before writing your own**: combat, stats, progression, quests,
   inventory, items, loot, dialogue, crafting, factions, persistence, UI navigation, spawning, pooling and timers exist.
+
+## Genre kits
+- Real-time action RPG: `ActionRpg` (the New Game template; recipes 01-13).
+- Turn-based party RPG: `TurnBased` (turn order, actions, abilities, status effects, enemy AI, rewards, levels, saves;
+  recipe 15). It has no battle screen: build the views on `ITurnBasedWorld` / `Battle`, never your own battle rules.
+
+## Core services — always use these
+Read `Docs/RPGFramework/recipes/14-core-services.md` before writing gameplay plumbing. The framework's services are in
+the container (`Host.Container.Resolve<T>()` in the host, constructor parameters in rules); never write your own:
+- spawn/despawn objects: `IPrefabSpawner` (`ConfigurePool`, `SpawnAsync`, `Despawn`), not `Instantiate`/`Destroy`;
+  pool plain objects: `ObjectPool<T>` + `IPoolManager`, not a `Stack<T>`
+- load assets: `IAssetManager.LoadAsync<T>` (dispose the handle), not `Resources.Load`; scenes: `ISceneDispatcher`,
+  not `SceneManager.LoadScene`
+- delays and repeats: `ITimerService` (`Schedule`, `Repeat`, `DelayAsync`), not `Invoke`/coroutines; per-frame
+  logic: systems (`SystemBase`, `AddSystem<T>()`); logs: `ILogger`, not `Debug.Log`; messages: the event bus
+- entities: `IEntityManager`, `ArchetypeCatalog`, `GetEntitiesWith<T1, T2>(list)`; AI: `StateMachine<T>`,
+  `AsyncStateMachine<T>`, `BehaviorTree`, `AStarPathfinder`; UI: `INavigationService`; saves: recipe 12
+GA13 fails on `Resources.Load`, `SceneManager.LoadScene`, `Debug.Log`, `Invoke`, `WaitForSeconds`, `Instantiate`,
+`Destroy` and hand-made pools in game code. A line that truly needs the Unity call ends with
+`// framework-ok: <reason>`.
 
 ## The shape of the game
 ```

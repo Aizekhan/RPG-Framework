@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using RPGFramework.ActionRpg.Coop;
+using RPGFramework.Bootstrap.UnityServices;
 using RPGFramework.Bootstrap.Unity;
 using RPGFramework.Cameras;
 using RPGFramework.Core.Composition;
@@ -80,7 +81,7 @@ namespace RPGFramework.ActionRpg
         private ActionRpgModule _module;
         private ActionRpgSettings _settings;
         private ActionRpgContent _content;
-        private PrefabSpawner _spawner;
+        private IPrefabSpawner _spawner;
         private ActorPresenter _presenter;
         private ActionRpgSaves _saves;
         private SubscriptionBag _saveTriggers = new SubscriptionBag();
@@ -309,7 +310,7 @@ namespace RPGFramework.ActionRpg
         {
             if (_setup == null)
             {
-                Debug.LogError("ActionRpgHost: drag a Game Setup asset into the 'Setup' field", this);
+                Debug.LogError("ActionRpgHost: drag a Game Setup asset into the 'Setup' field", this); // framework-ok: the host as console context, a click selects it
                 throw new InvalidOperationException("ActionRpgHost has no Game Setup");
             }
 
@@ -317,12 +318,16 @@ namespace RPGFramework.ActionRpg
             if (problems.Count > 0)
             {
                 foreach (var problem in problems)
-                    Debug.LogError($"Game Setup '{_setup.name}': {problem}", _setup);
+                    Debug.LogError($"Game Setup '{_setup.name}': {problem}", _setup); // framework-ok: the asset as console context, so a click selects it
                 throw new InvalidOperationException($"Game Setup '{_setup.name}' has {problems.Count} problem(s)");
             }
 
             _settings = _setup.BuildSettings();
             _content = _setup.BuildContent();
+            // Pools, assets, the prefab spawner and scenes, for the views (also when joined)
+            var services = new UnityServicesOptions();
+            ConfigureUnityServices(services);
+            builder.UseModule(new UnityServicesModule(services));
             if (DiagnosticsEnabled)
                 builder.UseModule(new DiagnosticsModule());
             if (_joinCode != null)
@@ -341,6 +346,15 @@ namespace RPGFramework.ActionRpg
         /// They run where the rules run: alone or hosting, not on a machine that joined a friend's game.
         /// </summary>
         protected virtual void ConfigureGameModules(IGameCompositionBuilder builder)
+        {
+        }
+
+        /// <summary>
+        /// Adds asset sources to the shared <c>IAssetManager</c> (Resources is there already), e.g.
+        /// <c>options.AddAssetProvider(() => new AddressablesAssetProvider())</c>. The services are in the container:
+        /// <c>Host.Container.Resolve&lt;IPrefabSpawner&gt;()</c> (recipe 14).
+        /// </summary>
+        protected virtual void ConfigureUnityServices(UnityServicesOptions options)
         {
         }
 
@@ -543,7 +557,7 @@ namespace RPGFramework.ActionRpg
                 _charactersRoot.SetParent(transform, false);
             }
 
-            _spawner = new PrefabSpawner(logger: Host.Logger);
+            _spawner = Host.Container.Resolve<IPrefabSpawner>();
             _presenter = new ActorPresenter(CurrentWorld, _setup, Host.Container.Resolve<IEventBus>(), _spawner,
                 new EntityViewRegistry(), _charactersRoot, Host.Logger, enemiesDrivenElsewhere: _coopClient != null);
             _presenter.PartyColors = _partyColors;
@@ -585,7 +599,7 @@ namespace RPGFramework.ActionRpg
             StopNetwork();
             _presenter?.Dispose();
             _presenter = null;
-            _spawner?.Dispose();
+            // The spawner belongs to the host's UnityServicesModule, which releases it when the host stops
             _spawner = null;
         }
 
@@ -695,7 +709,7 @@ namespace RPGFramework.ActionRpg
         {
             if (Directory.Exists(SaveDirectory))
                 Directory.Delete(SaveDirectory, true);
-            Debug.Log($"Saved progress deleted: {SaveDirectory}", this);
+            Debug.Log($"Saved progress deleted: {SaveDirectory}", this); // framework-ok: context menu, works without a running game
         }
 
         private void PlacePlayers()

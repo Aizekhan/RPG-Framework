@@ -251,6 +251,59 @@ namespace RPGFramework.GameKit.Tests
             Assert.That(left[0].Where, Does.Contain("Weather.cs:1"));
             Assert.That(left[0].Fix, Does.Contain("## weather-events"));
         }
+
+        [Test]
+        public void GA13_HandMadeCoreServices_AreCaught_TheOptOutAndCleanCodePass()
+        {
+            var file = Source("Bad.cs", string.Join("\n",
+                "class Bad : MonoBehaviour {",
+                "  void A() => Resources.Load<GameObject>(\"Goblin\");",
+                "  void B() => SceneManager.LoadScene(\"Town\");",
+                "  void C() => Debug.Log(\"hit\");",
+                "  void D() => Invoke(nameof(A), 2f);",
+                "  IEnumerator E() { yield return new WaitForSeconds(1f); }",
+                "  void F() => Instantiate(_prefab);",
+                "  void G() => Object.Destroy(gameObject);",
+                "  readonly Queue<GameObject> _bullets = new Queue<GameObject>();",
+                "  readonly List<Enemy> _enemyPool = new List<Enemy>();",
+                "  void H() => Debug.Log(\"x\"); // framework-ok: runs before the logger exists",
+                "  void I() => Debug.Log(\"x\"); // framework-ok:",
+                "  void J() => Destroy(GetComponent<Collider>());",
+                "  void K() => _logger.LogInfo(\"Resources.Load and Debug.Log( in a message\");",
+                "  void L() => Hit?.Invoke(3);",
+                "  void M() => _spawner.Despawn(gameObject);",
+                "  // Debug.Log in a comment is fine",
+                "  void Destroy(int id) { }",
+                "  void N() => Instantiate(_prefab); // architecture: allow GA13 (the general opt-out works too)",
+                "#if UNITY_EDITOR",
+                "  void O() => Debug.Log(\"editor only\");",
+                "#endif",
+                "}"));
+            var editorTool = Source("Builder.cs", "class Builder { void Build() { Debug.Log(\"built\"); Object.Instantiate(_prefab); } }");
+            var game = Game(
+                Assembly("Game", GameAssemblyKind.Runtime, sources: new[] { file }),
+                Assembly("Game.Editor", GameAssemblyKind.Editor, sources: new[] { editorTool }));
+
+            var violations = GameArchitectureRules.GameUsesCoreServices(game).ToList();
+
+            Assert.That(violations.Select(v => v.Where.Split(':').Last()),
+                Is.EqualTo(new[] { "2", "3", "4", "5", "6", "7", "8", "9", "10", "12" }));
+            Assert.That(violations.All(v => v.Rule == "GA13" && v.Fix.Contains(GameArchitectureRules.CoreServicesRecipe)), Is.True);
+            Assert.That(violations[0].Fix, Does.Contain("IAssetManager"));
+            Assert.That(violations[2].Fix, Does.Contain("ILogger"));
+            Assert.That(violations[6].Fix, Does.Contain("IPrefabSpawner"));
+        }
+
+        [Test]
+        public void GA13_TheFrameworksOwnActionRpgViews_UseTheCoreServices()
+        {
+            // The action RPG views are what games copy: they hold to the rule they teach
+            var sources = Directory.GetFiles(Path.Combine(PackagePaths.Root, "ActionRpg", "Unity"), "*.cs");
+            var game = Game(Assembly("RPGFramework.ActionRpg.Unity", GameAssemblyKind.Runtime, sources: sources));
+
+            Assert.That(sources, Is.Not.Empty);
+            Assert.That(GameArchitectureRules.GameUsesCoreServices(game), Is.Empty);
+        }
     }
 
     // Top-level so GA09 sees it as a scene component

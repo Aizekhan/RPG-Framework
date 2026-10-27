@@ -1,0 +1,29 @@
+{
+    "name": "RPGFramework.Bootstrap.UnityServices",
+    "rootNamespace": "RPGFramework.Bootstrap.UnityServices",
+    "references": [
+        "RPGFramework.Bootstrap.Runtime",
+        "RPGFramework.Core.Runtime",
+        "RPGFramework.DI.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "RPGFramework.Systems.Runtime",
+        "RPGFramework.Pooling.Runtime",
+        "RPGFramework.Pooling.Unity",
+        "RPGFramework.AssetManagement.Runtime",
+        "RPGFramework.AssetManagement.Unity",
+        "RPGFramework.Spawning.Unity",
+        "RPGFramework.Scenes.Runtime",
+        "RPGFramework.Scenes.Unity",
+        "UniTask"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

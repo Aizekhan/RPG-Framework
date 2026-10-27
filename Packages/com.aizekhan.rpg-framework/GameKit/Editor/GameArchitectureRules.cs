@@ -38,7 +38,7 @@ namespace RPGFramework.GameKit.Editor
     /// <summary>
     /// The architecture rules of a game built on the framework. Each rule returns its violations; an empty result
     /// means the rule holds. A source line can opt out of a source rule with a comment naming it:
-    /// <c>// architecture: allow GA05 (reason)</c>.
+    /// <c>// architecture: allow GA05 (reason)</c>; GA13 also accepts <c>// framework-ok: reason</c>.
     /// </summary>
     public static class GameArchitectureRules
     {
@@ -48,6 +48,11 @@ namespace RPGFramework.GameKit.Editor
         /// Where a game records what it needed from the framework and did not find (project root).
         /// </summary>
         public const string GapsFile = "FRAMEWORK-GAPS.md";
+
+        /// <summary>
+        /// The recipe that maps each everyday need to the framework service for it (GA13 points here).
+        /// </summary>
+        public const string CoreServicesRecipe = "Docs/RPGFramework/recipes/14-core-services.md";
 
         public static readonly IReadOnlyList<(string Id, string Title, Func<GameCodebase, IEnumerable<ArchitectureViolation>> Check)> All =
             new (string, string, Func<GameCodebase, IEnumerable<ArchitectureViolation>>)[]
@@ -63,7 +68,8 @@ namespace RPGFramework.GameKit.Editor
                 ("GA09", "Unity objects live in files of their own name", UnityObjectsHaveMatchingFiles),
                 ("GA10", "Every rules and runtime assembly has tests", AssembliesAreTested),
                 ("GA11", "The game does not redo the framework", GameDoesNotRedoTheFramework),
-                ("GA12", "Framework gaps are recorded", FrameworkGapsAreRecorded)
+                ("GA12", "Framework gaps are recorded", FrameworkGapsAreRecorded),
+                ("GA13", "The game uses the framework's core services", GameUsesCoreServices)
             };
 
         /// <summary>
@@ -364,11 +370,115 @@ namespace RPGFramework.GameKit.Editor
             }
         }
 
+        // A Unity object call: "Object.Instantiate", "GameObject.Destroy" or the bare inherited one, not "service.Instantiate"
+        private const string UnityObjectCall = @"(?:\b(?:UnityEngine\.)?(?:Object|GameObject)\.|(?<![\w.]))";
+
+        private static readonly (Regex Pattern, string Found, string Use)[] CoreServiceBypasses =
+        {
+            (new Regex(@"\bResources\.Load(All|Async)?\b"), "Resources.Load",
+                "IAssetManager.LoadAsync<T>(key) and Dispose the handle when done (Resources, Addressables and test providers behind one API)"),
+            (new Regex(@"\bSceneManager\.(LoadScene|LoadSceneAsync|UnloadSceneAsync)\b"), "SceneManager scene loading",
+                "ISceneDispatcher.LoadAsync / LoadAdditiveAsync / UnloadAsync (queued, transition hooks, scene events on the bus)"),
+            (new Regex(@"\bDebug\.Log\w*\s*\("), "Debug.Log",
+                "the game's ILogger (Host.Logger, or an ILogger taken in the constructor): logger.LogInfo(message, category)"),
+            (new Regex(@"(?:(?<![\w.])|\bthis\.)(Invoke|InvokeRepeating)\s*\(\s*(nameof\s*\(|"")"), "MonoBehaviour.Invoke / InvokeRepeating",
+                "ITimerService.Schedule(seconds, action) / Repeat(interval, action); keep the TimerHandle and Cancel it"),
+            (new Regex(@"\bnew\s+WaitForSeconds(Realtime)?\s*\("), "a coroutine waiting with WaitForSeconds",
+                "ITimerService.Schedule / Repeat, or await timers.DelayAsync(seconds, token) (game time, pausable, cancellable)"),
+            (new Regex(UnityObjectCall + @"Instantiate\s*(<[^>()]*>)?\s*\("), "Instantiate",
+                "IPrefabSpawner.SpawnAsync(key, position, rotation) with ConfigurePool(key) for things that come and go; " +
+                "IAssetManager.InstantiateAsync for one-off objects"),
+            (new Regex(@"\b(Stack|Queue)\s*<\s*(GameObject|Transform)\s*>|\b(Stack|Queue|List|HashSet)\s*<[^>]+>\s+_?\w*[Pp]ool\w*\b"),
+                "a hand-made pool", "IPrefabSpawner.ConfigurePool for prefabs, ObjectPool<T> (registered in IPoolManager) for plain objects"),
+        };
+
+        private static readonly Regex DestroyCall = new Regex(UnityObjectCall + @"Destroy\s*\(");
+        private static readonly Regex DestroyDeclaration = new Regex(@"\bvoid\s+Destroy\s*\(");
+        private static readonly Regex FrameworkOk = new Regex(@"framework-ok:\s*\S");
+
+        /// <summary>
+        /// Player code that does by hand what a framework service does: loading, scenes, logging, delayed calls,
+        /// creating and destroying objects, pools. A line with a real reason to keep the Unity call says so with
+        /// <c>// framework-ok: reason</c>.
+        /// </summary>
+        public static IEnumerable<ArchitectureViolation> GameUsesCoreServices(GameCodebase codebase)
+        {
+            foreach (var assembly in codebase.Assemblies.Where(a => a.IsPlayerCode))
+            {
+                foreach (var file in assembly.SourceFiles)
+                {
+                    foreach (var (code, number) in CodeLines(file, "GA13", skipEditorBlocks: true, allowLine: FrameworkOk))
+                    {
+                        string line = StripStrings(code);
+                        foreach (var (pattern, found, use) in CoreServiceBypasses)
+                        {
+                            if (pattern.IsMatch(line))
+                                yield return CoreServiceViolation(file, number, found, use);
+                        }
+
+                        var destroy = DestroyCall.Match(line);
+                        // Removing a component (a primitive's collider) is not despawning an object
+                        if (destroy.Success && !DestroyDeclaration.IsMatch(line) && !line.Substring(destroy.Index).Contains("GetComponent"))
+                        {
+                            yield return CoreServiceViolation(file, number, "Destroy",
+                                "IPrefabSpawner.Despawn(instance) for what the spawner made (pooled ones go back to their pool)");
+                        }
+                    }
+                }
+            }
+        }
+
+        private static ArchitectureViolation CoreServiceViolation(string file, int number, string found, string use) =>
+            new ArchitectureViolation("GA13", $"{file}:{number}", $"uses {found}, which a framework service does",
+                $"Use {use}. The services come from the host's container ({CoreServicesRecipe}). If this line really needs " +
+                "the Unity call, end it with // framework-ok: <reason>.");
+
+        /// <summary>
+        /// The line with the text of string and char literals removed (the quotes stay), so words in messages do not match.
+        /// </summary>
+        private static string StripStrings(string line)
+        {
+            var result = new System.Text.StringBuilder(line.Length);
+            char quote = '\0';
+            bool verbatim = false;
+            for (int i = 0; i < line.Length; i++)
+            {
+                char c = line[i];
+                if (quote == '\0')
+                {
+                    if (c == '"' || c == '\'')
+                    {
+                        quote = c;
+                        verbatim = c == '"' && i > 0 && (line[i - 1] == '@' || (line[i - 1] == '$' && i > 1 && line[i - 2] == '@'));
+                    }
+                    result.Append(c);
+                    continue;
+                }
+                if (!verbatim && c == '\\')
+                {
+                    i++;
+                    continue;
+                }
+                if (c != quote)
+                    continue;
+                if (verbatim && i + 1 < line.Length && line[i + 1] == '"')
+                {
+                    i++;
+                    continue;
+                }
+                quote = '\0';
+                result.Append(c);
+            }
+            return result.ToString();
+        }
+
+
         /// <summary>
         /// Code lines of a C# file with their line numbers: comments removed, lines that allow this rule skipped,
-        /// and optionally lines inside <c>#if UNITY_EDITOR</c> blocks skipped.
+        /// and optionally lines inside <c>#if UNITY_EDITOR</c> blocks and lines matching <paramref name="allowLine"/> skipped.
         /// </summary>
-        internal static IEnumerable<(string Line, int Number)> CodeLines(string file, string rule, bool skipEditorBlocks = false)
+        internal static IEnumerable<(string Line, int Number)> CodeLines(string file, string rule, bool skipEditorBlocks = false,
+            Regex allowLine = null)
         {
             if (!File.Exists(file))
                 yield break;
@@ -403,7 +513,7 @@ namespace RPGFramework.GameKit.Editor
                 }
                 if (skipEditorBlocks && editorBlocks.Contains(true))
                     continue;
-                if (raw.Contains("architecture: allow " + rule))
+                if (raw.Contains("architecture: allow " + rule) || (allowLine != null && allowLine.IsMatch(raw)))
                     continue;
 
                 line = StripComments(line, ref inBlockComment);
