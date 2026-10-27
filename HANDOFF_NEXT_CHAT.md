@@ -8,14 +8,15 @@
 
 ## Where things stand
 
-- Last code-verified SHA: **`da76940`**: compile 0 errors, **1436/1436 EditMode**, **9/9 PlayMode** (Multiplayer Services SDK 2.4.1 installed in the main project), meta check clean, CI green (run `40424501042`).
+- Last code-verified SHA: **`ba094c9`**: compile 0 errors, **1468/1468 EditMode**, **10/10 PlayMode** (Multiplayer Services SDK 2.4.1 installed in the main project), meta check clean, CI green (run `40427687107`).
 - **Released `v0.2.0`** (tag on `01f5af8`). **Do not release v0.3.0 yet**: the user wants the whole plan finished first (reliability, weak spots, PvP).
 - **Unity Relay** (steps 1-3 done): `9d08fd4` opened `UnityNetworkTransport` for relays; `451afe3` added the optional module `Networking/UnityRelay` (asmdef define `RPG_MULTIPLAYER_SERVICES`, self-registers in `NetworkSessionProviders`, F2 panel toolbar, `-provider unity-relay`). Proven with a fake cloud only, and by a clean install with and without the SDK (`D:/RPG-Release020`). **Open gate:** live test across two networks with the owner's UGS project; check Unity's current Relay terms before calling it free.
 - **Claude Code starter** (`ed1aaf7`): `START-NEW-GAME.md` at the repo root (README links it). The developer drops it into an empty folder and Claude Code follows steps 0-10. Run end to end in `D:/RPG-Starter-Test`. New rules GA11/GA12 plus `GAME.md` / `FRAMEWORK-GAPS.md` / `DEVLOG.md` stop an assistant from rebuilding framework modules or hiding gaps. Selling only the file is not possible while the repo is public MIT (licence is the owner's decision, near 1.0).
 - **Co-op stage 3 done** (`555f079`, 1322/1322 EditMode, 9/9 PlayMode): timeouts (10 s), unstable indicator (2 s), seat kept 2 min, automatic reconnect (3 tries), bad-message limit, host autosave. Details in `networking.md` "How the action RPG co-op works" 6-8.
 - **Saves done** (`5dcc822`): section versions + `Upgrade`, previous-save fallback, unreadable saves set aside, newer-build saves protected, JSON serializer rewritten (old saves still load), recipe 12.
-- **Weak spots done** (`9182fda` `StatContainer`, `c685e43` DeltaCompression + Tools fixes, `da76940` 45 dead events published, 2 removed, `#if FALSE` windows removed). Found and open: **Skills has no storage** (High), 5 dead custom inspectors, benchmarks at 1000+ entities.
-- **Next, in order:** Skills storage → PvP as modes → editors, second genre → 1.0. See STATUS.md "Next steps".
+- **Weak spots done** (`9182fda` `StatContainer`, `c685e43` DeltaCompression + Tools fixes, `da76940` 45 dead events published, `df0e768` Skills storage, loot weights, 1000-entity benchmarks). Open: 5 dead custom inspectors (with the editors).
+- **PvP done** (`ba094c9`): `ActionRpg/Runtime/Pvp` (`IHostilityRules`, `TeamHostility`, `FactionHostility`, `PvpSettings`, `PvpMatch`, `PvpStatus`, events), co-op protocol v4 (teams + match in the world message, `CoopCorrectionMessage`, host speed check, `CoopHost.Teleport`), Unity `PvpSetup` in Game Setup, HUD score/banner, side colours. Recipe 13. Movement check is horizontal only.
+- **Next, in order:** editors (the 5 dead inspectors, dialogue / faction / skill editors) → a second genre sample → 1.0. See STATUS.md "Next steps".
 - User's co-op plan (2026-10-26): stage 1 names and colours (done, `8948d16`); stage 2 play between homes: providers architecture done (`11c9de6`, `INetworkSessionProvider`), service choice researched in `networking.md`, waiting for the user (Unity Relay recommended, needs their UGS project); stage 3 reliability: not started. Principle from the user: network core never depends on a provider; each service is a separate module.
 - **Co-op works** (user approved 2-4 players): any `ActionRpgHost` game, F2 > Host a game / Join an IP, or `-host` / `-join <ip>`. Host-authoritative: the host's `ActorWorld` runs the rules with everyone in one party; joined machines restart into a core-only `GameHost` and mirror the world (`RemoteWorld`). Code: `ActionRpg/Runtime/Coop`, `ActionRpg/Unity/{ActionRpgHost,CoopPanel,RemoteMotion,ActorPresenter}.cs`, `Networking/UnityTransport`. Docs: `Documentation~/networking.md`, recipe 11.
 - Goblin Valley (`Assets/ReferenceGame`) is now an `ActionRpg` game: assets in `Content/`, one coded rule (`KillStreak`), rebuilt by `GoblinValleyBuilder` in batch mode.
@@ -63,7 +64,7 @@ Create the worktree with `git worktree add --detach D:/RPG-Framework-verify <sha
 - Don't write regex escapes (`\b`) through bash heredocs into C#; use the Edit tool.
 
 - Batch-mode Unity exits with code 2 when any test fails. Read the NUnit XML, not the exit code.
-- A test assembly whose plugin fails to load reports **0 tests, not an error**. Compare totals between runs (expected: 1436 EditMode, 9 PlayMode, with the Multiplayer Services SDK installed).
+- A test assembly whose plugin fails to load reports **0 tests, not an error**. Compare totals between runs (expected: 1468 EditMode, 10 PlayMode, with the Multiplayer Services SDK installed).
 - The verify worktree gets NuGetForUnity files generated on import; remove them there before `checkout`, or checkout aborts and the old commit is tested. Check the SHA the run actually used.
 - A MonoBehaviour must live in a file of its own name (enforced by `FrameworkArchitectureTests`). Test MonoBehaviours go in a `*.TestSupport` runtime assembly.
 - Test assemblies that construct `EventBus` need `RPGFramework.Logging.Runtime` (CS0012 otherwise). Runtime assemblies that call `IEventPublisher` reference both `RPGFramework.Events.Runtime` and `UniTask`.
@@ -86,6 +87,7 @@ Create the worktree with `git worktree add --detach D:/RPG-Framework-verify <sha
 - Large bash heredocs with apostrophes fail to parse in this environment; write files with the Write tool.
 - Logging extension methods (`LogError`, ...) need `using RPGFramework.Logging;`.
 - Unity Transport on Windows logs an error ("All socket receive requests were marked as failed") when it sends to a localhost port nobody listens on; tests of an unreachable address use 192.0.2.1 (TEST-NET-1) instead.
+- A co-op test that moves a friend's view must walk it (a little each frame): a jump is corrected by the host's speed check.
 - Co-op screenshots: a temporary `Assets/_Shot` PlayMode test in the verify worktree hosts the Goblin Valley scene and adds a second `ActionRpgHost` that joins over 127.0.0.1 (its asmdef needs `RPGFramework.Bootstrap.Unity`). Delete it afterwards.
 
 ## Decisions waiting for the user
