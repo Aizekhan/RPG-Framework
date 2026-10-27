@@ -49,6 +49,7 @@ namespace RPGFramework.ActionRpg.Coop
         public const int CorrectionId = 1105;
         public const int IncomingAttackId = 1106;
         public const int DefenseResultId = 1107;
+        public const int SceneId = 1108;
 
         /// <summary>
         /// The first id a game may give its own messages (<see cref="CoopGameMessages"/>).
@@ -58,7 +59,7 @@ namespace RPGFramework.ActionRpg.Coop
         /// <summary>
         /// Changes whenever the messages change, so older and newer builds refuse each other instead of misreading.
         /// </summary>
-        public const int Version = 8;
+        public const int Version = 9;
 
         public const int DefaultPort = 7777;
         public const int DefaultMaxPlayers = 4;
@@ -105,6 +106,7 @@ namespace RPGFramework.ActionRpg.Coop
             serializer.RegisterMessageType<CoopCorrectionMessage>(CorrectionId);
             serializer.RegisterMessageType<CoopIncomingAttackMessage>(IncomingAttackId);
             serializer.RegisterMessageType<CoopDefenseResultMessage>(DefenseResultId);
+            serializer.RegisterMessageType<CoopSceneMessage>(SceneId);
             return serializer;
         }
 
@@ -116,6 +118,7 @@ namespace RPGFramework.ActionRpg.Coop
             .Set(CorrectionId, MessageAuthority.Server)
             .Set(IncomingAttackId, MessageAuthority.Server)
             .Set(DefenseResultId, MessageAuthority.Client)
+            .Set(SceneId, MessageAuthority.Server)
             .Set(MotionId, MessageAuthority.Any);
 
         /// <param name="connectionTimeout">Seconds of silence before the link counts as lost (tests use less).</param>

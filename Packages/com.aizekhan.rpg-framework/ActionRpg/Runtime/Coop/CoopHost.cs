@@ -279,6 +279,23 @@ namespace RPGFramework.ActionRpg.Coop
         }
 
         /// <summary>
+        /// The scene the game is in, as joined machines are told (empty: they stay in their own).
+        /// </summary>
+        public string Scene { get; private set; } = "";
+
+        /// <summary>
+        /// The game moved to another scene (a hub, a run): every joined machine loads it, and so does each player
+        /// who joins later. Only the scene changes: the party, the world and the link stay as they are.
+        /// </summary>
+        public void ChangeScene(string sceneName)
+        {
+            if (string.IsNullOrEmpty(sceneName))
+                throw new ArgumentException("A scene name is required", nameof(sceneName));
+            Scene = sceneName;
+            SendToAll(new CoopSceneMessage { Scene = sceneName });
+        }
+
+        /// <summary>
         /// Sends a game message to the machine of one joined player.
         /// </summary>
         /// <returns>False when nobody who joined plays that player.</returns>
@@ -566,6 +583,9 @@ namespace RPGFramework.ActionRpg.Coop
             {
                 Accepted = true, PlayerId = guest.PlayerId, RejoinToken = guest.Token, Rejoined = kept != null
             });
+            // A joiner plays where the game is
+            if (Scene.Length > 0)
+                _network.Send(connectionId, new CoopSceneMessage { Scene = Scene });
             if (kept != null)
                 PutBack(guest.PlayerId, kept.Seat, RespawnReason.Rejoin, kept.Pose);
             PlayerJoined?.Invoke(guest.PlayerId);

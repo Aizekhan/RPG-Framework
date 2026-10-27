@@ -16,6 +16,7 @@ using RPGFramework.Networking.UnityTransport;
 using RPGFramework.Presentation;
 using RPGFramework.Progression;
 using RPGFramework.Quests;
+using RPGFramework.Scenes;
 using RPGFramework.Spawning;
 using UnityEngine;
 
@@ -103,6 +104,11 @@ namespace RPGFramework.ActionRpg
         private string _joinCode;
         private bool _restartPending;
         private float _sinceSave;
+
+        // The host being carried into a scene it is loading: a host in that scene steps aside for it
+        private static ActionRpgHost _carried;
+        private bool _changingScene;
+        private Transform _followed;
 
         /// <summary>
         /// Seconds without a word from the other side before a co-op link counts as lost (a crash, a pulled cable).
@@ -394,11 +400,104 @@ namespace RPGFramework.ActionRpg
         {
         }
 
+        /// <summary>
+        /// The game is now in another scene (<see cref="ChangeScene"/>, or the host's game moved while joined).
+        /// Alone or hosting, place the players for it here: <see cref="TeleportPlayer"/> to the new scene's spawn
+        /// points (they keep their old positions otherwise). Enemies stay unless the game removes them.
+        /// </summary>
+        protected virtual void OnSceneChanged(string sceneName)
+        {
+        }
+
         private CoopGameMessages GameMessages()
         {
             var messages = new CoopGameMessages();
             ConfigureCoopMessages(messages);
             return messages;
+        }
+
+        protected override void Awake()
+        {
+            // Part of a scene the running game is moving into: the game that is already running goes on
+            if (_carried != null && _carried != this)
+            {
+                enabled = false;
+                Destroy(gameObject); // framework-ok: a duplicate host in a scene being loaded, never spawned
+                return;
+            }
+            base.Awake();
+        }
+
+        /// <summary>
+        /// Moves the game to another scene (a hub, a run, the next floor) without ending it: the party, progress,
+        /// characters and the co-op link stay; friends who joined load the scene too, and so does anyone who joins
+        /// later. The scene holds the level only; an <see cref="ActionRpgHost"/> in it steps aside for this one, so
+        /// each scene can still be played on its own in the Editor. Loads through <c>ISceneDispatcher</c> (the scene
+        /// must be in the build settings). Then <see cref="OnSceneChanged"/> runs.
+        /// </summary>
+        /// <returns>False when it cannot change now (joined to a friend's game, switching, another change running),
+        /// or the scene failed to load (logged).</returns>
+        public async UniTask<bool> ChangeScene(string sceneName)
+        {
+            if (string.IsNullOrEmpty(sceneName) || Role == CoopRole.Joined || World == null || IsSwitching || _changingScene)
+                return false;
+            _coopHost?.ChangeScene(sceneName);
+            return await LoadScene(sceneName);
+        }
+
+        private async UniTask<bool> LoadScene(string sceneName)
+        {
+            if (Host?.Container == null)
+                return false;
+            _changingScene = true;
+            _carried = this;
+            DontDestroyOnLoad(gameObject);
+            try
+            {
+                await Host.Container.Resolve<ISceneDispatcher>().LoadAsync(sceneName);
+            }
+            catch (Exception exception)
+            {
+                Host.Logger.LogError($"Scene '{sceneName}' could not be loaded: {exception.Message}", Category);
+                return false;
+            }
+            finally
+            {
+                _carried = null;
+                _changingScene = false;
+            }
+            if (this == null)
+                return false;
+            // The old scene's camera is gone: follow the player with the new one
+            if (_followed != null)
+                FollowWithCamera(_followed);
+            OnSceneChanged(sceneName);
+            return true;
+        }
+
+        // Joined: play in the scene the host's game is in
+        private void FollowHostScene(string sceneName)
+        {
+            if (Host?.Container == null || _changingScene)
+                return;
+            if (Host.Container.Resolve<ISceneDispatcher>().ActiveScene == sceneName)
+                return;
+            LoadScene(sceneName).Forget();
+        }
+
+        /// <summary>
+        /// Puts a player somewhere at once, on every machine (a friend's own machine moves them). Alone or hosting.
+        /// </summary>
+        /// <returns>False when this machine does not run the game or there is no such player.</returns>
+        public bool TeleportPlayer(int playerId, ActorPose pose)
+        {
+            if (World?.Get(playerId) == null || _presenter == null || !pose.IsFinite)
+                return false;
+            if (_coopHost != null)
+                _coopHost.Teleport(playerId, pose);
+            else
+                _presenter.Teleport(playerId, pose);
+            return true;
         }
 
         protected virtual void Start()
@@ -454,6 +553,8 @@ namespace RPGFramework.ActionRpg
                 MaxPlayers = MaxPlayers
             };
             World.SetPlayerName(World.PlayerId, PlayerName);
+            // Friends who join load the scene the game is in
+            _coopHost.ChangeScene(Host.Container.Resolve<ISceneDispatcher>().ActiveScene);
             _coopHost.Open();
             OnCoopHostOpened(_coopHost);
             JoinCode = session.JoinCode;
@@ -587,6 +688,7 @@ namespace RPGFramework.ActionRpg
             OnCoopClientCreated(_coopClient);
             _coopClient.Joined += OnJoined;
             _coopClient.Ended += OnClientEnded;
+            _coopClient.SceneChanged += FollowHostScene;
             ShowWorld();
             _coopClient.Motion = _presenter;
             _coopClient.JoinSession(_joinCode);
@@ -658,6 +760,7 @@ namespace RPGFramework.ActionRpg
                 // Closing the connection here is a restart (or a leave already handled), not the player walking out
                 _coopClient.Joined -= OnJoined;
                 _coopClient.Ended -= OnClientEnded;
+                _coopClient.SceneChanged -= FollowHostScene;
                 _coopClient.Dispose();
                 _coopClient = null;
             }
@@ -781,12 +884,7 @@ namespace RPGFramework.ActionRpg
             }
             int sides = pvp.Mode == PvpMode.FreeForAll ? world.Players.Count : pvp.Teams.Count;
             var spot = _setup.Pvp.SpawnPoint(pvp.SideIndexOf(player.Team), member, sides);
-            var pose = new ActorPose(spot.position.x, spot.position.y, spot.position.z, spot.rotation.eulerAngles.y);
-            // A friend's own machine moves them: the co-op host tells it too
-            if (_coopHost != null)
-                _coopHost.Teleport(playerId, pose);
-            else
-                _presenter.Teleport(playerId, pose);
+            TeleportPlayer(playerId, new ActorPose(spot.position.x, spot.position.y, spot.position.z, spot.rotation.eulerAngles.y));
         }
 
         private void OnViewShown(int entityId, GameObject view)
@@ -798,6 +896,7 @@ namespace RPGFramework.ActionRpg
 
         private void FollowWithCamera(Transform player)
         {
+            _followed = player;
             if (_camera == null)
             {
                 var main = Camera.main;
@@ -820,6 +919,8 @@ namespace RPGFramework.ActionRpg
 
         protected override void OnDestroy()
         {
+            if (_carried == this)
+                _carried = null;
             // Save, leave and drop views first: they read the world, which the host shuts down
             HideGame();
             base.OnDestroy();

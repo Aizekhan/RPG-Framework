@@ -37,6 +37,7 @@
         "Unity.InputSystem",
         "UnityEngine.UI",
         "RPGFramework.Networking.Runtime",
+        "RPGFramework.Scenes.Runtime",
         "RPGFramework.Networking.UnityTransport"
     ],
     "includePlatforms": [],

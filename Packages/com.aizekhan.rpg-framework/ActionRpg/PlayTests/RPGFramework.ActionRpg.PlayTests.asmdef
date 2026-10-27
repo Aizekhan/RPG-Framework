@@ -21,7 +21,11 @@
         "UnityEngine.UI",
         "RPGFramework.Networking.Runtime",
         "RPGFramework.Networking.UnityTransport",
-        "UniTask"
+        "UniTask",
+        "RPGFramework.Scenes.Runtime",
+        "RPGFramework.Pooling.Runtime",
+        "RPGFramework.Pooling.Unity",
+        "RPGFramework.Logging.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

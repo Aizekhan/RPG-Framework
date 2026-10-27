@@ -1239,5 +1239,33 @@ namespace RPGFramework.ActionRpg.Tests
             Assert.That(World.InventoryOf(back.World.PlayerId).Count, Is.EqualTo(2));
             Assert.That(back.World.CaptureProgress().TotalExperience, Is.EqualTo(home.TotalExperience));
         }
+    
+        [Test]
+        public void SceneChange_FriendsAreTold_AndSoAreLateJoiners_TheGameGoesOn()
+        {
+            var guest = Join(name: "Ann");
+            var scenes = new List<string>();
+            guest.Client.SceneChanged += scenes.Add;
+            Assert.That(guest.Client.Scene, Is.Empty, "the host named no scene");
+            int friend = guest.World.PlayerId;
+
+            _host.ChangeScene("Run");
+            Pump();
+
+            Assert.That(scenes, Is.EqualTo(new[] { "Run" }));
+            Assert.That(guest.Client.Scene, Is.EqualTo("Run"));
+            Assert.That(_host.Scene, Is.EqualTo("Run"));
+            Assert.That(guest.Client.State, Is.EqualTo(CoopClientState.Playing), "the link stays");
+            Assert.That(guest.World.PlayerId, Is.EqualTo(friend));
+            Assert.That(World.Get(friend), Is.Not.Null, "the party stays");
+
+            var late = Join(name: "Bo");
+            Pump();
+            Assert.That(late.Client.Scene, Is.EqualTo("Run"), "a late joiner plays where the game is");
+
+            Assert.That(() => guest.Network.SendToServer(new CoopSceneMessage { Scene = "Hub" }),
+                Throws.InvalidOperationException, "only the host moves the game");
+            Assert.That(() => _host.ChangeScene(""), Throws.ArgumentException);
+        }
     }
 }

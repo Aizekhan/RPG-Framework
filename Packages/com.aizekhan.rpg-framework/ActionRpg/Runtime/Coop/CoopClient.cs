@@ -95,6 +95,7 @@ namespace RPGFramework.ActionRpg.Coop
             _network.RegisterMessageHandler<CoopMotionMessage>(OnMotion).AddTo(_subscriptions);
             _network.RegisterMessageHandler<CoopCorrectionMessage>(OnCorrection).AddTo(_subscriptions);
             _network.RegisterMessageHandler<CoopIncomingAttackMessage>(OnIncomingAttack).AddTo(_subscriptions);
+            _network.RegisterMessageHandler<CoopSceneMessage>(OnScene).AddTo(_subscriptions);
         }
 
         /// <summary>
@@ -203,6 +204,16 @@ namespace RPGFramework.ActionRpg.Coop
         /// The host let this player in.
         /// </summary>
         public event Action Joined;
+
+        /// <summary>
+        /// The scene the host's game is in (empty until the host names one).
+        /// </summary>
+        public string Scene { get; private set; } = "";
+
+        /// <summary>
+        /// The host's game moved to another scene, or this player joined a game in one: load it to play there.
+        /// </summary>
+        public event Action<string> SceneChanged;
 
         /// <summary>
         /// The game with the host ended, with the reason.
@@ -322,6 +333,14 @@ namespace RPGFramework.ActionRpg.Coop
         {
             _pendingEnd = reason;
             _pendingKind = kind;
+        }
+
+        private void OnScene(int connectionId, CoopSceneMessage message)
+        {
+            if (string.IsNullOrEmpty(message.Scene))
+                return;
+            Scene = message.Scene;
+            SceneChanged?.Invoke(Scene);
         }
 
         private void OnWelcome(int connectionId, CoopWelcomeMessage welcome)

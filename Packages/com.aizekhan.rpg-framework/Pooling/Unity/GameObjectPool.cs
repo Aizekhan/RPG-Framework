@@ -25,6 +25,10 @@ namespace RPGFramework.Pooling.Unity
             Name = name ?? prefab.name;
             Container = container ? container : new GameObject($"[Pool] {Name}").transform;
             OwnsContainer = !container;
+            // The pool's own container outlives scene changes, like the pool: otherwise loading a scene destroys
+            // the pooled instances while the pool still hands them out. A pool owned by a scene is released with it.
+            if (OwnsContainer && Application.isPlaying)
+                Object.DontDestroyOnLoad(Container.gameObject);
 
             _pool = new ObjectPool<GameObject>(Create, null, OnRelease, OnDestroy, initialSize, maxSize, logger, Name);
         }
