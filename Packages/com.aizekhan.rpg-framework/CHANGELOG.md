@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-27
+
+Co-op across scene changes (hub and runs), and 0.5.0's rules reachable from the Game Setup. Co-op protocol version 9: 0.5.0 builds are refused. Install with `#v0.5.1`.
+
 - **The 0.5.0 rules reach games built on `ActionRpgHost`.** Game Setup > **Co-op progress**: Progress Mode (Shared / Per Player) and Loot To Backpack (`GameSetup.SetProgress`). New `ActionRpgHost.ConfigureSettings(settings, content)` adjusts what the asset builds before the game starts (damage calculator, status effects, abilities); it runs on every machine, so host and friends keep the same fingerprint. Recipe 11 lists game messages, per-player progress, scene changes, owner defence, speed boosts and respawn points
 
 - **The game and its co-op session outlive a scene change** (a hub and runs in scenes of their own). `ActionRpgHost.ChangeScene(sceneName)` loads the scene through `ISceneDispatcher` without ending the game: the party, progress, characters and the co-op link stay; an `ActionRpgHost` in the new scene steps aside (so each scene still plays on its own in the Editor); the camera follows the player there; `OnSceneChanged(sceneName)` places the players with the new `TeleportPlayer(playerId, pose)`. Joined machines load the host's scene, and so does anyone who joins later (`CoopHost.ChangeScene`/`Scene`, `CoopClient.Scene`/`SceneChanged`, `CoopSceneMessage`). Co-op protocol version 9: older builds are refused
