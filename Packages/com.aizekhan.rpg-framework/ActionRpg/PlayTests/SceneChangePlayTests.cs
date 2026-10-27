@@ -28,10 +28,17 @@ namespace RPGFramework.ActionRpg.PlayTests
         private ActionRpgHost _friend;
         private GameObject _prefab;
         private Scene _hub;
+        // Main cameras other tests left behind: Camera.main must be this test's own
+        private readonly System.Collections.Generic.List<GameObject> _otherCameras = new System.Collections.Generic.List<GameObject>();
 
         [SetUp]
         public void SetUp()
         {
+            foreach (var other in GameObject.FindGameObjectsWithTag("MainCamera"))
+            {
+                other.tag = "Untagged";
+                _otherCameras.Add(other);
+            }
             _hub = SceneManager.CreateScene("Hub");
             SceneManager.SetActiveScene(_hub);
             new GameObject("Main Camera", typeof(Camera)) { tag = "MainCamera" };
@@ -66,6 +73,9 @@ namespace RPGFramework.ActionRpg.PlayTests
             foreach (var character in _setup.Characters.ToList())
                 Object.Destroy(character);
             Object.Destroy(_setup);
+            foreach (var other in _otherCameras.Where(c => c != null))
+                other.tag = "MainCamera";
+            _otherCameras.Clear();
         }
 
         private T StartGame<T>(string name) where T : ActionRpgHost
