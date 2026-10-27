@@ -11,13 +11,13 @@
 
 | Gate | Result | SHA |
 |---|---|---|
-| Clean-checkout compile (`unity test`, verify worktree) | ✅ 0 `error CS` | `baa8dde` |
-| EditMode tests (Multiplayer Services SDK 2.4.1 installed, so the Unity Relay module and its tests compile) | ✅ **1631 / 1631 passed** (incl. designer assets for dialogue, factions, skills, abilities, crafting and status effects run through the real modules, crafts that finish, PvP match rules and co-op PvP, movement checks, Skills storage, 1000-entity benchmarks, module events, delta compression, designer assets, the `StatContainer` benchmark, save versioning and recovery, the JSON serializer, co-op over `LoopbackNetwork` with 8 players, lost links and reconnecting, session providers, real UDP incl. a crashed client, Relay provider over a fake service, game rules GA01-GA12) | `ba094c9` |
-| PlayMode tests (Goblin Valley scene, assets-only action RPG, save/reload, **co-op: two hosts over UDP, eight games over UDP**, unreachable address, installed session module offered, **a friend whose link is cut reconnects by itself into the same seat**, **a corrected jump, a PvP duel over UDP**) | ✅ **10 / 10 passed** | `baa8dde` |
+| Clean-checkout compile (`unity test`, verify worktree) | ✅ 0 `error CS` | `41e990e` |
+| EditMode tests (Multiplayer Services SDK 2.4.1 installed, so the Unity Relay module and its tests compile) | ✅ **1696 / 1696 passed** (incl. dialogue conditions and branches, ability cooldowns/casts/toggles/channels, status effect modifiers on stats, crafting requirements, designer assets for dialogue, factions, skills, abilities, crafting and status effects run through the real modules, crafts that finish, PvP match rules and co-op PvP, movement checks, Skills storage, 1000-entity benchmarks, module events, delta compression, designer assets, the `StatContainer` benchmark, save versioning and recovery, the JSON serializer, co-op over `LoopbackNetwork` with 8 players, lost links and reconnecting, session providers, real UDP incl. a crashed client, Relay provider over a fake service, game rules GA01-GA12) | `ba094c9` |
+| PlayMode tests (Goblin Valley scene, assets-only action RPG, save/reload, **co-op: two hosts over UDP, eight games over UDP**, unreachable address, installed session module offered, **a friend whose link is cut reconnects by itself into the same seat**, **a corrected jump, a PvP duel over UDP**) | ✅ **10 / 10 passed** | `41e990e` |
 | Unity Relay module, clean install (`D:/RPG-Release020`): without the SDK 0 errors and 15/15; with the SDK 0 errors, 15/15, Relay registered with no game code | ✅ | `451afe3` |
 | **Claude Code starter** `START-NEW-GAME.md` run end to end in an empty folder (`D:/RPG-Starter-Test`): project, git, package, New Game + AI guidance, 14/14 EditMode. A planted cut corner (`class Quest`, unrecorded `framework-gap`) fails GA11 and GA12; after recording the gap it is green (16/16) | ✅ | `ed1aaf7` |
-| `.meta` integrity | ✅ 0 problems | `baa8dde` |
-| CI on GitHub (meta check, EditMode, PlayMode) | ✅ green (run `40431905265`; `ba094c9` run `40427687107`) | `baa8dde` |
+| `.meta` integrity | ✅ 0 problems | `41e990e` |
+| CI on GitHub (meta check, EditMode, PlayMode) | ✅ green (run `40438078474`; `baa8dde` run `40431905265`) | `41e990e` |
 | Fresh Unity 6 project + UniTask + package → New Game → tests → Play | ✅ 14/14 generated tests, played (screenshots) | `675b521` |
 | **Release `v0.2.0`**: fresh Unity 6 project installs the package by git URL `#v0.2.0` (resolves to `01f5af8`), 0 `error CS`, New Game → 14/14 generated tests | ✅ CI green (run `40386565078`) | `01f5af8` |
 
@@ -88,6 +88,7 @@ Not ported on purpose in phase 9: a persistent event store (the `EventRecorder` 
 | 12 | **Weak spots, part 2.** **Fixes proven by failing tests first:** Skills stored nothing (learning always failed): skills now live on the entity as a `SkillProgressData` component; loot without duplicates could hand out less than promised (a 3-item table asking for 3 gave 2). Allocation-free 2- and 3-component ECS queries. Benchmarks at 1000 entities: ECS 0.24 ms, EventBus 0.13 ms (both no garbage), `ActorWorld` 1000 enemies 0.07 ms a frame (rules only) | `df0e768` | 1450/1450 EditMode, 9/9 PlayMode |
 | 13 | **PvP as a mode.** `IHostilityRules` (co-op, teams, `FactionHostility`); **fix:** a player could hit another player. `PvpMatch`: Duel (rounds), Team Deathmatch, Free For All; sides, score, respawn, time limit, forfeit, restart; `IActorWorld.PvpStatus` for the HUD on every machine. Co-op protocol v4: teams and match state travel, the host checks movement against `CharacterData.MoveSpeed` and corrects (`CoopCorrectionMessage`), `CoopHost.Teleport`; refuses friendly attacks and on-demand revives in PvP. Unity: Game Setup > PvP (modes, teams, spawn points), side colours, score banner, targeting by hostility. Recipe 13 | `ba094c9` | 1468/1468 EditMode, 10/10 PlayMode (duel over real UDP) |
 | 14 | **Designer assets.** `Tools/{Dialogue,Faction,Skill,Ability,Crafting,StatusEffect}Editor`: Dialogue (+ database, conversation outline), Faction Database (relationship grid, `ToRegistry`, works with `FactionHostility`), Skill and Skill Tree (tiers, prerequisite loops reported), Ability (+ database), Crafting Recipe (ingredients and results are `ItemAsset`s, + database), Status Effect (one-line description, + database). Each lists what is wrong in plain words and converts to the module's runtime data; tests run that data through the real modules. The 9 custom inspectors that never showed were removed (approved by the user); Create menu makes the real assets. **Fix proven by failing tests first:** crafts never finished (`UpdateCrafting` was empty); they now advance, roll success chances and complete or fail, and an optional `ICraftingInventory` takes, refunds and hands out items | `baa8dde` | 1631/1631 EditMode, 10/10 PlayMode |
+| 15 | **Modules do what their assets say.** **Fixes proven by failing tests first:** Dialogue follows conditions and Branch nodes, hides gated choices and publishes its four events (context per entity); Abilities keep cooldowns in `CooldownTracker`, cast-time abilities pay and land on completion, cancel/interrupt cost nothing, passive refused, toggles and channels, percentage costs, targets checked; StatusEffects apply stat/resource/movement/control modifiers through `IStatusEffectTarget` (`Integration/StatusEffectsStats` for `StatContainer`); Crafting checks recipe requirements (`ICraftingRequirementChecker`, never met unchecked); Skills refuse duplicate ids and need a named prerequisite known; Factions `Involves` | `41e990e` | 1696/1696 EditMode, 10/10 PlayMode |
 | 2 | **Playable 3D Goblin Valley.** Framework `Presentation` module (`EntityViewRegistry`). Game: spawn/despawn/wave events, `GoblinWaveSystem`, inspector-tunable `GoblinValleyConfig` + `PrefabCatalog`, presenter spawning prefabs through `PrefabSpawner` (goblins pooled), `HeroController` (Input System: keyboard, mouse, gamepad), `GoblinBrain`, health bars, UGUI HUD, `CameraFollow`. `GoblinValleyBuilder` generates placeholder art, prefabs, config and scene (menu or batch mode). CI runs EditMode + PlayMode | `de2498e` | 1196/1196 EditMode, 1/1 PlayMode |
 
 Roadmap, in order (agreed with the user 2026-10-26):
@@ -132,22 +133,17 @@ Checked before moving the old plans to `Docs/archive/` (2026-10-26). Ideas that 
 
 ## Open issues
 
-**High** (runtime gaps found while building the designer assets; the assets are correct, the modules ignore part of the data)
-- Dialogue: `DialogueManager` ignores conditions and branch logic (always takes the first next node) and sends no events
-- Abilities: `AbilityExecutor` never uses `CooldownTracker`; cast-time abilities never pay costs or send the executed event (`CompleteCast` takes no costs); `CancelCast` timestamp is 0; Passive/Toggle are usable like Active; `IsPercentage`, `ChannelDuration` and the target checker are unused
-- StatusEffects: `ProcessTicks` ignores the operation; Stat/Resource/Movement/Control modifiers are never applied; `RegisterEffect` silently ignores duplicates
-
 **Medium**
-- Crafting: `CraftingRequirement.IsSatisfied` always returns true
-- Skills: `SkillTree.AddSkill` silently drops duplicate ids; a prerequisite at level 0 is always met
-- Factions: `InvolvesFunction` misspelling; standings are clamped silently
+- StatusEffects: effects loaded from a save do not put their modifiers back on (needs a `Reapply`); `ProcessTicks` runs at most one tick per call; nothing in Bootstrap wires `StatContainerEffectTarget` yet
 - UI panels are thin defaults (EquipmentPanel hard-codes 8 slot types; game layers override). The earlier "listeners never removed" note was wrong: they are on the panel's own child buttons and die with it
 - `ICharacter.Inventory`/`Progression` are `object` (keeps Characters free of those modules)
 
 **Low**
+- Dialogue: `ConditionType.Custom` always fails (no game hook in `IDialogueContext`); `ItemOwned` ignores the quantity; several active dialogues on one entity act on the first
+- Abilities: a channel lands once (no per-tick effect, no end event); no upkeep for toggles; range is enforced only with a `distanceCheck`; `CanMoveWhileCasting` is left to the game
 - `EcsPerformanceTests.AMovementFrame_AllocatesNothing` failed once locally with an allocation, then passed twice: noisy, watch it
 - Modules without tests: Editor (Tools and DeltaCompression got tests in `c685e43`)
-- Crafting, Dialogue and Persistence deliver their events as C# `event`s, not on the bus
+- Crafting and Persistence deliver their events as C# `event`s, not on the bus
 - ReferenceGame art is generated placeholders (primitives)
 - Internet co-op (Unity Relay module) is proven only against a fake service; the live two-network test needs the owner's UGS project. The host checks positions against move speed (horizontal only; height is trusted). See `Documentation~/networking.md`
 - CI: the license file is bound to another machine, so GameCI falls back to email/password activation (works)
@@ -158,5 +154,5 @@ Agreed with the user (2026-10-26): finish the plan before releasing; **no v0.3.0
 1. ~~Network reliability (co-op stage 3)~~ done (`555f079`). Still open: the live Relay test across two networks when the owner provides a UGS project (host creates → friend joins by code → both see and interact → disconnect handled); no host migration (by design for now).
 2. Weak spots: ~~save versioning~~ (`5dcc822`), ~~`StatContainer`~~ (`9182fda`), ~~Tools and DeltaCompression tests~~ (`c685e43`), ~~`#if FALSE` windows, loot and other dead events~~ (`da76940`), ~~Skills storage, loot weights, benchmarks~~ (`df0e768`), ~~dead custom inspectors~~ (`baa8dde`).
 3. ~~PvP as game modes~~ done (`ba094c9`): teams and factions, server-checked movement, Duel / Team Deathmatch / Free For All.
-4. ~~Designer assets~~ done (`baa8dde`). Next: make the modules honour what the assets hold (the High runtime gaps above), then a second genre sample.
+4. ~~Designer assets~~ done (`baa8dde`); ~~modules honour what the assets hold~~ (`41e990e`). Next: a second genre sample.
 5. Release 1.0; the owner decides the licence/selling model.
