@@ -27,6 +27,9 @@ How it works, so new rules stay co-op ready:
   (`INetworkPayload`, ids 1200 and up) on `NetworkManager`.
 - The host's and the friends' builds must match: the same characters, items and quests (`CoopProtocol.Fingerprint`).
   A different build is refused with "The host plays a different version of the game".
+- **The host checks movement**: a friend may not move faster than their character's Move Speed; if they do, the host
+  puts them back (also on their machine). Move a player on purpose with `CoopHost.Teleport`. Players fighting each
+  other: see `13-pvp.md`.
 - A lost link (10 s of silence) is handled for you: the host keeps the player's seat for 2 minutes and their game
   reconnects by itself; F2 shows "unstable" after 2 s. Tune with `CoopHost.RejoinWindow` and
   `ActionRpgHost.ConnectionTimeout`; read `CoopClient.EndKind` to tell a lost link from a refusal.

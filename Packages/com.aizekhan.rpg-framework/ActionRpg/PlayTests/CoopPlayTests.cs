@@ -15,7 +15,8 @@ namespace RPGFramework.ActionRpg.PlayTests
     /// Two games on this machine over real UDP: one hosts, the other joins and gets its player in the host's party;
     /// movement goes across, the host's goblin appears on the joined screen without its AI, the joined player's
     /// attacks kill it through the host's rules, and when the host stops, the friend is back in a game of their own.
-    /// Any logged error fails the test.
+    /// The host corrects a friend who moves faster than their character can. In PvP the two meet at their sides'
+    /// spawn points and fight it out. Any logged error fails the test.
     /// </summary>
     public sealed class CoopPlayTests
     {
@@ -62,13 +63,13 @@ namespace RPGFramework.ActionRpg.PlayTests
             Object.Destroy(_setup);
         }
 
-        private ActionRpgHost StartGame(string name)
+        private ActionRpgHost StartGame(string name, GameSetup setup = null, int port = Port)
         {
             var gameObject = new GameObject(name);
             gameObject.SetActive(false);
             var host = gameObject.AddComponent<ActionRpgHost>();
-            host.UseSetup(_setup);
-            host.UseCoopPort(Port);
+            host.UseSetup(setup ?? _setup);
+            host.UseCoopPort(port);
             gameObject.SetActive(true);
             return host;
         }
@@ -113,10 +114,18 @@ namespace RPGFramework.ActionRpg.PlayTests
             Assert.That(_first.ColorOfSeat(0), Is.Not.EqualTo(_first.ColorOfSeat(1)));
 
             // The friend walks; the host sees it
-            friendOnFriend.transform.position = new Vector3(4f, 0f, 3f);
-            Physics.SyncTransforms();
+            yield return Walk(friendOnFriend.transform, new Vector3(4f, 0f, 3f));
             yield return WaitUntil(() => Vector3.Distance(friendOnHost.transform.position, new Vector3(4f, 0f, 3f)) < 0.3f,
                 "the friend's move on the host's screen");
+            Assert.That(_first.CoopHost.MovementCorrections, Is.EqualTo(0), "walking is never corrected");
+
+            // Jumping across the map at once is not walking: the host puts the friend back where they could have got
+            friendOnFriend.transform.position = new Vector3(60f, 0f, 3f);
+            Physics.SyncTransforms();
+            yield return WaitUntil(() => _second.CoopClient.Corrections > 0 && friendOnFriend.transform.position.x < 15f,
+                "the host's correction on the friend's screen");
+            Assert.That(_first.CoopHost.MovementCorrections, Is.GreaterThan(0));
+            Assert.That(friendOnHost.transform.position.x, Is.LessThan(15f));
 
             // The host's goblin shows on the friend's screen, moved by the host
             int goblin = host.SpawnEnemy("goblin");
@@ -188,8 +197,7 @@ namespace RPGFramework.ActionRpg.PlayTests
             var last = friends[friends.Count - 1];
             int lastId = last.CurrentWorld.PlayerId;
             last.Views.TryGetView(lastId, out var walker);
-            walker.transform.position = new Vector3(-5f, 0f, 6f);
-            Physics.SyncTransforms();
+            yield return Walk(walker.transform, new Vector3(-5f, 0f, 6f));
             yield return WaitUntil(() => _first.Views.TryGetView(lastId, out var onHost) && _second.Views.TryGetView(lastId, out var onFriend)
                                          && Vector3.Distance(onHost.transform.position, walker.transform.position) < 0.3f
                                          && Vector3.Distance(onFriend.transform.position, walker.transform.position) < 0.3f,
@@ -302,6 +310,75 @@ namespace RPGFramework.ActionRpg.PlayTests
 
             yield return WaitUntil(() => _second.Role == CoopRole.Solo && _second.World != null && !_second.IsSwitching
                                          && _second.CoopStatus.Contains("Could not reach"), "giving up on the address");
+        }
+
+        [UnityTest]
+        public IEnumerator Pvp_TheTwoMeetAtTheirSpawnPoints_AndTheFriendWinsTheDuel()
+        {
+            var setup = Object.Instantiate(_setup);
+            setup.Pvp.Enabled = true;
+            setup.Pvp.Mode = PvpMode.Duel;
+            setup.Pvp.RoundsToWin = 1;
+            var first = StartGame("PvP host", setup, Port + 1);
+            var second = StartGame("PvP friend", setup, Port + 1);
+            _more.Add(first);
+            _more.Add(second);
+            yield return null;
+
+            Assert.That(first.HostGame(), Is.True, first.CoopStatus);
+            yield return WaitUntil(() => first.Role == CoopRole.Hosting, "hosting");
+            second.JoinGame("127.0.0.1");
+            yield return WaitUntil(() => second.CoopClient?.State == Coop.CoopClientState.Playing, "the friend to join");
+            var host = first.World;
+            var friend = second.CurrentWorld;
+            int hostId = host.PlayerId, friendId = friend.PlayerId;
+            yield return WaitUntil(() => friend.PvpStatus?.Phase == PvpPhase.Playing, "the duel to start on the friend's screen");
+            Assert.That(friend.Get(hostId).Team, Is.EqualTo("Red"));
+            Assert.That(friend.Player.Team, Is.EqualTo("Blue"));
+
+            // Each stands at their side's spawn point, on both screens: the host placed the friend on their own machine
+            var redSpot = setup.Pvp.SpawnPoint(0, 0, 2).position;
+            var blueSpot = setup.Pvp.SpawnPoint(1, 0, 2).position;
+            EntityView friendOnFriend = null, hostOnFriend = null;
+            yield return WaitUntil(() => second.Views.TryGetView(friendId, out friendOnFriend) && second.Views.TryGetView(hostId, out hostOnFriend)
+                                         && Flat(friendOnFriend.transform.position - blueSpot) < 0.3f
+                                         && Flat(hostOnFriend.transform.position - redSpot) < 0.5f, "both at their spawn points");
+            first.Views.TryGetView(hostId, out var hostOnHost);
+            Assert.That(Flat(hostOnHost.transform.position - redSpot), Is.LessThan(0.3f));
+
+            // Too far to strike; the friend walks up and strikes until the host falls
+            var controller = friendOnFriend.GetComponent<PlayerController>();
+            Assert.That(controller.TryAttackNearest(), Is.False);
+            yield return Walk(friendOnFriend.transform, redSpot + (blueSpot - redSpot).normalized * 1.5f);
+            yield return WaitUntil(() =>
+            {
+                controller.TryAttackNearest();
+                return host.PvpStatus.Phase == PvpPhase.Finished;
+            }, "the duel to end");
+            Assert.That(host.PvpStatus.Winner, Is.EqualTo("Blue"));
+            yield return WaitUntil(() => friend.PvpStatus.Phase == PvpPhase.Finished && friend.PvpStatus.Winner == "Blue",
+                "the result on the friend's screen");
+            Object.Destroy(setup);
+        }
+
+        private static float Flat(Vector3 offset) => new Vector2(offset.x, offset.z).magnitude;
+
+        /// <summary>
+        /// Moves a player the way walking would: a little every frame, slower than the character's speed (6).
+        /// </summary>
+        private static IEnumerator Walk(Transform walker, Vector3 to)
+        {
+            to.y = walker.position.y;
+            float waited = 0f;
+            while (Vector3.Distance(walker.position, to) > 0.01f)
+            {
+                walker.position = Vector3.MoveTowards(walker.position, to, 5f * Time.deltaTime);
+                Physics.SyncTransforms();
+                waited += Time.deltaTime;
+                if (waited > Timeout)
+                    Assert.Fail("Timed out walking");
+                yield return null;
+            }
         }
 
         private static IEnumerator WaitUntil(Func<bool> condition, string what) => WaitUntil(condition, () => what);

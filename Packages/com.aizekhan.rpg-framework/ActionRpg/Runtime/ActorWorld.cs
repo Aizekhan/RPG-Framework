@@ -64,7 +64,20 @@ namespace RPGFramework.ActionRpg
             _bus = bus ?? throw new ArgumentNullException(nameof(bus));
             _logger = logger;
             _random = settings.Seed != 0 ? new Random(settings.Seed) : new Random();
+            Hostility = HostilityRules.For(settings);
         }
+
+        /// <summary>
+        /// Who may attack whom (<see cref="HostilityRules.For"/> the settings).
+        /// </summary>
+        public IHostilityRules Hostility { get; }
+
+        /// <summary>
+        /// The match running in this world (set by <see cref="PvpMatch"/> itself).
+        /// </summary>
+        internal PvpMatch Match { get; set; }
+
+        public PvpStatus PvpStatus => _settings.Pvp != null ? Match?.Status : null;
 
         public ActionRpgSettings Settings => _settings;
         public bool IsStarted => PlayerId >= 0;
@@ -110,6 +123,27 @@ namespace RPGFramework.ActionRpg
         public int CreditOf(int entityId) => _party.Contains(entityId) ? PlayerId : entityId;
 
         public Actor Get(int entityId) => _actors.TryGetValue(entityId, out var actor) ? actor : null;
+
+        public bool AreHostile(int attackerId, int targetId)
+        {
+            var attacker = Get(attackerId);
+            var target = Get(targetId);
+            return attacker != null && target != null && attacker != target && Hostility.AreHostile(attacker, target);
+        }
+
+        /// <summary>
+        /// Puts an actor on a side (null = none); <see cref="PvpMatch"/> does this for players.
+        /// </summary>
+        public void SetTeam(int entityId, string team)
+        {
+            var actor = Get(entityId) ?? throw new ArgumentException($"No actor {entityId}", nameof(entityId));
+            if (string.IsNullOrEmpty(team))
+                team = null;
+            if (actor.Team == team)
+                return;
+            actor.Team = team;
+            _bus.Publish(new ActorTeamChangedEvent(entityId, team));
+        }
 
         /// <summary>
         /// Quest target id of an entity (its character id); used by the Kill-objective bridge.
@@ -282,12 +316,13 @@ namespace RPGFramework.ActionRpg
             _bus.Publish(new WaveStartedEvent(CurrentWave, enemies));
         }
 
-        /// <returns>Damage dealt (0 when either side is missing or dead).</returns>
+        /// <returns>Damage dealt (0 when either side is missing or dead, or they are not hostile).</returns>
         public float Attack(int attackerId, int targetId)
         {
             var attacker = Get(attackerId);
             var target = Get(targetId);
-            if (attacker == null || target == null || !attacker.IsAlive() || !target.IsAlive())
+            if (attacker == null || target == null || !attacker.IsAlive() || !target.IsAlive()
+                || !AreHostile(attackerId, targetId))
                 return 0f;
 
             float dealt = target.ApplyDamage(_damage.CalculateDamage(attacker.Attack, target.Defense));
@@ -395,7 +430,7 @@ namespace RPGFramework.ActionRpg
                 _quests.UpdateObjectiveProgress(PlayerId, questId, objectiveId, target - done);
         }
 
-        public bool RevivePlayer() => RevivePlayer(PlayerId);
+        public bool RevivePlayer() => _settings.Pvp == null && RevivePlayer(PlayerId);
 
         /// <summary>
         /// Brings a fallen party member back with full health.
@@ -436,7 +471,11 @@ namespace RPGFramework.ActionRpg
 
             if (victim.IsPlayer)
             {
-                Write($"{victim.DisplayName} falls");
+                var killer = Get(death.KillerEntityId);
+                bool byPlayer = killer != null && killer.IsPlayer && killer != victim;
+                if (!byPlayer)
+                    Write($"{victim.DisplayName} falls");
+                _bus.Publish(new PlayerDefeatedEvent(victim.EntityId, death.KillerEntityId, byPlayer));
                 return;
             }
 

@@ -44,6 +44,11 @@ namespace RPGFramework.ActionRpg
         /// </summary>
         public ActorWorld World { get; private set; }
 
+        /// <summary>
+        /// The PvP match (null before initialization; idle when <see cref="ActionRpgSettings.Pvp"/> is not set).
+        /// </summary>
+        public PvpMatch Pvp { get; private set; }
+
         protected override void OnConfigure()
         {
             Container.RegisterInstance(_settings);
@@ -61,6 +66,7 @@ namespace RPGFramework.ActionRpg
                 c.Resolve<IEventBus>(),
                 c.Resolve<ILogger>()));
             AddSystem<WaveSystem>();
+            AddSystem<PvpMatch>();
         }
 
         protected override void OnInitialize()
@@ -86,6 +92,7 @@ namespace RPGFramework.ActionRpg
             }
 
             World = Container.Resolve<ActorWorld>();
+            Pvp = Container.Resolve<PvpMatch>();
             World.Start();
         }
 
@@ -93,6 +100,7 @@ namespace RPGFramework.ActionRpg
         {
             World?.Dispose();
             World = null;
+            Pvp = null;
         }
     }
 

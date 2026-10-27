@@ -38,6 +38,11 @@ namespace RPGFramework.ActionRpg
         /// </summary>
         public string LootTableId = "";
 
+        /// <summary>
+        /// Units per second it moves; a co-op host corrects joined players who move faster. 0 = not checked.
+        /// </summary>
+        public float MoveSpeed;
+
         public float StatAt(ActorStat stat, int level)
         {
             int above = Math.Max(0, level - 1);

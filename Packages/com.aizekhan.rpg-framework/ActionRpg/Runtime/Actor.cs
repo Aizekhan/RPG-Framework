@@ -48,6 +48,11 @@ namespace RPGFramework.ActionRpg
         /// </summary>
         public int Seat { get; internal set; } = -1;
 
+        /// <summary>
+        /// The side it fights for in PvP (a team name, a faction id, "P1" in free-for-all); null = none.
+        /// </summary>
+        public string Team { get; internal set; }
+
         public float Health { get; private set; }
         public float MaxHealth => _stats.GetFinalStat(ActorStat.MaxHealth);
         public float Attack => _stats.GetFinalStat(ActorStat.Attack);

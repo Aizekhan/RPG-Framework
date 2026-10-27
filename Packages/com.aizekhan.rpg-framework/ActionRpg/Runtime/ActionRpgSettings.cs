@@ -34,6 +34,17 @@ namespace RPGFramework.ActionRpg
         /// </summary>
         public int Seed { get; set; }
 
+        /// <summary>
+        /// Makes the game a PvP match (teams, score, respawns, Duel rounds); null = co-op, players never fight.
+        /// </summary>
+        public PvpSettings Pvp { get; set; }
+
+        /// <summary>
+        /// Who may attack whom; null uses <see cref="HostilityRules.Teams"/> in PvP and
+        /// <see cref="HostilityRules.Coop"/> otherwise. Set a <see cref="FactionHostility"/> for teams that are factions.
+        /// </summary>
+        public IHostilityRules Hostility { get; set; }
+
         public IEnumerable<CharacterData> Characters => Player != null ? Enemies.Prepend(Player) : Enemies;
 
         public CharacterData FindCharacter(string id) => Characters.FirstOrDefault(c => c != null && c.Id == id);
@@ -50,6 +61,8 @@ namespace RPGFramework.ActionRpg
                 problems.Add("No player character.");
             if (Waves != null && Waves.Enabled && Enemies.Count(e => e != null) == 0)
                 problems.Add("Waves are on but there are no enemies.");
+            if (Pvp != null)
+                problems.AddRange(Pvp.Validate());
 
             var characters = Characters.Where(c => c != null).ToList();
             foreach (var blank in characters.Where(c => string.IsNullOrWhiteSpace(c.Id)))

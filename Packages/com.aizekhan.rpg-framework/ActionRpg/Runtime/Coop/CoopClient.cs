@@ -88,6 +88,7 @@ namespace RPGFramework.ActionRpg.Coop
             _network.RegisterMessageHandler<CoopWelcomeMessage>(OnWelcome).AddTo(_subscriptions);
             _network.RegisterMessageHandler<CoopWorldMessage>((_, message) => World.Apply(message)).AddTo(_subscriptions);
             _network.RegisterMessageHandler<CoopMotionMessage>(OnMotion).AddTo(_subscriptions);
+            _network.RegisterMessageHandler<CoopCorrectionMessage>(OnCorrection).AddTo(_subscriptions);
         }
 
         public RemoteWorld World { get; }
@@ -96,6 +97,11 @@ namespace RPGFramework.ActionRpg.Coop
         /// Where characters are; settable because the views that implement it usually need <see cref="World"/> first.
         /// </summary>
         public IActorMotion Motion { get; set; }
+
+        /// <summary>
+        /// Times the host moved this player (too fast, or to a spawn point).
+        /// </summary>
+        public int Corrections { get; private set; }
         public CoopClientState State { get; private set; } = CoopClientState.Idle;
 
         /// <summary>
@@ -278,6 +284,15 @@ namespace RPGFramework.ActionRpg.Coop
                 if (id != World.PlayerId && pose.IsFinite && World.Get(id) != null)
                     Motion.SetTargetPose(id, pose);
             }
+        }
+
+        // The host put this player somewhere else: go there at once, and tell it so from the new place
+        private void OnCorrection(int connectionId, CoopCorrectionMessage correction)
+        {
+            if (Motion == null || State != CoopClientState.Playing || !correction.Pose.IsFinite)
+                return;
+            Corrections++;
+            Motion.Teleport(World.PlayerId, correction.Pose);
         }
 
         private void End(string reason, CoopEndKind kind)

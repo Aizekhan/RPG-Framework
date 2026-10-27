@@ -36,6 +36,11 @@ namespace RPGFramework.ActionRpg
 
         Actor Get(int entityId);
 
+        /// <summary>
+        /// The first may attack the second (both exist, differ, and the hostility rules say they fight).
+        /// </summary>
+        bool AreHostile(int attackerId, int targetId);
+
         int Kills { get; }
         int Level { get; }
         long TotalExperience { get; }
@@ -47,13 +52,18 @@ namespace RPGFramework.ActionRpg
         IInventoryContainer<IItem> Inventory { get; }
 
         /// <summary>
+        /// The PvP match: sides, score, rounds, time; null when the game is not PvP.
+        /// </summary>
+        PvpStatus PvpStatus { get; }
+
+        /// <summary>
         /// An attack. On a co-op client it is sent to the host, which decides the outcome.
         /// </summary>
         /// <returns>Damage dealt; 0 when nothing was hit, or on a client where the host deals it.</returns>
         float Attack(int attackerId, int targetId);
 
         /// <summary>
-        /// Brings this machine's player back after a fall.
+        /// Brings this machine's player back after a fall. Refused in PvP, where the match brings players back.
         /// </summary>
         bool RevivePlayer();
     }

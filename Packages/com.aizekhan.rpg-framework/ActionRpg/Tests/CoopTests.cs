@@ -39,6 +39,14 @@ namespace RPGFramework.ActionRpg.Tests
                 Targets.Add((entityId, pose));
                 Poses[entityId] = pose;
             }
+
+            public readonly List<(int Id, ActorPose Pose)> Teleports = new List<(int, ActorPose)>();
+
+            public void Teleport(int entityId, ActorPose pose)
+            {
+                Teleports.Add((entityId, pose));
+                Poses[entityId] = pose;
+            }
         }
 
         private sealed class Guest
@@ -62,6 +70,7 @@ namespace RPGFramework.ActionRpg.Tests
         private Motion _hostMotion;
         private LoopbackTransport _hostTransport;
         private readonly List<Guest> _guests = new List<Guest>();
+        private System.Func<ActionRpgSettings> _settings = () => Settings();
 
         private ActorWorld World => _module.World;
 
@@ -101,9 +110,26 @@ namespace RPGFramework.ActionRpg.Tests
         public void SetUp()
         {
             _logger = new Logger(LogSeverity.Warning, new MemoryLogSink(256));
+            _settings = () => Settings();
+            StartHost();
+        }
+
+        /// <summary>
+        /// Plays a game with other rules: the host starts over with them, friends who join use the same.
+        /// </summary>
+        private void PlayWith(System.Func<ActionRpgSettings> settings)
+        {
+            _host.Dispose();
+            _game.Dispose();
+            _settings = settings;
+            StartHost();
+        }
+
+        private void StartHost()
+        {
             _network = new LoopbackNetwork();
             _game = new GameHost(_logger);
-            var settings = Settings();
+            var settings = _settings();
             var content = Content();
             _game.Start(builder => _module = ActionRpgComposition.Configure(builder, settings, content));
             _hostMotion = new Motion();
@@ -132,7 +158,7 @@ namespace RPGFramework.ActionRpg.Tests
             guest.Bus.Subscribe<ActorDamagedEvent>(guest.Damaged.Add);
             guest.Transport = _network.CreateTransport();
             guest.Network = CoopProtocol.CreateNetwork(guest.Transport);
-            guest.Client = new CoopClient(settings ?? Settings(), Content(), guest.Bus, guest.Network, guest.Motion)
+            guest.Client = new CoopClient(settings ?? _settings(), Content(), guest.Bus, guest.Network, guest.Motion)
             {
                 PlayerName = name, RejoinToken = rejoinToken
             };
@@ -272,6 +298,134 @@ namespace RPGFramework.ActionRpg.Tests
             guest.Network.SendToServer(cheat, reliable: false);
             _host.Update(0.01f);
             Assert.That(_hostMotion.Targets.Select(t => t.Id), Has.No.Member(goblin));
+        }
+
+        [Test]
+        public void MovingFasterThanTheCharacterCan_IsPutBack_AndTheFriendIsTold()
+        {
+            PlayWith(() =>
+            {
+                var settings = Settings();
+                settings.Player.MoveSpeed = 5f;
+                return settings;
+            });
+            var guest = Join();
+            int friend = guest.World.PlayerId;
+            var pose = new ActorPose(0f, 0f, 0f, 0f);
+            guest.Motion.Poses[friend] = pose;
+            Run(0.3f);
+
+            // Walking at full speed for a second is fine
+            for (int step = 0; step < 10; step++)
+            {
+                pose.X += 0.5f;
+                guest.Motion.Poses[friend] = pose;
+                Run(0.1f);
+            }
+            Run(0.2f);
+            Assert.That(_host.MovementCorrections, Is.EqualTo(0));
+            Assert.That(_hostMotion.Poses[friend].X, Is.EqualTo(5f));
+
+            // Jumping 20 units at once is not: the host lets them go only as far as they could, and tells them
+            guest.Motion.Poses[friend] = new ActorPose(25f, 0f, 0f, 0f);
+            guest.Client.SendMotion();
+            Pump();
+
+            Assert.That(_host.MovementCorrections, Is.EqualTo(1));
+            Assert.That(_hostMotion.Poses[friend].X, Is.GreaterThan(5f).And.LessThan(8f));
+            Assert.That(guest.Client.Corrections, Is.EqualTo(1));
+            var correction = guest.Motion.Teleports.Single();
+            Assert.That(correction.Id, Is.EqualTo(friend));
+            Assert.That(correction.Pose.X, Is.EqualTo(_hostMotion.Poses[friend].X).Within(0.001f));
+
+            // From the corrected place, walking on is fine again
+            Run(0.5f);
+            Assert.That(_host.MovementCorrections, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void WithoutAMoveSpeed_MovementIsNotChecked()
+        {
+            var guest = Join();
+            int friend = guest.World.PlayerId;
+            guest.Motion.Poses[friend] = new ActorPose(0f, 0f, 0f, 0f);
+            Pump();
+            guest.Motion.Poses[friend] = new ActorPose(500f, 0f, 0f, 0f);
+            Pump();
+
+            Assert.That(_host.MovementCorrections, Is.EqualTo(0));
+            Assert.That(_hostMotion.Poses[friend].X, Is.EqualTo(500f));
+        }
+
+        [Test]
+        public void TheHostTeleportsAFriend_TheyArriveOnTheirOwnMachine()
+        {
+            var guest = Join();
+            int friend = guest.World.PlayerId;
+            var spawn = new ActorPose(7f, 0f, -7f, 90f);
+
+            _host.Teleport(friend, spawn);
+            Pump();
+
+            Assert.That(_hostMotion.Teleports.Single(), Is.EqualTo((friend, spawn)));
+            Assert.That(guest.Motion.Teleports.Single(), Is.EqualTo((friend, spawn)));
+            Assert.That(() => _host.Teleport(friend, new ActorPose(float.NaN, 0f, 0f, 0f)), Throws.ArgumentException);
+        }
+
+        [Test]
+        public void Pvp_TeamsAndScoreReachFriends_AndTheHostRefereesEveryBlow()
+        {
+            PlayWith(() =>
+            {
+                var settings = Settings();
+                settings.Pvp = new PvpSettings { Mode = PvpMode.TeamDeathmatch, ScoreToWin = 2, RespawnDelay = 1f };
+                return settings;
+            });
+            var blue = Join(name: "Blue");
+            var red = Join(name: "Red");
+            _game.Update(0.1f);
+            Pump();
+
+            int host = World.PlayerId, bluePlayer = blue.World.PlayerId, redPlayer = red.World.PlayerId;
+            Assert.That(blue.World.Get(host).Team, Is.EqualTo("Red"));
+            Assert.That(blue.World.Player.Team, Is.EqualTo("Blue"));
+            Assert.That(red.World.Player.Team, Is.EqualTo("Red"));
+            Assert.That(blue.World.PvpStatus, Is.Not.Null);
+            Assert.That(blue.World.PvpStatus.Phase, Is.EqualTo(PvpPhase.Playing));
+            Assert.That(blue.World.PvpStatus.Sides.Select(s => s.Name), Is.EquivalentTo(new[] { "Red", "Blue" }));
+
+            // A teammate cannot be hit: the client does not ask, and the host refuses a modified client that does
+            Assert.That(red.World.AreHostile(redPlayer, host), Is.False);
+            red.Network.SendToServer(new CoopIntentMessage { Kind = CoopIntentMessage.IntentKind.Attack, TargetId = host });
+            Pump();
+            Assert.That(World.Player.HealthFraction, Is.EqualTo(1f));
+
+            // An opponent can
+            for (int round = 0; round < 20 && World.Player.IsAlive(); round++)
+            {
+                blue.World.Attack(bluePlayer, host);
+                Pump();
+            }
+            Assert.That(World.Player.IsDead(), Is.True);
+            _game.Update(0.1f);
+            Pump();
+            Assert.That(blue.World.PvpStatus.ScoreOf("Blue"), Is.EqualTo(1));
+            Assert.That(red.World.Log, Has.Some.Contains("defeats"));
+
+            // Nobody revives on demand in PvP: the match brings them back after the delay
+            for (int round = 0; round < 20 && World.Get(redPlayer).IsAlive(); round++)
+                World.Attack(bluePlayer, redPlayer);
+            red.Network.SendToServer(new CoopIntentMessage { Kind = CoopIntentMessage.IntentKind.Revive });
+            Assert.That(red.World.RevivePlayer(), Is.False);
+            Pump();
+            Assert.That(World.Get(redPlayer).IsDead(), Is.True);
+            for (int frame = 0; frame < 12; frame++)
+                _game.Update(0.1f);
+            Pump();
+            Assert.That(red.World.Player.IsAlive(), Is.True);
+
+            Assert.That(red.World.PvpStatus.Phase, Is.EqualTo(PvpPhase.Finished));
+            Assert.That(red.World.PvpStatus.Winner, Is.EqualTo("Blue"));
         }
 
         [Test]
@@ -629,6 +783,12 @@ namespace RPGFramework.ActionRpg.Tests
         {
             Assert.That(CoopProtocol.Fingerprint(Settings(), Content()), Is.EqualTo(CoopProtocol.Fingerprint(Settings(), Content())));
             Assert.That(CoopProtocol.Fingerprint(Settings(7f), Content()), Is.Not.EqualTo(CoopProtocol.Fingerprint(Settings(), Content())));
+            var faster = Settings();
+            faster.Player.MoveSpeed = 9f;
+            Assert.That(CoopProtocol.Fingerprint(faster, Content()), Is.Not.EqualTo(CoopProtocol.Fingerprint(Settings(), Content())));
+            var pvp = Settings();
+            pvp.Pvp = new PvpSettings();
+            Assert.That(CoopProtocol.Fingerprint(pvp, Content()), Is.Not.EqualTo(CoopProtocol.Fingerprint(Settings(), Content())));
         }
 
         [Test]

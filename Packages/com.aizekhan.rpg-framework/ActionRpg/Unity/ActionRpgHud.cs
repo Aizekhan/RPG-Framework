@@ -97,6 +97,9 @@ namespace RPGFramework.ActionRpg
                 .Append("Attack ").Append(hero.Attack.ToString("F0")).Append("   Defense ").Append(hero.Defense.ToString("F0")).Append('\n')
                 .Append("Wave ").Append(_world.CurrentWave).Append("   Kills ").Append(_world.Kills).Append('\n')
                 .Append("Backpack ").Append(_world.Inventory.Count).Append(" items");
+            var pvp = _world.PvpStatus;
+            if (pvp != null)
+                AppendScore(pvp);
             _status.text = _text.ToString();
 
             _text.Clear();
@@ -122,7 +125,10 @@ namespace RPGFramework.ActionRpg
                 _log.text = _text.ToString();
             }
 
-            _banner.enabled = !hero.IsAlive();
+            string banner = Banner(hero, pvp);
+            _banner.enabled = banner != null;
+            if (banner != null && _banner.text != banner)
+                _banner.text = banner;
 
             if (IsSheetOpen)
                 FillSheet(hero);
@@ -302,6 +308,42 @@ namespace RPGFramework.ActionRpg
                 "Text", TextAnchor.MiddleCenter, _fontSize * 2);
             _banner.text = "You fell.  Press R to rise again";
             _banner.enabled = false;
+        }
+
+        // "Red 3 : 2 Blue   (Duel: rounds)   1:23"
+        private void AppendScore(PvpStatus pvp)
+        {
+            _text.Append('\n');
+            for (int i = 0; i < pvp.Sides.Count; i++)
+            {
+                var side = pvp.Sides[i];
+                if (i > 0)
+                    _text.Append("  :  ");
+                _text.Append("<b>").Append(side.Name).Append(' ')
+                    .Append(pvp.Mode == PvpMode.Duel ? side.RoundWins : side.Score).Append("</b>");
+            }
+            if (pvp.Mode == PvpMode.Duel && pvp.Round > 0)
+                _text.Append("   Round ").Append(pvp.Round);
+            if (pvp.SecondsLeft > 0)
+                _text.Append("   ").Append(pvp.SecondsLeft / 60).Append(':').Append((pvp.SecondsLeft % 60).ToString("00"));
+        }
+
+        // What fills the middle of the screen: the match's state in PvP, a fall otherwise; null for nothing
+        private static string Banner(Actor hero, PvpStatus pvp)
+        {
+            if (pvp == null)
+                return hero.IsAlive() ? null : "You fell.  Press R to rise again";
+            switch (pvp.Phase)
+            {
+                case PvpPhase.Waiting:
+                    return "Waiting for an opponent...";
+                case PvpPhase.Finished:
+                    return pvp.Winner == null ? "Draw!" : pvp.Winner == hero.Team ? "Victory!" : $"{pvp.Winner} wins";
+                case PvpPhase.RoundOver:
+                    return $"Round {pvp.Round} is over";
+                default:
+                    return hero.IsAlive() ? null : "Defeated.  Back in a moment";
+            }
         }
 
         private static RectTransform Box(RectTransform parent, string name, Vector2 anchor, Vector2 position, Vector2 size,

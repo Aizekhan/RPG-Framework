@@ -84,6 +84,7 @@ namespace RPGFramework.ActionRpg
         private ActorPresenter _presenter;
         private ActionRpgSaves _saves;
         private SubscriptionBag _saveTriggers = new SubscriptionBag();
+        private SubscriptionBag _pvpTriggers = new SubscriptionBag();
         private DiagnosticsOverlay _overlay;
         private ActionRpgHud _hud;
         private Transform _charactersRoot;
@@ -549,6 +550,14 @@ namespace RPGFramework.ActionRpg
             _presenter.ViewShown += OnViewShown;
             _presenter.Start();
 
+            // This machine runs the match: it puts players at their side's spawn point
+            if (_coopClient == null && World?.Settings.Pvp != null)
+            {
+                var bus = Host.Container.Resolve<IEventBus>();
+                bus.Subscribe<PvpRoundStartedEvent>(_ => PlacePlayers()).AddTo(_pvpTriggers);
+                bus.Subscribe<PvpRespawnedEvent>(respawned => PlacePlayer(respawned.PlayerId)).AddTo(_pvpTriggers);
+            }
+
             if (DiagnosticsEnabled)
                 StartDiagnostics();
 
@@ -568,6 +577,8 @@ namespace RPGFramework.ActionRpg
             SaveProgress();
             _saveTriggers.Dispose();
             _saveTriggers = new SubscriptionBag();
+            _pvpTriggers.Dispose();
+            _pvpTriggers = new SubscriptionBag();
             _saves = null;
             _generation++;
             _opening = false;
@@ -685,6 +696,36 @@ namespace RPGFramework.ActionRpg
             if (Directory.Exists(SaveDirectory))
                 Directory.Delete(SaveDirectory, true);
             Debug.Log($"Saved progress deleted: {SaveDirectory}", this);
+        }
+
+        private void PlacePlayers()
+        {
+            foreach (int id in World.Players)
+                PlacePlayer(id);
+        }
+
+        private void PlacePlayer(int playerId)
+        {
+            var world = World;
+            var player = world?.Get(playerId);
+            var pvp = world?.Settings.Pvp;
+            if (player == null || pvp == null || _presenter == null)
+                return;
+            int member = 0;
+            foreach (int id in world.Players)
+            {
+                var other = world.Get(id);
+                if (other != null && other.Team == player.Team && other.Seat < player.Seat)
+                    member++;
+            }
+            int sides = pvp.Mode == PvpMode.FreeForAll ? world.Players.Count : pvp.Teams.Count;
+            var spot = _setup.Pvp.SpawnPoint(pvp.SideIndexOf(player.Team), member, sides);
+            var pose = new ActorPose(spot.position.x, spot.position.y, spot.position.z, spot.rotation.eulerAngles.y);
+            // A friend's own machine moves them: the co-op host tells it too
+            if (_coopHost != null)
+                _coopHost.Teleport(playerId, pose);
+            else
+                _presenter.Teleport(playerId, pose);
         }
 
         private void OnViewShown(int entityId, GameObject view)

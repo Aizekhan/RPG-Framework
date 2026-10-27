@@ -20,7 +20,8 @@
         "RPGFramework.Integration.CombatQuests.Runtime",
         "UniTask",
         "RPGFramework.Persistence.Runtime",
-        "RPGFramework.Networking.Runtime"
+        "RPGFramework.Networking.Runtime",
+        "RPGFramework.Factions.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

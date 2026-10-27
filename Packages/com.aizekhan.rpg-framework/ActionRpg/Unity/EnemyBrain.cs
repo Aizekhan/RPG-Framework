@@ -56,7 +56,7 @@ namespace RPGFramework.ActionRpg
             float best = float.MaxValue;
             foreach (int player in World.LivingPlayers)
             {
-                if (!TryGetPosition(player, out var candidate))
+                if (!World.AreHostile(EntityId, player) || !TryGetPosition(player, out var candidate))
                     continue;
                 float distance = Flat(candidate - transform.position).sqrMagnitude;
                 if (distance >= best)

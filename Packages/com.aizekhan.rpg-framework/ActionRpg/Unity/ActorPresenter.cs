@@ -177,6 +177,26 @@ namespace RPGFramework.ActionRpg
                 motion.SetTarget(pose);
         }
 
+        public void Teleport(int entityId, ActorPose pose)
+        {
+            _reported[entityId] = pose;
+            if (!_views.TryGetView(entityId, out var view))
+                return;
+            if (view.TryGetComponent(out RemoteMotion motion) && motion.enabled)
+            {
+                motion.Jump(pose);
+                return;
+            }
+            // A character controller keeps its own idea of where it is: it must be off while the view is moved
+            var body = view.GetComponent<CharacterController>();
+            bool wasOn = body != null && body.enabled;
+            if (wasOn)
+                body.enabled = false;
+            view.transform.SetPositionAndRotation(new Vector3(pose.X, pose.Y, pose.Z), Quaternion.Euler(0f, pose.Yaw, 0f));
+            if (wasOn)
+                body.enabled = true;
+        }
+
         /// <summary>
         /// Whether this machine moves the character: its own player always, enemies unless they mirror a host.
         /// </summary>

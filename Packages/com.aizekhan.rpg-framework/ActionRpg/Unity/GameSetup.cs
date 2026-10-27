@@ -47,6 +47,9 @@ namespace RPGFramework.ActionRpg
         [Tooltip("0 = different every run; any other number repeats loot and waves exactly")]
         [SerializeField] private int _seed;
 
+        [Header("PvP")]
+        [SerializeField] private PvpSetup _pvp = new PvpSetup();
+
         [Header("Camera")]
         [SerializeField] private Vector3 _cameraOffset = new Vector3(0f, 8f, -6.5f);
 
@@ -55,6 +58,7 @@ namespace RPGFramework.ActionRpg
         public WaveSettings Waves => _waves;
         public float SpawnRadius => _spawnRadius;
         public Vector3 CameraOffset => _cameraOffset;
+        public PvpSetup Pvp => _pvp ?? (_pvp = new PvpSetup());
         public List<ItemAsset> Items => _items;
         public List<LootTableAsset> LootTables => _lootTables;
         public List<QuestAsset> StartingQuests => _startingQuests;
@@ -97,7 +101,8 @@ namespace RPGFramework.ActionRpg
                 Waves = _waves ?? new WaveSettings(),
                 CompleteQuestsAutomatically = _completeQuestsAutomatically,
                 InventoryCapacity = _inventoryCapacity,
-                Seed = _seed
+                Seed = _seed,
+                Pvp = Pvp.ToSettings()
             };
             settings.Enemies.AddRange(_enemies.Where(e => e != null).Select(e => e.ToData()));
             settings.StartingQuests.AddRange(_startingQuests.Where(q => q != null).Select(q => q.questId));

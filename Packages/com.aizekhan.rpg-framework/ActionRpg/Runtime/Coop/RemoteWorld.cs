@@ -42,6 +42,14 @@ namespace RPGFramework.ActionRpg.Coop
         public IEnumerable<int> LivingPlayers => _actors.Values.Where(a => a.IsPlayer && a.IsAlive()).Select(a => a.EntityId);
         public Actor Get(int entityId) => _actors.TryGetValue(entityId, out var actor) ? actor : null;
 
+        public bool AreHostile(int attackerId, int targetId)
+        {
+            var attacker = Get(attackerId);
+            var target = Get(targetId);
+            return attacker != null && target != null && attacker != target
+                   && HostilityRules.For(Settings).AreHostile(attacker, target);
+        }
+
         public int Kills => _party.Kills;
         public int Level => _party.Level;
         public long TotalExperience => _party.TotalExperience;
@@ -51,17 +59,19 @@ namespace RPGFramework.ActionRpg.Coop
         public IEnumerable<(IQuest Quest, IQuestProgress Progress)> ActiveQuests => _activeQuests;
         public IReadOnlyList<string> CompletedQuests => _party.CompletedQuests;
         public IInventoryContainer<IItem> Inventory => _inventory;
+        public PvpStatus PvpStatus => _party.Pvp;
 
         public float Attack(int attackerId, int targetId)
         {
-            if (IsStarted && attackerId == PlayerId && Player?.IsAlive() == true && Get(targetId)?.IsAlive() == true)
+            if (IsStarted && attackerId == PlayerId && Player?.IsAlive() == true && Get(targetId)?.IsAlive() == true
+                && AreHostile(attackerId, targetId))
                 _send(new CoopIntentMessage { Kind = CoopIntentMessage.IntentKind.Attack, TargetId = targetId });
             return 0f;
         }
 
         public bool RevivePlayer()
         {
-            if (!IsStarted || Player == null || Player.IsAlive())
+            if (!IsStarted || Player == null || Player.IsAlive() || Settings.Pvp != null)
                 return false;
             _send(new CoopIntentMessage { Kind = CoopIntentMessage.IntentKind.Revive });
             return true;
@@ -122,6 +132,11 @@ namespace RPGFramework.ActionRpg.Coop
                 actor.SetHealth(state.Health);
                 if (state.Alive != actor.IsAlive())
                     actor.OnLifeStateChanged(actor.CurrentState, state.Alive ? LifeState.Alive : LifeState.Dead);
+                if (actor.Team != state.Team)
+                {
+                    actor.Team = state.Team;
+                    _bus.Publish(new ActorTeamChangedEvent(actor.EntityId, state.Team));
+                }
             }
 
             if (message.Party != null)

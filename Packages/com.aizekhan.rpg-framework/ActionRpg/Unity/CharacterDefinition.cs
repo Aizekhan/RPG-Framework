@@ -65,7 +65,8 @@ namespace RPGFramework.ActionRpg
             AttackPerLevel = _attackPerLevel,
             DefensePerLevel = _defensePerLevel,
             ExperienceReward = _experience,
-            LootTableId = _loot != null ? _loot.tableId : ""
+            LootTableId = _loot != null ? _loot.tableId : "",
+            MoveSpeed = _moveSpeed
         };
 
         /// <summary>

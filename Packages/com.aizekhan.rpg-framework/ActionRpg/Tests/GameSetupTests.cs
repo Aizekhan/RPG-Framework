@@ -86,6 +86,50 @@ namespace RPGFramework.ActionRpg.Tests
         }
 
         [Test]
+        public void Pvp_IsOffUntilTurnedOn_ThenTheMatchRulesAndMoveSpeedReachTheGame()
+        {
+            var setup = GoodSetup(out _);
+            setup.Player.SetMovement(6f, 2f, 0.5f);
+            Assert.That(setup.BuildSettings().Pvp, Is.Null);
+            Assert.That(setup.BuildSettings().Player.MoveSpeed, Is.EqualTo(6f));
+
+            setup.Pvp.Enabled = true;
+            setup.Pvp.Mode = PvpMode.Duel;
+            setup.Pvp.RoundsToWin = 3;
+            var pvp = setup.BuildSettings().Pvp;
+
+            Assert.That(pvp.Mode, Is.EqualTo(PvpMode.Duel));
+            Assert.That(pvp.RoundsToWin, Is.EqualTo(3));
+            Assert.That(pvp.Teams, Is.EqualTo(new[] { "Red", "Blue" }));
+            Assert.That(setup.Validate(), Is.Empty);
+        }
+
+        [Test]
+        public void PvpSpawnPoints_FaceEachOther_AndTeammatesStandApart()
+        {
+            var pvp = new PvpSetup();
+
+            var red = pvp.SpawnPoint(0, 0, 2);
+            var blue = pvp.SpawnPoint(1, 0, 2);
+            var mate = pvp.SpawnPoint(0, 1, 2);
+
+            Assert.That((red.position + blue.position).magnitude, Is.LessThan(0.01f), "opposite sides of the arena");
+            Assert.That(red.position.magnitude, Is.EqualTo(8f).Within(0.01f));
+            Assert.That(Vector3.Dot(red.forward, -red.position.normalized), Is.GreaterThan(0.99f), "facing the middle");
+            Assert.That(Vector3.Distance(red.position, mate.position), Is.EqualTo(1.5f).Within(0.01f));
+
+            pvp.SpawnPoints.Add(new Vector3(3f, 0f, 3f));
+            pvp.SpawnPoints.Add(new Vector3(-3f, 0f, -3f));
+            Assert.That(pvp.SpawnPoint(1, 0, 2).position, Is.EqualTo(new Vector3(-3f, 0f, -3f)));
+            Assert.That(pvp.SpawnPoint(2, 0, 3).position, Is.EqualTo(new Vector3(3f, 0f, 3f)), "points repeat when there are more sides");
+
+            var settings = new PvpSettings { Mode = PvpMode.FreeForAll };
+            Assert.That(settings.SideIndexOf(PvpSettings.FreeForAllSide(4)), Is.EqualTo(4));
+            Assert.That(new PvpSettings().SideIndexOf("Blue"), Is.EqualTo(1));
+            Assert.That(new PvpSettings().SideIndexOf(null), Is.EqualTo(-1));
+        }
+
+        [Test]
         public void BuildSettings_CarriesCharactersAndStartingQuests()
         {
             var settings = GoodSetup(out _).BuildSettings();

@@ -33,6 +33,17 @@ namespace RPGFramework.ActionRpg
             transform.SetPositionAndRotation(_target, _facing);
         }
 
+        /// <summary>
+        /// Goes there at once, without sliding.
+        /// </summary>
+        public void Jump(ActorPose pose)
+        {
+            _target = new Vector3(pose.X, pose.Y, pose.Z);
+            _facing = Quaternion.Euler(0f, pose.Yaw, 0f);
+            _hasTarget = true;
+            transform.SetPositionAndRotation(_target, _facing);
+        }
+
         protected override void OnBound() => _hasTarget = false;
 
         private void Update()

@@ -28,6 +28,11 @@ namespace RPGFramework.ActionRpg.Coop
             public readonly Dictionary<int, Actor> Known = new Dictionary<int, Actor>();
             public readonly Dictionary<int, ActorState> States = new Dictionary<int, ActorState>();
             public byte[] Party;
+
+            // Where the host last accepted the player to be, and when (for the speed check)
+            public bool Placed;
+            public ActorPose Place;
+            public float PlacedAt;
         }
 
         private sealed class KeptSeat
@@ -58,6 +63,7 @@ namespace RPGFramework.ActionRpg.Coop
         private readonly SubscriptionBag _subscriptions = new SubscriptionBag();
         private readonly Dictionary<string, KeptSeat> _keptSeats = new Dictionary<string, KeptSeat>();
         private float _sinceSend;
+        private float _clock;
 
         /// <param name="world">The game this machine runs.</param>
         /// <param name="bus">The game's event bus (to hear characters enter, leave and get hit).</param>
@@ -102,6 +108,22 @@ namespace RPGFramework.ActionRpg.Coop
         /// Seconds the seat of a player whose link was lost waits for them; 0 keeps none.
         /// </summary>
         public float RejoinWindow { get; set; } = CoopProtocol.RejoinWindow;
+
+        /// <summary>
+        /// How much faster than their character's <see cref="CharacterData.MoveSpeed"/> a joined player may move
+        /// before the host puts them back (slack for uneven packets).
+        /// </summary>
+        public float MoveSpeedTolerance { get; set; } = 1.25f;
+
+        /// <summary>
+        /// Distance on the ground a joined player may be off at any moment without a correction.
+        /// </summary>
+        public float MoveSlack { get; set; } = 0.5f;
+
+        /// <summary>
+        /// Times a joined player moved too fast and was put back.
+        /// </summary>
+        public int MovementCorrections { get; private set; }
 
         public bool IsOpen => _network.IsConnected;
 
@@ -168,6 +190,7 @@ namespace RPGFramework.ActionRpg.Coop
 
         public void Update(float deltaTime)
         {
+            _clock += deltaTime;
             _network.Update(deltaTime);
             ForgetOldSeats(deltaTime);
             if (!_network.IsConnected)
@@ -323,11 +346,13 @@ namespace RPGFramework.ActionRpg.Coop
             {
                 case CoopIntentMessage.IntentKind.Attack:
                     var target = _world.Get(intent.TargetId);
-                    if (target != null && !target.IsPlayer && InReach(guest.PlayerId, target.EntityId))
+                    if (target != null && _world.AreHostile(guest.PlayerId, target.EntityId) && InReach(guest.PlayerId, target.EntityId))
                         _world.Attack(guest.PlayerId, target.EntityId);
                     break;
                 case CoopIntentMessage.IntentKind.Revive:
-                    _world.RevivePlayer(guest.PlayerId);
+                    // In PvP the match brings players back, nobody revives on demand
+                    if (_world.Settings.Pvp == null)
+                        _world.RevivePlayer(guest.PlayerId);
                     break;
                 case CoopIntentMessage.IntentKind.Leave:
                     guest.LeavingOnPurpose = true;
@@ -349,11 +374,73 @@ namespace RPGFramework.ActionRpg.Coop
         {
             if (_motion == null || !_guests.TryGetValue(connectionId, out var guest) || guest.PlayerId < 0)
                 return;
-            // A player moves only their own character
+            // A player moves only their own character, and no faster than it can
             foreach (var (id, pose) in motion.Poses)
             {
-                if (id == guest.PlayerId && pose.IsFinite)
+                if (id != guest.PlayerId || !pose.IsFinite)
+                    continue;
+                if (WithinReach(guest, id, pose, out var allowed))
+                {
                     _motion.SetTargetPose(id, pose);
+                    continue;
+                }
+                MovementCorrections++;
+                _logger?.LogWarning($"Player {id} moved faster than their character can; put back", Category);
+                _motion.SetTargetPose(id, allowed);
+                _network.Send(connectionId, new CoopCorrectionMessage { Pose = allowed });
+            }
+        }
+
+        // The ground distance from the last accepted place must fit the character's speed over the time since;
+        // otherwise the player goes as far as they could have, towards where they claim to be
+        private bool WithinReach(Guest guest, int playerId, ActorPose pose, out ActorPose allowed)
+        {
+            allowed = pose;
+            float speed = _world.Get(playerId)?.Character.MoveSpeed ?? 0f;
+            if (speed <= 0f || !guest.Placed)
+            {
+                Place(guest, pose);
+                return true;
+            }
+
+            float reach = speed * MoveSpeedTolerance * (_clock - guest.PlacedAt) + MoveSlack;
+            float dx = pose.X - guest.Place.X, dz = pose.Z - guest.Place.Z;
+            float distance = (float)Math.Sqrt(dx * dx + dz * dz);
+            if (distance <= reach)
+            {
+                Place(guest, pose);
+                return true;
+            }
+
+            float part = reach / distance;
+            allowed = new ActorPose(guest.Place.X + dx * part, pose.Y, guest.Place.Z + dz * part, pose.Yaw);
+            Place(guest, allowed);
+            return false;
+        }
+
+        private void Place(Guest guest, ActorPose pose)
+        {
+            guest.Placed = true;
+            guest.Place = pose;
+            guest.PlacedAt = _clock;
+        }
+
+        /// <summary>
+        /// Puts a player somewhere at once (a spawn point, a new round): here, and on the machine of the player who
+        /// plays them, which then moves on from there.
+        /// </summary>
+        public void Teleport(int playerId, ActorPose pose)
+        {
+            if (!pose.IsFinite)
+                throw new ArgumentException("The pose must be real numbers", nameof(pose));
+            _motion?.Teleport(playerId, pose);
+            foreach (var pair in _guests)
+            {
+                if (pair.Value.PlayerId != playerId)
+                    continue;
+                Place(pair.Value, pose);
+                if (_network.IsConnected)
+                    _network.Send(pair.Key, new CoopCorrectionMessage { Pose = pose });
             }
         }
 

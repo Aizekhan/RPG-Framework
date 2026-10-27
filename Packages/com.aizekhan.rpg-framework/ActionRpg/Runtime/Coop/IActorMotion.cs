@@ -13,5 +13,10 @@ namespace RPGFramework.ActionRpg.Coop
         /// Where a character driven from another machine should go (it moves there smoothly).
         /// </summary>
         void SetTargetPose(int entityId, ActorPose pose);
+
+        /// <summary>
+        /// Puts a character there at once, this machine's own player included (a host's correction, a spawn point).
+        /// </summary>
+        void Teleport(int entityId, ActorPose pose);
     }
 }

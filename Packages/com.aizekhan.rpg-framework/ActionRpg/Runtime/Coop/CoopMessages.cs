@@ -46,11 +46,12 @@ namespace RPGFramework.ActionRpg.Coop
         public const int WorldId = 1102;
         public const int MotionId = 1103;
         public const int IntentId = 1104;
+        public const int CorrectionId = 1105;
 
         /// <summary>
         /// Changes whenever the messages change, so older and newer builds refuse each other instead of misreading.
         /// </summary>
-        public const int Version = 3;
+        public const int Version = 4;
 
         public const int DefaultPort = 7777;
         public const int DefaultMaxPlayers = 4;
@@ -94,6 +95,7 @@ namespace RPGFramework.ActionRpg.Coop
             serializer.RegisterMessageType<CoopWorldMessage>(WorldId);
             serializer.RegisterMessageType<CoopMotionMessage>(MotionId);
             serializer.RegisterMessageType<CoopIntentMessage>(IntentId);
+            serializer.RegisterMessageType<CoopCorrectionMessage>(CorrectionId);
             return serializer;
         }
 
@@ -102,6 +104,7 @@ namespace RPGFramework.ActionRpg.Coop
             .Set(IntentId, MessageAuthority.Client)
             .Set(WelcomeId, MessageAuthority.Server)
             .Set(WorldId, MessageAuthority.Server)
+            .Set(CorrectionId, MessageAuthority.Server)
             .Set(MotionId, MessageAuthority.Any);
 
         /// <param name="connectionTimeout">Seconds of silence before the link counts as lost (tests use less).</param>
@@ -142,6 +145,7 @@ namespace RPGFramework.ActionRpg.Coop
                 Number(c.AttackPerLevel);
                 Number(c.DefensePerLevel);
                 Number(c.ExperienceReward);
+                Number(c.MoveSpeed);
                 text.Append('|');
             }
             if (settings.Player != null)
@@ -149,6 +153,16 @@ namespace RPGFramework.ActionRpg.Coop
             foreach (var enemy in settings.Enemies.Where(e => e != null).OrderBy(e => e.Id, StringComparer.Ordinal))
                 Character(enemy);
             Number(settings.InventoryCapacity);
+            if (settings.Pvp != null)
+            {
+                var pvp = settings.Pvp;
+                text.Append("pvp:").Append((int)pvp.Mode).Append(',');
+                Number(pvp.ScoreToWin);
+                Number(pvp.RoundsToWin);
+                foreach (var team in pvp.Teams)
+                    text.Append(team).Append(',');
+                text.Append('|');
+            }
             foreach (var quest in settings.StartingQuests.OrderBy(q => q, StringComparer.Ordinal))
                 text.Append(quest).Append('|');
             if (content != null)
@@ -251,15 +265,20 @@ namespace RPGFramework.ActionRpg.Coop
         public float Defense;
         public bool Alive;
 
+        /// <summary>
+        /// Its PvP side; null for none.
+        /// </summary>
+        public string Team;
+
         public static ActorState Of(Actor actor) => new ActorState
         {
             Id = actor.EntityId, Health = actor.Health, MaxHealth = actor.MaxHealth, Attack = actor.Attack,
-            Defense = actor.Defense, Alive = actor.IsAlive()
+            Defense = actor.Defense, Alive = actor.IsAlive(), Team = actor.Team
         };
 
         public bool SameAs(ActorState other) =>
             Health == other.Health && MaxHealth == other.MaxHealth && Attack == other.Attack && Defense == other.Defense
-            && Alive == other.Alive;
+            && Alive == other.Alive && Team == other.Team;
     }
 
     /// <summary>
@@ -329,6 +348,7 @@ namespace RPGFramework.ActionRpg.Coop
                 writer.Write(state.Attack);
                 writer.Write(state.Defense);
                 writer.Write(state.Alive);
+                writer.Write(state.Team ?? "");
             }
             writer.Write(Party != null);
             Party?.Write(writer);
@@ -359,11 +379,14 @@ namespace RPGFramework.ActionRpg.Coop
             int states = CoopProtocol.ReadCount(reader);
             for (int i = 0; i < states; i++)
             {
-                States.Add(new ActorState
+                var state = new ActorState
                 {
                     Id = reader.ReadInt32(), Health = reader.ReadSingle(), MaxHealth = reader.ReadSingle(),
                     Attack = reader.ReadSingle(), Defense = reader.ReadSingle(), Alive = reader.ReadBoolean()
-                });
+                };
+                string team = reader.ReadString();
+                state.Team = team.Length > 0 ? team : null;
+                States.Add(state);
             }
             if (reader.ReadBoolean())
             {
@@ -388,6 +411,11 @@ namespace RPGFramework.ActionRpg.Coop
         public List<string> CompletedQuests = new List<string>();
         public List<string> Log = new List<string>();
 
+        /// <summary>
+        /// The PvP match; null when the game is not PvP.
+        /// </summary>
+        public PvpStatus Pvp;
+
         public static PartyStatus Of(ActorWorld world)
         {
             var status = new PartyStatus
@@ -404,6 +432,11 @@ namespace RPGFramework.ActionRpg.Coop
             }
             status.CompletedQuests.AddRange(world.CompletedQuests);
             status.Log.AddRange(world.Log);
+            if (world.Match != null && world.Settings.Pvp != null)
+            {
+                status.Pvp = new PvpStatus();
+                status.Pvp.CopyFrom(world.Match);
+            }
             return status;
         }
 
@@ -438,6 +471,8 @@ namespace RPGFramework.ActionRpg.Coop
             }
             WriteStrings(writer, CompletedQuests);
             WriteStrings(writer, Log);
+            writer.Write(Pvp != null);
+            Pvp?.Write(writer);
         }
 
         public void Read(BinaryReader reader)
@@ -460,6 +495,12 @@ namespace RPGFramework.ActionRpg.Coop
             }
             CompletedQuests = ReadStrings(reader);
             Log = ReadStrings(reader);
+            Pvp = null;
+            if (reader.ReadBoolean())
+            {
+                Pvp = new PvpStatus();
+                Pvp.Read(reader, CoopProtocol.ReadCount);
+            }
         }
 
         private static void WriteStrings(BinaryWriter writer, List<string> values)
@@ -505,6 +546,29 @@ namespace RPGFramework.ActionRpg.Coop
             int count = CoopProtocol.ReadCount(reader);
             for (int i = 0; i < count; i++)
                 Poses.Add((reader.ReadInt32(), new ActorPose(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle())));
+        }
+    }
+
+    /// <summary>
+    /// Host → client: your player is here now (they moved faster than their character can, or the game put them
+    /// at a spawn point). The client puts its player there at once.
+    /// </summary>
+    public sealed class CoopCorrectionMessage : NetworkMessage, INetworkPayload
+    {
+        public override int MessageTypeId => CoopProtocol.CorrectionId;
+        public ActorPose Pose;
+
+        public void Write(BinaryWriter writer)
+        {
+            writer.Write(Pose.X);
+            writer.Write(Pose.Y);
+            writer.Write(Pose.Z);
+            writer.Write(Pose.Yaw);
+        }
+
+        public void Read(BinaryReader reader)
+        {
+            Pose = new ActorPose(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
         }
     }
 

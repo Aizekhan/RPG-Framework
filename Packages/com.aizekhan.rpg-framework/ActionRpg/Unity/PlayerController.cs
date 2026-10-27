@@ -136,15 +136,17 @@ namespace RPGFramework.ActionRpg
             target = -1;
             position = default;
             float best = Definition.AttackRange * Definition.AttackRange;
-            foreach (int enemy in World.LivingEnemies)
+            // Whoever the rules let this player hit: enemies, and in PvP the other sides
+            foreach (var actor in World.Actors)
             {
-                if (!TryGetPosition(enemy, out var candidate))
+                int other = actor.EntityId;
+                if (!actor.IsAlive() || !World.AreHostile(EntityId, other) || !TryGetPosition(other, out var candidate))
                     continue;
                 float distance = Flat(candidate - transform.position).sqrMagnitude;
                 if (distance > best)
                     continue;
                 best = distance;
-                target = enemy;
+                target = other;
                 position = candidate;
             }
             return target >= 0;

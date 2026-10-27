@@ -85,6 +85,8 @@ namespace RPGFramework.ActionRpg
         /// </summary>
         public string ShownName => _shown && _name != null ? _name.text : "";
 
+        private int _slot = int.MinValue;
+
         public Color ShownColor => _ringMaterial != null ? _ringMaterial.color : Color.clear;
 
         private void Awake()
@@ -111,12 +113,24 @@ namespace RPGFramework.ActionRpg
 
         protected override void OnBound()
         {
-            var actor = Actor;
-            var color = ColorOf(actor?.Seat ?? -1, _palette);
-            _name.color = color;
-            _ringMaterial.color = color;
+            _slot = int.MinValue;
+            Recolor();
             _shown = true;
             Show(false);
+        }
+
+        // A player's colour is their seat's, in PvP their side's (teammates share it)
+        private void Recolor()
+        {
+            var actor = Actor;
+            var pvp = World?.Settings?.Pvp;
+            int slot = pvp != null && actor?.Team != null ? pvp.SideIndexOf(actor.Team) : actor?.Seat ?? -1;
+            if (slot == _slot)
+                return;
+            _slot = slot;
+            var color = ColorOf(slot, _palette);
+            _name.color = color;
+            _ringMaterial.color = color;
         }
 
         protected override void OnUnbound() => Show(false);
@@ -124,6 +138,8 @@ namespace RPGFramework.ActionRpg
         private void LateUpdate()
         {
             var actor = Actor;
+            if (actor != null)
+                Recolor();
             bool together = actor != null && World.Actors.Count(a => a.IsPlayer) > 1;
             Show(together);
             if (!together)
