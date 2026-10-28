@@ -2,7 +2,9 @@
 
 ## [Unreleased]
 
-Closes MythRunner's FG-14 and FG-15. **Co-op protocol version 13**: 0.8.x builds are refused.
+## [0.9.0] - 2026-10-28
+
+Closes MythRunner's FG-14 and FG-15. **Co-op protocol version 13**: 0.8.x builds are refused. Install with `#v0.9.0`.
 
 ### Added
 - **Critical hits and damage multipliers** (MythRunner FG-15): `AttackContext.AsCritical(multiplier)`, `WithMultiplier(factor)` (a power strike, rage, a combo; they multiply together), `IsCritical`, `Multiplier`. `ActorWorld` multiplies the strike or the amount before the damage calculator, which still sees the context; `ActorDamagedEvent.Context` and friends' machines report it (`CoopWorldMessage.Change.Critical` / `Multiplier`).
