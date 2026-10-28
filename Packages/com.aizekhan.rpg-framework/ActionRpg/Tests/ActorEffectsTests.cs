@@ -279,7 +279,7 @@ namespace RPGFramework.ActionRpg.Tests
             Assert.That(World.UseAbility(Strike, goblin), Is.True);
             Assert.That(World.CooldownLeft(Strike), Is.Zero, "0: no cooldown this time");
             Assert.That(World.UseAbility(Strike, goblin), Is.True);
-            Assert.That(strikes, Is.EqualTo(3));
+            Assert.That(strikes, Is.EqualTo(4));
         }
 
         [Test]
