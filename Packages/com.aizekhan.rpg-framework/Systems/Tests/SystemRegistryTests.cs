@@ -548,7 +548,7 @@ namespace RPGFramework.Systems.Tests
             var registry = new SystemRegistry();
             registry.Register(new DeltaSystem(ticks));
             var pause = new GamePause();
-            var world = new World("W", new EntityManager(), registry, pause);
+            var world = new World("W", new EntityManager(), registry, pause: pause);
             world.Initialize();
 
             world.Update(0.5f);
