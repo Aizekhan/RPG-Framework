@@ -11,6 +11,7 @@
 
 | Gate | Result | SHA |
 |---|---|---|
+| **The Bloodline Hunt BH-01..03 turn session** (not released yet, for 0.14.0): `RPGFramework.Turns` (`TurnHost`, `TurnClient`, `ITurnSession`, `ITurnRules`, `TurnIntent`, per-seat views, notices with visibility, reaction prompts, turn timer, rejoin by token; protocol 1, ids 1300-1311) + `ScriptedDice.Then(purpose, rolls)` (`ca8564b`). Verify worktree | ✅ EditMode **1905 / 1905**, PlayMode **13 / 13** | `ca8564b` |
 | **Release `v0.13.0`** (tag on `898bf1e`, GitHub release; BH-05 dice, BH-04 decks): CI green (run `40755159703`) | ✅ | `898bf1e` |
 | **The Bloodline Hunt BH-05 + BH-04** (released in v0.13.0): `RPGFramework.Dice` (`IDiceService`, `DiceService`, `ScriptedDice`, `DieRolledEvent`; registered by `FrameworkCoreModule` with `DiceSeed`), `RPGFramework.Cards` (`Deck<T>`, `Hand<T>`) + `Cards.Unity` (`DeckAsset<T>`) (`61d236b`). Verify worktree | ✅ EditMode **1894 / 1894**, PlayMode **13 / 13** | `61d236b` |
 | **Release `v0.12.0`** (tag on `aaa33dc`, GitHub release; FG-21 audio module, protocol v14): CI green (run `40752971254`) | ✅ | `aaa33dc` |
