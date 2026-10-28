@@ -2,13 +2,23 @@
 
 ## [Unreleased]
 
-Fixes from the MythRunner audit (a runner + action RPG on the kit, co-op 1-4).
+Fixes from the MythRunner audit (a runner + action RPG on the kit, co-op 1-4). **Co-op protocol version 10**: 0.5.1 builds are refused.
+
+### Changed
+- **Ability range is checked in kit games.** `ActionRpgHost` never set `ActionRpgModule.Distance`, so `Range` on an ability was ignored. Now `ActionRpgHost.AbilityDistance(caster, target)` measures it (scene distance by default; a runner or grid game overrides it with its own measure).
+- **`TradingManager` keys proposals per player** (two players proposing the same offer no longer collide), re-checks an offer's uses when accepting, and the "Wrong entity for this trade" failure is gone (another player's proposal is "Trade not proposed").
+- `ActorWorld`'s constructor takes an optional `ICurrencyWallet` last; `IActorWorld` has `CurrencyOf` and `TakeOffer`; `PlayerProgress` and `PartyStatus` carry `Currencies`; `CoopIntentMessage` has `TakeOffer` and `OfferId`.
 
 ### Fixed
 - **The game CI workflow no longer passes without running a test.** Without the `UNITY_LICENSE`/`UNITY_EMAIL`/`UNITY_PASSWORD` secrets the run fails with an error (it used to skip every step and show green; MythRunner's CI "passed" in 8 seconds for a month). An EditMode run that reports 0 tests fails too. Reinstalling the AI guidance replaces the old framework workflow; a workflow the game wrote or changed is kept. Checkout fetches LFS files.
 - **Co-op keeps running when the window loses focus.** `ActionRpgHost` sets `Application.runInBackground` when it hosts or joins: an Alt-Tab on the host froze every friend.
 
 ### Added
+- **GA14 "The game's rules use the framework's gameplay modules"**: rules code that hand-rolls a weighted pick or a random amount of currency (Loot), takes currency from a balance (wallet, Trading), counts down a cooldown (Abilities), an effect timer (StatusEffects) or any countdown (timers) fails. GA11 only caught a framework type rebuilt under its own name. Only a `// framework-gap: <id>` marker (on the line, above it, or above its type) lets one through; `architecture: allow GA14` does not. Recipe 16 maps each game need to its module (a chest → loot table, a shop → Trading, a perk → Abilities, poison → StatusEffects).
+- **A currency wallet**: `ICurrencyWallet` / `CurrencyWallet` (`Balance`, `CanAfford`, `Add`, `TrySpend`, `SetBalance`, `BalancesOf`, `Forget`), `CurrencyChangedEvent`, `Currencies.Gold`.
+- **Trading runs a shop**: `TradingManager` pays from an `ICurrencyWallet` and moves items through an `ITradeInventory` (requested items and money are checked first, a failure undoes everything), `ITradingManager.Trade(player, offerId)` proposes and accepts in one call, and `TradingModule` (Bootstrap.Gameplay) registers it. Before, its gold lived in a private dictionary with 1000 for everyone and no items moved.
+- **Gold and shops in the action RPG kit**: `ActionRpgSettings.Currencies` (gold): a loot table entry with that id pays its quantity range into `ActorWorld.Wallet`, quest `Currency` rewards pay too; `CurrencyOf`, `GiveCurrency`, `SpendCurrency`, `Trade` / `TakeOffer` (the kit adds `TradingModule` with `ActorTradeInventory` over the backpacks). Money follows the progress mode (own wallet or the party's), is saved with the progress, reaches friends' HUDs, and a friend's purchase runs on the host. The character sheet shows gold.
+- **Kit games off free 3D** (runners, lanes, grids): `ActionRpgHost.AbilityDistance` (above) and `ActorAbilities.ResolveTarget` (who an ability used without a target hits; runs on the host for friends too). Recipe 17: another genre on the action RPG kit (the game's space in one class, its actions as ability effects, timed states as status effects, one feature per module).
 - New Game sets the Player Settings a game needs: Run In Background, Linear colour space, and a company name instead of `DefaultCompany` (the game's name, or `-company "<Studio>"`; a company already chosen is kept). `GameScaffold.ApplyProjectSettings`.
 - Install AI Guidance writes a `.gitattributes` (when the project has none) that keeps models, textures, audio, video, fonts and archives in Git LFS. `START-NEW-GAME.md` step 3 runs `git lfs install`.
 - AI guidance: "After the framework is updated" in the `CLAUDE.md` block, and the `FRAMEWORK-GAPS.md` template: after an update every open gap is checked against the changelog and its stand-in replaced (MythRunner kept FG-04/05 stand-ins after 0.5.0 covered them).
