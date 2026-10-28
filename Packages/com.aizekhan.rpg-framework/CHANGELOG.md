@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+- **Prices that depend on who trades** (MythRunner FG-16): `ITradePricing.GoldFor(player, trader, offer)` (a discount from a stat, a faction price), given to `TradingManager` (new last constructor parameter) or `TradingOptions.Pricing` / the container; `ITradingManager.GoldFor(player, offerId)` for price labels. Proposals, checks, payments, results and events use the player's price. In the kit: `World.TradePricing` (or an `ITradePricing` in the container) and `World.GoldFor(player, offerId)`; the price is the buying party member's even when the party's wallet pays.
+
+### Changed
+- `ITradingManager` has `GoldFor` (a game that implements it itself adds it).
+
 ## [0.9.0] - 2026-10-28
 
 Closes MythRunner's FG-14 and FG-15. **Co-op protocol version 13**: 0.8.x builds are refused. Install with `#v0.9.0`.

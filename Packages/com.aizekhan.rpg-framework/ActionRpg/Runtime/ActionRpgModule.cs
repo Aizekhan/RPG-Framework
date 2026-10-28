@@ -126,6 +126,8 @@ namespace RPGFramework.ActionRpg
             World.Trading = Container.Resolve<ITradingManager>();
             World.Interactions = Container.Resolve<IInteractionService>();
             World.GamePause = Container.Resolve<IGamePause>();
+            if (Container.IsRegistered<ITradePricing>())
+                World.TradePricing = Container.Resolve<ITradePricing>();
             if (InteractionDistance != null)
                 World.Interactions.Distance = InteractionDistance;
             Pvp = Container.Resolve<PvpMatch>();
@@ -189,7 +191,12 @@ namespace RPGFramework.ActionRpg
                 .UseModule(new ItemsModule())
                 .UseModule(new LootModule())
                 // Shops pay from the world's wallet and move items in and out of the backpacks
-                .UseModule(new TradingModule(new TradingOptions { Inventory = new ActorTradeInventory(() => game.World) }))
+                .UseModule(new TradingModule(new TradingOptions
+                {
+                    Inventory = new ActorTradeInventory(() => game.World),
+                    // Prices are the buyer's (World.TradePricing), even when the party's wallet pays
+                    Pricing = new ActorTradePricing(() => game.World)
+                }))
                 // Chests, doors, levers: the host measures how near the players are
                 .UseModule(new InteractionModule())
                 // Kills count for quests by character id ("goblin"), and for the party whoever in it made them

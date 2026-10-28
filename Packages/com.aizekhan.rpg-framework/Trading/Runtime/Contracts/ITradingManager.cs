@@ -55,6 +55,12 @@ namespace RPGFramework.Trading
         IReadOnlyList<ITradeOffer> GetTraderOffers(string traderId, int playerEntityId);
 
         /// <summary>
+        /// The gold this player would get from the offer now (negative: what they would pay), with the game's
+        /// <see cref="ITradePricing"/>; 0 for an unknown offer. For a shop's price labels.
+        /// </summary>
+        long GoldFor(int playerEntityId, string offerId);
+
+        /// <summary>
         /// Get player's current gold balance (the wallet's gold when the manager has a wallet).
         /// </summary>
         long GetPlayerGold(int playerEntityId);

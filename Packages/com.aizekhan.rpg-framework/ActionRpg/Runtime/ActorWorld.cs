@@ -948,8 +948,46 @@ namespace RPGFramework.ActionRpg
                 return TradeResultData.CreateFailure("Not in the party");
             if (Trading == null)
                 return TradeResultData.CreateFailure("The game has no traders");
-            return Trading.Trade(owner, offerId);
+            TradingPlayer = playerId;
+            try
+            {
+                return Trading.Trade(owner, offerId);
+            }
+            finally
+            {
+                TradingPlayer = -1;
+            }
         }
+
+        /// <summary>
+        /// The gold a party member would get from an offer now (negative: what they would pay), with
+        /// <see cref="TradePricing"/>: for the shop's price labels.
+        /// </summary>
+        public long GoldFor(int playerId, string offerId)
+        {
+            int owner = ProgressOwnerOf(playerId);
+            if (owner < 0 || Trading == null)
+                return 0;
+            TradingPlayer = playerId;
+            try
+            {
+                return Trading.GoldFor(owner, offerId);
+            }
+            finally
+            {
+                TradingPlayer = -1;
+            }
+        }
+
+        /// <summary>
+        /// Prices that depend on who trades (a discount from the hero's Trade stat): given the party member who
+        /// trades, not the wallet's owner. Set by the game, or registered as <see cref="ITradePricing"/> in the
+        /// container; null uses the offers' own gold amounts.
+        /// </summary>
+        public ITradePricing TradePricing { get; set; }
+
+        // The party member whose trade is running (-1 otherwise): prices are theirs even when the party pays
+        internal int TradingPlayer { get; private set; } = -1;
 
         /// <summary>
         /// The places players use: chests, doors, levers, traders (the scene's <c>InteractionPointView</c>s and any

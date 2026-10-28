@@ -16,6 +16,12 @@ namespace RPGFramework.Bootstrap.Gameplay
         /// container is used when null, and items are only listed in trade results when there is neither.
         /// </summary>
         public ITradeInventory Inventory { get; set; }
+
+        /// <summary>
+        /// Prices per player (a discount from a stat); an <see cref="ITradePricing"/> registered in the container is
+        /// used when null, and the offers' own gold amounts when there is neither.
+        /// </summary>
+        public ITradePricing Pricing { get; set; }
     }
 
     /// <summary>
@@ -45,7 +51,8 @@ namespace RPGFramework.Bootstrap.Gameplay
                 c.Resolve<ITraderRegistry>(),
                 c.Resolve<IEventPublisher>(),
                 c.Resolve<ICurrencyWallet>(),
-                _options.Inventory ?? (c.IsRegistered<ITradeInventory>() ? c.Resolve<ITradeInventory>() : null)));
+                _options.Inventory ?? (c.IsRegistered<ITradeInventory>() ? c.Resolve<ITradeInventory>() : null),
+                _options.Pricing ?? (c.IsRegistered<ITradePricing>() ? c.Resolve<ITradePricing>() : null)));
         }
     }
 }

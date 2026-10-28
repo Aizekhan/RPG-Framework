@@ -7,6 +7,33 @@ using RPGFramework.Trading;
 namespace RPGFramework.ActionRpg
 {
     /// <summary>
+    /// Trades in the action RPG cost what <see cref="ActorWorld.TradePricing"/> says for the party member trading.
+    /// </summary>
+    public sealed class ActorTradePricing : ITradePricing
+    {
+        private readonly Func<ActorWorld> _world;
+
+        public ActorTradePricing(Func<ActorWorld> world)
+        {
+            _world = world ?? throw new ArgumentNullException(nameof(world));
+        }
+
+        /// <summary>
+        /// The world's <see cref="ActorWorld.TradePricing"/> for the party member trading (the wallet's owner when the
+        /// trade did not come through the world), or the offer's own gold.
+        /// </summary>
+        public long GoldFor(int playerEntityId, ITrader trader, ITradeOffer offer)
+        {
+            var world = _world();
+            var pricing = world?.TradePricing;
+            if (pricing == null)
+                return offer.GoldAmount;
+            int player = world.TradingPlayer >= 0 ? world.TradingPlayer : playerEntityId;
+            return pricing.GoldFor(player, trader, offer);
+        }
+    }
+
+    /// <summary>
     /// Trades take items from and give items to the action RPG backpacks (<see cref="ActorWorld.InventoryOf"/>).
     /// Giving is all or nothing: a backpack that fills up halfway gets back what it had.
     /// </summary>

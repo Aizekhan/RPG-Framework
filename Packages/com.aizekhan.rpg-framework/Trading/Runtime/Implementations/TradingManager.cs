@@ -13,6 +13,8 @@ namespace RPGFramework.Trading
     /// (1000 for a player it has not seen, or what <see cref="InitializePlayerGold"/> set).
     /// Items: with an <see cref="ITradeInventory"/>, accepting takes the requested items and gives the offered ones,
     /// all or nothing; without one, items are only listed in the result and the game moves them.
+    /// Prices: with an <see cref="ITradePricing"/>, every trade costs what it says for the player trading (a discount
+    /// from a stat); without one, the offer's <see cref="ITradeOffer.GoldAmount"/>.
     /// With an event publisher, raises TradeProposed, TradeDeclined, and TradeAccepted followed by TradeCompleted
     /// (accepting applies the trade at once). Timestamps are 0: the manager keeps no clock.
     /// </summary>
@@ -22,6 +24,7 @@ namespace RPGFramework.Trading
         private readonly IEventPublisher _events;
         private readonly ICurrencyWallet _wallet;
         private readonly ITradeInventory _inventory;
+        private readonly ITradePricing _pricing;
         private readonly Dictionary<int, ActiveTradesData> _playerTrades = new Dictionary<int, ActiveTradesData>();
         private readonly Dictionary<(int playerId, string offerId), (ITradeOffer offer, float timestamp)> _proposedTrades =
             new Dictionary<(int, string), (ITradeOffer, float)>();
@@ -30,9 +33,11 @@ namespace RPGFramework.Trading
         /// <param name="events">Optional publisher for the trade events.</param>
         /// <param name="wallet">Optional wallet that holds the players' gold; the manager keeps its own when null.</param>
         /// <param name="inventory">Optional inventory that trades take items from and give items to.</param>
+        /// <param name="pricing">Optional prices per player; the offers' own gold amounts when null.</param>
         public TradingManager(ITraderRegistry traderRegistry, IEventPublisher events = null,
-            ICurrencyWallet wallet = null, ITradeInventory inventory = null)
+            ICurrencyWallet wallet = null, ITradeInventory inventory = null, ITradePricing pricing = null)
         {
+            _pricing = pricing;
             _traderRegistry = traderRegistry;
             _events = events;
             _wallet = wallet;
@@ -65,19 +70,20 @@ namespace RPGFramework.Trading
             if (_inventory != null && offer.RequestedItems.Any(i => !_inventory.HasItem(playerEntityId, i.ItemId, i.Quantity)))
                 return TradeResultData.CreateFailure("Missing items");
 
-            // Check gold
-            long totalGoldCost = offer.GoldAmount < 0 ? -offer.GoldAmount : 0;
+            // Check gold (the price for this player, asked again: their stats may have changed since the proposal)
+            long gold = GoldFor(playerEntityId, trader, offer);
+            long totalGoldCost = gold < 0 ? -gold : 0;
             long availableGold = _wallet != null ? _wallet.Balance(playerEntityId) : playerData.AvailableGold;
             if (availableGold < totalGoldCost)
                 return TradeResultData.CreateFailure("Insufficient gold");
 
             // Move items and gold, all or nothing
-            string failure = Exchange(playerEntityId, offer, ref playerData);
+            string failure = Exchange(playerEntityId, offer, gold, ref playerData);
             if (failure != null)
                 return TradeResultData.CreateFailure(failure);
 
             // Create result
-            var result = TradeResultData.CreateSuccess(offerId, offer.GoldAmount, 0f); // Timestamp handled by game layer
+            var result = TradeResultData.CreateSuccess(offerId, gold, 0f); // Timestamp handled by game layer
             result.ItemsReceived.AddRange(offer.OfferedItems);
             result.ItemsGiven.AddRange(offer.RequestedItems);
 
@@ -99,7 +105,7 @@ namespace RPGFramework.Trading
                 TradeOfferId = offerId,
                 ItemsReceivedCount = result.ItemsReceived.Count,
                 ItemsGivenCount = result.ItemsGiven.Count,
-                GoldChange = offer.GoldAmount,
+                GoldChange = gold,
                 ReputationChange = reputationGain,
                 Timestamp = 0f
             });
@@ -108,7 +114,7 @@ namespace RPGFramework.Trading
                 PlayerEntityId = playerEntityId,
                 TraderId = offer.TraderId,
                 TradeOfferId = offerId,
-                TotalValue = offer.GoldAmount < 0 ? -offer.GoldAmount : offer.GoldAmount,
+                TotalValue = gold < 0 ? -gold : gold,
                 NewReputation = playerData.GetReputation(offer.TraderId),
                 Timestamp = 0f
             });
@@ -141,6 +147,20 @@ namespace RPGFramework.Trading
 
             return trader.GetAvailableOffers(playerEntityId);
         }
+
+        public long GoldFor(int playerEntityId, string offerId)
+        {
+            foreach (var trader in _traderRegistry.GetAllTraders())
+            {
+                var offer = trader.GetOffer(offerId);
+                if (offer != null)
+                    return GoldFor(playerEntityId, trader, offer);
+            }
+            return 0;
+        }
+
+        private long GoldFor(int playerEntityId, ITrader trader, ITradeOffer offer) =>
+            _pricing?.GoldFor(playerEntityId, trader, offer) ?? offer.GoldAmount;
 
         public long GetPlayerGold(int playerEntityId)
         {
@@ -219,7 +239,7 @@ namespace RPGFramework.Trading
                 TradeOfferId = offerId,
                 OfferedItemCount = offer.OfferedItems.Count,
                 RequestedItemCount = offer.RequestedItems.Count,
-                GoldAmount = offer.GoldAmount,
+                GoldAmount = GoldFor(playerEntityId, trader, offer),
                 Timestamp = 0f
             });
             return null;
@@ -246,7 +266,7 @@ namespace RPGFramework.Trading
         /// Takes the requested items, gives the offered items and moves the gold. When a step fails, undoes the
         /// steps before it and returns why; returns null when everything moved.
         /// </summary>
-        private string Exchange(int playerEntityId, ITradeOffer offer, ref ActiveTradesData playerData)
+        private string Exchange(int playerEntityId, ITradeOffer offer, long gold, ref ActiveTradesData playerData)
         {
             var taken = new List<TradeItem>();
             var given = new List<TradeItem>();
@@ -271,16 +291,16 @@ namespace RPGFramework.Trading
             string reason = "trade:" + offer.OfferId;
             if (_wallet != null)
             {
-                if (offer.GoldAmount > 0)
-                    _wallet.Add(playerEntityId, offer.GoldAmount, Currencies.Gold, reason);
-                else if (offer.GoldAmount < 0 && !_wallet.TrySpend(playerEntityId, -offer.GoldAmount, Currencies.Gold, reason))
+                if (gold > 0)
+                    _wallet.Add(playerEntityId, gold, Currencies.Gold, reason);
+                else if (gold < 0 && !_wallet.TrySpend(playerEntityId, -gold, Currencies.Gold, reason))
                     return Undo(playerEntityId, taken, given, "Insufficient gold");
             }
             else
             {
-                if (offer.GoldAmount > 0)
-                    playerData.AddGold(offer.GoldAmount);
-                else if (offer.GoldAmount < 0 && !playerData.SpendGold(-offer.GoldAmount))
+                if (gold > 0)
+                    playerData.AddGold(gold);
+                else if (gold < 0 && !playerData.SpendGold(-gold))
                     return Undo(playerEntityId, taken, given, "Insufficient gold");
             }
 

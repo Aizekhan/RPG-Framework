@@ -74,6 +74,51 @@ namespace RPGFramework.Trading.Tests
             Assert.That(changes[0].Reason, Is.EqualTo("trade:buy_sword"));
         }
 
+        // MythRunner FG-16: 10 % off purchases for the hero (a Trade stat), sales as they are
+        private sealed class HeroDiscount : ITradePricing
+        {
+            public long GoldFor(int playerEntityId, ITrader trader, ITradeOffer offer) =>
+                playerEntityId == Hero && offer.GoldAmount < 0 ? offer.GoldAmount * 9 / 10 : offer.GoldAmount;
+        }
+
+        [Test]
+        public void Pricing_SetsWhatEachPlayerPays()
+        {
+            var registry = new TraderRegistry();
+            registry.RegisterTrader(_smith);
+            var manager = new TradingManager(registry, _bus, _wallet, _inventory, new HeroDiscount());
+            var proposed = new List<TradeProposedEvent>();
+            _bus.Subscribe<TradeProposedEvent>(proposed.Add);
+            _wallet.Add(Friend, 200);
+            _inventory.Give(Friend, "iron", 2);
+
+            Assert.That(manager.GoldFor(Hero, "buy_sword"), Is.EqualTo(-135));
+            Assert.That(manager.GoldFor(Friend, "buy_sword"), Is.EqualTo(-150));
+            Assert.That(manager.GoldFor(Hero, "nothing"), Is.EqualTo(0));
+
+            var hero = manager.Trade(Hero, "buy_sword");
+            var friend = manager.Trade(Friend, "buy_sword");
+
+            Assert.That(hero.GoldChange, Is.EqualTo(-135));
+            Assert.That(_wallet.Balance(Hero), Is.EqualTo(65));
+            Assert.That(friend.GoldChange, Is.EqualTo(-150));
+            Assert.That(_wallet.Balance(Friend), Is.EqualTo(50));
+            Assert.That(proposed[0].GoldAmount, Is.EqualTo(-135));
+        }
+
+        [Test]
+        public void Pricing_ADiscountCanMakeAnOfferAffordable()
+        {
+            var registry = new TraderRegistry();
+            registry.RegisterTrader(_smith);
+            var manager = new TradingManager(registry, _bus, _wallet, _inventory, new HeroDiscount());
+            _wallet.SetBalance(Hero, Currencies.Gold, 140);
+
+            Assert.That(_manager.Trade(Hero, "buy_sword").Success, Is.False, "150 without the discount");
+            Assert.That(manager.Trade(Hero, "buy_sword").Success, Is.True);
+            Assert.That(_wallet.Balance(Hero), Is.EqualTo(5));
+        }
+
         [Test]
         public void Selling_PaysIntoTheWallet()
         {

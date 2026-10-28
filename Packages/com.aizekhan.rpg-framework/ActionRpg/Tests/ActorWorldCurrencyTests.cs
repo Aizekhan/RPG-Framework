@@ -131,6 +131,38 @@ namespace RPGFramework.ActionRpg.Tests
             Assert.That(World.TakeOffer("sell_pelt"), Is.False, "no pelt left to sell");
         }
 
+        // A discount for one party member (their Trade stat, as MythRunner's heroes have)
+        private sealed class Haggler : ITradePricing
+        {
+            public int Who = -1;
+            public readonly List<int> Asked = new List<int>();
+
+            public long GoldFor(int playerEntityId, ITrader trader, ITradeOffer offer)
+            {
+                Asked.Add(playerEntityId);
+                return playerEntityId == Who && offer.GoldAmount < 0 ? offer.GoldAmount / 2 : offer.GoldAmount;
+            }
+        }
+
+        [Test]
+        public void Prices_AreTheBuyers_EvenWhenThePartyPays()
+        {
+            StartGame();
+            OpenShop();
+            int friend = World.AddPlayer();
+            var haggler = new Haggler { Who = friend };
+            World.TradePricing = haggler;
+            World.GiveCurrency(World.PlayerId, 100);
+
+            Assert.That(World.GoldFor(friend, "buy_potion"), Is.EqualTo(-15));
+            Assert.That(World.GoldFor(World.PlayerId, "buy_potion"), Is.EqualTo(-30));
+            Assert.That(World.Trade(friend, "buy_potion").Success, Is.True);
+            Assert.That(World.CurrencyOf(), Is.EqualTo(85), "the party's wallet paid the friend's price");
+            Assert.That(haggler.Asked, Has.No.Member(-1));
+            Assert.That(World.TakeOffer("buy_potion"), Is.True);
+            Assert.That(World.CurrencyOf(), Is.EqualTo(55));
+        }
+
         [Test]
         public void AFullBackpack_GetsNothing_AndKeepsItsMoney()
         {
