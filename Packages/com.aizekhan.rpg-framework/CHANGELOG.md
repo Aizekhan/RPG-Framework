@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-28
+
 **Co-op protocol version 14**: 0.9.0 builds are refused.
 
 ### Added
