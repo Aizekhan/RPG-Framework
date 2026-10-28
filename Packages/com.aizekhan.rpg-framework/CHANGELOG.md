@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-28
+
 ### Added
 - **Dice** (`RPGFramework.Dice`, The Bloodline Hunt BH-05): `IDiceService` (`Roll(sides, purpose)`, `Seed`, `Reseed`, `NextSeed`, `Log` of `DieRoll`s, `ClearLog`), `DiceService` (seeded; `LogLimit`), `DieRolledEvent` (not for `DicePurposes.Shuffle`), `ScriptedDice` for tests (`Then`, `StrictlyScripted`). `FrameworkCoreModule` registers it with `FrameworkCoreOptions.DiceSeed` (null: a new seed each start); one registered before is kept.
 - **Decks** (`RPGFramework.Cards`, The Bloodline Hunt BH-04): `Deck<T>` (`Shuffle(dice)`, `TryDraw`, `TryTake(index)`, `Remove`, `Peek(count)`, `PutOnTop`, `PutUnder`, `Insert`, `PutUnder(pile)`, `FromCopies`), `Hand<T>` with a limit (`TryAdd`, `TryDrawFrom(deck)`, `TryTake`). `RPGFramework.Cards.Unity`: `DeckAsset<TCard>` (card + copies in the inspector; `Build()`).
