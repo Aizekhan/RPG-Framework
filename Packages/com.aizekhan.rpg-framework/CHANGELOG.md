@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+Fixes from the MythRunner audit (a runner + action RPG on the kit, co-op 1-4).
+
+### Fixed
+- **The game CI workflow no longer passes without running a test.** Without the `UNITY_LICENSE`/`UNITY_EMAIL`/`UNITY_PASSWORD` secrets the run fails with an error (it used to skip every step and show green; MythRunner's CI "passed" in 8 seconds for a month). An EditMode run that reports 0 tests fails too. Reinstalling the AI guidance replaces the old framework workflow; a workflow the game wrote or changed is kept. Checkout fetches LFS files.
+- **Co-op keeps running when the window loses focus.** `ActionRpgHost` sets `Application.runInBackground` when it hosts or joins: an Alt-Tab on the host froze every friend.
+
+### Added
+- New Game sets the Player Settings a game needs: Run In Background, Linear colour space, and a company name instead of `DefaultCompany` (the game's name, or `-company "<Studio>"`; a company already chosen is kept). `GameScaffold.ApplyProjectSettings`.
+- Install AI Guidance writes a `.gitattributes` (when the project has none) that keeps models, textures, audio, video, fonts and archives in Git LFS. `START-NEW-GAME.md` step 3 runs `git lfs install`.
+- AI guidance: "After the framework is updated" in the `CLAUDE.md` block, and the `FRAMEWORK-GAPS.md` template: after an update every open gap is checked against the changelog and its stand-in replaced (MythRunner kept FG-04/05 stand-ins after 0.5.0 covered them).
+
 ## [0.5.1] - 2026-10-27
 
 Co-op across scene changes (hub and runs), and 0.5.0's rules reachable from the Game Setup. Co-op protocol version 9: 0.5.0 builds are refused. Install with `#v0.5.1`.

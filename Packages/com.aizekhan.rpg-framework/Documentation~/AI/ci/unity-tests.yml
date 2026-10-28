@@ -1,6 +1,8 @@
 # Installed by RPG Framework > Game Kit > Install AI Guidance (only when this file did not exist).
 # Runs the EditMode and PlayMode tests (architecture rules included) on every push and pull request.
 # Needs the repository secrets UNITY_LICENSE, UNITY_EMAIL and UNITY_PASSWORD (https://game.ci/docs/github/activation).
+# Without them the run FAILS: a green check that tested nothing hides broken games. An EditMode run that reports
+# no tests fails too (an assembly that does not load reports 0 tests, not an error); PlayMode may have none yet.
 name: Unity tests
 
 on:
@@ -24,31 +26,40 @@ jobs:
       UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
     steps:
       - name: Check Unity license secrets
-        id: license
         run: |
           if [ -z "$UNITY_LICENSE" ] || [ -z "$UNITY_EMAIL" ] || [ -z "$UNITY_PASSWORD" ]; then
-            echo "::warning::Unity tests SKIPPED: set the UNITY_LICENSE, UNITY_EMAIL and UNITY_PASSWORD repository secrets."
-            echo "available=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "::error::Unity tests NOT RUN: set the UNITY_LICENSE, UNITY_EMAIL and UNITY_PASSWORD repository secrets (https://game.ci/docs/github/activation)."
+            exit 1
           fi
       - uses: actions/checkout@v5
-        if: steps.license.outputs.available == 'true'
+        with:
+          lfs: true
       - uses: actions/cache@v4
-        if: steps.license.outputs.available == 'true'
         with:
           path: Library
           key: Library-${{ hashFiles('Packages/packages-lock.json', 'Assets/**/*.asmdef') }}
           restore-keys: Library-
       - uses: game-ci/unity-test-runner@v4
-        if: steps.license.outputs.available == 'true'
         id: tests
         with:
           testMode: ${{ matrix.mode }}
           githubToken: ${{ secrets.GITHUB_TOKEN }}
           checkName: ${{ matrix.mode }} results
+      - name: Check that tests ran
+        if: matrix.mode == 'editmode'
+        run: |
+          total=0
+          for report in $(find "${{ steps.tests.outputs.artifactsPath }}" -name '*.xml'); do
+            count=$(grep -o '<test-run [^>]*' "$report" | grep -o ' total="[0-9]*"' | grep -o '[0-9]*' || true)
+            total=$((total + ${count:-0}))
+          done
+          echo "Tests run: $total"
+          if [ "$total" -eq 0 ]; then
+            echo "::error::No EditMode tests ran: a test assembly failed to load, or the game has no tests."
+            exit 1
+          fi
       - uses: actions/upload-artifact@v4
-        if: always() && steps.license.outputs.available == 'true'
+        if: always()
         with:
           name: ${{ matrix.mode }}-results
           path: ${{ steps.tests.outputs.artifactsPath }}

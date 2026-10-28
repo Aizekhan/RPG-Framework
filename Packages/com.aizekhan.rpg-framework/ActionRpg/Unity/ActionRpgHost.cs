@@ -567,11 +567,18 @@ namespace RPGFramework.ActionRpg
             // Friends who join load the scene the game is in
             _coopHost.ChangeScene(Host.Container.Resolve<ISceneDispatcher>().ActiveScene);
             _coopHost.Open();
+            KeepRunningInBackground();
             OnCoopHostOpened(_coopHost);
             JoinCode = session.JoinCode;
             CoopStatus = $"Hosting: friends join with {JoinCode}";
             Host.Logger.LogInfo(CoopStatus, Category);
         }
+
+        /// <summary>
+        /// A co-op machine keeps running when its window loses focus: a paused host freezes every friend, a paused
+        /// guest times out. Set at runtime so games whose Player Settings still say otherwise keep working.
+        /// </summary>
+        private static void KeepRunningInBackground() => Application.runInBackground = true;
 
         /// <summary>
         /// Leaves this game and joins a friend's (it restarts at the next frame); their machine then runs the rules.
@@ -696,6 +703,7 @@ namespace RPGFramework.ActionRpg
                 RejoinToken = _rejoinCode == _joinCode ? _rejoinToken : "",
                 Profile = _profile
             };
+            KeepRunningInBackground();
             OnCoopClientCreated(_coopClient);
             _coopClient.Joined += OnJoined;
             _coopClient.Ended += OnClientEnded;

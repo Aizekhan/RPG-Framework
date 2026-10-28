@@ -118,7 +118,11 @@ licence problem means the developer must sign in to Unity Hub). Tick step 2.
 
 ```bash
 git init
+git lfs install
 ```
+
+(`git lfs install` once per machine; if `git lfs` is missing, ask the developer to install Git LFS from
+https://git-lfs.com. Step 5 adds a `.gitattributes` that keeps models, textures and sounds in LFS.)
 
 Create `.gitignore` with Unity's standard entries:
 
@@ -177,8 +181,12 @@ The first run downloads the packages and imports everything; it can take several
 
 - `grep -c "error CS" Logs/newgame.log` is **0** (otherwise show the errors and fix the cause).
 - `Assets/<Game>/` exists with `Scripts/Core`, `Content`, `Scenes`, `Tests`.
-- `CLAUDE.md`, `Docs/RPGFramework/` (architecture guide and recipes), `GAME.md`, `FRAMEWORK-GAPS.md`, `DEVLOG.md`
-  and `.github/workflows/unity-tests.yml` exist.
+- `CLAUDE.md`, `Docs/RPGFramework/` (architecture guide and recipes), `GAME.md`, `FRAMEWORK-GAPS.md`, `DEVLOG.md`,
+  `.gitattributes` and `.github/workflows/unity-tests.yml` exist.
+- `ProjectSettings/ProjectSettings.asset` has `runInBackground: 1` (co-op), `m_ActiveColorSpace: 1` (Linear) and a
+  `companyName` that is not `DefaultCompany` (New Game uses the game's name; pass `-company "<Studio>"` to choose).
+- The CI workflow **fails** until the repository has the `UNITY_LICENSE`, `UNITY_EMAIL` and `UNITY_PASSWORD` secrets
+  (https://game.ci/docs/github/activation). Tell the developer; a red CI is the reminder, not a bug.
 
 Now **read `CLAUDE.md` and `Docs/RPGFramework/architecture.md`** fully: they are the rules for all code from now on.
 Skim the recipe titles in `Docs/RPGFramework/recipes/`. Tick step 5.
@@ -282,8 +290,9 @@ When the developer wants a newer version: list the tags (step 4), read that vers
 change the tag in `Packages/manifest.json`, open the project once (or run step 5's import by running the tests),
 run all tests, and reinstall the AI guidance so `CLAUDE.md`'s framework block and `Docs/RPGFramework` match the new
 version (`-executeMethod RPGFramework.GameKit.Editor.AIGuidance.InstallFromCommandLine`; the game's own documents
-are kept). If a gap in `FRAMEWORK-GAPS.md` is now covered by the framework, replace the stand-in and move the
-section to "Resolved".
+are kept). Then go through **every** open gap in `FRAMEWORK-GAPS.md` against the changelog: a gap the new version
+covers is replaced with the framework's API, its stand-in and `// framework-gap` marker deleted, and its section moved
+to "Resolved" with the version (`CLAUDE.md`, "After the framework is updated").
 
 ## When something goes wrong
 

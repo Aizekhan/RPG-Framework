@@ -145,6 +145,42 @@ namespace RPGFramework.GameKit.Tests
         }
 
         [Test]
+        public void AIGuidance_Workflow_FailsWithoutLicenceSecrets_AndReplacesTheOneThatPassedSkipped()
+        {
+            string template = File.ReadAllText(Path.Combine(AIGuidance.DocumentationRoot, "ci", "unity-tests.yml"));
+            Assert.That(template, Does.StartWith(AIGuidance.WorkflowHeader));
+            Assert.That(template, Does.Contain("exit 1"));
+            Assert.That(AIGuidance.IsGreenWhenSkippedWorkflow(template), Is.False);
+
+            // The 0.5.1 workflow: a run without secrets skipped every step and was green
+            string workflow = Path.Combine(_project, AIGuidance.WorkflowPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(workflow));
+            File.WriteAllText(workflow, AIGuidance.WorkflowHeader + " (only when this file did not exist).\n" +
+                                        "          echo \"available=false\" >> \"$GITHUB_OUTPUT\"\n");
+
+            var written = AIGuidance.Install(AIGuidance.DocumentationRoot, _project);
+
+            Assert.That(written, Has.Member(AIGuidance.WorkflowPath));
+            Assert.That(File.ReadAllText(workflow), Is.EqualTo(template.Replace("\r\n", "\n")));
+        }
+
+        [Test]
+        public void AIGuidance_PutsBinaryAssetsInGitLfs_OnlyWhenTheProjectHasNoGitAttributes()
+        {
+            var written = AIGuidance.Install(AIGuidance.DocumentationRoot, _project);
+            string attributes = Path.Combine(_project, AIGuidance.GitAttributesPath);
+
+            Assert.That(written, Has.Member(AIGuidance.GitAttributesPath));
+            foreach (var extension in new[] { "fbx", "png", "wav" })
+                Assert.That(File.ReadAllText(attributes), Does.Contain($"*.{extension} filter=lfs diff=lfs merge=lfs -text"));
+
+            File.WriteAllText(attributes, "mine");
+            var again = AIGuidance.Install(AIGuidance.DocumentationRoot, _project);
+            Assert.That(File.ReadAllText(attributes), Is.EqualTo("mine"));
+            Assert.That(again, Has.No.Member(AIGuidance.GitAttributesPath));
+        }
+
+        [Test]
         public void AIGuidance_CreatesTheGamesOwnDocumentsOnce_AndNeverOverwritesThem()
         {
             var written = AIGuidance.Install(AIGuidance.DocumentationRoot, _project);

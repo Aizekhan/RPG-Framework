@@ -10,8 +10,9 @@ namespace RPGFramework.GameKit.Editor
     /// Installs the guidance an AI assistant (or a new developer) needs to build a game the framework's way:
     /// a block in the project's <c>CLAUDE.md</c>, the architecture guide and recipes under <c>Docs/RPGFramework</c>,
     /// the game's own documents (<c>GAME.md</c>, <c>FRAMEWORK-GAPS.md</c>, <c>DEVLOG.md</c>, created once and then kept),
-    /// and a CI workflow that runs the tests when the project has none. Reinstalling updates the framework's
-    /// files and its <c>CLAUDE.md</c> block; the rest of <c>CLAUDE.md</c> is kept.
+    /// a CI workflow that runs the tests when the project has none, and a <c>.gitattributes</c> that puts binary
+    /// assets in Git LFS when the project has none. Reinstalling updates the framework's files and its
+    /// <c>CLAUDE.md</c> block; the rest of <c>CLAUDE.md</c> is kept.
     /// </summary>
     public static class AIGuidance
     {
@@ -19,6 +20,8 @@ namespace RPGFramework.GameKit.Editor
         public const string BlockEnd = "<!-- rpg-framework:end -->";
         public const string DocsFolder = "Docs/RPGFramework";
         public const string WorkflowPath = ".github/workflows/unity-tests.yml";
+        public const string WorkflowHeader = "# Installed by RPG Framework > Game Kit > Install AI Guidance";
+        public const string GitAttributesPath = ".gitattributes";
 
         public static string DocumentationRoot => Path.Combine(PackagePaths.Root, "Documentation~", "AI");
 
@@ -73,13 +76,29 @@ namespace RPGFramework.GameKit.Editor
 
             string workflow = Path.Combine(projectRoot, WorkflowPath);
             string workflowTemplate = Path.Combine(documentationRoot, "ci", "unity-tests.yml");
-            if (!File.Exists(workflow) && File.Exists(workflowTemplate))
+            if (File.Exists(workflowTemplate) && (!File.Exists(workflow) || IsGreenWhenSkippedWorkflow(File.ReadAllText(workflow))))
             {
                 Copy(workflowTemplate, workflow);
                 written.Add(WorkflowPath);
             }
+
+            string attributes = Path.Combine(projectRoot, GitAttributesPath);
+            string attributesTemplate = Path.Combine(documentationRoot, "git", "gitattributes");
+            if (!File.Exists(attributes) && File.Exists(attributesTemplate))
+            {
+                Copy(attributesTemplate, attributes);
+                written.Add(GitAttributesPath);
+            }
             return written;
         }
+
+        /// <summary>
+        /// The workflow installed before 0.5.2 passed when the licence secrets were missing, without running a test.
+        /// It is replaced on reinstall; a workflow the game wrote or changed is kept.
+        /// </summary>
+        public static bool IsGreenWhenSkippedWorkflow(string workflow) =>
+            workflow.StartsWith(WorkflowHeader, StringComparison.Ordinal) &&
+            workflow.Contains("echo \"available=false\" >> \"$GITHUB_OUTPUT\"");
 
         /// <summary>
         /// The framework block replaces the previous one, or is appended when there is none.

@@ -70,6 +70,15 @@ Assets/<Game>/
    above it, with tests. GA11 fails on rebuilt framework types; GA12 fails on a marker with no section.
 5. If the gap is big (a whole system), stop and ask whether to add it to the framework first.
 
+## After the framework is updated (the tag in `Packages/manifest.json` changed)
+1. Read the new version's `CHANGELOG.md` in the package, then reinstall the AI guidance
+   (`-executeMethod RPGFramework.GameKit.Editor.AIGuidance.InstallFromCommandLine`).
+2. **Go through every `## Open` section of `FRAMEWORK-GAPS.md`** against the changelog and the package source. A gap
+   the new version covers is not done until its stand-in is gone: replace the code marked `// framework-gap: <id>`
+   with the framework's API, delete the stand-in and its marker, keep or move its tests, and move the section to
+   `## Resolved` with the framework version. Leaving a stand-in next to the module that replaces it is duplication.
+3. Run all tests; record what moved in `DEVLOG.md`.
+
 ## The game's own documents (project root)
 - `GAME.md`: what the game is: genre, core loop, features in priority order, what it will not have. Read it before
   planning; update it when the developer decides something.

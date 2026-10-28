@@ -16,13 +16,14 @@ namespace RPGFramework.GameKit.Editor
     /// Batch mode:
     /// <c>Unity -batchmode -quit -projectPath . -executeMethod RPGFramework.GameKit.Editor.GameScaffold.NewGameFromCommandLine -game MyGame</c>,
     /// <c>... GameScaffold.NewFeatureFromCommandLine -game MyGame -feature Shop</c>; add <c>-aiGuidance</c> to New Game
-    /// to also install the AI guidance.
+    /// to also install the AI guidance, and <c>-company "My Studio"</c> to name the company (the game's name otherwise).
     /// </summary>
     public static class GameScaffold
     {
         public const string GameToken = "__GAME__";
         public const string FeatureToken = "__FEATURE__";
         public const string HostGuidToken = "__HOST_GUID__";
+        public const string UnityDefaultCompany = "DefaultCompany";
 
         /// <summary>
         /// Line in the composition above which New Feature adds its module.
@@ -116,9 +117,10 @@ namespace RPGFramework.GameKit.Editor
         /// Creates a playable game in Assets: code from the templates, starter content (hero, goblin, items, loot,
         /// quest, Game Setup), the scene linked to it. Optionally installs the AI guidance at the project root.
         /// </summary>
-        public static List<string> NewGame(string game, bool installAIGuidance = false)
+        public static List<string> NewGame(string game, bool installAIGuidance = false, string company = null)
         {
             var files = WriteGame(TemplatesRoot, Application.dataPath, game);
+            ApplyProjectSettings(game, company);
             AssetDatabase.Refresh();
 
             var setup = StarterContent.Create(game, out var ground);
@@ -136,6 +138,22 @@ namespace RPGFramework.GameKit.Editor
             return files;
         }
 
+        /// <summary>
+        /// Player Settings every game on the kit needs: it keeps running without focus (a host on Alt-Tab would
+        /// freeze its friends), Linear colour space, and a company name instead of Unity's DefaultCompany (it is part
+        /// of the save folder, so it is set before the first save). A company someone already chose is kept.
+        /// </summary>
+        public static void ApplyProjectSettings(string game, string company = null)
+        {
+            PlayerSettings.runInBackground = true;
+            PlayerSettings.colorSpace = ColorSpace.Linear;
+            if (!string.IsNullOrWhiteSpace(company))
+                PlayerSettings.companyName = company.Trim();
+            else if (PlayerSettings.companyName == UnityDefaultCompany)
+                PlayerSettings.companyName = game;
+            AssetDatabase.SaveAssets();
+        }
+
         public static List<string> NewFeature(string game, string feature)
         {
             var (files, added) = WriteFeature(TemplatesRoot, Application.dataPath, game, feature);
@@ -148,7 +166,7 @@ namespace RPGFramework.GameKit.Editor
         }
 
         public static void NewGameFromCommandLine() =>
-            NewGame(Argument("-game"), Environment.GetCommandLineArgs().Contains("-aiGuidance"));
+            NewGame(Argument("-game"), Environment.GetCommandLineArgs().Contains("-aiGuidance"), OptionalArgument("-company"));
 
         public static void NewFeatureFromCommandLine() => NewFeature(Argument("-game"), Argument("-feature"));
 
@@ -222,6 +240,13 @@ namespace RPGFramework.GameKit.Editor
             if (!IsValidName(name))
                 throw new ArgumentException(
                     $"'{name}' is not a valid {what} name: use PascalCase letters and digits, starting with a capital (e.g. MyGame)");
+        }
+
+        private static string OptionalArgument(string name)
+        {
+            var args = Environment.GetCommandLineArgs();
+            int index = Array.IndexOf(args, name);
+            return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
         }
 
         private static string Argument(string name)
