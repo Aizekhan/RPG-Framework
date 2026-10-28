@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-28
+
 ### Added
 - **Turn session** (`RPGFramework.Turns`, The Bloodline Hunt BH-01..03): a turn-based match over any transport (LAN, relay, `LoopbackNetwork`), its own protocol (`TurnProtocol`, version 1, message ids 1300-1311; `TurnProtocol.CreateNetwork(transport)`).
   - `TurnHost` (seat 0): `Open(port)` / `Open()`, a lobby (`Seats`, `SetReady`, `AllReady`, `LobbyChanged`), `Start(rules, options)`. Players with another `TurnHostOptions.Fingerprint` or protocol, joining a full table or a started match are refused with the reason.
