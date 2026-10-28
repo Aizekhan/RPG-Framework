@@ -62,6 +62,9 @@ Assets/<Game>/
    batch mode); never write a `.meta` by hand with a made-up GUID.
 
 ## When the framework lacks something (never cut the corner)
+0. **Before adding state or a system to `<Game>.Core`** (a list of what the player owns, a copy of the money balance,
+   a timer, a timed state, a shop, a pause flag, a co-op message), find its row in recipe 16. Writing it yourself when a module
+   has it is the corner this section forbids, whether or not a test catches it: GA14 only knows common shapes.
 1. Search first: the package README's module list, `Docs/RPGFramework/recipes/07-use-framework-modules.md`, and the
    package source (`Library/PackageCache/com.aizekhan.rpg-framework*`). Most RPG needs are already there.
 2. If it really is missing: **do not** rebuild the module in the game, **do not** shrink the feature to fit, and

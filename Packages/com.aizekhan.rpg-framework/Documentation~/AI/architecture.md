@@ -122,8 +122,9 @@ maps each game need to its module. The rule looks for:
 | a weighted pick (`roll -= entry.Weight`, `Weighted*.Pick(...)`) in a file that rolls dice | `ILootTable` + `ILootGenerator` |
 | currency taken by hand (`profile.Gold -= price`) | `ICurrencyWallet.TrySpend`; a shop: `ITradingManager.Trade` (`TradingModule`) |
 | a cooldown counted down or kept in a `Dictionary<..., float>` named `*cooldown*` | an ability: `ActorAbilities.Use` / `IAbilityExecutor`, the game's own action in `SetEffect` |
-| an effect timer (`_poisonLeft -= dt`) | a status effect: `ActorEffects.Apply` / `IStatusEffectManager` |
-| any other countdown (`_spawnIn -= dt;`) | `ITimerService.Schedule` / `Repeat` |
+| an effect timer (`_poisonLeft -= dt`, `_stun = Math.Max(0f, _stun - dt)`) | a status effect: `ActorEffects.Apply` / `IStatusEffectManager` (power and duration per application) |
+| any other countdown (`_spawnIn -= dt;`, `x = Math.Max(0, x - _deltaTime)`) | `ITimerService.Schedule` / `Repeat` |
+| an inventory as a list of ids named owned / inventory / backpack / equipped (`List<string> OwnedWeapons`) | `IInventoryContainer<IItem>` (kit: `World.InventoryOf`), `Equipment`; buying: `World.TakeOffer` |
 
 These are heuristics, so `// architecture: allow GA14` does **not** work. The only way past is a recorded gap: a
 `// framework-gap: <id>` marker on the line, on the line above it, or above the type it is in (above its doc comment and attributes too), with its section in

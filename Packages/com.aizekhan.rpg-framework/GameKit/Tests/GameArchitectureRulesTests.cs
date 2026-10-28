@@ -360,6 +360,36 @@ namespace RPGFramework.GameKit.Tests
         }
 
         [Test]
+        public void GA14_CountdownsWithMathMax_AndInventoriesOfIds_AreCaught()
+        {
+            // What MythRunner wrote that GA14 0.6.0 let through
+            var file = Source("Run.cs", string.Join("\n",
+                "class Run {",
+                "  void A(float deltaTime) { monster.FrozenTime = Math.Max(0f, monster.FrozenTime - deltaTime); }",
+                "  void B() { _timer -= _deltaTime; }",
+                "  void C(float dt) { _dashCooldown = Mathf.Max(_dashCooldown - dt, 0f); }",
+                "  public int Gold;",
+                "  public List<string> Weapons = new List<string>();",
+                "  public readonly List<string> OwnedWeapons = new List<string>();",
+                "  private HashSet<string> _equippedGear;",
+                "  public int Gold => _wallet.Balance(id, Currencies.Gold);",
+                "  List<string> _unlockedTracks;",
+                "  void D(float dt) { _left = Math.Max(0f, _left - _speed); }",
+                "  void E(int gold) { int total = gold * 2; }",
+                "}"));
+            var game = Game(Assembly("Game.Core", GameAssemblyKind.Rules, noEngine: true, sources: new[] { file }));
+
+            var violations = GameArchitectureRules.GameUsesGameplayModules(game).ToList();
+
+            Assert.That(violations.Select(v => v.Where.Split(':').Last()),
+                Is.EqualTo(new[] { "2", "3", "4", "7", "8" }), "amounts, content lists, unlocks and plain math pass");
+            Assert.That(violations[0].Fix, Does.Contain("ActorEffects"));
+            Assert.That(violations[1].Fix, Does.Contain("ITimerService"));
+            Assert.That(violations[2].Fix, Does.Contain("ActorAbilities"));
+            Assert.That(violations[3].Fix, Does.Contain("IInventoryContainer"));
+        }
+
+        [Test]
         public void GA14_AMarkerAboveTheDocComment_Counts_AndAChanceIsNotAnAmount()
         {
             // MythRunner: the marker sat above the type's summary; NextDouble() < CoinChance only asks whether coins drop

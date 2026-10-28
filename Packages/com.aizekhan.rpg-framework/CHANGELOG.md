@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+- **GA14 catches more hand-made systems** (found in MythRunner's code, which passed GA14 0.6.0): countdowns written as `x = Math.Max(0f, x - dt)` / `Mathf.Max(x - dt, 0)`, a delta kept in a field (`_timer -= _deltaTime`), and an inventory kept as a list of ids (`List<string> OwnedWeapons`, `HashSet<string> _equippedGear`: names with owned, inventory, backpack, equipped) instead of `IInventoryContainer<IItem>`. A game that updates may see new GA14 failures: move them to the modules (recipe 16) or record the gap.
+- The game's CLAUDE guidance: before adding state or a system to the rules (a list of what the player owns, a copy of the money balance, a timer, a timed state, a shop, a pause flag, a co-op message), find its row in recipe 16; GA14 only knows common shapes.
+
 ## [0.8.0] - 2026-10-28
 
 Closes MythRunner's FG-05 and FG-13 and two GA14 false results. **Co-op protocol version 12**: 0.7.0 builds are refused. Install with `#v0.8.0`.

@@ -435,8 +435,12 @@ namespace RPGFramework.GameKit.Editor
             }
         }
 
-        // The delta a per-frame update counts down with: "x -= dt;", "_left[id] -= deltaTime)"
-        private const string CountDown = @"(\s*\[[^\]]*\])?\s*-=\s*(dt|deltaTime|delta|deltaSeconds|elapsed|elapsedSeconds)\s*[;)]";
+        // The frame's delta, as a parameter or a field ("dt", "_deltaTime", "this.delta")
+        private const string Delta = @"(this\.)?_?(dt|deltaTime|delta|deltaSeconds|elapsed|elapsedSeconds)\b";
+
+        // A value counted down by the frame's delta: "x -= dt;", "_left[id] -= _deltaTime)",
+        // "x = Math.Max(0f, x - dt);", "x = Mathf.Max(x - deltaTime, 0)"
+        private const string CountDown = @"(\s*\[[^\]]*\])?\s*(-=\s*" + Delta + @"\s*[;)]|=\s*(System\.)?Mathf?\.Max\s*\([^;]*-\s*" + Delta + ")";
 
         private static readonly Regex UsesRandom = new Regex(@"\.Next(Double|Single|Float)?\s*\(|\bRandom\.(Range|value)\b");
 
@@ -457,6 +461,11 @@ namespace RPGFramework.GameKit.Editor
                 "currency taken by hand",
                 "ICurrencyWallet.TrySpend (TradingModule) for any price; a shop is a trader whose offers ITradingManager.Trade " +
                 "runs (checks money and items, pays, moves the items)"),
+            (new Regex(@"\b(List|HashSet|IList|ICollection|IReadOnlyList|IReadOnlyCollection|Dictionary)\s*<\s*string\s*(,\s*int\s*)?>\s+_?\w*(owned|inventory|backpack|equipped)\w*",
+                    RegexOptions.IgnoreCase), false,
+                "an inventory kept as a list of ids",
+                "IInventoryContainer<IItem> (action RPG kit: World.InventoryOf(player), GiveItem; saved and sent to friends), " +
+                "worn items in Equipment; buying is a trader's offer (ITradingManager.Trade, kit: World.TakeOffer)"),
             (new Regex(@"\w*cooldown\w*" + CountDown + @"|\b(Dictionary|SortedDictionary)\s*<[^>]+>\s+_?\w*cooldown", RegexOptions.IgnoreCase), false,
                 "a hand-made cooldown",
                 "an ability (Ability asset or AbilityMetadata) used through ActorAbilities.Use / IAbilityExecutor: cooldowns, " +
@@ -474,7 +483,7 @@ namespace RPGFramework.GameKit.Editor
 
         /// <summary>
         /// Rules code that does by hand what a gameplay module does: weighted picks and random currency (Loot),
-        /// prices taken from a balance (wallet and Trading), cooldowns (Abilities), effect timers (StatusEffects),
+        /// prices taken from a balance and inventories kept as lists of ids (wallet, Inventory, Trading), cooldowns (Abilities), effect timers (StatusEffects),
         /// countdowns (timers). These are heuristics, so the only way past one is a recorded gap: a
         /// <c>// framework-gap: &lt;id&gt;</c> marker on the line, the line above it, or above the type it is in
         /// (GA12 then requires the section in FRAMEWORK-GAPS.md).
