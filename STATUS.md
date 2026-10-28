@@ -153,7 +153,7 @@ Checked before moving the old plans to `Docs/archive/` (2026-10-26). Ideas that 
 **Low**
 - Dialogue: `ConditionType.Custom` always fails (no game hook in `IDialogueContext`); `ItemOwned` ignores the quantity; several active dialogues on one entity act on the first
 - Abilities: a channel lands once (no per-tick effect, no end event); no upkeep for toggles; `CanMoveWhileCasting` is left to the game; charges (`MaxCharges`) are uses until `RestoreCharge`, they do not refill over time. (Range is now measured in kit games through `ActionRpgHost.AbilityDistance`.)
-- MythRunner audit, not done yet (need the owner's go, each is a new system): **FG-10** an interaction module (places with a radius, nearest place per player, a prompt, `InteractedEvent`); **FG-12** UI panels that build themselves without prefabs (stats from `StatContainer<TStat>`, equipment slots from the game's list, `ItemSlotUI` with an icon function) and `INavigationService` in the kit; a test for "module added but unused" (e.g. `LootModule` with no loot table) is not written: GA14 catches the hand-made loot instead; `SendLatestToAll` sends whole messages (no `DeltaCompression` on top yet)
+- MythRunner FG-10 and FG-12 done after v0.6.0 (not released): interaction module + kit places (`e27ea9b`), self-building panels + kit navigation (`9a4bf78`, `298904c`). Still not written: a test for "module added but unused" (GA14 catches hand-made loot instead); `SendLatestToAll` sends whole messages (no `DeltaCompression` on top yet)
 - `EcsPerformanceTests.AMovementFrame_AllocatesNothing` failed once locally with an allocation, then passed twice: noisy, watch it
 - Modules without tests: Editor (Tools and DeltaCompression got tests in `c685e43`)
 - Crafting and Persistence deliver their events as C# `event`s, not on the bus
@@ -162,6 +162,8 @@ Checked before moving the old plans to `Docs/archive/` (2026-10-26). Ideas that 
 - CI: the license file is bound to another machine, so GameCI falls back to email/password activation (works)
 
 ## Next steps
+
+**2026-10-28 (later): FG-10 and FG-12** on `main`, not released (co-op protocol v11): `e27ea9b` Interaction module (`InteractionPoint`, `IInteractionService` with the game's distance, `InteractedEvent`, `InteractionModule`), kit places (`InteractionPointView`, E, HUD prompt, `World.Interact`, `World.GiveLoot`, `ActionRpgHost.InteractionDistance`, host-decided in co-op); `9a4bf78` + `298904c` `CodeViewFactory`, `StatListPanel`, `EquipmentSlotsPanel`, `ItemSlotUI.IconOf`/`Create`, `UIBuilder`, `ActionRpgHost.Navigation`/`Screens`/`ConfigureScreens`. Verified at `298904c`: **1841/1841 EditMode**, **13/13 PlayMode**, meta check clean. Next: release 0.7.0 only when the owner asks; MythRunner's feedback on 0.6.0.
 
 **2026-10-28: MythRunner audit** (feedback from the game, priority 3 → 1 → 2 → 4 → 5). Done on `main`, not released: item 3 (CI, project settings, LFS, gap review), item 1 (GA14, wallet, Trading as a shop, gold in the kit, recipe 16), item 2 (ability distance and target hooks, recipe 17), item 4 (rejoin ids, profile check, latest-state channel), FG-11. **Released as v0.6.0** (tag on `8c980a2`, CI run `40674006183` green); MythRunner was given `Docs/releases/0.6.0-MythRunner-update.md`. Open: FG-10, FG-12 (ask the owner); the feedback MythRunner sends after moving to 0.6.0.
 
