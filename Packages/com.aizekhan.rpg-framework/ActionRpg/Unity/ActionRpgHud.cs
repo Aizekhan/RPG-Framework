@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using RPGFramework.Interaction;
 using RPGFramework.Items;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -34,6 +35,8 @@ namespace RPGFramework.ActionRpg
         private Text _log;
         private Text _quests;
         private Text _banner;
+        private Text _prompt;
+        private InteractionPoint _prompted;
         private RectTransform _sheet;
         private Text _character;
         private Text _backpack;
@@ -129,6 +132,13 @@ namespace RPGFramework.ActionRpg
             _banner.enabled = banner != null;
             if (banner != null && _banner.text != banner)
                 _banner.text = banner;
+
+            // The place this player would use with E: "E  Open the chest"
+            var place = hero.IsAlive() ? _world.NearestInteraction : null;
+            _prompt.enabled = place != null;
+            if (place != null && place != _prompted)
+                _prompt.text = "E  " + place.Prompt;
+            _prompted = place;
 
             if (IsSheetOpen)
                 FillSheet(hero);
@@ -291,9 +301,9 @@ namespace RPGFramework.ActionRpg
             _log.enabled = _showLog;
 
             // Bottom right: controls
-            var help = Label(Box(root, "Controls", new Vector2(1f, 0f), new Vector2(-24f, 24f), new Vector2(560f, 175f), Color.clear),
+            var help = Label(Box(root, "Controls", new Vector2(1f, 0f), new Vector2(-24f, 24f), new Vector2(560f, 205f), Color.clear),
                 "Lines", TextAnchor.LowerRight, _fontSize - 6);
-            help.text = "Move  WASD / arrows / left stick\nAttack  Space / left click / A\nCharacter  I / Tab / Select\nRespawn  R / Start\nCo-op  F2";
+            help.text = "Move  WASD / arrows / left stick\nAttack  Space / left click / A\nCharacter  I / Tab / Select\nUse  E / X\nRespawn  R / Start\nCo-op  F2";
 
             // Centre: character sheet and backpack (hidden until toggled)
             _sheet = Box(root, "Character Sheet", new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1000f, 560f),
@@ -309,6 +319,11 @@ namespace RPGFramework.ActionRpg
                 "Text", TextAnchor.MiddleCenter, _fontSize * 2);
             _banner.text = "You fell.  Press R to rise again";
             _banner.enabled = false;
+
+            // Below the centre: the nearest place to use
+            _prompt = Label(Box(root, "Prompt", new Vector2(0.5f, 0.5f), new Vector2(0f, -180f), new Vector2(900f, 60f), Color.clear),
+                "Text", TextAnchor.MiddleCenter, _fontSize);
+            _prompt.enabled = false;
         }
 
         // "Red 3 : 2 Blue   (Duel: rounds)   1:23"

@@ -59,7 +59,7 @@ namespace RPGFramework.ActionRpg.Coop
         /// <summary>
         /// Changes whenever the messages change, so older and newer builds refuse each other instead of misreading.
         /// </summary>
-        public const int Version = 10;
+        public const int Version = 11;
 
         public const int DefaultPort = 7777;
         public const int DefaultMaxPlayers = 4;
@@ -424,7 +424,41 @@ namespace RPGFramework.ActionRpg.Coop
             /// <summary>
             /// A character's ability went on cooldown (Name = ability id, Amount = seconds).
             /// </summary>
-            Cooldown = 6
+            Cooldown = 6,
+
+            /// <summary>
+            /// A player used a place (Id = the player, Name = place id, CharacterId = its kind).
+            /// </summary>
+            Interacted = 7
+        }
+
+        /// <summary>
+        /// A place players use, as the host has it (<see cref="RPGFramework.Interaction.InteractionPoint"/>).
+        /// </summary>
+        public struct PlaceState
+        {
+            public string Id;
+            public string Kind;
+            public string Prompt;
+            public float Radius;
+            public bool Once;
+            public bool Enabled;
+            public float X;
+            public float Y;
+            public float Z;
+
+            public static PlaceState Of(RPGFramework.Interaction.InteractionPoint point) => new PlaceState
+            {
+                Id = point.Id, Kind = point.Kind, Prompt = point.Prompt, Radius = point.Radius, Once = point.Once,
+                Enabled = point.Enabled, X = point.X, Y = point.Y, Z = point.Z
+            };
+
+            public RPGFramework.Interaction.InteractionPoint ToPoint() =>
+                new RPGFramework.Interaction.InteractionPoint(Id, Kind, Radius, Prompt, Once) { Enabled = Enabled }.At(X, Y, Z);
+
+            public bool SameAs(PlaceState other) =>
+                Id == other.Id && Kind == other.Kind && Prompt == other.Prompt && Radius.Equals(other.Radius)
+                && Once == other.Once && Enabled == other.Enabled && X.Equals(other.X) && Y.Equals(other.Y) && Z.Equals(other.Z);
         }
 
         public struct Change
@@ -461,7 +495,13 @@ namespace RPGFramework.ActionRpg.Coop
         /// </summary>
         public PartyStatus Party;
 
-        public bool IsEmpty => Changes.Count == 0 && States.Count == 0 && Party == null;
+        /// <summary>
+        /// Places that are new or changed since the last send, and the ids of places that are gone.
+        /// </summary>
+        public List<PlaceState> Places = new List<PlaceState>();
+        public List<string> PlacesGone = new List<string>();
+
+        public bool IsEmpty => Changes.Count == 0 && States.Count == 0 && Party == null && Places.Count == 0 && PlacesGone.Count == 0;
 
         public void Write(BinaryWriter writer)
         {
@@ -499,6 +539,10 @@ namespace RPGFramework.ActionRpg.Coop
                         writer.Write(change.Name ?? "");
                         writer.Write(change.Amount);
                         break;
+                    case ChangeKind.Interacted:
+                        writer.Write(change.Name ?? "");
+                        writer.Write(change.CharacterId ?? "");
+                        break;
                 }
             }
             writer.Write(States.Count);
@@ -516,6 +560,22 @@ namespace RPGFramework.ActionRpg.Coop
             }
             writer.Write(Party != null);
             Party?.Write(writer);
+            writer.Write(Places.Count);
+            foreach (var place in Places)
+            {
+                writer.Write(place.Id ?? "");
+                writer.Write(place.Kind ?? "");
+                writer.Write(place.Prompt ?? "");
+                writer.Write(place.Radius);
+                writer.Write(place.Once);
+                writer.Write(place.Enabled);
+                writer.Write(place.X);
+                writer.Write(place.Y);
+                writer.Write(place.Z);
+            }
+            writer.Write(PlacesGone.Count);
+            foreach (var id in PlacesGone)
+                writer.Write(id ?? "");
         }
 
         public void Read(BinaryReader reader)
@@ -553,6 +613,10 @@ namespace RPGFramework.ActionRpg.Coop
                         change.Name = reader.ReadString();
                         change.Amount = reader.ReadSingle();
                         break;
+                    case ChangeKind.Interacted:
+                        change.Name = reader.ReadString();
+                        change.CharacterId = reader.ReadString();
+                        break;
                 }
                 Changes.Add(change);
             }
@@ -575,6 +639,19 @@ namespace RPGFramework.ActionRpg.Coop
                 Party = new PartyStatus();
                 Party.Read(reader);
             }
+            int places = CoopProtocol.ReadCount(reader);
+            for (int i = 0; i < places; i++)
+            {
+                Places.Add(new PlaceState
+                {
+                    Id = reader.ReadString(), Kind = reader.ReadString(), Prompt = reader.ReadString(),
+                    Radius = reader.ReadSingle(), Once = reader.ReadBoolean(), Enabled = reader.ReadBoolean(),
+                    X = reader.ReadSingle(), Y = reader.ReadSingle(), Z = reader.ReadSingle()
+                });
+            }
+            int gone = CoopProtocol.ReadCount(reader);
+            for (int i = 0; i < gone; i++)
+                PlacesGone.Add(reader.ReadString());
         }
     }
 
@@ -790,7 +867,12 @@ namespace RPGFramework.ActionRpg.Coop
             /// <summary>
             /// The player takes a trader's offer (<see cref="OfferId"/>).
             /// </summary>
-            TakeOffer = 5
+            TakeOffer = 5,
+
+            /// <summary>
+            /// The player uses a place (<see cref="PointId"/>; empty: the nearest to them on the host).
+            /// </summary>
+            Interact = 6
         }
 
         public override int MessageTypeId => CoopProtocol.IntentId;
@@ -805,6 +887,7 @@ namespace RPGFramework.ActionRpg.Coop
 
         public string AbilityId = "";
         public string OfferId = "";
+        public string PointId = "";
 
         public void Write(BinaryWriter writer)
         {
@@ -814,6 +897,7 @@ namespace RPGFramework.ActionRpg.Coop
             writer.Write(SourceId);
             writer.Write(AbilityId ?? "");
             writer.Write(OfferId ?? "");
+            writer.Write(PointId ?? "");
         }
 
         public void Read(BinaryReader reader)
@@ -824,6 +908,7 @@ namespace RPGFramework.ActionRpg.Coop
             SourceId = reader.ReadInt32();
             AbilityId = reader.ReadString();
             OfferId = reader.ReadString();
+            PointId = reader.ReadString();
         }
     }
 }

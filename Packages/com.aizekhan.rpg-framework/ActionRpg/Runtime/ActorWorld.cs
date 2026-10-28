@@ -4,6 +4,7 @@ using System.Linq;
 using RPGFramework.Combat;
 using RPGFramework.ECS;
 using RPGFramework.Events;
+using RPGFramework.Interaction;
 using RPGFramework.Inventory.Runtime;
 using RPGFramework.Items;
 using RPGFramework.Logging;
@@ -69,6 +70,7 @@ namespace RPGFramework.ActionRpg
             _bus = bus ?? throw new ArgumentNullException(nameof(bus));
             _logger = logger;
             Wallet = wallet ?? new CurrencyWallet(bus);
+            Interactions = new InteractionService(bus);
             _random = settings.Seed != 0 ? new Random(settings.Seed) : new Random();
             Hostility = HostilityRules.For(settings);
         }
@@ -739,36 +741,37 @@ namespace RPGFramework.ActionRpg
 
             if (string.IsNullOrEmpty(victim.Character.LootTableId))
                 return;
-            var loot = _loot.GenerateLootById(victim.Character.LootTableId, _progression.GetLevel(owner), seed: _random.Next());
+            DropLoot(victim.Character.LootTableId, death.KillerEntityId, owner, victim.EntityId, _settings.LootToBackpack);
+        }
+
+        // Rolls a table at the owner's level; money goes to the owner's wallet, items to the player's backpack. Without
+        // the backpack the drops are only announced: the game puts them on the ground for someone to pick up
+        private bool DropLoot(string tableId, int playerId, int owner, int sourceId, bool toBackpack)
+        {
+            var loot = _loot.GenerateLootById(tableId, _progression.GetLevel(owner), seed: _random.Next());
             if (loot.Drops == null)
-                return;
+                return false;
             _bus.Publish(new LootGeneratedEvent
             {
-                TableId = loot.TableId, TriggerEntityId = death.KillerEntityId, SourceEntityId = victim.EntityId,
-                ItemCount = loot.TotalCount
+                TableId = loot.TableId, TriggerEntityId = playerId, SourceEntityId = sourceId, ItemCount = loot.TotalCount
             });
             foreach (var drop in loot.Drops)
             {
                 if (_settings.Currencies.Contains(drop.ItemId))
                 {
-                    // Money goes to the wallet of whoever's progress the kill counts for (announced when it is left on the ground)
-                    if (_settings.LootToBackpack)
+                    if (toBackpack)
                         Wallet.Add(owner, drop.Quantity, drop.ItemId, "loot:" + loot.TableId);
-                    _bus.Publish(new LootDroppedEvent
-                    {
-                        ItemId = drop.ItemId, Quantity = drop.Quantity, ItemEntityId = -1, SourceEntityId = victim.EntityId
-                    });
+                }
+                else if (toBackpack && !GiveItem(playerId, drop.ItemId, drop.Quantity))
+                {
                     continue;
                 }
-                // Without the backpack, the drop is only announced: the game puts it on the ground for someone to pick up
-                if (!_settings.LootToBackpack || GiveItem(death.KillerEntityId, drop.ItemId, drop.Quantity))
+                _bus.Publish(new LootDroppedEvent
                 {
-                    _bus.Publish(new LootDroppedEvent
-                    {
-                        ItemId = drop.ItemId, Quantity = drop.Quantity, ItemEntityId = -1, SourceEntityId = victim.EntityId
-                    });
-                }
+                    ItemId = drop.ItemId, Quantity = drop.Quantity, ItemEntityId = -1, SourceEntityId = sourceId
+                });
             }
+            return true;
         }
 
         private void OnObjectiveProgressed(ObjectiveProgressedEvent progress)
@@ -924,6 +927,38 @@ namespace RPGFramework.ActionRpg
             if (Trading == null)
                 return TradeResultData.CreateFailure("The game has no traders");
             return Trading.Trade(owner, offerId);
+        }
+
+        /// <summary>
+        /// The places players use: chests, doors, levers, traders (the scene's <c>InteractionPointView</c>s and any
+        /// the game adds). The game's rules react to <see cref="InteractedEvent"/>; the host measures the distance.
+        /// </summary>
+        public IInteractionService Interactions { get; internal set; }
+
+        public InteractionPoint NearestInteraction => IsStarted ? Interactions.NearestFor(PlayerId) : null;
+
+        public bool Interact(string pointId = null) => IsStarted && Interact(PlayerId, pointId) == InteractionOutcome.Done;
+
+        /// <summary>
+        /// A party member who is alive uses a place (the nearest to them when <paramref name="pointId"/> is null).
+        /// </summary>
+        public InteractionOutcome Interact(int playerId, string pointId)
+        {
+            if (!_party.Contains(playerId) || Get(playerId)?.IsAlive() != true)
+                return InteractionOutcome.Refused;
+            return Interactions.Interact(playerId, pointId);
+        }
+
+        /// <summary>
+        /// Rolls a loot table for a party member (a chest they opened, a reward): money in
+        /// <see cref="ActionRpgSettings.Currencies"/> goes to their wallet, items to their backpack, at their level.
+        /// </summary>
+        /// <returns>False for someone not in the party or an unknown table.</returns>
+        public bool GiveLoot(int playerId, string tableId)
+        {
+            ThrowIfNotStarted();
+            int owner = ProgressOwnerOf(playerId);
+            return owner >= 0 && !string.IsNullOrEmpty(tableId) && DropLoot(tableId, playerId, owner, -1, toBackpack: true);
         }
 
         /// <summary>

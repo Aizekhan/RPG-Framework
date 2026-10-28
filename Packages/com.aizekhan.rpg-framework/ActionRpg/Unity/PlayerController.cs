@@ -4,9 +4,10 @@ using UnityEngine.InputSystem;
 namespace RPGFramework.ActionRpg
 {
     /// <summary>
-    /// Moves the player and turns button presses into game actions: attack the nearest enemy in reach, respawn.
-    /// Keyboard: WASD / arrows, Space or left mouse button to attack, R to respawn.
-    /// Gamepad: left stick, south button (A / Cross) to attack, Start to respawn.
+    /// Moves the player and turns button presses into game actions: attack the nearest enemy in reach, use the
+    /// nearest place (a chest, a door: <see cref="InteractionPointView"/>), respawn.
+    /// Keyboard: WASD / arrows, Space or left mouse button to attack, E to use, R to respawn.
+    /// Gamepad: left stick, south button (A / Cross) to attack, west button (X / Square) to use, Start to respawn.
     /// Speed, reach and attack rate come from the player's <see cref="CharacterDefinition"/>.
     /// </summary>
     public class PlayerController : ActorView
@@ -18,6 +19,7 @@ namespace RPGFramework.ActionRpg
         private InputAction _move;
         private InputAction _attack;
         private InputAction _respawn;
+        private InputAction _use;
         private float _cooldown;
         private float _fallSpeed;
 
@@ -43,6 +45,10 @@ namespace RPGFramework.ActionRpg
             _respawn = new InputAction("Respawn", InputActionType.Button);
             _respawn.AddBinding("<Keyboard>/r");
             _respawn.AddBinding("<Gamepad>/start");
+
+            _use = new InputAction("Use", InputActionType.Button);
+            _use.AddBinding("<Keyboard>/e");
+            _use.AddBinding("<Gamepad>/buttonWest");
         }
 
         protected virtual void OnEnable()
@@ -50,6 +56,7 @@ namespace RPGFramework.ActionRpg
             _move.Enable();
             _attack.Enable();
             _respawn.Enable();
+            _use.Enable();
         }
 
         protected virtual void OnDisable()
@@ -57,6 +64,7 @@ namespace RPGFramework.ActionRpg
             _move.Disable();
             _attack.Disable();
             _respawn.Disable();
+            _use.Disable();
         }
 
         protected virtual void OnDestroy()
@@ -64,6 +72,7 @@ namespace RPGFramework.ActionRpg
             _move.Dispose();
             _attack.Dispose();
             _respawn.Dispose();
+            _use.Dispose();
         }
 
         protected virtual void Update()
@@ -84,6 +93,8 @@ namespace RPGFramework.ActionRpg
             Move(player.IsStunned ? Vector2.zero : _move.ReadValue<Vector2>());
             if (!player.IsStunned && _attack.IsPressed())
                 TryAttackNearest();
+            if (!player.IsStunned && _use.WasPressedThisFrame())
+                World.Interact();
         }
 
         /// <summary>

@@ -30,7 +30,8 @@
         "RPGFramework.Factions.Runtime",
         "RPGFramework.Abilities.Runtime",
         "RPGFramework.StatusEffects.Runtime",
-        "RPGFramework.Trading.Runtime"
+        "RPGFramework.Trading.Runtime",
+        "RPGFramework.Interaction.Runtime"
     ],
     "includePlatforms": [
         "Editor"

@@ -1305,6 +1305,59 @@ namespace RPGFramework.ActionRpg.Tests
         }
 
         [Test]
+        public void Places_TheFriendSeesTheHostsPlaces_UsesThemThroughTheHost_AndSeesThemClose()
+        {
+            // Everyone stands on a line; the host and the friend measure the same way
+            var standsAt = new Dictionary<int, float>();
+            System.Func<int, RPGFramework.Interaction.InteractionPoint, float> distance = (player, point) =>
+                standsAt.TryGetValue(player, out float x) ? System.Math.Abs(point.X - x) : float.NaN;
+            World.Interactions.Distance = distance;
+            World.Interactions.Add(new RPGFramework.Interaction.InteractionPoint("chest", "chest", 2f, "Open the chest", once: true));
+            World.Interactions.Add(new RPGFramework.Interaction.InteractionPoint("gate", "door", 2f).At(10f, 0, 0));
+            World.Interactions.SetRule("door", (player, point) => false);
+            var used = new List<RPGFramework.Interaction.InteractedEvent>();
+            _game.Container.Resolve<IEventBus>().Subscribe<RPGFramework.Interaction.InteractedEvent>(e =>
+            {
+                used.Add(e);
+                World.GiveCurrency(e.PlayerId, 5, reason: "chest");
+            });
+
+            var guest = Join(name: "Ann");
+            int friend = guest.World.PlayerId;
+            var seen = new List<RPGFramework.Interaction.InteractedEvent>();
+            guest.Bus.Subscribe<RPGFramework.Interaction.InteractedEvent>(seen.Add);
+            guest.World.Interactions.Distance = distance;
+            standsAt[friend] = 9f;
+            Pump();
+
+            Assert.That(guest.World.Interactions.Points.Select(p => p.Id), Is.EquivalentTo(new[] { "chest", "gate" }));
+            Assert.That(guest.World.NearestInteraction.Id, Is.EqualTo("gate"));
+            Assert.That(guest.World.Interact(), Is.True, "sent; the host decides");
+            Pump();
+            Assert.That(used, Is.Empty, "the door's rule refused on the host");
+
+            standsAt[friend] = 1f;
+            Assert.That(guest.World.NearestInteraction.Prompt, Is.EqualTo("Open the chest"));
+            Assert.That(guest.World.Interact(), Is.True);
+            Pump();
+            Assert.That(used.Select(e => (e.PlayerId, e.PointId)), Is.EqualTo(new[] { (friend, "chest") }));
+            Assert.That(guest.World.CurrencyOf(), Is.EqualTo(5), "the host's rule paid the friend");
+            Assert.That(guest.World.Interactions.Get("chest").Enabled, Is.False, "the opened chest is closed for the friend");
+            Assert.That(guest.World.NearestInteraction, Is.Null);
+            Assert.That(guest.World.Interact("chest"), Is.False, "refused here: it is closed");
+            Assert.That(seen.Select(e => (e.PlayerId, e.PointId, e.Kind)), Is.EqualTo(new[] { (friend, "chest", "chest") }),
+                "the friend's screen hears it too (to play the opening)");
+
+            // The host tries the same chest: closed for everyone
+            standsAt[World.PlayerId] = 0f;
+            Assert.That(World.Interact("chest"), Is.False);
+
+            World.Interactions.Remove("gate");
+            Pump();
+            Assert.That(guest.World.Interactions.Points.Select(p => p.Id), Is.EqualTo(new[] { "chest" }));
+        }
+
+        [Test]
         public void PerPlayer_TheFriendBringsTheirProgress_SeesTheirOwn_AndComesBackWithIt()
         {
             PlayWith(() =>

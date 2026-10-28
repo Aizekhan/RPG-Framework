@@ -9,6 +9,7 @@ using RPGFramework.Core.Composition;
 using RPGFramework.Diagnostics;
 using RPGFramework.Diagnostics.Unity;
 using RPGFramework.Events;
+using RPGFramework.Interaction;
 using RPGFramework.Logging;
 using Cysharp.Threading.Tasks;
 using RPGFramework.Networking;
@@ -354,6 +355,7 @@ namespace RPGFramework.ActionRpg
 
             _module = ActionRpgComposition.Configure(builder, _settings, _content);
             _module.Distance = AbilityDistance;
+            _module.InteractionDistance = InteractionDistance;
             ConfigureGameModules(builder);
         }
 
@@ -367,6 +369,20 @@ namespace RPGFramework.ActionRpg
             if (_presenter == null || !_presenter.TryGetPose(casterId, out var caster) || !_presenter.TryGetPose(targetId, out var target))
                 return 0f;
             float x = caster.X - target.X, y = caster.Y - target.Y, z = caster.Z - target.Z;
+            return Mathf.Sqrt(x * x + y * y + z * z);
+        }
+
+        /// <summary>
+        /// Distance from a player to a place they may use (<see cref="InteractionPointView"/>, or one the game added
+        /// to <c>World.Interactions</c>), against the place's radius. By default from where the scene shows the
+        /// player to the place's position; a game off free 3D (a track, a grid) returns its own measure. NaN counts
+        /// as out of reach. Used on the host for every player, and on a joined machine for the prompt.
+        /// </summary>
+        protected virtual float InteractionDistance(int playerId, InteractionPoint point)
+        {
+            if (_presenter == null || !_presenter.TryGetPose(playerId, out var pose))
+                return float.NaN;
+            float x = pose.X - point.X, y = pose.Y - point.Y, z = pose.Z - point.Z;
             return Mathf.Sqrt(x * x + y * y + z * z);
         }
 
@@ -642,9 +658,54 @@ namespace RPGFramework.ActionRpg
                 return;
             }
             base.Update();
+            ShowPlaces();
             _coopHost?.Update(Time.unscaledDeltaTime);
             _coopClient?.Update(Time.unscaledDeltaTime);
             Autosave(Time.unscaledDeltaTime);
+        }
+
+        private void OnPlaceChanged(InteractionPointView view, bool active)
+        {
+            if (active)
+                AddPlace(view);
+            else
+                RemovePlace(view);
+        }
+
+        private void AddPlace(InteractionPointView view)
+        {
+            if (World == null)
+                return;
+            view.Point = view.CreatePoint();
+            World.Interactions.Add(view.Point);
+        }
+
+        private void RemovePlace(InteractionPointView view)
+        {
+            if (World != null && view.Point != null && World.Interactions.Get(view.Id) == view.Point)
+                World.Interactions.Remove(view.Id);
+            view.Point = null;
+        }
+
+        // Places that moved follow their object; every machine shows them open or closed as the world has them
+        private void ShowPlaces()
+        {
+            var places = CurrentWorld?.Interactions;
+            if (places == null)
+                return;
+            var views = InteractionPointView.Active;
+            for (int i = 0; i < views.Count; i++)
+            {
+                var view = views[i];
+                if (view.Point != null && view.transform.hasChanged)
+                {
+                    var position = view.transform.position;
+                    view.Point.At(position.x, position.y, position.z);
+                    view.transform.hasChanged = false;
+                }
+                var point = places.Get(view.Id);
+                view.ShowOpen(point == null || point.Enabled);
+            }
         }
 
         private void Autosave(float deltaTime)
@@ -724,6 +785,7 @@ namespace RPGFramework.ActionRpg
                 Profile = _profile
             };
             KeepRunningInBackground();
+            _coopClient.World.Interactions.Distance = InteractionDistance;
             OnCoopClientCreated(_coopClient);
             _coopClient.Joined += OnJoined;
             _coopClient.Ended += OnClientEnded;
@@ -762,6 +824,14 @@ namespace RPGFramework.ActionRpg
             if (DiagnosticsEnabled)
                 StartDiagnostics();
 
+            // This machine runs the rules: the scene's places go into its world (friends get them from here)
+            if (_coopClient == null && World != null)
+            {
+                foreach (var view in InteractionPointView.Active)
+                    AddPlace(view);
+                InteractionPointView.ActiveChanged += OnPlaceChanged;
+            }
+
             if (_showHud)
             {
                 if (_hud == null)
@@ -779,6 +849,9 @@ namespace RPGFramework.ActionRpg
             _saveTriggers.Dispose();
             _saveTriggers = new SubscriptionBag();
             _pvpTriggers.Dispose();
+            InteractionPointView.ActiveChanged -= OnPlaceChanged;
+            foreach (var view in InteractionPointView.Active)
+                RemovePlace(view);
             _pvpTriggers = new SubscriptionBag();
             _saves = null;
             _generation++;

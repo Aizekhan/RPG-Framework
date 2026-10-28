@@ -4,6 +4,7 @@ using System.Linq;
 using RPGFramework.Abilities;
 using RPGFramework.Combat;
 using RPGFramework.Events;
+using RPGFramework.Interaction;
 using RPGFramework.Logging;
 using RPGFramework.Networking;
 using RPGFramework.StatusEffects;
@@ -31,6 +32,8 @@ namespace RPGFramework.ActionRpg.Coop
             public readonly Dictionary<int, Actor> Known = new Dictionary<int, Actor>();
             public readonly Dictionary<int, ActorState> States = new Dictionary<int, ActorState>();
             public byte[] Party;
+            public readonly Dictionary<string, CoopWorldMessage.PlaceState> Places =
+                new Dictionary<string, CoopWorldMessage.PlaceState>();
 
             // Where the host last accepted the player to be, and when (for the speed check)
             public bool Placed;
@@ -68,6 +71,7 @@ namespace RPGFramework.ActionRpg.Coop
             public AttackContext Context;
             public string Name;
             public int Stacks;
+            public string PlaceKind;
         }
 
         private readonly ActorWorld _world;
@@ -131,6 +135,7 @@ namespace RPGFramework.ActionRpg.Coop
             bus.Subscribe<EffectAppliedEvent>(OnEffectApplied).AddTo(_subscriptions);
             bus.Subscribe<EffectRemovedEvent>(OnEffectRemoved).AddTo(_subscriptions);
             bus.Subscribe<CooldownStartedEvent>(OnCooldownStarted).AddTo(_subscriptions);
+            bus.Subscribe<InteractedEvent>(OnInteracted).AddTo(_subscriptions);
 
             _network.PeerConnected += OnPeerConnected;
             _network.PeerDisconnected += OnPeerDisconnected;
@@ -760,6 +765,10 @@ namespace RPGFramework.ActionRpg.Coop
                     if (!string.IsNullOrEmpty(intent.OfferId))
                         _world.Trade(guest.PlayerId, intent.OfferId);
                     break;
+                case CoopIntentMessage.IntentKind.Interact:
+                    // The host measures how near the player is, as for its own player
+                    _world.Interact(guest.PlayerId, string.IsNullOrEmpty(intent.PointId) ? null : intent.PointId);
+                    break;
             }
         }
 
@@ -914,6 +923,17 @@ namespace RPGFramework.ActionRpg.Coop
             }
         }
 
+        private void OnInteracted(InteractedEvent interacted)
+        {
+            if (_present.TryGetValue(interacted.PlayerId, out var actor))
+            {
+                _happenings.Add(new Happening
+                {
+                    Kind = CoopWorldMessage.ChangeKind.Interacted, Actor = actor, Name = interacted.PointId, PlaceKind = interacted.Kind
+                });
+            }
+        }
+
         private void SendWorld()
         {
             if (!_network.IsConnected)
@@ -952,6 +972,15 @@ namespace RPGFramework.ActionRpg.Coop
                                     AttackerId = happening.AttackerId, Amount = happening.Amount,
                                     HealthLeft = happening.HealthLeft, Tags = happening.Context.Tags,
                                     SourceId = happening.Context.SourceId, FromEffect = happening.Context.FromEffect
+                                });
+                            }
+                            break;
+                        case CoopWorldMessage.ChangeKind.Interacted:
+                            if (guest.Known.TryGetValue(actor.EntityId, out known) && known == actor)
+                            {
+                                message.Changes.Add(new CoopWorldMessage.Change
+                                {
+                                    Kind = happening.Kind, Id = actor.EntityId, Name = happening.Name, CharacterId = happening.PlaceKind
                                 });
                             }
                             break;
@@ -998,6 +1027,8 @@ namespace RPGFramework.ActionRpg.Coop
                     message.Party = status ?? PartyStatus.Of(_world);
                 }
 
+                ShowPlaces(guest, message);
+
                 if (!message.IsEmpty)
                     _network.Send(pair.Key, message);
             }
@@ -1027,6 +1058,27 @@ namespace RPGFramework.ActionRpg.Coop
                     Kind = CoopWorldMessage.ChangeKind.EffectOn, Id = actor.EntityId, Name = effect.EffectId,
                     Stacks = effect.Stacks, AttackerId = effect.SourceId, Amount = effect.Remaining
                 });
+            }
+        }
+
+        // Places the player has not seen as they are now (new, opened, closed, moved), and those that are gone
+        private void ShowPlaces(Guest guest, CoopWorldMessage message)
+        {
+            var points = _world.Interactions.Points;
+            foreach (var point in points)
+            {
+                var place = CoopWorldMessage.PlaceState.Of(point);
+                if (guest.Places.TryGetValue(point.Id, out var seen) && seen.SameAs(place))
+                    continue;
+                guest.Places[point.Id] = place;
+                message.Places.Add(place);
+            }
+            if (guest.Places.Count == points.Count)
+                return;
+            foreach (string id in guest.Places.Keys.Where(id => _world.Interactions.Get(id) == null).ToList())
+            {
+                guest.Places.Remove(id);
+                message.PlacesGone.Add(id);
             }
         }
 

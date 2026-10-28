@@ -4,6 +4,7 @@ using System.Linq;
 using RPGFramework.Abilities;
 using RPGFramework.Combat;
 using RPGFramework.Events;
+using RPGFramework.Interaction;
 using RPGFramework.Inventory.Runtime;
 using RPGFramework.Items;
 using RPGFramework.Quests;
@@ -28,6 +29,8 @@ namespace RPGFramework.ActionRpg.Coop
         private readonly Dictionary<int, Dictionary<string, (ActorEffect Effect, float Since)>> _effects =
             new Dictionary<int, Dictionary<string, (ActorEffect, float)>>();
         private readonly Dictionary<string, float> _cooldownEnds = new Dictionary<string, float>();
+        // The host's places; used here only to find the nearest (the host decides every use)
+        private readonly InteractionService _places = new InteractionService();
         private float _clock;
 
         public RemoteWorld(ActionRpgSettings settings, ActionRpgContent content, IEventBus bus, Action<CoopIntentMessage> send)
@@ -151,6 +154,24 @@ namespace RPGFramework.ActionRpg.Coop
             return true;
         }
 
+        public IInteractionService Interactions => _places;
+
+        public InteractionPoint NearestInteraction => IsStarted ? _places.NearestFor(PlayerId) : null;
+
+        /// <summary>
+        /// Asks the host to use the place; refused here when it is closed or out of reach as this machine sees it.
+        /// </summary>
+        public bool Interact(string pointId = null)
+        {
+            if (!IsStarted || Player?.IsAlive() != true)
+                return false;
+            var point = pointId == null ? _places.NearestFor(PlayerId) : _places.Get(pointId);
+            if (point == null || !_places.CanReach(PlayerId, point))
+                return false;
+            _send(new CoopIntentMessage { Kind = CoopIntentMessage.IntentKind.Interact, PointId = point.Id });
+            return true;
+        }
+
         public float CooldownLeft(string abilityId) =>
             abilityId != null && _cooldownEnds.TryGetValue(abilityId, out float end) ? Math.Max(0f, end - _clock) : 0f;
 
@@ -181,6 +202,7 @@ namespace RPGFramework.ActionRpg.Coop
             PlayerId = -1;
             _effects.Clear();
             _cooldownEnds.Clear();
+            _places.Clear();
             _party = new PartyStatus();
             _activeQuests.Clear();
             _inventory.Clear();
@@ -188,6 +210,15 @@ namespace RPGFramework.ActionRpg.Coop
 
         internal void Apply(CoopWorldMessage message)
         {
+            // Places first, so a chest someone just opened is already closed when the news of it arrives
+            foreach (string gone in message.PlacesGone)
+                _places.Remove(gone);
+            foreach (var place in message.Places)
+            {
+                if (!string.IsNullOrWhiteSpace(place.Id) && !string.IsNullOrWhiteSpace(place.Kind) && place.Radius >= 0f && !float.IsInfinity(place.Radius))
+                    _places.Add(place.ToPoint());
+            }
+
             foreach (var change in message.Changes)
             {
                 switch (change.Kind)
@@ -234,6 +265,10 @@ namespace RPGFramework.ActionRpg.Coop
                         {
                             AbilityId = change.Name, EntityId = change.Id, Duration = change.Amount, Timestamp = _clock
                         });
+                        break;
+                    case CoopWorldMessage.ChangeKind.Interacted:
+                        if (!string.IsNullOrEmpty(change.Name))
+                            _bus.Publish(new InteractedEvent(change.Id, change.Name, change.CharacterId));
                         break;
                 }
             }

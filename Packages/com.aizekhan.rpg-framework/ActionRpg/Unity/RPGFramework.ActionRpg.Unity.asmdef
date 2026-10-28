@@ -20,6 +20,7 @@
         "RPGFramework.Items.Runtime",
         "RPGFramework.Inventory.Runtime",
         "RPGFramework.Loot.Runtime",
+        "RPGFramework.Interaction.Runtime",
         "RPGFramework.Stats.Runtime",
         "RPGFramework.Presentation.Unity",
         "RPGFramework.Spawning.Unity",

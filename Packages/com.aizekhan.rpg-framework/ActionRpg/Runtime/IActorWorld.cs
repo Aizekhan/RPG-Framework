@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using RPGFramework.Combat;
+using RPGFramework.Interaction;
 using RPGFramework.Inventory.Runtime;
 using RPGFramework.Items;
 using RPGFramework.Quests;
@@ -95,5 +96,22 @@ namespace RPGFramework.ActionRpg
         /// </summary>
         /// <returns>False when it was refused here; a client cannot know yet and returns true once sent.</returns>
         bool TakeOffer(string offerId);
+
+        /// <summary>
+        /// The places players use (chests, doors, traders); on a co-op client the host's, as it last reported them.
+        /// </summary>
+        IInteractionService Interactions { get; }
+
+        /// <summary>
+        /// The open place nearest to this machine's player within reach (for the prompt), or null.
+        /// </summary>
+        InteractionPoint NearestInteraction { get; }
+
+        /// <summary>
+        /// This machine's player uses a place (the nearest when <paramref name="pointId"/> is null). On a co-op
+        /// client it is sent to the host, which decides.
+        /// </summary>
+        /// <returns>False when it was refused here; a client cannot know yet and returns true once sent.</returns>
+        bool Interact(string pointId = null);
     }
 }

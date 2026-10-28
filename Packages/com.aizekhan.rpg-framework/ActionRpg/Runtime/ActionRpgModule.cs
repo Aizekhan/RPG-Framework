@@ -8,6 +8,7 @@ using RPGFramework.Combat;
 using RPGFramework.Core.Composition;
 using RPGFramework.ECS;
 using RPGFramework.Events;
+using RPGFramework.Interaction;
 using RPGFramework.Items;
 using RPGFramework.Logging;
 using RPGFramework.Loot;
@@ -40,7 +41,7 @@ namespace RPGFramework.ActionRpg
         public override IEnumerable<Type> Dependencies => new[]
         {
             typeof(FrameworkCoreModule), typeof(CombatModule), typeof(ProgressionModule), typeof(QuestsModule),
-            typeof(ItemsModule), typeof(LootModule), typeof(TradingModule)
+            typeof(ItemsModule), typeof(LootModule), typeof(TradingModule), typeof(InteractionModule)
         };
 
         /// <summary>
@@ -58,6 +59,12 @@ namespace RPGFramework.ActionRpg
         /// every target as in range.
         /// </summary>
         public Func<int, int, float> Distance { get; set; }
+
+        /// <summary>
+        /// Distance from a player to a place, given to <see cref="IInteractionService.Distance"/> when the world
+        /// starts; null leaves the service's own (every place in reach, unless the game sets one).
+        /// </summary>
+        public Func<int, InteractionPoint, float> InteractionDistance { get; set; }
 
         protected override void OnConfigure()
         {
@@ -116,6 +123,9 @@ namespace RPGFramework.ActionRpg
 
             World = Container.Resolve<ActorWorld>();
             World.Trading = Container.Resolve<ITradingManager>();
+            World.Interactions = Container.Resolve<IInteractionService>();
+            if (InteractionDistance != null)
+                World.Interactions.Distance = InteractionDistance;
             Pvp = Container.Resolve<PvpMatch>();
             if (_settings.UsesStatusEffects(_content))
             {
@@ -178,6 +188,8 @@ namespace RPGFramework.ActionRpg
                 .UseModule(new LootModule())
                 // Shops pay from the world's wallet and move items in and out of the backpacks
                 .UseModule(new TradingModule(new TradingOptions { Inventory = new ActorTradeInventory(() => game.World) }))
+                // Chests, doors, levers: the host measures how near the players are
+                .UseModule(new InteractionModule())
                 // Kills count for quests by character id ("goblin"), and for the party whoever in it made them
                 .UseModule(new CombatQuestsModule(entityId => game.World?.QuestTargetOf(entityId),
                     entityId => game.World?.CreditOf(entityId) ?? entityId))

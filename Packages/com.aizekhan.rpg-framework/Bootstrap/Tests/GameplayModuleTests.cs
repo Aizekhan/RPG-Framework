@@ -3,6 +3,8 @@ using NUnit.Framework;
 using RPGFramework.Abilities;
 using RPGFramework.Bootstrap.Gameplay;
 using RPGFramework.DI;
+using RPGFramework.Events;
+using RPGFramework.Interaction;
 using RPGFramework.Logging;
 using RPGFramework.StatusEffects;
 using RPGFramework.Trading;
@@ -10,7 +12,7 @@ using RPGFramework.Trading;
 namespace RPGFramework.Bootstrap.Tests
 {
     /// <summary>
-    /// The Abilities, StatusEffects and Trading feature modules give a game working services from the container alone.
+    /// The Abilities, StatusEffects, Trading and Interaction feature modules give a game working services from the container alone.
     /// </summary>
     public sealed class GameplayModuleTests
     {
@@ -41,6 +43,21 @@ namespace RPGFramework.Bootstrap.Tests
             Assert.That(executor.ExecuteAbility("bite", hero, wolf, 0f, null, null, null).Success, Is.True);
             Assert.That(c.Resolve<ICooldownTracker>().IsOnCooldown(hero, "bite", 1f), Is.True);
             Assert.That(c.Resolve<ITargetValidator>(), Is.Not.Null);
+        }
+
+        [Test]
+        public void InteractionModule_PlacesPublishOnTheEventBus()
+        {
+            _host.Start(b => b.UseModule(new InteractionModule()));
+            var places = _host.Container.Resolve<IInteractionService>();
+            var used = new List<InteractedEvent>();
+            _host.Container.Resolve<IEventBus>().Subscribe<InteractedEvent>(used.Add);
+            places.Add(new InteractionPoint("well", "well", 1f));
+
+            Assert.That(places, Is.SameAs(_host.Container.Resolve<IInteractionService>()));
+            Assert.That(places.Interact(1), Is.EqualTo(InteractionOutcome.Done));
+            Assert.That(used.Count, Is.EqualTo(1));
+            Assert.That(used[0].PointId, Is.EqualTo("well"));
         }
 
         [Test]
