@@ -1,0 +1,19 @@
+{
+    "name": "RPGFramework.Turns.Runtime",
+    "rootNamespace": "RPGFramework.Turns",
+    "references": [
+        "RPGFramework.Networking.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "RPGFramework.Events.Runtime",
+        "UniTask"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

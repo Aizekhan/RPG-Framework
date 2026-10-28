@@ -108,7 +108,7 @@ The `Assets/ReferenceGame` project in the repository (Goblin Valley) is a comple
 | Gameplay | `Combat`, `Stats`, `StatusEffects`, `Abilities`, `Progression`, `Quests`, `Items`, `Inventory`, `Loot`, `Crafting`, `Dialogue`, `Factions`, `Guilds`, `Trading`, `Housing`, `Companions`, `Achievements`, `Skills`, `DynamicEvents`, `Dice` (seeded dice with a log, `ScriptedDice`), `Cards` (`Deck<T>`, `Hand<T>`, `DeckAsset<T>`) |
 | Content & scenes | `AssetManagement` (Resources and Addressables providers), `Pooling`, `Spawning` (`PrefabSpawner`, `PrefabCatalog`), `Presentation` (`EntityViewRegistry`: entity ↔ GameObject), `Scenes`, `Persistence` |
 | UI & sound | `UINavigation` (screens, modals, transitions), `UI` (RPG panels and HUD), `Audio` (`IAudioService`: cues with variants and voice limits, music crossfades, volume channels; `AudioModule`, `AudioLibrary`) |
-| Networking | `Networking` (messages, authority, `UnityNetworkTransport` over UDP, `LoopbackNetwork` for tests); action RPG co-op for 2-8 players (F2 in any `ActionRpgHost`), see `Documentation~/networking.md` |
+| Networking | `Networking` (messages, authority, `UnityNetworkTransport` over UDP, `LoopbackNetwork` for tests); action RPG co-op for 2-8 players (F2 in any `ActionRpgHost`), see `Documentation~/networking.md`; `Turns` (host-run turn-based matches for board and card games: lobby, moves checked by `ITurnRules`, a view per seat for hidden cards, notices, reaction prompts, turn timer, rejoin) |
 | Tooling | `GameKit` (game and feature generators, architecture rules for games, AI guidance), `Editor` (windows, inspectors) |
 
 Inside a module, engine-independent logic lives in `Runtime`, Unity-specific code in `Unity`, and tests in `Tests`.

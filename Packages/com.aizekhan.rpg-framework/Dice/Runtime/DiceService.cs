@@ -33,7 +33,7 @@ namespace RPGFramework.Dice
         {
             if (sides < 1)
                 throw new ArgumentOutOfRangeException(nameof(sides), sides, "A die has at least one side");
-            return Record(new DieRoll(sides, Next(sides), purpose));
+            return Record(new DieRoll(sides, Next(sides, purpose), purpose));
         }
 
         public int NextSeed() => _random.Next();
@@ -51,6 +51,11 @@ namespace RPGFramework.Dice
         /// </summary>
         protected virtual int Next(int sides) => _random.Next(1, sides + 1);
 
+        /// <summary>
+        /// The value of a die rolled for <paramref name="purpose"/>; by default the same as <see cref="Next(int)"/>.
+        /// </summary>
+        protected virtual int Next(int sides, string purpose) => Next(sides);
+
         private int Record(DieRoll roll)
         {
             _log.Add(roll);
@@ -63,12 +68,14 @@ namespace RPGFramework.Dice
     }
 
     /// <summary>
-    /// Dice for tests: the rolls come in the order given (<see cref="Then"/>), checked against the die's sides; when
+    /// Dice for tests: the rolls come in the order given (<see cref="Then(int[])"/>), checked against the die's sides;
+    /// rolls scripted for a purpose (<see cref="Then(string, int[])"/>) go only to rolls for it and come first. When
     /// they run out it rolls from its seed, or throws with <see cref="StrictlyScripted"/>.
     /// </summary>
     public sealed class ScriptedDice : DiceService
     {
         private readonly Queue<int> _script = new Queue<int>();
+        private readonly Dictionary<string, Queue<int>> _byPurpose = new Dictionary<string, Queue<int>>();
 
         public ScriptedDice(params int[] rolls) : this(0, null, rolls)
         {
@@ -84,7 +91,25 @@ namespace RPGFramework.Dice
         /// </summary>
         public bool StrictlyScripted { get; set; }
 
-        public int Remaining => _script.Count;
+        /// <summary>
+        /// Scripted rolls not rolled yet, those for a purpose included.
+        /// </summary>
+        public int Remaining
+        {
+            get
+            {
+                int count = _script.Count;
+                foreach (var queue in _byPurpose.Values)
+                    count += queue.Count;
+                return count;
+            }
+        }
+
+        /// <summary>
+        /// Scripted rolls for <paramref name="purpose"/> not rolled yet.
+        /// </summary>
+        public int RemainingFor(string purpose) =>
+            purpose != null && _byPurpose.TryGetValue(purpose, out var queue) ? queue.Count : 0;
 
         /// <summary>
         /// The next rolls, in order.
@@ -99,6 +124,29 @@ namespace RPGFramework.Dice
             return this;
         }
 
+        /// <summary>
+        /// The next rolls for <paramref name="purpose"/> ("fight"), in order; other rolls take the plain script.
+        /// </summary>
+        public ScriptedDice Then(string purpose, params int[] rolls)
+        {
+            if (purpose == null)
+                throw new ArgumentNullException(nameof(purpose));
+            if (rolls == null)
+                return this;
+            if (!_byPurpose.TryGetValue(purpose, out var queue))
+                _byPurpose[purpose] = queue = new Queue<int>();
+            foreach (int roll in rolls)
+                queue.Enqueue(roll);
+            return this;
+        }
+
+        protected override int Next(int sides, string purpose)
+        {
+            if (purpose != null && _byPurpose.TryGetValue(purpose, out var queue) && queue.Count > 0)
+                return Check(queue.Dequeue(), sides, purpose);
+            return Next(sides);
+        }
+
         protected override int Next(int sides)
         {
             if (_script.Count == 0)
@@ -107,9 +155,16 @@ namespace RPGFramework.Dice
                     throw new InvalidOperationException($"No scripted roll left for a D{sides}");
                 return base.Next(sides);
             }
-            int value = _script.Dequeue();
+            return Check(_script.Dequeue(), sides, null);
+        }
+
+        private static int Check(int value, int sides, string purpose)
+        {
             if (value < 1 || value > sides)
-                throw new InvalidOperationException($"The scripted roll {value} does not fit a D{sides}");
+            {
+                string what = purpose == null ? "" : " for " + purpose;
+                throw new InvalidOperationException($"The scripted roll {value}{what} does not fit a D{sides}");
+            }
             return value;
         }
     }

@@ -1,0 +1,28 @@
+{
+    "name": "RPGFramework.Turns.Tests",
+    "rootNamespace": "RPGFramework.Turns.Tests",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "RPGFramework.Turns.Runtime",
+        "RPGFramework.Networking.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "RPGFramework.Events.Runtime",
+        "UniTask"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

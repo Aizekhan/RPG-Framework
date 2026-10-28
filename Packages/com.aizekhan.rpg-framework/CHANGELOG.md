@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Added
+- **Turn session** (`RPGFramework.Turns`, The Bloodline Hunt BH-01..03): a turn-based match over any transport (LAN, relay, `LoopbackNetwork`), its own protocol (`TurnProtocol`, version 1, message ids 1300-1311; `TurnProtocol.CreateNetwork(transport)`).
+  - `TurnHost` (seat 0): `Open(port)` / `Open()`, a lobby (`Seats`, `SetReady`, `AllReady`, `LobbyChanged`), `Start(rules, options)`. Players with another `TurnHostOptions.Fingerprint` or protocol, joining a full table or a started match are refused with the reason.
+  - The game's rules (`ITurnRules`: `CurrentSeat`, `CanAct`, `Apply`, `ViewFor(seat)`, `DefaultIntent`) run only on the host. Moves (`TurnIntent`: a kind, numbers, texts) are checked there, answered with a `TurnOutcome`, and every accepted one is in `Accepted` (seat, move) for the match record.
+  - After every change each seat gets only its own view (`ViewFor`), so hidden cards stay hidden. `Notify(notice, TurnVisibility.All/Seat/Host)` tells what happened, for screens to show.
+  - Reaction windows: `OpenPrompt(kind, options, seats, seconds, closed)`; answers are an option or `TurnPrompt.Pass`; time up or an away player is a pass.
+  - `TurnHostOptions.TurnSeconds`: when a turn runs out the host makes `DefaultIntent`.
+  - A player who drops in a match keeps the seat for `RejoinWindow` seconds and comes back with `TurnClient.RejoinToken`: the options, the view and the open questions are sent again.
+  - `TurnClient`: `Join(address, port)` / `JoinSession(code)`, `Submit` (a request id, answered in `Replied`), `Answer`, `SetReady`, `Leave`, `State`, `EndReason`. Host and client share `ITurnSession`, so screens are written once.
+- `ScriptedDice.Then(purpose, rolls)`: rolls scripted for a purpose ("fight") go only to rolls for it and come before the plain script; `RemainingFor(purpose)` (The Bloodline Hunt).
+
 ## [0.13.0] - 2026-10-28
 
 ### Added

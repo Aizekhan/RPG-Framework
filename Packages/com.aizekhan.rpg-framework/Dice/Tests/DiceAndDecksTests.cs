@@ -89,6 +89,21 @@ namespace RPGFramework.Dice.Tests
         }
 
         [Test]
+        public void ScriptedDice_ScriptedForAPurpose_GoOnlyToRollsForIt()
+        {
+            var dice = new ScriptedDice(2, 3).Then("fight", 5, 6);
+            Assert.That(dice.Remaining, Is.EqualTo(4));
+            Assert.That(dice.Roll(6, "move"), Is.EqualTo(2));
+            Assert.That(dice.Roll(6, "fight"), Is.EqualTo(5));
+            Assert.That(dice.Roll(6), Is.EqualTo(3));
+            Assert.That(dice.RemainingFor("fight"), Is.EqualTo(1));
+            Assert.That(dice.Roll(6, "fight"), Is.EqualTo(6));
+            dice.StrictlyScripted = true;
+            Assert.That(() => dice.Roll(6, "fight"), Throws.InvalidOperationException, "both scripts are used up");
+            Assert.That(dice.Log[1].Purpose, Is.EqualTo("fight"));
+        }
+
+        [Test]
         public void TheCoreModule_RegistersDice_WithTheSeedOfItsOptions()
         {
             using (var logger = new Logger(LogSeverity.Warning, new MemoryLogSink()))
