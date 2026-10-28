@@ -1,0 +1,16 @@
+{
+    "name": "RPGFramework.Cards.Runtime",
+    "rootNamespace": "RPGFramework.Cards",
+    "references": [
+        "RPGFramework.Dice.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

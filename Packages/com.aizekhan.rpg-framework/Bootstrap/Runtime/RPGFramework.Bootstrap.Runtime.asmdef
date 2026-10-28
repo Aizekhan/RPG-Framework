@@ -9,7 +9,8 @@
         "RPGFramework.Systems.Runtime",
         "RPGFramework.ECS.Runtime",
         "RPGFramework.Timers.Runtime",
-        "UniTask"
+        "UniTask",
+        "RPGFramework.Dice.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

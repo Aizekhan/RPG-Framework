@@ -1,5 +1,6 @@
 using RPGFramework.Core.Composition;
 using RPGFramework.DI;
+using RPGFramework.Dice;
 using RPGFramework.ECS;
 using RPGFramework.Events;
 using RPGFramework.Logging;
@@ -26,14 +27,20 @@ namespace RPGFramework.Bootstrap
         /// See <see cref="SystemGroup.MaxConsecutiveErrors"/>; 0 never disables a failing system.
         /// </summary>
         public int MaxConsecutiveSystemErrors { get; set; }
+
+        /// <summary>
+        /// Seed of <see cref="IDiceService"/>; null: a different one each start (read it back from <c>dice.Seed</c>
+        /// to replay).
+        /// </summary>
+        public int? DiceSeed { get; set; }
     }
 
     /// <summary>
     /// Registers the game-agnostic runtime every game needs:
     /// <see cref="ILogger"/> (null logger unless the host registered one), <see cref="IEventBus"/>/<see cref="IEventPublisher"/>,
     /// <see cref="EventThrottler"/>, <see cref="EventBatcher"/>, <see cref="IEntityManager"/>,
-    /// <see cref="PhaseTracker"/>/<see cref="IPhaseProvider"/>, <see cref="ITimerService"/>, <see cref="ISystemRegistry"/>
-    /// and <see cref="IWorld"/>. On initialize it adds the <see cref="EventPumpSystem"/> ahead of all other systems,
+    /// <see cref="PhaseTracker"/>/<see cref="IPhaseProvider"/>, <see cref="ITimerService"/>, <see cref="ISystemRegistry"/>,
+    /// <see cref="IDiceService"/> (seeded from the options; one registered before is kept) and <see cref="IWorld"/>. On initialize it adds the <see cref="EventPumpSystem"/> ahead of all other systems,
     /// followed by the timer service.
     /// </summary>
     public sealed class FrameworkCoreModule : BaseFeatureModule
@@ -84,6 +91,12 @@ namespace RPGFramework.Bootstrap
             {
                 MaxConsecutiveErrors = _options.MaxConsecutiveSystemErrors
             });
+
+            if (!Container.IsRegistered<IDiceService>())
+            {
+                int seed = _options.DiceSeed ?? System.Environment.TickCount;
+                Container.RegisterFactory<IDiceService>(c => new DiceService(seed, c.Resolve<IEventPublisher>()));
+            }
 
             // A rule pauses the game's time through it (a vote, a cutscene, a menu)
             Container.RegisterFactory<IGamePause>(c => new GamePause(c.Resolve<IEventPublisher>()));

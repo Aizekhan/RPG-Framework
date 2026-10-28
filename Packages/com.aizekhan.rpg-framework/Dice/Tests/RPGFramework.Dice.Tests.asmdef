@@ -1,0 +1,32 @@
+{
+    "name": "RPGFramework.Dice.Tests",
+    "rootNamespace": "RPGFramework.Dice.Tests",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "RPGFramework.Dice.Runtime",
+        "RPGFramework.Cards.Runtime",
+        "RPGFramework.Cards.Unity",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "RPGFramework.Bootstrap.Runtime",
+        "RPGFramework.DI.Runtime",
+        "RPGFramework.Core.Runtime",
+        "UniTask"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
