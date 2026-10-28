@@ -121,6 +121,7 @@ namespace RPGFramework.ActionRpg.Coop
                 Level = Math.Max(1, _party.Level), TotalExperience = _party.TotalExperience, Kills = _party.Kills
             };
             progress.Items.AddRange(_party.Items);
+            progress.Currencies.AddRange(_party.Currencies.Select(c => new CurrencyRecord { Currency = c.Currency, Amount = c.Amount }));
             foreach (var record in _party.ActiveQuests)
             {
                 var copy = new QuestRecord { QuestId = record.QuestId };
@@ -135,6 +136,20 @@ namespace RPGFramework.ActionRpg.Coop
         /// The progress as it was when the game with the host ended (the link was lost, the host left); null before.
         /// </summary>
         public PlayerProgress LastProgress { get; private set; }
+
+        public long CurrencyOf(string currency = RPGFramework.Trading.Currencies.Gold) =>
+            _party.Currencies.FirstOrDefault(c => c.Currency == currency)?.Amount ?? 0;
+
+        /// <summary>
+        /// Asks the host to take the offer; the host checks the money and the backpack.
+        /// </summary>
+        public bool TakeOffer(string offerId)
+        {
+            if (!IsStarted || string.IsNullOrEmpty(offerId))
+                return false;
+            _send(new CoopIntentMessage { Kind = CoopIntentMessage.IntentKind.TakeOffer, OfferId = offerId });
+            return true;
+        }
 
         public float CooldownLeft(string abilityId) =>
             abilityId != null && _cooldownEnds.TryGetValue(abilityId, out float end) ? Math.Max(0f, end - _clock) : 0f;

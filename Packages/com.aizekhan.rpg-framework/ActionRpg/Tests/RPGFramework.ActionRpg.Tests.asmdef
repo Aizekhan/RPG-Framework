@@ -29,7 +29,8 @@
         "RPGFramework.Networking.Runtime",
         "RPGFramework.Factions.Runtime",
         "RPGFramework.Abilities.Runtime",
-        "RPGFramework.StatusEffects.Runtime"
+        "RPGFramework.StatusEffects.Runtime",
+        "RPGFramework.Trading.Runtime"
     ],
     "includePlatforms": [
         "Editor"

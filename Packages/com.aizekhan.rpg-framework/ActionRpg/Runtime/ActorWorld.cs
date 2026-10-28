@@ -10,6 +10,7 @@ using RPGFramework.Logging;
 using RPGFramework.Loot;
 using RPGFramework.Progression;
 using RPGFramework.Quests;
+using RPGFramework.Trading;
 
 namespace RPGFramework.ActionRpg
 {
@@ -54,7 +55,7 @@ namespace RPGFramework.ActionRpg
 
         public ActorWorld(ActionRpgSettings settings, IEntityManager entities, ILifeStateManager lifeStates,
             IDamageCalculator damage, IProgressionTracker progression, IQuestManager quests, IQuestRegistry questRegistry,
-            ILootGenerator loot, IItemRegistry items, IEventBus bus, ILogger logger = null)
+            ILootGenerator loot, IItemRegistry items, IEventBus bus, ILogger logger = null, ICurrencyWallet wallet = null)
         {
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
             _entities = entities ?? throw new ArgumentNullException(nameof(entities));
@@ -67,6 +68,7 @@ namespace RPGFramework.ActionRpg
             _items = items ?? throw new ArgumentNullException(nameof(items));
             _bus = bus ?? throw new ArgumentNullException(nameof(bus));
             _logger = logger;
+            Wallet = wallet ?? new CurrencyWallet(bus);
             _random = settings.Seed != 0 ? new Random(settings.Seed) : new Random();
             Hostility = HostilityRules.For(settings);
         }
@@ -101,11 +103,20 @@ namespace RPGFramework.ActionRpg
 
         public float CooldownLeft(string abilityId) => Abilities?.CooldownLeft(PlayerId, abilityId) ?? 0f;
 
+        public long CurrencyOf(string currency = RPGFramework.Trading.Currencies.Gold) => IsStarted ? CurrencyOf(PlayerId, currency) : 0;
+
+        public bool TakeOffer(string offerId) => IsStarted && Trade(PlayerId, offerId).Success;
+
         public ActionRpgSettings Settings => _settings;
         public bool IsStarted => PlayerId >= 0;
         public int PlayerId { get; private set; } = -1;
         public Actor Player => PlayerId >= 0 && _actors.TryGetValue(PlayerId, out var player) ? player : null;
         public IInventoryContainer<IItem> Inventory => InventoryOf(PlayerId);
+
+        /// <summary>
+        /// The items the game knows (what loot, rewards and trades hand out).
+        /// </summary>
+        public IItemRegistry ItemRegistry => _items;
         public int Kills => KillsOf(PlayerId);
         public int Level => LevelOf(PlayerId);
         public long TotalExperience => ExperienceOf(PlayerId);
@@ -389,6 +400,8 @@ namespace RPGFramework.ActionRpg
             _party.Remove(playerId);
             _inventories.Remove(playerId);
             _kills.Remove(playerId);
+            if (_settings.ProgressMode == ProgressMode.PerPlayer)
+                Wallet.Forget(playerId);
             Remove(playerId);
             Write($"{player.DisplayName} leaves the party");
             return true;
@@ -533,6 +546,8 @@ namespace RPGFramework.ActionRpg
                 Level = _progression.GetLevel(owner), TotalExperience = _progression.GetTotalXP(owner), Kills = KillsOf(owner)
             };
             progress.Items.AddRange(_inventories[owner].GetAllItems().Where(i => i != null).Select(i => i.ItemId));
+            progress.Currencies.AddRange(Wallet.BalancesOf(owner).Where(b => b.Value > 0).OrderBy(b => b.Key, StringComparer.Ordinal)
+                .Select(b => new CurrencyRecord { Currency = b.Key, Amount = b.Value }));
             foreach (var active in _quests.GetActiveQuests(owner))
             {
                 var record = new QuestRecord { QuestId = active.QuestId };
@@ -579,6 +594,14 @@ namespace RPGFramework.ActionRpg
                     actor.SetBaseStat(stat, actor.Character.StatAt(stat, _progression.GetLevel(owner)));
                 actor.RestoreFullHealth();
                 _kills[owner] = Math.Max(0, progress.Kills);
+
+                foreach (var currency in Wallet.BalancesOf(owner).Keys.ToList())
+                    Wallet.SetBalance(owner, currency, 0);
+                foreach (var record in progress.Currencies ?? new List<CurrencyRecord>())
+                {
+                    if (!string.IsNullOrEmpty(record?.Currency))
+                        Wallet.SetBalance(owner, record.Currency, Math.Max(0, record.Amount));
+                }
 
                 inventory.Clear();
                 foreach (var itemId in progress.Items ?? new List<string>())
@@ -726,6 +749,17 @@ namespace RPGFramework.ActionRpg
             });
             foreach (var drop in loot.Drops)
             {
+                if (_settings.Currencies.Contains(drop.ItemId))
+                {
+                    // Money goes to the wallet of whoever's progress the kill counts for (announced when it is left on the ground)
+                    if (_settings.LootToBackpack)
+                        Wallet.Add(owner, drop.Quantity, drop.ItemId, "loot:" + loot.TableId);
+                    _bus.Publish(new LootDroppedEvent
+                    {
+                        ItemId = drop.ItemId, Quantity = drop.Quantity, ItemEntityId = -1, SourceEntityId = victim.EntityId
+                    });
+                    continue;
+                }
                 // Without the backpack, the drop is only announced: the game puts it on the ground for someone to pick up
                 if (!_settings.LootToBackpack || GiveItem(death.KillerEntityId, drop.ItemId, drop.Quantity))
                 {
@@ -765,6 +799,10 @@ namespace RPGFramework.ActionRpg
                         break;
                     case RewardType.Item:
                         GiveItem(completed.EntityId, reward.RewardId, reward.Amount);
+                        break;
+                    case RewardType.Currency:
+                        GiveCurrency(completed.EntityId, reward.Amount,
+                            string.IsNullOrEmpty(reward.RewardId) ? RPGFramework.Trading.Currencies.Gold : reward.RewardId, "quest:" + completed.QuestId);
                         break;
                     default:
                         _logger?.LogWarning($"Reward type {reward.Type} is not handled by ActorWorld; subscribe to " +
@@ -829,6 +867,63 @@ namespace RPGFramework.ActionRpg
         {
             ThrowIfNotStarted();
             return GiveItem(PlayerId, itemId, quantity);
+        }
+
+        /// <summary>
+        /// Every player's money (owner: <see cref="ProgressOwnerOf"/>, so a party that shares progress shares it).
+        /// Loot and quest rewards in <see cref="ActionRpgSettings.Currencies"/> pay into it; shops pay from it.
+        /// </summary>
+        public ICurrencyWallet Wallet { get; }
+
+        /// <summary>
+        /// The shop rules (<see cref="Trade"/>); set by the module.
+        /// </summary>
+        public ITradingManager Trading { get; set; }
+
+        /// <summary>
+        /// How much of a currency a party member has (their own, or the party's); 0 for someone not in the party.
+        /// </summary>
+        public long CurrencyOf(int playerId, string currency = RPGFramework.Trading.Currencies.Gold)
+        {
+            int owner = ProgressOwnerOf(playerId);
+            return owner >= 0 ? Wallet.Balance(owner, currency) : 0;
+        }
+
+        /// <summary>
+        /// Pays money to a party member (a pickup, a reward the game grants).
+        /// </summary>
+        /// <returns>False for someone not in the party.</returns>
+        public bool GiveCurrency(int playerId, long amount, string currency = RPGFramework.Trading.Currencies.Gold, string reason = null)
+        {
+            int owner = ProgressOwnerOf(playerId);
+            if (owner < 0)
+                return false;
+            Wallet.Add(owner, amount, currency, reason);
+            return true;
+        }
+
+        /// <summary>
+        /// Takes money from a party member, all or nothing.
+        /// </summary>
+        /// <returns>False for someone not in the party, or when they do not have enough.</returns>
+        public bool SpendCurrency(int playerId, long amount, string currency = RPGFramework.Trading.Currencies.Gold, string reason = null)
+        {
+            int owner = ProgressOwnerOf(playerId);
+            return owner >= 0 && Wallet.TrySpend(owner, amount, currency, reason);
+        }
+
+        /// <summary>
+        /// A party member takes a trader's offer (a shop purchase or sale): money and items move together or not at
+        /// all, from their own wallet and backpack or the party's.
+        /// </summary>
+        public TradeResultData Trade(int playerId, string offerId)
+        {
+            int owner = ProgressOwnerOf(playerId);
+            if (owner < 0)
+                return TradeResultData.CreateFailure("Not in the party");
+            if (Trading == null)
+                return TradeResultData.CreateFailure("The game has no traders");
+            return Trading.Trade(owner, offerId);
         }
 
         /// <summary>

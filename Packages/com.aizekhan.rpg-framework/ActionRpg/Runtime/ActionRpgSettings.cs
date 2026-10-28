@@ -44,6 +44,12 @@ namespace RPGFramework.ActionRpg
         public bool LootToBackpack { get; set; } = true;
 
         /// <summary>
+        /// Ids that are money, not items: a loot table entry or a quest reward with one of these ids pays into the
+        /// player's wallet (<see cref="ActorWorld.Wallet"/>), and the entry's quantity range is the amount. Gold by default.
+        /// </summary>
+        public HashSet<string> Currencies { get; } = new HashSet<string> { RPGFramework.Trading.Currencies.Gold };
+
+        /// <summary>
         /// Fixed random seed (loot, wave composition); 0 picks a new one every run.
         /// </summary>
         public int Seed { get; set; }
@@ -118,8 +124,8 @@ namespace RPGFramework.ActionRpg
             foreach (var table in content.LootTables.Where(t => t != null))
             {
                 var dropped = table.Entries.Select(e => e.ItemId).Concat(table.GuaranteedDrops ?? Enumerable.Empty<string>());
-                foreach (var missing in dropped.Where(id => !items.Contains(id)).Distinct())
-                    problems.Add($"Loot table '{table.TableId}' drops '{missing}', which is not an item in the setup.");
+                foreach (var missing in dropped.Where(id => !items.Contains(id) && !Currencies.Contains(id)).Distinct())
+                    problems.Add($"Loot table '{table.TableId}' drops '{missing}', which is not an item or a currency in the setup.");
             }
 
             foreach (var quest in StartingQuests.Where(id => !questIds.Contains(id)))

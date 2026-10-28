@@ -84,5 +84,16 @@ namespace RPGFramework.ActionRpg
         /// Seconds until this machine's player can use the ability again (0 when it can).
         /// </summary>
         float CooldownLeft(string abilityId);
+
+        /// <summary>
+        /// How much of a currency this machine's player has (their own, or the party's).
+        /// </summary>
+        long CurrencyOf(string currency = RPGFramework.Trading.Currencies.Gold);
+
+        /// <summary>
+        /// This machine's player takes a trader's offer (buys, sells). On a co-op client it is sent to the host.
+        /// </summary>
+        /// <returns>False when it was refused here; a client cannot know yet and returns true once sent.</returns>
+        bool TakeOffer(string offerId);
     }
 }

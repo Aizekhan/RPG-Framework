@@ -679,6 +679,10 @@ namespace RPGFramework.ActionRpg.Coop
                     if (_world.Abilities != null && !string.IsNullOrEmpty(intent.AbilityId))
                         _world.Abilities.Use(guest.PlayerId, intent.AbilityId, intent.TargetId);
                     break;
+                case CoopIntentMessage.IntentKind.TakeOffer:
+                    if (!string.IsNullOrEmpty(intent.OfferId))
+                        _world.Trade(guest.PlayerId, intent.OfferId);
+                    break;
             }
         }
 

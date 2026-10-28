@@ -59,7 +59,7 @@ namespace RPGFramework.ActionRpg.Coop
         /// <summary>
         /// Changes whenever the messages change, so older and newer builds refuse each other instead of misreading.
         /// </summary>
-        public const int Version = 9;
+        public const int Version = 10;
 
         public const int DefaultPort = 7777;
         public const int DefaultMaxPlayers = 4;
@@ -147,6 +147,25 @@ namespace RPGFramework.ActionRpg.Coop
             return count;
         }
 
+        internal static void WriteCurrencies(BinaryWriter writer, List<CurrencyRecord> currencies)
+        {
+            writer.Write(currencies.Count);
+            foreach (var currency in currencies)
+            {
+                writer.Write(currency.Currency ?? "");
+                writer.Write(currency.Amount);
+            }
+        }
+
+        internal static List<CurrencyRecord> ReadCurrencies(BinaryReader reader)
+        {
+            int count = ReadCount(reader);
+            var currencies = new List<CurrencyRecord>(count);
+            for (int i = 0; i < count; i++)
+                currencies.Add(new CurrencyRecord { Currency = reader.ReadString(), Amount = reader.ReadInt64() });
+            return currencies;
+        }
+
         internal static void WriteProgress(BinaryWriter writer, PlayerProgress progress)
         {
             writer.Write(progress.Level);
@@ -155,6 +174,7 @@ namespace RPGFramework.ActionRpg.Coop
             writer.Write(progress.Items.Count);
             foreach (var item in progress.Items)
                 writer.Write(item ?? "");
+            WriteCurrencies(writer, progress.Currencies);
             writer.Write(progress.ActiveQuests.Count);
             foreach (var quest in progress.ActiveQuests)
             {
@@ -180,6 +200,7 @@ namespace RPGFramework.ActionRpg.Coop
             int items = ReadCount(reader);
             for (int i = 0; i < items; i++)
                 progress.Items.Add(reader.ReadString());
+            progress.Currencies = ReadCurrencies(reader);
             int quests = ReadCount(reader);
             for (int i = 0; i < quests; i++)
             {
@@ -223,6 +244,8 @@ namespace RPGFramework.ActionRpg.Coop
             Number(settings.InventoryCapacity);
             Number((int)settings.ProgressMode);
             text.Append(settings.LootToBackpack ? "bag|" : "drop|");
+            foreach (var currency in settings.Currencies.OrderBy(c => c, StringComparer.Ordinal))
+                text.Append("cur:").Append(currency).Append('|');
             if (settings.Pvp != null)
             {
                 var pvp = settings.Pvp;
@@ -566,6 +589,7 @@ namespace RPGFramework.ActionRpg.Coop
         public int Kills;
         public int Wave;
         public List<string> Items = new List<string>();
+        public List<CurrencyRecord> Currencies = new List<CurrencyRecord>();
         public List<QuestRecord> ActiveQuests = new List<QuestRecord>();
         public List<string> CompletedQuests = new List<string>();
         public List<string> Log = new List<string>();
@@ -591,6 +615,8 @@ namespace RPGFramework.ActionRpg.Coop
                 Wave = world.CurrentWave
             };
             status.Items.AddRange(world.InventoryOf(playerId).GetAllItems().Where(i => i != null).Select(i => i.ItemId));
+            status.Currencies.AddRange(world.Wallet.BalancesOf(world.ProgressOwnerOf(playerId)).Where(b => b.Value > 0)
+                .OrderBy(b => b.Key, StringComparer.Ordinal).Select(b => new CurrencyRecord { Currency = b.Key, Amount = b.Value }));
             foreach (var (quest, progress) in world.ActiveQuestsOf(playerId))
             {
                 var record = new QuestRecord { QuestId = quest.Id };
@@ -625,6 +651,7 @@ namespace RPGFramework.ActionRpg.Coop
             writer.Write(Kills);
             writer.Write(Wave);
             WriteStrings(writer, Items);
+            CoopProtocol.WriteCurrencies(writer, Currencies);
             writer.Write(ActiveQuests.Count);
             foreach (var quest in ActiveQuests)
             {
@@ -650,6 +677,7 @@ namespace RPGFramework.ActionRpg.Coop
             Kills = reader.ReadInt32();
             Wave = reader.ReadInt32();
             Items = ReadStrings(reader);
+            Currencies = CoopProtocol.ReadCurrencies(reader);
             int quests = CoopProtocol.ReadCount(reader);
             ActiveQuests = new List<QuestRecord>(quests);
             for (int i = 0; i < quests; i++)
@@ -757,7 +785,12 @@ namespace RPGFramework.ActionRpg.Coop
             /// <summary>
             /// The player uses an ability (<see cref="AbilityId"/>) on <see cref="TargetId"/>.
             /// </summary>
-            UseAbility = 4
+            UseAbility = 4,
+
+            /// <summary>
+            /// The player takes a trader's offer (<see cref="OfferId"/>).
+            /// </summary>
+            TakeOffer = 5
         }
 
         public override int MessageTypeId => CoopProtocol.IntentId;
@@ -771,6 +804,7 @@ namespace RPGFramework.ActionRpg.Coop
         public int SourceId;
 
         public string AbilityId = "";
+        public string OfferId = "";
 
         public void Write(BinaryWriter writer)
         {
@@ -779,6 +813,7 @@ namespace RPGFramework.ActionRpg.Coop
             writer.Write(Tags);
             writer.Write(SourceId);
             writer.Write(AbilityId ?? "");
+            writer.Write(OfferId ?? "");
         }
 
         public void Read(BinaryReader reader)
@@ -788,6 +823,7 @@ namespace RPGFramework.ActionRpg.Coop
             Tags = reader.ReadInt32();
             SourceId = reader.ReadInt32();
             AbilityId = reader.ReadString();
+            OfferId = reader.ReadString();
         }
     }
 }

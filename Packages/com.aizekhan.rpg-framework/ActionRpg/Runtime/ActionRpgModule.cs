@@ -14,6 +14,7 @@ using RPGFramework.Loot;
 using RPGFramework.Progression;
 using RPGFramework.Quests;
 using RPGFramework.StatusEffects;
+using RPGFramework.Trading;
 
 namespace RPGFramework.ActionRpg
 {
@@ -39,7 +40,7 @@ namespace RPGFramework.ActionRpg
         public override IEnumerable<Type> Dependencies => new[]
         {
             typeof(FrameworkCoreModule), typeof(CombatModule), typeof(ProgressionModule), typeof(QuestsModule),
-            typeof(ItemsModule), typeof(LootModule)
+            typeof(ItemsModule), typeof(LootModule), typeof(TradingModule)
         };
 
         /// <summary>
@@ -73,7 +74,8 @@ namespace RPGFramework.ActionRpg
                 c.Resolve<ILootGenerator>(),
                 c.Resolve<IItemRegistry>(),
                 c.Resolve<IEventBus>(),
-                c.Resolve<ILogger>()));
+                c.Resolve<ILogger>(),
+                c.Resolve<ICurrencyWallet>()));
             AddSystem<WaveSystem>();
             AddSystem<PvpMatch>();
             if (_settings.UsesStatusEffects(_content))
@@ -113,6 +115,7 @@ namespace RPGFramework.ActionRpg
             }
 
             World = Container.Resolve<ActorWorld>();
+            World.Trading = Container.Resolve<ITradingManager>();
             Pvp = Container.Resolve<PvpMatch>();
             if (_settings.UsesStatusEffects(_content))
             {
@@ -173,6 +176,8 @@ namespace RPGFramework.ActionRpg
                 .UseModule(new QuestsModule())
                 .UseModule(new ItemsModule())
                 .UseModule(new LootModule())
+                // Shops pay from the world's wallet and move items in and out of the backpacks
+                .UseModule(new TradingModule(new TradingOptions { Inventory = new ActorTradeInventory(() => game.World) }))
                 // Kills count for quests by character id ("goblin"), and for the party whoever in it made them
                 .UseModule(new CombatQuestsModule(entityId => game.World?.QuestTargetOf(entityId),
                     entityId => game.World?.CreditOf(entityId) ?? entityId))

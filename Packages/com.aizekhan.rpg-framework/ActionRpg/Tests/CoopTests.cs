@@ -1194,6 +1194,38 @@ namespace RPGFramework.ActionRpg.Tests
         }
     
         [Test]
+        public void PerPlayer_AFriendBringsTheirGold_SeesIt_AndBuysThroughTheHost()
+        {
+            PlayWith(() =>
+            {
+                var settings = Settings();
+                settings.ProgressMode = ProgressMode.PerPlayer;
+                return settings;
+            });
+            var shop = RPGFramework.Trading.Trader.Create("shop", "Shop", RPGFramework.Trading.TraderType.Merchant);
+            var ear = RPGFramework.Trading.TradeOffer.Create("buy_ear", "shop");
+            ear.AddOfferedItem(RPGFramework.Trading.TradeItem.Create(Ear, 1));
+            ear.SetGoldAmount(-30);
+            shop.AddOffer(ear);
+            _game.Container.Resolve<RPGFramework.Trading.ITraderRegistry>().RegisterTrader(shop);
+            var brought = new PlayerProgress();
+            brought.Currencies.Add(new CurrencyRecord { Currency = RPGFramework.Trading.Currencies.Gold, Amount = 50 });
+
+            var guest = Join(name: "Ann", profile: brought);
+            int friend = guest.World.PlayerId;
+            Assert.That(World.CurrencyOf(friend), Is.EqualTo(50));
+            Assert.That(guest.World.CurrencyOf(), Is.EqualTo(50), "the friend sees their own gold");
+
+            Assert.That(guest.World.TakeOffer("buy_ear"), Is.True);
+            Pump();
+            Assert.That(World.CurrencyOf(friend), Is.EqualTo(20), "the host ran the purchase");
+            Assert.That(guest.World.CurrencyOf(), Is.EqualTo(20));
+            Assert.That(guest.World.Inventory.GetAllItems().Select(i => i.ItemId), Is.EqualTo(new[] { Ear }));
+            Assert.That(World.CurrencyOf(), Is.Zero, "the host paid nothing");
+            Assert.That(guest.World.CaptureProgress().Currencies.Single().Amount, Is.EqualTo(20), "what they take home");
+        }
+
+        [Test]
         public void PerPlayer_TheFriendBringsTheirProgress_SeesTheirOwn_AndComesBackWithIt()
         {
             PlayWith(() =>

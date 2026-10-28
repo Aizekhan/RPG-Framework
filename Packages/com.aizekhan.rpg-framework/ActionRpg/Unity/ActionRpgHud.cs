@@ -144,6 +144,7 @@ namespace RPGFramework.ActionRpg
                 .Append("Attack ").Append(hero.Attack.ToString("F0")).Append('\n')
                 .Append("Defense ").Append(hero.Defense.ToString("F0")).Append("\n\n")
                 .Append("Kills ").Append(_world.Kills).Append("   Wave ").Append(_world.CurrentWave).Append('\n')
+                .Append("Gold ").Append(_world.CurrencyOf()).Append('\n')
                 .Append("Quests done ").Append(_world.CompletedQuests.Count);
             _character.text = _text.ToString();
 

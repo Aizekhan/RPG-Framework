@@ -3,7 +3,7 @@ using System.Collections.Generic;
 namespace RPGFramework.ActionRpg
 {
     /// <summary>
-    /// What carries over between play sessions: the player's level and experience, the backpack and the quests.
+    /// What carries over between play sessions: the player's level and experience, the backpack, the money and the quests.
     /// Enemies and waves start fresh every session.
     /// </summary>
     public sealed class PlayerProgress
@@ -17,8 +17,19 @@ namespace RPGFramework.ActionRpg
         /// </summary>
         public List<string> Items { get; set; } = new List<string>();
 
+        /// <summary>
+        /// Balances in the wallet (gold and any other currency of <see cref="ActionRpgSettings.Currencies"/>).
+        /// </summary>
+        public List<CurrencyRecord> Currencies { get; set; } = new List<CurrencyRecord>();
+
         public List<QuestRecord> ActiveQuests { get; set; } = new List<QuestRecord>();
         public List<string> CompletedQuests { get; set; } = new List<string>();
+    }
+
+    public sealed class CurrencyRecord
+    {
+        public string Currency { get; set; }
+        public long Amount { get; set; }
     }
 
     public sealed class QuestRecord
