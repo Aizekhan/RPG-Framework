@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-28
+
 Co-op protocol stays 14: a cleared cooldown travels as a cooldown of 0 seconds.
 
 ### Added

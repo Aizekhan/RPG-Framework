@@ -24,7 +24,7 @@ core services (pooling, assets, spawning, scenes, timers, logging) are used inst
 
    ```json
    "com.cysharp.unitask": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask#2.5.10",
-   "com.aizekhan.rpg-framework": "https://github.com/Aizekhan/RPG-Framework.git?path=/Packages/com.aizekhan.rpg-framework#v0.10.0"
+   "com.aizekhan.rpg-framework": "https://github.com/Aizekhan/RPG-Framework.git?path=/Packages/com.aizekhan.rpg-framework#v0.11.0"
    ```
 
 3. In Unity: **RPG Framework > Game Kit > New Game or Feature...**, type a name, **New Game**, then **Play**.
@@ -43,7 +43,7 @@ Everything after that (new enemies, items, quests, your own rules, tests) is in 
 | `START-NEW-GAME.md` | The one file that starts a game with Claude Code |
 | `STATUS.md` | What is verified, at which commit, and what is open |
 
-Each release is a git tag (`v0.10.0`); pin one in the manifest so updates are deliberate.
+Each release is a git tag (`v0.11.0`); pin one in the manifest so updates are deliberate.
 
 ## License
 
