@@ -11,6 +11,7 @@
 
 | Gate | Result | SHA |
 |---|---|---|
+| **Release `v0.11.1`** (tag on `acc670e`; panel `Anchor` / `Offset`, `7803469`, EditMode **1877 / 1877**): CI green (run `40729860850`) | ✅ | `acc670e` |
 | **Release `v0.11.0`** (tag on `ddc0d18`, GitHub release; FG-18 + FG-19 + FG-20, protocol v14): CI green (run `40726163545`) | ✅ | `ddc0d18` |
 | **MythRunner FG-18 + FG-19 + FG-20** (released in v0.11.0, protocol stays v14): `ActorAbilities.CanUse` / `CooldownFor` / refund when an effect found nothing, `AbilityRefundedEvent`; `CooldownClearedEvent` synced in co-op, `CooldownLeft(entity, ability)` (`1f35fd9`); `ActionListPanel`, panel sizes from code, `ItemSlotUI` caption / count / hover (`e4c495c`); test fix `40be773`, docs `0efee86`. Verify worktree | ✅ EditMode **1876 / 1876**, PlayMode **13 / 13** | `40be773` |
 | **Release `v0.10.0`** (tag on `78b400d`, GitHub release; FG-16 + FG-17, protocol v14): CI green (run `40722979971`). Run `40718099186` on `f27c166` failed only on Unity licensing in CI, not on code | ✅ | `78b400d` |
