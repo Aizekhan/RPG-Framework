@@ -12,7 +12,7 @@
 | Gate | Result | SHA |
 |---|---|---|
 | **Release `v0.14.1`** (tag on `fcb207e`; code-made panels stay shown, `MusicTrack.Loop`, volume storage in README): verified at `d0e7a0b` EditMode **1905 / 1905**, PlayMode **15 / 15**; CI green on `9305cdd` (run `40763957840`, same code + CLAUDE.md; the tag's own run was cancelled by that push). MythRunner on v0.14.1 (its `9524892`) | ✅ | `fcb207e` |
-| **Unreleased, for 0.15.0** (`fc11512`): `TurnPrompt.Title`, `TurnVisibility.Others`, turn protocol 2 (The Bloodline Hunt wishes) | ✅ EditMode **1905 / 1905** | `fc11512` |
+| **Release `v0.15.0`** (tag on `d3b5868`): `TurnPrompt.Title`, `TurnVisibility.Others`, turn protocol 2 (The Bloodline Hunt wishes; `fc11512`, EditMode 1905/1905). CI green (run `40764732268`) | ✅ | `d3b5868` |
 | **Release `v0.14.0`** (tag on `6c050ef`, GitHub release; BH-01..03 turn session, purpose-keyed `ScriptedDice`): CI green on rerun (run `40759138565`; first PlayMode attempt was a Unity segfault, exit 139, before any test ran) | ✅ | `6c050ef` |
 | **The Bloodline Hunt BH-01..03 turn session** (released in v0.14.0): `RPGFramework.Turns` (`TurnHost`, `TurnClient`, `ITurnSession`, `ITurnRules`, `TurnIntent`, per-seat views, notices with visibility, reaction prompts, turn timer, rejoin by token; protocol 1, ids 1300-1311) + `ScriptedDice.Then(purpose, rolls)` (`ca8564b`). Verify worktree | ✅ EditMode **1905 / 1905**, PlayMode **13 / 13** | `ca8564b` |
 | **Release `v0.13.0`** (tag on `898bf1e`, GitHub release; BH-05 dice, BH-04 decks): CI green (run `40755159703`) | ✅ | `898bf1e` |
