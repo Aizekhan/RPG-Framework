@@ -2,7 +2,9 @@
 
 ## [Unreleased]
 
-Closes MythRunner's FG-05 and FG-13 and two GA14 false results. **Co-op protocol version 12**: 0.7.0 builds are refused.
+## [0.8.0] - 2026-10-28
+
+Closes MythRunner's FG-05 and FG-13 and two GA14 false results. **Co-op protocol version 12**: 0.7.0 builds are refused. Install with `#v0.8.0`.
 
 ### Changed
 - `IStatusEffectManager` has `ApplyEffect(entity, effect, source, time, power, duration)` and `IStatusEffectInstance` has `Power`; `IActorWorld` has `IsPaused` (a game that implements them itself adds them). `PartyStatus` carries `Paused`.
