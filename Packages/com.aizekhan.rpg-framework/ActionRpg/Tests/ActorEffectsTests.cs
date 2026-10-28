@@ -7,6 +7,8 @@ using RPGFramework.Combat;
 using RPGFramework.Events;
 using RPGFramework.Logging;
 using RPGFramework.StatusEffects;
+using UnityEngine.TestTools.Constraints;
+using Is = UnityEngine.TestTools.Constraints.Is;
 
 namespace RPGFramework.ActionRpg.Tests
 {
