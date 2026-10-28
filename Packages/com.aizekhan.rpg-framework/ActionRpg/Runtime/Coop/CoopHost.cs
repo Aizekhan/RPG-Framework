@@ -971,7 +971,8 @@ namespace RPGFramework.ActionRpg.Coop
                                     Kind = CoopWorldMessage.ChangeKind.Hit, Id = actor.EntityId,
                                     AttackerId = happening.AttackerId, Amount = happening.Amount,
                                     HealthLeft = happening.HealthLeft, Tags = happening.Context.Tags,
-                                    SourceId = happening.Context.SourceId, FromEffect = happening.Context.FromEffect
+                                    SourceId = happening.Context.SourceId, FromEffect = happening.Context.FromEffect,
+                                    Critical = happening.Context.IsCritical, Multiplier = happening.Context.Multiplier
                                 });
                             }
                             break;

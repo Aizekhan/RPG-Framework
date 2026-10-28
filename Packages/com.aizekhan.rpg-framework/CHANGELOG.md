@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+Closes MythRunner's FG-14 and FG-15. **Co-op protocol version 13**: 0.8.x builds are refused.
+
+### Added
+- **Critical hits and damage multipliers** (MythRunner FG-15): `AttackContext.AsCritical(multiplier)`, `WithMultiplier(factor)` (a power strike, rage, a combo; they multiply together), `IsCritical`, `Multiplier`. `ActorWorld` multiplies the strike or the amount before the damage calculator, which still sees the context; `ActorDamagedEvent.Context` and friends' machines report it (`CoopWorldMessage.Change.Critical` / `Multiplier`).
+- `StatusEffectManager.SourceOf(entity, effect)`: who put an effect on, without allocating.
+
+### Fixed
+- **`ActorEffects.Update` allocates nothing on a quiet frame** (MythRunner FG-14): it built a LINQ query, a delegate per character and a list per tick every frame, even with no effect on anyone.
+
 ## [0.8.1] - 2026-10-28
 
 GA14 catches more of what MythRunner wrote by hand. Co-op protocol unchanged (12). Install with `#v0.8.1`.

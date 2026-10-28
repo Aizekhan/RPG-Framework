@@ -128,6 +128,7 @@ namespace RPGFramework.ActionRpg
         private readonly StatusEffectManager _full;
         private readonly SubscriptionBag _subscriptions = new SubscriptionBag();
         private readonly List<int> _ids = new List<int>();
+        private readonly Action<int, string, float, float> _onTick;
         private readonly List<(int Entity, int Source, int Effect, float Damage, float Healing)> _ticks =
             new List<(int, int, int, float, float)>();
         private bool _ticking;
@@ -137,6 +138,7 @@ namespace RPGFramework.ActionRpg
             _world = world ?? throw new ArgumentNullException(nameof(world));
             _manager = manager ?? throw new ArgumentNullException(nameof(manager));
             _full = manager as StatusEffectManager;
+            _onTick = OnTick;
             if (bus == null)
                 throw new ArgumentNullException(nameof(bus));
             bus.Subscribe<ActorDespawnedEvent>(e => _manager.RemoveAllEffects(e.EntityId)).AddTo(_subscriptions);
@@ -214,10 +216,11 @@ namespace RPGFramework.ActionRpg
         public void Update(float deltaTime)
         {
             Time += deltaTime;
-            _ids.Clear();
-            _ids.AddRange(_world.Actors.Select(a => a.EntityId));
-            foreach (int id in _ids)
+            // A quiet frame (no effect on anyone) allocates nothing
+            _world.CopyActorIds(_ids);
+            for (int i = 0; i < _ids.Count; i++)
             {
+                int id = _ids[i];
                 if (_world.Get(id) == null)
                     continue;
                 // Ticks are dealt after the manager is done with the character: a tick may kill it
@@ -225,15 +228,16 @@ namespace RPGFramework.ActionRpg
                 _ticking = true;
                 try
                 {
-                    _full?.ProcessTicks(id, Time, OnTick);
+                    _full?.ProcessTicks(id, Time, _onTick);
                     _manager.UpdateEffects(id, deltaTime);
                 }
                 finally
                 {
                     _ticking = false;
                 }
-                foreach (var tick in _ticks)
+                for (int t = 0; t < _ticks.Count; t++)
                 {
+                    var tick = _ticks[t];
                     if (tick.Healing > 0f)
                         _world.Heal(tick.Entity, tick.Healing);
                     if (tick.Damage > 0f)
@@ -244,8 +248,8 @@ namespace RPGFramework.ActionRpg
 
         private void OnTick(int entityId, string effectId, float damage, float healing)
         {
-            var instance = _manager.GetActiveEffects(entityId).FirstOrDefault(e => e.EffectId == effectId);
-            _ticks.Add((entityId, instance != null ? SourceOf(instance) : -1, SourceIdOf(effectId), damage, healing));
+            string source = _full?.SourceOf(entityId, effectId);
+            _ticks.Add((entityId, SourceOf(source), SourceIdOf(effectId), damage, healing));
         }
 
         /// <summary>
@@ -265,8 +269,10 @@ namespace RPGFramework.ActionRpg
                 _world.DealDamage(-1, entityId, -amount, AttackContext.Effect(0));
         }
 
-        private static int SourceOf(IStatusEffectInstance instance) =>
-            int.TryParse(instance.SourceId, NumberStyles.Integer, CultureInfo.InvariantCulture, out int id) ? id : -1;
+        private static int SourceOf(IStatusEffectInstance instance) => SourceOf(instance.SourceId);
+
+        private static int SourceOf(string sourceId) =>
+            int.TryParse(sourceId, NumberStyles.Integer, CultureInfo.InvariantCulture, out int id) ? id : -1;
 
         public void Dispose() => _subscriptions.Dispose();
     }

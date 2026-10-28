@@ -245,6 +245,7 @@ namespace RPGFramework.ActionRpg.Coop
                         target.SetHealth(change.HealthLeft);
                         var context = new AttackContext(change.Tags, change.SourceId, change.FromEffect)
                             .Between(change.AttackerId, change.Id);
+                        context = change.Critical ? context.AsCritical(change.Multiplier) : context.WithMultiplier(change.Multiplier);
                         _bus.Publish(new ActorDamagedEvent(change.Id, change.AttackerId, change.Amount, change.HealthLeft, context));
                         break;
                     case CoopWorldMessage.ChangeKind.EffectOn:

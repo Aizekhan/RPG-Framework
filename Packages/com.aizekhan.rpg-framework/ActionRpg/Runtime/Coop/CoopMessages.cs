@@ -59,7 +59,7 @@ namespace RPGFramework.ActionRpg.Coop
         /// <summary>
         /// Changes whenever the messages change, so older and newer builds refuse each other instead of misreading.
         /// </summary>
-        public const int Version = 12;
+        public const int Version = 13;
 
         public const int DefaultPort = 7777;
         public const int DefaultMaxPlayers = 4;
@@ -481,6 +481,13 @@ namespace RPGFramework.ActionRpg.Coop
             public bool FromEffect;
 
             /// <summary>
+            /// A hit: critical, and what multiplied its damage (<see cref="RPGFramework.Combat.AttackContext.Multiplier"/>).
+            /// </summary>
+            public bool Critical;
+
+            public float Multiplier;
+
+            /// <summary>
             /// Stacks of an effect.
             /// </summary>
             public int Stacks;
@@ -525,6 +532,8 @@ namespace RPGFramework.ActionRpg.Coop
                         writer.Write(change.Tags);
                         writer.Write(change.SourceId);
                         writer.Write(change.FromEffect);
+                        writer.Write(change.Critical);
+                        writer.Write(change.Multiplier);
                         break;
                     case ChangeKind.EffectOn:
                         writer.Write(change.Name ?? "");
@@ -599,6 +608,8 @@ namespace RPGFramework.ActionRpg.Coop
                         change.Tags = reader.ReadInt32();
                         change.SourceId = reader.ReadInt32();
                         change.FromEffect = reader.ReadBoolean();
+                        change.Critical = reader.ReadBoolean();
+                        change.Multiplier = reader.ReadSingle();
                         break;
                     case ChangeKind.EffectOn:
                         change.Name = reader.ReadString();

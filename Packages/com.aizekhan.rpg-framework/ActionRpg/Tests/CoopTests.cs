@@ -904,6 +904,11 @@ namespace RPGFramework.ActionRpg.Tests
             World.DealDamage(World.PlayerId, goblin, 3f, RPGFramework.Combat.AttackContext.Effect(5));
             Pump();
             Assert.That(guest.Damaged.Last().Context.FromEffect, Is.True, "effect damage is shown as such");
+
+            World.DealDamage(World.PlayerId, goblin, 3f, new RPGFramework.Combat.AttackContext(0).AsCritical(2f));
+            Pump();
+            Assert.That(guest.Damaged.Last().Context.IsCritical, Is.True, "friends see a critical hit");
+            Assert.That(guest.Damaged.Last().Context.Multiplier, Is.EqualTo(2f));
         }
 
         [Test]

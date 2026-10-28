@@ -174,6 +174,41 @@ namespace RPGFramework.ActionRpg.Tests
         }
 
         [Test]
+        public void ACriticalHit_MultipliesTheDamage_AndSaysSo()
+        {
+            // MythRunner FG-15: the game rolled the crit and folded it into the amount, so nobody knew
+            StartGame();
+            var damaged = new List<ActorDamagedEvent>();
+            _host.Container.Resolve<IEventBus>().Subscribe<ActorDamagedEvent>(damaged.Add);
+            int goblin = World.SpawnEnemy(Goblin);
+
+            float plain = World.DealDamage(World.PlayerId, goblin, 4f, AttackContext.Effect(1));
+            float boosted = World.DealDamage(World.PlayerId, goblin, 4f, AttackContext.Effect(1).AsCritical(2f).WithMultiplier(1.5f));
+
+            Assert.That(plain, Is.EqualTo(4f));
+            Assert.That(boosted, Is.EqualTo(12f), "a crit of 2 and a power strike of 1.5");
+            Assert.That(damaged[0].Context.IsCritical, Is.False);
+            Assert.That(damaged[0].Context.Multiplier, Is.EqualTo(1f));
+            Assert.That(damaged[1].Context.IsCritical, Is.True);
+            Assert.That(damaged[1].Context.Multiplier, Is.EqualTo(3f));
+        }
+
+        [Test]
+        public void AttackContext_MultipliersCombine_AndSurviveTheOtherChanges()
+        {
+            var context = new AttackContext(tags: 2, sourceId: 7).WithMultiplier(1.2f).AsCritical(2f).WithTags(3).Between(1, 2);
+
+            Assert.That(default(AttackContext).Multiplier, Is.EqualTo(1f));
+            Assert.That(default(AttackContext).IsCritical, Is.False);
+            Assert.That(context.Multiplier, Is.EqualTo(2.4f).Within(1e-5f));
+            Assert.That(context.IsCritical, Is.True);
+            Assert.That(context.Tags, Is.EqualTo(3));
+            Assert.That(context.AttackerId, Is.EqualTo(1));
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => context.WithMultiplier(float.NaN));
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => context.AsCritical(-1f));
+        }
+
+        [Test]
         public void GiveItem_FillsTheBackpackAndRefusesUnknownItems()
         {
             StartGame();

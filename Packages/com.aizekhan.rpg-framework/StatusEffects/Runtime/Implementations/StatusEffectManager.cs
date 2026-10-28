@@ -259,6 +259,24 @@ namespace RPGFramework.StatusEffects
             return instances;
         }
 
+        /// <summary>
+        /// Who put the effect on the entity (its source id), or null when it is not on it. Allocates nothing.
+        /// </summary>
+        public string SourceOf(int entityId, string effectId)
+        {
+            if (!_entityManager.TryGetComponent<ActiveEffectsData>(entityId, out var activeEffects))
+                return null;
+            var instances = activeEffects.ActiveInstances;
+            if (instances == null)
+                return null;
+            for (int i = 0; i < instances.Count; i++)
+            {
+                if (instances[i].EffectId == effectId)
+                    return instances[i].SourceId;
+            }
+            return null;
+        }
+
         public bool HasEffect(int entityId, string effectId)
         {
             if (!_entityManager.TryGetComponent<ActiveEffectsData>(entityId, out var activeEffects))

@@ -154,6 +154,18 @@ namespace RPGFramework.ActionRpg.Tests
         }
 
         [Test]
+        public void AQuietFrame_AllocatesNothing()
+        {
+            // MythRunner FG-14: a game with effects, none on anyone, paid for them every frame
+            StartGame();
+            for (int i = 0; i < 20; i++)
+                World.SpawnEnemy(Goblin);
+            World.Effects.Update(0.016f); // warm up
+
+            Assert.That(() => World.Effects.Update(0.016f), Is.Not.AllocatingGCMemory());
+        }
+
+        [Test]
         public void Buff_ChangesTheStat_AndRunsOut()
         {
             StartGame();

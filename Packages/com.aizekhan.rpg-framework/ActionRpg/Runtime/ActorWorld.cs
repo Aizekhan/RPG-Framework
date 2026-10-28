@@ -205,6 +205,16 @@ namespace RPGFramework.ActionRpg
         /// </summary>
         public IEnumerable<Actor> Actors => _actors.Values;
 
+        /// <summary>
+        /// Fills <paramref name="ids"/> with everyone in the world without allocating (for systems that run every frame).
+        /// </summary>
+        internal void CopyActorIds(List<int> ids)
+        {
+            ids.Clear();
+            foreach (int id in _actors.Keys)
+                ids.Add(id);
+        }
+
         public IEnumerable<int> LivingEnemies => _actors.Values.Where(a => !a.IsPlayer && a.IsAlive()).Select(a => a.EntityId);
 
         /// <summary>
@@ -513,6 +523,8 @@ namespace RPGFramework.ActionRpg
 
         private float Hit(Actor target, float baseDamage, AttackContext context, float share)
         {
+            // A crit or a power strike multiplies the strike; the calculator still sees the context (IsCritical)
+            baseDamage *= context.Multiplier;
             float damage = _damage is IContextualDamageCalculator contextual
                 ? contextual.CalculateDamage(baseDamage, target.Defense, context)
                 : _damage.CalculateDamage(baseDamage, target.Defense);
