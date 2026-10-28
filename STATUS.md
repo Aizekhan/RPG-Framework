@@ -11,6 +11,7 @@
 
 | Gate | Result | SHA |
 |---|---|---|
+| **MythRunner FG-18 + FG-19 + FG-20** (unreleased, protocol stays v14): `ActorAbilities.CanUse` / `CooldownFor` / refund when an effect found nothing, `AbilityRefundedEvent`; `CooldownClearedEvent` synced in co-op, `CooldownLeft(entity, ability)` (`1f35fd9`); `ActionListPanel`, panel sizes from code, `ItemSlotUI` caption / count / hover (`e4c495c`); test fix `40be773`, docs `0efee86`. Verify worktree | ✅ EditMode **1876 / 1876**, PlayMode **13 / 13** | `40be773` |
 | **Release `v0.10.0`** (tag on `78b400d`, GitHub release; FG-16 + FG-17, protocol v14): CI green (run `40722979971`). Run `40718099186` on `f27c166` failed only on Unity licensing in CI, not on code | ✅ | `78b400d` |
 | **MythRunner FG-16 + FG-17** (released in v0.10.0, protocol v14): `ITradePricing` / `GoldFor` and kit `World.TradePricing` (`7c09f4d`); gear in the kit: `ActorGear` slots, bonuses, sets per hero, saves, co-op intents, Game Setup > Gear (`4aa88cc`). Verify worktree | ✅ EditMode **1869 / 1869**, PlayMode **13 / 13** | `4aa88cc` |
 | **Release `v0.9.0`** (tag on `2f6bafc`, FG-14 + FG-15, protocol v13): CI green on rerun (run `40713345274`; first attempt failed only `AQuietFrame_AllocatesNothing`, flaky like `AMovementFrame_AllocatesNothing`). Both zero-allocation tests now `[Retry(3)]` (`a656d2a`) | ✅ | `2f6bafc` |

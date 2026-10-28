@@ -8,7 +8,8 @@
 
 ## Where things stand
 
-- **2026-10-28 (latest): released `v0.10.0`** (tag on `78b400d`, FG-16 + FG-17, protocol v14, CI run `40722979971` green; run `40718099186` on `f27c166` failed only on Unity licensing in CI). MythRunner (`huntersrunner-1e`) was told. It did step 4 in part (`2a1e76e`, effect timers through RemoteWorld) and step 5 (`6bb9032`, hero window on kit panels, FG-12 resolved), and recorded three new gaps. **Next: FG-18, FG-19, FG-20, as 0.11.0 with protocol 15 (the owner agreed to that order):**
+- **2026-10-28 (latest): FG-18, FG-19, FG-20 done, pushed, not released** (`1f35fd9`, `e4c495c`, test fix `40be773`, docs `0efee86`; 1876/1876 EditMode, 13/13 PlayMode at `40be773`). Co-op protocol stays 14: a cleared cooldown is sent as a 0-second cooldown, which a 0.10.0 guest also reads as cleared. Next: release 0.11.0 when the owner says, then tell `huntersrunner-1e`.
+- **2026-10-28: released `v0.10.0`** (tag on `78b400d`, FG-16 + FG-17, protocol v14, CI run `40722979971` green; run `40718099186` on `f27c166` failed only on Unity licensing in CI). MythRunner (`huntersrunner-1e`) was told. It did step 4 in part (`2a1e76e`, effect timers through RemoteWorld) and step 5 (`6bb9032`, hero window on kit panels, FG-12 resolved), and recorded three new gaps. **Next: FG-18, FG-19, FG-20, as 0.11.0 with protocol 15 (the owner agreed to that order):**
   - **FG-18**, ActorAbilities: a can-use hook (actorId, abilityId) => bool, a cooldown chosen per use, and a refund of cost and cooldown when the effect found nothing.
   - **FG-19**, cooldowns: `CooldownChangedEvent` for ClearCooldown / ClearAllCooldowns / ReduceCooldowns, synced by the kit, and `CooldownLeft(playerId, abilityId)` on RemoteWorld.
   - **FG-20**, UI: `ActionListPanel` (a row is a picture, a `Func<string>` text and buttons with label, enabled and click), panel sizes settable from code, and `ItemSlotUI.Create` with a caption, a count and hover.
