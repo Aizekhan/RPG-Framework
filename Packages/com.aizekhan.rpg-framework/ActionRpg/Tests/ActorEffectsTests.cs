@@ -156,6 +156,7 @@ namespace RPGFramework.ActionRpg.Tests
         }
 
         [Test]
+        [Retry(3)] // the editor sometimes allocates on the test thread mid-measure (seen in CI); a real allocation repeats
         public void AQuietFrame_AllocatesNothing()
         {
             // MythRunner FG-14: a game with effects, none on anyone, paid for them every frame

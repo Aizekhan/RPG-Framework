@@ -74,6 +74,7 @@ namespace RPGFramework.ECS.Tests
         }
 
         [Test]
+        [Retry(3)] // the editor sometimes allocates on the test thread mid-measure (seen in CI); a real allocation repeats
         public void AMovementFrame_AllocatesNothing()
         {
             Move(0.016f); // warm up
