@@ -6,7 +6,8 @@ using UnityEngine.Audio;
 namespace RPGFramework.Audio.Unity
 {
     /// <summary>
-    /// A music track of an <see cref="AudioLibrary"/> (it loops).
+    /// A music track of an <see cref="AudioLibrary"/>: it loops, or plays once with <see cref="Loop"/> off (a stinger;
+    /// <c>IAudioService.Music</c> still names it after it ends).
     /// </summary>
     [Serializable]
     public sealed class MusicTrack
@@ -14,6 +15,9 @@ namespace RPGFramework.Audio.Unity
         public string Id = "";
         public AudioClip Clip;
         [Range(0f, 1f)] public float Volume = 1f;
+
+        [Tooltip("Play it over and over; off: once (a stinger, a victory fanfare)")]
+        public bool Loop = true;
     }
 
     /// <summary>

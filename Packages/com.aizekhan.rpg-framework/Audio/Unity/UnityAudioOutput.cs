@@ -115,6 +115,7 @@ namespace RPGFramework.Audio.Unity
             int incoming = 1 - _musicCurrent;
             var source = _music[incoming];
             source.clip = track.Clip;
+            source.loop = track.Loop;
             source.volume = 0f;
             source.Play();
             _musicFrom[incoming] = 0f;

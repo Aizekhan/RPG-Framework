@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+- `MusicTrack.Loop` (on by default): off plays the track once, for stingers (MythRunner).
+- The README says where volumes are kept: PlayerPrefs `RPGFramework.Audio.<channel>`, or the game's own `IVolumeStore` given to `AudioModule`.
+
 ### Fixed
 - A panel built from code inside a screen that is not active yet (`CodeViewFactory`) and shown before its Awake no longer hides itself when the screen opens: a `UIViewBase` shown or hidden before Awake keeps that. `UIViewBase.StartHidden` can be set from code (MythRunner).
 

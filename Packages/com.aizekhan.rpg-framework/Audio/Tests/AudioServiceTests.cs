@@ -186,7 +186,7 @@ namespace RPGFramework.Audio.Tests
         {
             var clips = new[] { Clip("a"), Clip("b") };
             var hit = AudioCue.Create("hit", clips, maxVoices: 0);
-            var library = AudioLibrary.Create(new[] { hit }, new[] { new MusicTrack { Id = "camp", Clip = Clip("camp") } });
+            var library = AudioLibrary.Create(new[] { hit }, new[] { new MusicTrack { Id = "camp", Clip = Clip("camp") }, new MusicTrack { Id = "fanfare", Clip = Clip("fanfare"), Loop = false } });
             _cleanup.Add(hit);
             _cleanup.Add(library);
             var output = new UnityAudioOutput(library);
@@ -215,6 +215,9 @@ namespace RPGFramework.Audio.Tests
             Assert.That(audio.PlayMusic("camp", 0f), Is.True);
             Assert.That(output.Root.GetComponentsInChildren<AudioSource>(true).Count(s => s.loop && s.clip != null), Is.EqualTo(1));
             Assert.That(audio.PlayMusic("night"), Is.False);
+            Assert.That(audio.PlayMusic("fanfare", 0f), Is.True);
+            Assert.That(output.Root.GetComponentsInChildren<AudioSource>(true).Single(s => s.clip != null && s.clip.name == "fanfare").loop,
+                Is.False, "a stinger plays once");
             output.Dispose();
         }
 
