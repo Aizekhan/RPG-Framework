@@ -24,7 +24,7 @@ namespace RPGFramework.Turns
         public const int PromptClosedId = 1310;
         public const int ReplyId = 1311;
 
-        public const int Version = 1;
+        public const int Version = 2;
         public const int DefaultPort = 7788;
         public const int DefaultMaxSeats = 6;
         public const float ConnectionTimeout = 10f;
@@ -326,6 +326,7 @@ namespace RPGFramework.Turns
         public override int MessageTypeId => TurnProtocol.PromptId;
         public int WindowId;
         public string Kind = "";
+        public string Title = "";
         public List<string> Options = new List<string>();
         public float Seconds;
         public byte[] Data = Array.Empty<byte>();
@@ -334,6 +335,7 @@ namespace RPGFramework.Turns
         {
             writer.Write(WindowId);
             writer.Write(Kind ?? "");
+            writer.Write(Title ?? "");
             writer.Write(Options.Count);
             foreach (string option in Options)
                 writer.Write(option ?? "");
@@ -345,6 +347,7 @@ namespace RPGFramework.Turns
         {
             WindowId = reader.ReadInt32();
             Kind = reader.ReadString();
+            Title = reader.ReadString();
             int count = TurnProtocol.ReadCount(reader);
             Options = new List<string>(count);
             for (int i = 0; i < count; i++)

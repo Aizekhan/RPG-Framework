@@ -210,11 +210,12 @@ namespace RPGFramework.Turns.Tests
             _host.Notify(new TurnNotice("die", new byte[] { 5 }));
             _host.Notify(new TurnNotice("card"), TurnVisibility.Seat, 2);
             _host.Notify(new TurnNotice("trap"), TurnVisibility.Host);
+            _host.Notify(new TurnNotice("drew"), TurnVisibility.Others, 1);
             Pump();
 
-            CollectionAssert.AreEqual(new[] { "die", "trap" }, seen["Ann"]);
+            CollectionAssert.AreEqual(new[] { "die", "trap", "drew" }, seen["Ann"]);
             CollectionAssert.AreEqual(new[] { "die" }, seen["Bob"]);
-            CollectionAssert.AreEqual(new[] { "die", "card" }, seen["Cid"]);
+            CollectionAssert.AreEqual(new[] { "die", "card", "drew" }, seen["Cid"]);
         }
 
         [Test]
@@ -228,9 +229,10 @@ namespace RPGFramework.Turns.Tests
             bob.Prompted += p => asked = p;
             IReadOnlyDictionary<int, int> answers = null;
 
-            _host.OpenPrompt("block", new[] { "Block", "Dodge" }, new[] { 1, 2 }, 0f, a => answers = a);
+            _host.OpenPrompt("block", new[] { "Block", "Dodge" }, new[] { 1, 2 }, 0f, a => answers = a, title: "Stop the ambush?");
             Pump();
             Assert.AreEqual("block", asked.Kind);
+            Assert.AreEqual("Stop the ambush?", asked.Title);
             Assert.AreEqual(1, cid.OpenPrompts.Count);
             bob.Answer(asked.WindowId, 1);
             Pump();

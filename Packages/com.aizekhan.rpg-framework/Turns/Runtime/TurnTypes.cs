@@ -95,13 +95,15 @@ namespace RPGFramework.Turns
     }
 
     /// <summary>
-    /// Who may see a notice: everyone, only one seat (their own card), or only the host.
+    /// Who may see a notice: everyone, only one seat (their own card), only the host, or everyone but one seat (the
+    /// others see that a card was drawn).
     /// </summary>
     public enum TurnVisibility
     {
         All,
         Seat,
-        Host
+        Host,
+        Others
     }
 
     /// <summary>
@@ -128,10 +130,12 @@ namespace RPGFramework.Turns
     {
         public const int Pass = -1;
 
-        public TurnPrompt(int windowId, string kind, IReadOnlyList<string> options, float seconds, byte[] data = null)
+        public TurnPrompt(int windowId, string kind, IReadOnlyList<string> options, float seconds, byte[] data = null,
+            string title = null)
         {
             WindowId = windowId;
             Kind = kind ?? "";
+            Title = title ?? "";
             Options = options ?? Array.Empty<string>();
             Seconds = seconds;
             Data = data ?? Array.Empty<byte>();
@@ -143,6 +147,11 @@ namespace RPGFramework.Turns
         /// The game's name for the question ("block", "ambush").
         /// </summary>
         public string Kind { get; }
+
+        /// <summary>
+        /// What to ask the player ("Block the ambush with Barrier?"); empty when the screen words it from the kind.
+        /// </summary>
+        public string Title { get; }
 
         public IReadOnlyList<string> Options { get; }
 

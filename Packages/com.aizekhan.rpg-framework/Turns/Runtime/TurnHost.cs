@@ -191,7 +191,8 @@ namespace RPGFramework.Turns
         /// <summary>
         /// Tells seats what just happened (a die rolled, a card drawn), for their screens to show.
         /// </summary>
-        /// <param name="seat">The seat it is for, with <see cref="TurnVisibility.Seat"/>.</param>
+        /// <param name="seat">The seat it is for with <see cref="TurnVisibility.Seat"/>, the one left out with
+        /// <see cref="TurnVisibility.Others"/>.</param>
         public void Notify(TurnNotice notice, TurnVisibility visibility = TurnVisibility.All, int seat = -1)
         {
             if (notice == null)
@@ -212,6 +213,15 @@ namespace RPGFramework.Turns
                 case TurnVisibility.Host:
                     Noticed?.Invoke(notice);
                     break;
+                case TurnVisibility.Others:
+                    if (seat != 0)
+                        Noticed?.Invoke(notice);
+                    foreach (var place in _places)
+                    {
+                        if (place.Seat.Seat != 0 && place.Seat.Seat != seat && place.ConnectionId >= 0)
+                            _network.Send(place.ConnectionId, message);
+                    }
+                    break;
             }
         }
 
@@ -221,16 +231,17 @@ namespace RPGFramework.Turns
         /// answers by seat and every seat a new view.
         /// </summary>
         /// <param name="seconds">0 or less: no limit.</param>
+        /// <param name="title">What to ask the players, for their screens.</param>
         /// <returns>The window id.</returns>
         public int OpenPrompt(string kind, IReadOnlyList<string> options, IEnumerable<int> seats, float seconds,
-            Action<IReadOnlyDictionary<int, int>> closed, byte[] data = null)
+            Action<IReadOnlyDictionary<int, int>> closed, byte[] data = null, string title = null)
         {
             if (seats == null)
                 throw new ArgumentNullException(nameof(seats));
             int id = ++_nextWindow;
             var window = new Window
             {
-                Prompt = new TurnPrompt(id, kind, options, seconds, data),
+                Prompt = new TurnPrompt(id, kind, options, seconds, data, title),
                 Seats = new HashSet<int>(seats.Where(s => PlaceOf(s) != null)),
                 Left = seconds,
                 Closed = closed
@@ -238,7 +249,7 @@ namespace RPGFramework.Turns
             _windows[id] = window;
             var message = new TurnPromptMessage
             {
-                WindowId = id, Kind = window.Prompt.Kind, Options = window.Prompt.Options.ToList(), Seconds = seconds,
+                WindowId = id, Kind = window.Prompt.Kind, Title = window.Prompt.Title, Options = window.Prompt.Options.ToList(), Seconds = seconds,
                 Data = window.Prompt.Data
             };
             foreach (int seat in window.Seats)
@@ -371,7 +382,7 @@ namespace RPGFramework.Turns
                     continue;
                 _network.Send(connectionId, new TurnPromptMessage
                 {
-                    WindowId = window.Prompt.WindowId, Kind = window.Prompt.Kind, Options = window.Prompt.Options.ToList(),
+                    WindowId = window.Prompt.WindowId, Kind = window.Prompt.Kind, Title = window.Prompt.Title, Options = window.Prompt.Options.ToList(),
                     Seconds = Math.Max(0f, window.Left), Data = window.Prompt.Data
                 });
             }

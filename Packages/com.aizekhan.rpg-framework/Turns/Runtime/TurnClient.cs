@@ -278,7 +278,7 @@ namespace RPGFramework.Turns
         {
             if (State != TurnClientState.Seated)
                 return;
-            var prompt = new TurnPrompt(message.WindowId, message.Kind, message.Options, message.Seconds, message.Data);
+            var prompt = new TurnPrompt(message.WindowId, message.Kind, message.Options, message.Seconds, message.Data, message.Title);
             _prompts[prompt.WindowId] = prompt;
             Prompted?.Invoke(prompt);
         }

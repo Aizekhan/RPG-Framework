@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+Turn protocol 2: host and players need the same version (players on 1 are refused with the reason).
+
+### Added
+- `TurnPrompt.Title`: what to ask the players, from `TurnHost.OpenPrompt(..., title:)` (The Bloodline Hunt).
+- `TurnVisibility.Others`: `Notify(notice, TurnVisibility.Others, seat)` reaches everyone but that seat (The Bloodline Hunt).
+
 ## [0.14.1] - 2026-10-28
 
 ### Added
