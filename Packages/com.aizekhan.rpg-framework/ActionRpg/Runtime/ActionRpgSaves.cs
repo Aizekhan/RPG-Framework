@@ -13,6 +13,7 @@ namespace RPGFramework.ActionRpg
     public sealed class ActionRpgSaves
     {
         public const string Slot = "autosave";
+        private const string LoadoutKey = "loadout";
 
         private readonly Func<PlayerProgress> _capture;
         private readonly Func<string> _playerName;
@@ -66,6 +67,35 @@ namespace RPGFramework.ActionRpg
         public bool HasSave => _saveSystem.HasSave(Slot);
 
         /// <summary>
+        /// Seconds played with this save, carried on from the loaded one; the host adds the time played.
+        /// </summary>
+        public float PlaySeconds { get; set; }
+
+        /// <summary>
+        /// Where the player is (a scene, a floor), shown in <see cref="SaveSummary.Location"/>.
+        /// </summary>
+        public string Location { get; set; } = "";
+
+        /// <summary>
+        /// What a start menu shows of the save in <paramref name="directory"/> (level, name, hero, time played, when)
+        /// without starting a game; null when there is none or it cannot be read.
+        /// </summary>
+        /// <param name="gameVersion">This build's version, to tell a save made by a newer one.</param>
+        public static SaveSummary ReadSummary(string directory, string gameVersion = null)
+        {
+            if (string.IsNullOrEmpty(directory) || !System.IO.Directory.Exists(directory))
+                return null;
+            var system = new SaveSystem(directory, 1, new JsonSaveSerializer(), new SaveValidator(gameVersion ?? "1.0.0"))
+            {
+                AutoSaveEnabled = false
+            };
+            if (!system.HasSave(Slot))
+                return null;
+            var metadata = system.GetMetadata(Slot);
+            return metadata == null ? null : new SaveSummary(metadata, gameVersion);
+        }
+
+        /// <summary>
         /// Adds the game's own state to the save (a shop's coins, opened chests): it is saved and loaded with the
         /// player's progress, in its own section. Register before <see cref="Load"/>.
         /// </summary>
@@ -92,9 +122,12 @@ namespace RPGFramework.ActionRpg
             if (_cannotSave != null)
                 return _cannotSave;
             // Nothing to save yet (a guest before the host reported their progress)
-            if (_capture() == null)
+            var progress = _capture();
+            if (progress == null)
                 return null;
-            var result = _coordinator.Save(Slot, new SaveMetadata(_gameVersion, _playerName(), 0f, "", _level()));
+            var metadata = new SaveMetadata(_gameVersion, _playerName(), PlaySeconds, Location ?? "", _level());
+            metadata.CustomData[LoadoutKey] = progress.Loadout ?? "";
+            var result = _coordinator.Save(Slot, metadata);
             return result.Success ? null : result.ErrorMessage;
         }
 
@@ -107,6 +140,9 @@ namespace RPGFramework.ActionRpg
             var result = _coordinator.Load(Slot);
             if (result.Success)
             {
+                var metadata = _saveSystem.GetMetadata(Slot);
+                PlaySeconds = metadata?.PlaytimeSeconds ?? 0f;
+                Location = metadata?.LocationName ?? "";
                 if (result.FromPrevious)
                     Notice = "The latest save could not be read, so the one before it was loaded.";
                 return null;
@@ -123,7 +159,14 @@ namespace RPGFramework.ActionRpg
             return $"{result.ErrorMessage}. {Notice}";
         }
 
-        public bool Delete() => _saveSystem.DeleteSave(Slot);
+        public bool Delete()
+        {
+            PlaySeconds = 0f;
+            return _saveSystem.DeleteSave(Slot);
+        }
+
+        internal static string LoadoutOf(ISaveMetadata metadata) =>
+            metadata.CustomData != null && metadata.CustomData.TryGetValue(LoadoutKey, out string loadout) ? loadout ?? "" : "";
 
         private sealed class PlayerProgressSave : SaveParticipant<PlayerProgress>
         {

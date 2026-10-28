@@ -229,15 +229,74 @@ namespace RPGFramework.ActionRpg.PlayTests
             }
         }
 
-        private ActionRpgHost StartHost(bool saving)
+        private ActionRpgHost StartHost(bool saving, bool startOnRequest = false)
         {
             var hostObject = new GameObject("Game");
             hostObject.SetActive(false);
             var host = hostObject.AddComponent<ActionRpgHost>();
             host.UseSetup(_setup);
             host.UseSaving(saving);
+            host.UseStartOnRequest(startOnRequest);
             hostObject.SetActive(true);
             return host;
+        }
+
+        [UnityTest]
+        public IEnumerator StartOnRequest_WaitsForTheMenu_ThenContinuesOrStartsOver()
+        {
+            Object.Destroy(_host.gameObject);
+            _host = null;
+            yield return null;
+            _setup.name = "StartTest_" + Guid.NewGuid().ToString("N");
+            string directory = ActionRpgHost.SaveDirectoryOf(_setup);
+            try
+            {
+                var first = StartHost(saving: true);
+                yield return null;
+                var lifeStates = first.Host.Container.Resolve<ILifeStateManager>();
+                for (int i = 0; i < 5; i++)
+                    lifeStates.Kill(first.World.SpawnEnemy("goblin"), first.World.PlayerId, "test");
+                int level = first.World.Level;
+                Assume.That(level, Is.GreaterThan(1));
+                Object.Destroy(first.gameObject); // quitting saves
+                yield return null;
+                Assert.That(ActionRpgHost.SavedGameOf(_setup).Level, Is.EqualTo(level), "the menu reads the save without a game");
+
+                // Waiting for the menu: nothing is shown, the world does not run and the save is not loaded yet
+                _host = StartHost(saving: true, startOnRequest: true);
+                var started = new System.Collections.Generic.List<GameStart>();
+                _host.GameStarted += started.Add;
+                yield return new WaitForSecondsRealtime(0.5f); // past the first wave's delay
+                Assert.That(_host.IsStarted, Is.False);
+                Assert.That(_host.Views, Is.Null);
+                Assert.That(_host.World.Level, Is.EqualTo(1));
+                Assert.That(_host.World.LivingEnemies.Count(), Is.Zero, "no wave before the game starts");
+                Assert.That(_host.SavedGame.Level, Is.EqualTo(level));
+                Assert.That(_host.StartGame(GameStart.Join("")), Is.False, "joining needs a code");
+
+                Assert.That(_host.StartGame(GameStart.Continue), Is.True);
+                Assert.That(_host.IsStarted, Is.True);
+                Assert.That(_host.World.Level, Is.EqualTo(level));
+                Assert.That(_host.Views, Is.Not.Null);
+                Assert.That(started.Single().Kind, Is.EqualTo(GameStartKind.Continue));
+                Assert.That(_host.StartGame(GameStart.NewGame), Is.False, "once per host");
+                Object.Destroy(_host.gameObject);
+                yield return null;
+
+                // A new game deletes the save and starts over
+                _host = StartHost(saving: true, startOnRequest: true);
+                yield return null;
+                Assert.That(_host.StartGame(GameStart.NewGame), Is.True);
+                Assert.That(_host.World.Level, Is.EqualTo(1));
+                Assert.That(_host.SavedGame, Is.Null);
+            }
+            finally
+            {
+                if (_host != null)
+                    Object.DestroyImmediate(_host.gameObject);
+                if (System.IO.Directory.Exists(directory))
+                    System.IO.Directory.Delete(directory, true);
+            }
         }
 
         [UnityTest]

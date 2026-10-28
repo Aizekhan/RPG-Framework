@@ -122,6 +122,37 @@ namespace RPGFramework.ActionRpg.Tests
         }
 
         [Test]
+        public void ASummary_ForTheStartMenu_IsReadWithoutStartingAGame()
+        {
+            Assert.That(ActionRpgSaves.ReadSummary(_directory, "1.0.0"), Is.Null, "no save yet");
+            var first = StartSession();
+            Slay(first, first.SpawnEnemy(Goblin));
+            Slay(first, first.SpawnEnemy(Goblin));
+            Assume.That(first.Level, Is.EqualTo(2));
+            first.UseLoadout("ayla");
+            var saves = new ActionRpgSaves(first, _directory, "1.2.0") { PlaySeconds = 90f, Location = "Hub" };
+            Assert.That(saves.Save(), Is.Null);
+
+            var summary = ActionRpgSaves.ReadSummary(_directory, "1.2.0");
+            Assert.That(summary.Level, Is.EqualTo(2));
+            Assert.That(summary.PlayerName, Is.EqualTo("Hero"));
+            Assert.That(summary.Loadout, Is.EqualTo("ayla"));
+            Assert.That(summary.PlaySeconds, Is.EqualTo(90f));
+            Assert.That(summary.Location, Is.EqualTo("Hub"));
+            Assert.That((DateTimeOffset.UtcNow - summary.SavedAt).TotalMinutes, Is.LessThan(5));
+            Assert.That(summary.MadeByNewerVersion, Is.False);
+            Assert.That(ActionRpgSaves.ReadSummary(_directory, "1.1.0").MadeByNewerVersion, Is.True);
+
+            // The next session plays on from the time already played
+            var next = new ActionRpgSaves(StartSession(), _directory, "1.2.0");
+            Assert.That(next.Load(), Is.Null);
+            Assert.That(next.PlaySeconds, Is.EqualTo(90f));
+            Assert.That(next.Location, Is.EqualTo("Hub"));
+            Assert.That(next.Delete(), Is.True);
+            Assert.That(ActionRpgSaves.ReadSummary(_directory, "1.2.0"), Is.Null);
+        }
+
+        [Test]
         public void Delete_RemovesTheSave()
         {
             var world = StartSession();

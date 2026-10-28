@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+- **Start on request** (MythRunner, step 1 of the start flow): `ActionRpgHost` with 'Start On Request' (`UseStartOnRequest`) waits for `StartGame(GameStart)` instead of starting at once; the world does not run until then. `GameStart`: `Continue`, `NewGame` (deletes the save), `Host`, `Join(code)`; `IsStarted`, `GameStarted`. A menu scene starts the game scene with `ActionRpgHost.Launch(sceneName, start)`; its host starts so even without the option. `-host` / `-join` on the command line start a waiting game too.
+- **Save summary for a start menu**: `ActionRpgHost.SavedGame` / `SavedGameOf(setup)` / `ActionRpgSaves.ReadSummary(directory, version)` give a `SaveSummary` (player name, level, `Loadout` (the hero), `PlaySeconds`, `Location` (the scene), `SavedAt`, `MadeByNewerVersion`) without starting a game. `ActionRpgSaves.PlaySeconds` and `Location` are kept in the save; the host counts the time played. `ActionRpgHost.SaveDirectoryOf(setup)`.
+
 ## [0.15.0] - 2026-10-28
 
 Turn protocol 2: host and players need the same version (players on 1 are refused with the reason).

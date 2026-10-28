@@ -42,6 +42,7 @@
         "RPGFramework.UINavigation.Unity",
         "RPGFramework.Networking.Runtime",
         "RPGFramework.Scenes.Runtime",
+        "RPGFramework.Scenes.Unity",
         "RPGFramework.Networking.UnityTransport",
         "RPGFramework.Audio.Runtime",
         "RPGFramework.Audio.Unity",

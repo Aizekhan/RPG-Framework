@@ -20,6 +20,7 @@ using RPGFramework.Presentation;
 using RPGFramework.Progression;
 using RPGFramework.Quests;
 using RPGFramework.Scenes;
+using RPGFramework.Scenes.Unity;
 using RPGFramework.Spawning;
 using RPGFramework.UINavigation;
 using RPGFramework.UINavigation.Unity;
@@ -49,6 +50,8 @@ namespace RPGFramework.ActionRpg
     /// Co-op (F2, or <c>-host</c> / <c>-join &lt;code&gt;</c> on the command line): one player hosts, friends join (up to
     /// Max Players) on the same network, or over the internet when a session module such as Unity Relay is installed;
     /// the host's machine runs the rules and the others see and play its game.
+    /// With 'Start On Request' the game waits for <see cref="StartGame"/> (a start menu: continue, new game, host,
+    /// join); a menu scene starts the game scene with <see cref="Launch"/>.
     /// </summary>
     public class ActionRpgHost : GameHostBehaviour
     {
@@ -73,6 +76,9 @@ namespace RPGFramework.ActionRpg
 
         [Tooltip("In the Editor and development builds, F3 shows systems, events and frame times (off in release builds)")]
         [SerializeField] private bool _diagnostics = true;
+
+        [Tooltip("Wait for StartGame (a start menu: continue, new game, host, join) instead of starting at once; the world does not run until then")]
+        [SerializeField] private bool _startOnRequest;
 
         [Header("Co-op")]
         [Tooltip("Friends can host and join games (F2); the host's machine runs the rules")]
@@ -124,6 +130,10 @@ namespace RPGFramework.ActionRpg
         private static ActionRpgHost _carried;
         private bool _changingScene;
         private Transform _followed;
+
+        // How a menu scene asked the game scene's host to start (Launch)
+        private static GameStart? _launch;
+        private bool _started;
 
         /// <summary>
         /// Seconds without a word from the other side before a co-op link counts as lost (a crash, a pulled cable).
@@ -201,7 +211,40 @@ namespace RPGFramework.ActionRpg
         /// <summary>
         /// Where this game's progress is saved: a folder per Game Setup under the persistent data path.
         /// </summary>
-        public string SaveDirectory => Path.Combine(Application.persistentDataPath, "Saves", _setup != null ? _setup.name : "Game");
+        public string SaveDirectory => SaveDirectoryOf(_setup);
+
+        /// <summary>
+        /// Where the progress of a game with this setup is saved (also from a menu scene without a host).
+        /// </summary>
+        public static string SaveDirectoryOf(GameSetup setup) =>
+            Path.Combine(Application.persistentDataPath, "Saves", setup != null ? setup.name : "Game");
+
+        /// <summary>
+        /// The save as a start menu shows it (level, name, hero, time played, when), read without starting the game;
+        /// null when there is none.
+        /// </summary>
+        public SaveSummary SavedGame => ActionRpgSaves.ReadSummary(SaveDirectory, Application.version);
+
+        /// <summary>
+        /// <see cref="SavedGame"/> of a game with this setup, from a menu scene without a host.
+        /// </summary>
+        public static SaveSummary SavedGameOf(GameSetup setup) => ActionRpgSaves.ReadSummary(SaveDirectoryOf(setup), Application.version);
+
+        /// <summary>
+        /// The game was started (at once, or by <see cref="StartGame"/> with 'Start On Request').
+        /// </summary>
+        public bool IsStarted => _started;
+
+        /// <summary>
+        /// The game started, and how.
+        /// </summary>
+        public event Action<GameStart> GameStarted;
+
+        /// <summary>
+        /// Waits for <see cref="StartGame"/> instead of starting at once. Set before the host starts (an inactive
+        /// GameObject), or tick 'Start On Request'.
+        /// </summary>
+        public void UseStartOnRequest(bool startOnRequest) => _startOnRequest = startOnRequest;
 
         public CoopRole Role => _coopClient != null ? CoopRole.Joined : _coopHost != null ? CoopRole.Hosting : CoopRole.Solo;
 
@@ -572,6 +615,8 @@ namespace RPGFramework.ActionRpg
             // The old scene's camera is gone: follow the player with the new one
             if (_followed != null)
                 FollowWithCamera(_followed);
+            if (_saves != null)
+                _saves.Location = sceneName;
             OnSceneChanged(sceneName);
             return true;
         }
@@ -603,9 +648,80 @@ namespace RPGFramework.ActionRpg
 
         protected virtual void Start()
         {
-            ShowGame();
+            var args = Environment.GetCommandLineArgs();
             if (_coop)
-                StartFromCommandLine(Environment.GetCommandLineArgs());
+                UseCommandLineSettings(args);
+            if (_launch.HasValue)
+            {
+                var launch = _launch.Value;
+                _launch = null;
+                StartGame(launch);
+                return;
+            }
+            // -host / -join start a waiting game too
+            var fromArgs = _coop ? CommandLineStart(args) : null;
+            if (_startOnRequest)
+            {
+                if (fromArgs.HasValue)
+                    StartGame(fromArgs.Value);
+                return;
+            }
+            StartGame(fromArgs ?? GameStart.Continue);
+        }
+
+        /// <summary>
+        /// Starts the game as the player chose in a start menu: on from the save, a new game (the save is deleted),
+        /// hosting, or joining a friend. Once per host; without 'Start On Request' the host starts by itself.
+        /// </summary>
+        /// <returns>False when it already started, failed to start, or co-op is off for Host / Join (or no code).</returns>
+        public bool StartGame(GameStart start)
+        {
+            if (_started || Host?.Container == null || !enabled)
+                return false;
+            bool together = start.Kind == GameStartKind.Host || start.Kind == GameStartKind.Join;
+            if (together && !_coop)
+                return false;
+            if (start.Kind == GameStartKind.Join && string.IsNullOrEmpty(start.JoinCode))
+                return false;
+            _started = true;
+            if (start.Kind == GameStartKind.NewGame && World != null)
+                new ActionRpgSaves(World, SaveDirectory, Application.version).Delete();
+            if (start.Kind == GameStartKind.Join)
+            {
+                // The friend's machine runs the rules: this host starts again without a world of its own
+                _joinCode = start.JoinCode;
+                _reconnectAttempt = 0;
+                CoopStatus = $"Joining {_joinCode}...";
+                Restart();
+            }
+            ShowGame();
+            if (start.Kind == GameStartKind.Host)
+                HostGame();
+            GameStarted?.Invoke(start);
+            return true;
+        }
+
+        /// <summary>
+        /// From a menu scene: loads the game scene and has its <see cref="ActionRpgHost"/> start as the player chose
+        /// (it starts so even without 'Start On Request'). Call it where no game is running.
+        /// </summary>
+        /// <returns>False when the scene could not be loaded (not in the build settings).</returns>
+        public static async UniTask<bool> Launch(string sceneName, GameStart start)
+        {
+            if (string.IsNullOrEmpty(sceneName))
+                throw new ArgumentException("A scene name is required", nameof(sceneName));
+            _launch = start;
+            try
+            {
+                await new UnitySceneBackend().LoadAsync(sceneName, false, null, default);
+                return true;
+            }
+            catch (InvalidOperationException exception)
+            {
+                _launch = null;
+                Debug.LogError(exception.Message); // framework-ok: no host is running yet to log it
+                return false;
+            }
         }
 
         /// <summary>
@@ -704,6 +820,9 @@ namespace RPGFramework.ActionRpg
 
         protected override void Update()
         {
+            // Waiting for the start menu: the world does not run yet
+            if (!_started)
+                return;
             if (_restartPending)
             {
                 _restartPending = false;
@@ -810,7 +929,10 @@ namespace RPGFramework.ActionRpg
 
         private void Autosave(float deltaTime)
         {
-            if (_saves == null || _autosaveSeconds <= 0f)
+            if (_saves == null)
+                return;
+            _saves.PlaySeconds += deltaTime;
+            if (_autosaveSeconds <= 0f)
                 return;
             _sinceSave += deltaTime;
             if (_sinceSave < _autosaveSeconds)
@@ -819,7 +941,19 @@ namespace RPGFramework.ActionRpg
             SaveProgress();
         }
 
-        private void StartFromCommandLine(string[] args)
+        protected override void FixedUpdate()
+        {
+            if (_started)
+                base.FixedUpdate();
+        }
+
+        protected override void LateUpdate()
+        {
+            if (_started)
+                base.LateUpdate();
+        }
+
+        private void UseCommandLineSettings(string[] args)
         {
             for (int i = 0; i < args.Length - 1; i++)
             {
@@ -828,13 +962,18 @@ namespace RPGFramework.ActionRpg
                 else if (args[i] == "-provider" && !UseSessionProvider(args[i + 1]))
                     CoopStatus = $"'{args[i + 1]}' is not an installed way to play together; using {SessionProvider.DisplayName}.";
             }
+        }
+
+        private static GameStart? CommandLineStart(string[] args)
+        {
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "-host")
-                    HostGame();
-                else if (args[i] == "-join" && i + 1 < args.Length)
-                    JoinGame(args[i + 1]);
+                    return GameStart.Host;
+                if (args[i] == "-join" && i + 1 < args.Length)
+                    return GameStart.Join(args[i + 1]);
             }
+            return null;
         }
 
         private void ShowGame()
@@ -1046,6 +1185,7 @@ namespace RPGFramework.ActionRpg
             _saves = new ActionRpgSaves(World, SaveDirectory, Application.version);
             ConfigureSaves(_saves);
             string error = _saves.Load();
+            _saves.Location = Host.Container.Resolve<ISceneDispatcher>().ActiveScene ?? "";
             if (error != null)
                 Host.Logger.LogError($"Saved progress could not be loaded: {error}", Category);
             else if (_saves.Notice.Length > 0)
