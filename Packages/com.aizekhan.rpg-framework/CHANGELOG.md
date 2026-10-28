@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-10-28
+
 ### Added
 - `MusicTrack.Loop` (on by default): off plays the track once, for stingers (MythRunner).
 - The README says where volumes are kept: PlayerPrefs `RPGFramework.Audio.<channel>`, or the game's own `IVolumeStore` given to `AudioModule`.
