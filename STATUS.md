@@ -11,6 +11,7 @@
 
 | Gate | Result | SHA |
 |---|---|---|
+| **GA14 tightened** (unreleased): `Math.Max(0, x - dt)` countdowns, delta fields (`-= _deltaTime`), inventories as id lists (owned/inventory/backpack/equipped); game CLAUDE asks for recipe 16 before new rules state. From a read-only audit of MythRunner (~8-10% of its Core duplicated the framework). Verify worktree | ✅ EditMode **1851 / 1851** | `b5f9055` |
 | **Release `v0.8.0`** (tag on `4641d1c`, GitHub release): CI green (run `40707945967`) | ✅ | `4641d1c` |
 | **MythRunner FG-05, FG-13, GA14 fixes** (unreleased, `[Unreleased]` in CHANGELOG): `ApplyEffect`/`ActorEffects.Apply` with power and duration, `ActorKilledEvent.Context` / `PlayerDefeatedEvent.Context`, `IGamePause` (World ticks with dt 0, `IActorWorld.IsPaused`, co-op protocol v12), GA14 marker above doc comments and no false hit on `NextDouble() < CoinChance` (`7121979`, test fix `da93632`, docs `962d333`). Verify worktree | ✅ EditMode **1850 / 1850**, PlayMode **13 / 13**. Meta check 0 problems | `da93632` |
 | **Release `v0.6.0`** (tag on `8c980a2`, GitHub release): CI green (run `40674006183`). MythRunner update guide: `Docs/releases/0.6.0-MythRunner-update.md` | ✅ | `8c980a2` |
