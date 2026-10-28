@@ -16,6 +16,19 @@ namespace RPGFramework.UI
         [Tooltip("Hide on Awake (for panels placed directly in a scene)")]
         [SerializeField] private bool startHidden = true;
 
+        // Shown or hidden before Awake (a panel built from code inside a screen that is not active yet): that wins
+        private bool _visibilitySet;
+
+        /// <summary>
+        /// Hide on Awake (for panels placed directly in a scene). A panel already shown or hidden before its Awake
+        /// keeps that, so one built from code inside an inactive screen stays shown when the screen opens.
+        /// </summary>
+        public bool StartHidden
+        {
+            get => startHidden;
+            set => startHidden = value;
+        }
+
         /// <summary>
         /// Navigation that opened this panel, if any (e.g. assigned from <c>PrefabViewFactory.InstanceCreated</c>).
         /// </summary>
@@ -23,18 +36,20 @@ namespace RPGFramework.UI
 
         protected virtual void Awake()
         {
-            if (startHidden)
+            if (startHidden && !_visibilitySet)
                 Hide();
         }
 
         public override void Show()
         {
+            _visibilitySet = true;
             base.Show();
             OnShow();
         }
 
         public override void Hide()
         {
+            _visibilitySet = true;
             base.Hide();
             OnHide();
         }

@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- A panel built from code inside a screen that is not active yet (`CodeViewFactory`) and shown before its Awake no longer hides itself when the screen opens: a `UIViewBase` shown or hidden before Awake keeps that. `UIViewBase.StartHidden` can be set from code (MythRunner).
+
 ## [0.14.0] - 2026-10-28
 
 ### Added

@@ -68,6 +68,43 @@ namespace RPGFramework.UI.Tests
         }
 
         [Test]
+        public void APanelShownInsideAnInactiveScreen_StaysShownWhenTheScreenOpens()
+        {
+            var screen = new GameObject("Screen", typeof(RectTransform));
+            _cleanup.Add(screen);
+            screen.SetActive(false);
+            var child = new GameObject("Stats", typeof(RectTransform));
+            child.transform.SetParent(screen.transform, false);
+            var shown = child.AddComponent<TestPanel>();
+            shown.Show();
+            var untouched = new GameObject("Untouched", typeof(RectTransform));
+            untouched.transform.SetParent(screen.transform, false);
+            untouched.AddComponent<TestPanel>();
+
+            screen.SetActive(true);
+
+            Assert.That(shown.IsVisible, Is.True, "shown before its Awake: stays shown");
+            Assert.That(untouched.activeSelf, Is.False, "never shown: hides itself on Awake as before");
+        }
+
+        [Test]
+        public void StartHidden_CanBeTurnedOffFromCode()
+        {
+            var screen = new GameObject("Screen", typeof(RectTransform));
+            _cleanup.Add(screen);
+            screen.SetActive(false);
+            var child = new GameObject("Hud", typeof(RectTransform));
+            child.transform.SetParent(screen.transform, false);
+            var panel = child.AddComponent<TestPanel>();
+            Assert.That(panel.StartHidden, Is.True);
+            panel.StartHidden = false;
+
+            screen.SetActive(true);
+
+            Assert.That(panel.IsVisible, Is.True);
+        }
+
+        [Test]
         public void Close_WithoutNavigation_HidesThePanel()
         {
             var panel = Panel("Loot");
