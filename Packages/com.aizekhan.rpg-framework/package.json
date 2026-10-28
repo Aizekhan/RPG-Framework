@@ -1,7 +1,7 @@
 {
   "name": "com.aizekhan.rpg-framework",
   "displayName": "RPG Framework",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "unity": "6000.0",
   "description": "Reusable building blocks for RPGs: composition root and DI, event bus, systems and ECS, combat, stats, progression, quests, inventory, items, loot, dialogue, crafting, save/load, an action RPG built from inspector assets with co-op for 2-8 players and PvP, the rules of a turn-based party RPG (JRPG-style battles), networking (Unity Transport, session providers), asset management, pooling, prefab spawning and UI navigation. Game content and rules stay in the game project.\n\nRequires UniTask (com.cysharp.unitask). Addressables support turns on automatically when com.unity.addressables is installed.",
   "keywords": [

@@ -2,7 +2,9 @@
 
 ## [Unreleased]
 
-Closes MythRunner's FG-10 and FG-12. **Co-op protocol version 11**: 0.6.0 builds are refused.
+## [0.7.0] - 2026-10-28
+
+Closes MythRunner's FG-10 and FG-12. **Co-op protocol version 11**: 0.6.0 builds are refused. Install with `#v0.7.0`.
 
 ### Changed
 - `IActorWorld` has `Interactions`, `NearestInteraction` and `Interact` (a game that implements it itself adds them). `CoopWorldMessage` carries places (`Places`, `PlacesGone`, change `Interacted`), `CoopIntentMessage` has `Interact` and `PointId`.
