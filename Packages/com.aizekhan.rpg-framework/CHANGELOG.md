@@ -9,6 +9,7 @@
   - Unity assets and wiring: `AudioCue` and `AudioLibrary` assets (cues, `MusicTrack`s, mixer routes), `AudioModule` (registers the service on the host's bus, PlayerPrefs volumes, real time even when the game is paused), `audio.Play(cueId, transform)`.
   - Co-op: nothing goes over the network. Each machine plays from the events and states it receives.
 - Action RPG kit: `ActionRpgHost` has an Audio field. With a library it adds `AudioModule` and plays the `ActionRpgSounds` cues the library has: `kit.hit`, `kit.hit.critical`, `kit.killed`, `kit.heal`, `kit.level_up`, `kit.trade` and `kit.interact`, at the character.
+- The package depends on the built-in Audio module (`com.unity.modules.audio`).
 - GA13 flags `PlayOneShot` / `PlayClipAtPoint` in game code (use `IAudioService.Play`).
 
 ## [0.11.1] - 2026-10-28
