@@ -16,7 +16,8 @@ namespace RPGFramework.ActionRpg.Tests
     /// Status effects and abilities in the action RPG, through the real framework modules: poison ticks as effect
     /// damage and counts for the poisoner, buffs change stats and run out, slows and stuns land on the actor,
     /// effects end with their character; abilities check cooldowns, run the game's effect, can be cut short by a
-    /// stun, and cooldowns can be shortened. A game without them gets neither.
+    /// stun, and cooldowns can be shortened; the game can refuse a use, pick its cooldown and get the cost back when
+    /// the effect found nothing. A game without them gets neither.
     /// </summary>
     public sealed class ActorEffectsTests
     {
@@ -246,6 +247,98 @@ namespace RPGFramework.ActionRpg.Tests
             Tick(1.6f);
             Assert.That(World.UseAbility(Strike, goblin), Is.True);
             Assert.That(used, Has.Count.EqualTo(2));
+        }
+
+        [Test]
+        public void TheGame_RefusesAUse_AndPicksTheCooldownOfEachUse()
+        {
+            StartGame();
+            int goblin = World.SpawnEnemy(Goblin);
+            bool perkBought = false;
+            float cooldown = -1f;
+            int strikes = 0;
+            World.Abilities.SetEffect(Strike, (caster, target) => strikes++);
+            World.Abilities.CanUse = (caster, ability) => ability != Strike || perkBought;
+            World.Abilities.CooldownFor = (caster, ability) => cooldown;
+
+            Assert.That(World.UseAbility(Strike, goblin), Is.False, "the perk is not bought");
+            Assert.That(World.Abilities.Use(World.PlayerId, Strike, goblin).FailureReason, Is.EqualTo("The game does not allow it now"));
+            Assert.That(strikes, Is.Zero);
+
+            perkBought = true;
+            Assert.That(World.UseAbility(Strike, goblin), Is.True);
+            Assert.That(World.CooldownLeft(Strike), Is.EqualTo(4f).Within(0.01f), "a negative answer keeps the ability's own");
+
+            Tick(4.1f);
+            cooldown = 1f;
+            Assert.That(World.UseAbility(Strike, goblin), Is.True);
+            Assert.That(World.CooldownLeft(Strike), Is.EqualTo(1f).Within(0.01f));
+
+            Tick(1.1f);
+            cooldown = 0f;
+            Assert.That(World.UseAbility(Strike, goblin), Is.True);
+            Assert.That(World.CooldownLeft(Strike), Is.Zero, "0: no cooldown this time");
+            Assert.That(World.UseAbility(Strike, goblin), Is.True);
+            Assert.That(strikes, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void AnEffectThatFoundNothing_GivesTheCostAndTheCooldownBack()
+        {
+            _content.Abilities.Add(new Ability(new AbilityMetadata("cleave", "Cleave", cooldown: 5f),
+                new List<ResourceCost> { new ResourceCost("Stamina", 20f) }));
+            _content.Abilities.Add(new Ability(new AbilityMetadata("slam", "Slam", cooldown: 5f),
+                new List<ResourceCost> { new ResourceCost("Stamina", 10f) }, new CastInfo(1f, 0f, true)));
+            StartGame();
+            float stamina = 50f;
+            var refunded = new List<AbilityRefundedEvent>();
+            var cleared = new List<CooldownClearedEvent>();
+            _host.Container.Resolve<IEventBus>().Subscribe<AbilityRefundedEvent>(refunded.Add);
+            _host.Container.Resolve<IEventBus>().Subscribe<CooldownClearedEvent>(cleared.Add);
+            World.Abilities.ResourceConsume = (entity, type, amount) => stamina -= amount;
+            World.Abilities.ResourceRefund = (entity, type, amount) => stamina += amount;
+            bool anyoneNear = false;
+            World.Abilities.SetEffect("cleave", (caster, target) => anyoneNear);
+            World.Abilities.SetEffect("slam", (caster, target) => anyoneNear);
+
+            var missed = World.Abilities.Use(World.PlayerId, "cleave");
+            Assert.That(missed.Success, Is.False);
+            Assert.That(stamina, Is.EqualTo(50f), "the cost came back");
+            Assert.That(World.CooldownLeft("cleave"), Is.Zero, "and the cooldown");
+            Assert.That(refunded.Select(r => (r.CasterId, r.AbilityId)), Is.EqualTo(new[] { (World.PlayerId, "cleave") }));
+            Assert.That(cleared.Select(c => c.AbilityId), Is.EqualTo(new[] { "cleave" }));
+
+            anyoneNear = true;
+            Assert.That(World.UseAbility("cleave"), Is.True);
+            Assert.That(stamina, Is.EqualTo(30f));
+            Assert.That(World.CooldownLeft("cleave"), Is.EqualTo(5f).Within(0.01f));
+
+            anyoneNear = false;
+            Assert.That(World.Abilities.Use(World.PlayerId, "slam").CastStarted, Is.True);
+            Tick(1.1f);
+            Assert.That(stamina, Is.EqualTo(30f), "a cast that lands on nothing gives its cost back too");
+            Assert.That(World.CooldownLeft("slam"), Is.Zero);
+            Assert.That(refunded, Has.Count.EqualTo(2));
+        }
+
+        [Test]
+        public void ClearingCooldowns_IsAnnounced()
+        {
+            StartGame();
+            int goblin = World.SpawnEnemy(Goblin);
+            var cleared = new List<CooldownClearedEvent>();
+            _host.Container.Resolve<IEventBus>().Subscribe<CooldownClearedEvent>(cleared.Add);
+            var cooldowns = _host.Container.Resolve<ICooldownTracker>();
+
+            Assert.That(World.UseAbility(Strike, goblin), Is.True);
+            cooldowns.ClearCooldown(World.PlayerId, Strike);
+            cooldowns.ClearCooldown(World.PlayerId, Strike);
+            Assert.That(World.UseAbility(Strike, goblin), Is.True);
+            cooldowns.ClearAllCooldowns(World.PlayerId);
+            cooldowns.ClearAllCooldowns(World.PlayerId);
+
+            Assert.That(cleared.Select(c => (c.EntityId, c.AbilityId)),
+                Is.EqualTo(new[] { (World.PlayerId, Strike), (World.PlayerId, (string)null) }), "only what was running");
         }
 
         [Test]

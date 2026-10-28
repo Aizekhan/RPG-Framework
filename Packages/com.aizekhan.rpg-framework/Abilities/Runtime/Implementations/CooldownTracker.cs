@@ -7,7 +7,8 @@ namespace RPGFramework.Abilities
     /// <summary>
     /// Default implementation of ICooldownTracker.
     /// Tracks cooldown state for abilities across multiple entities.
-    /// With an event publisher, raises CooldownStarted, and CooldownExpired from <see cref="CollectExpired"/>.
+    /// With an event publisher, raises CooldownStarted, CooldownCleared when a cooldown is cleared before it ends,
+    /// and CooldownExpired from <see cref="CollectExpired"/>.
     /// </summary>
     public class CooldownTracker : ICooldownTracker
     {
@@ -92,15 +93,14 @@ namespace RPGFramework.Abilities
 
         public void ClearCooldown(int entityId, string abilityId)
         {
-            if (_cooldowns.TryGetValue(entityId, out var entityCooldowns))
-            {
-                entityCooldowns.Remove(abilityId);
-            }
+            if (_cooldowns.TryGetValue(entityId, out var entityCooldowns) && entityCooldowns.Remove(abilityId))
+                _events?.Publish(new CooldownClearedEvent { AbilityId = abilityId, EntityId = entityId });
         }
 
         public void ClearAllCooldowns(int entityId)
         {
-            _cooldowns.Remove(entityId);
+            if (_cooldowns.TryGetValue(entityId, out var entityCooldowns) && _cooldowns.Remove(entityId) && entityCooldowns.Count > 0)
+                _events?.Publish(new CooldownClearedEvent { AbilityId = null, EntityId = entityId });
         }
 
         public IReadOnlyList<CooldownState> GetActiveCooldowns(int entityId, float currentTime)

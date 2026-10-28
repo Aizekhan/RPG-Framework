@@ -38,6 +38,22 @@ namespace RPGFramework.ActionRpg
     }
 
     /// <summary>
+    /// An ability's effect found nothing to work on (<see cref="ActorAbilities.SetEffect(string, System.Func{int, int, bool})"/>
+    /// returned false): its cost came back and its cooldown was cleared.
+    /// </summary>
+    public readonly struct AbilityRefundedEvent : IEvent
+    {
+        public AbilityRefundedEvent(int casterId, string abilityId)
+        {
+            CasterId = casterId;
+            AbilityId = abilityId;
+        }
+
+        public int CasterId { get; }
+        public string AbilityId { get; }
+    }
+
+    /// <summary>
     /// An enemy was killed, published before it leaves the world (bounties, combo counters, achievements).
     /// </summary>
     public readonly struct ActorKilledEvent : IEvent

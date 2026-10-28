@@ -28,7 +28,8 @@ namespace RPGFramework.ActionRpg.Coop
         private List<(IQuest, IQuestProgress)> _activeQuests = new List<(IQuest, IQuestProgress)>();
         private readonly Dictionary<int, Dictionary<string, (ActorEffect Effect, float Since)>> _effects =
             new Dictionary<int, Dictionary<string, (ActorEffect, float)>>();
-        private readonly Dictionary<string, float> _cooldownEnds = new Dictionary<string, float>();
+        // character -> ability -> when its cooldown ends on this machine's clock
+        private readonly Dictionary<int, Dictionary<string, float>> _cooldownEnds = new Dictionary<int, Dictionary<string, float>>();
         // The host's places; used here only to find the nearest (the host decides every use)
         private readonly InteractionService _places = new InteractionService();
         private float _clock;
@@ -215,8 +216,12 @@ namespace RPGFramework.ActionRpg.Coop
             return true;
         }
 
-        public float CooldownLeft(string abilityId) =>
-            abilityId != null && _cooldownEnds.TryGetValue(abilityId, out float end) ? Math.Max(0f, end - _clock) : 0f;
+        public float CooldownLeft(string abilityId) => CooldownLeft(PlayerId, abilityId);
+
+        public float CooldownLeft(int entityId, string abilityId) =>
+            abilityId != null && _cooldownEnds.TryGetValue(entityId, out var ends) && ends.TryGetValue(abilityId, out float end)
+                ? Math.Max(0f, end - _clock)
+                : 0f;
 
         /// <summary>
         /// Time passes here (cooldowns and effects count down between the host's reports).
@@ -302,13 +307,7 @@ namespace RPGFramework.ActionRpg.Coop
                             _bus.Publish(new EffectRemovedEvent(change.Id, change.Name, _clock, false));
                         break;
                     case CoopWorldMessage.ChangeKind.Cooldown:
-                        if (change.Id != PlayerId || string.IsNullOrEmpty(change.Name))
-                            break;
-                        _cooldownEnds[change.Name] = _clock + Math.Max(0f, change.Amount);
-                        _bus.Publish(new CooldownStartedEvent
-                        {
-                            AbilityId = change.Name, EntityId = change.Id, Duration = change.Amount, Timestamp = _clock
-                        });
+                        OnCooldown(change);
                         break;
                     case CoopWorldMessage.ChangeKind.Interacted:
                         if (!string.IsNullOrEmpty(change.Name))
@@ -368,12 +367,43 @@ namespace RPGFramework.ActionRpg.Coop
             }
         }
 
+        private void OnCooldown(CoopWorldMessage.Change change)
+        {
+            _cooldownEnds.TryGetValue(change.Id, out var ends);
+            if (change.Amount > 0f)
+            {
+                if (string.IsNullOrEmpty(change.Name))
+                    return;
+                if (ends == null)
+                    _cooldownEnds[change.Id] = ends = new Dictionary<string, float>();
+                ends[change.Name] = _clock + change.Amount;
+                _bus.Publish(new CooldownStartedEvent
+                {
+                    AbilityId = change.Name, EntityId = change.Id, Duration = change.Amount, Timestamp = _clock
+                });
+                return;
+            }
+
+            if (ends == null)
+                return;
+            if (string.IsNullOrEmpty(change.Name))
+            {
+                _cooldownEnds.Remove(change.Id);
+                _bus.Publish(new CooldownClearedEvent { AbilityId = null, EntityId = change.Id });
+            }
+            else if (ends.Remove(change.Name))
+            {
+                _bus.Publish(new CooldownClearedEvent { AbilityId = change.Name, EntityId = change.Id });
+            }
+        }
+
         private void Despawn(int entityId)
         {
             if (!_actors.TryGetValue(entityId, out var actor))
                 return;
             _actors.Remove(entityId);
             _effects.Remove(entityId);
+            _cooldownEnds.Remove(entityId);
             _bus.Publish(new ActorDespawnedEvent(entityId, actor.CharacterId, actor.IsPlayer));
         }
     }

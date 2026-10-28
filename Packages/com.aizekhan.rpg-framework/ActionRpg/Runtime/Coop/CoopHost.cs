@@ -135,6 +135,7 @@ namespace RPGFramework.ActionRpg.Coop
             bus.Subscribe<EffectAppliedEvent>(OnEffectApplied).AddTo(_subscriptions);
             bus.Subscribe<EffectRemovedEvent>(OnEffectRemoved).AddTo(_subscriptions);
             bus.Subscribe<CooldownStartedEvent>(OnCooldownStarted).AddTo(_subscriptions);
+            bus.Subscribe<CooldownClearedEvent>(OnCooldownCleared).AddTo(_subscriptions);
             bus.Subscribe<InteractedEvent>(OnInteracted).AddTo(_subscriptions);
 
             _network.PeerConnected += OnPeerConnected;
@@ -928,6 +929,18 @@ namespace RPGFramework.ActionRpg.Coop
                 _happenings.Add(new Happening
                 {
                     Kind = CoopWorldMessage.ChangeKind.Cooldown, Actor = actor, Name = started.AbilityId, Amount = started.Duration
+                });
+            }
+        }
+
+        // Sent as a cooldown of 0 seconds; no ability id clears them all
+        private void OnCooldownCleared(CooldownClearedEvent cleared)
+        {
+            if (_present.TryGetValue(cleared.EntityId, out var actor))
+            {
+                _happenings.Add(new Happening
+                {
+                    Kind = CoopWorldMessage.ChangeKind.Cooldown, Actor = actor, Name = cleared.AbilityId ?? "", Amount = 0f
                 });
             }
         }

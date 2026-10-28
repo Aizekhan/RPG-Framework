@@ -87,6 +87,11 @@ namespace RPGFramework.ActionRpg
         float CooldownLeft(string abilityId);
 
         /// <summary>
+        /// Seconds until a character (a friend's hero, an enemy) can use the ability again (0 when it can).
+        /// </summary>
+        float CooldownLeft(int entityId, string abilityId);
+
+        /// <summary>
         /// How much of a currency this machine's player has (their own, or the party's).
         /// </summary>
         long CurrencyOf(string currency = RPGFramework.Trading.Currencies.Gold);

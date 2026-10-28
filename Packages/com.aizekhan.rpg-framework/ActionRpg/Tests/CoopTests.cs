@@ -1112,6 +1112,41 @@ namespace RPGFramework.ActionRpg.Tests
         }
 
         [Test]
+        public void ClearedAndShortenedCooldowns_ReachFriends_ForEveryone()
+        {
+            _powers = true;
+            PlayWith(() => Settings());
+            int goblin = World.SpawnEnemy(Goblin);
+            var guest = Join();
+            var cleared = new List<RPGFramework.Abilities.CooldownClearedEvent>();
+            guest.Bus.Subscribe<RPGFramework.Abilities.CooldownClearedEvent>(cleared.Add);
+            Pump();
+            int friend = guest.World.PlayerId;
+
+            Assert.That(World.UseAbility("bolt", goblin), Is.True);
+            Assert.That(guest.World.UseAbility("bolt", goblin), Is.True);
+            Pump();
+            Assert.That(guest.World.CooldownLeft(World.PlayerId, "bolt"), Is.GreaterThan(2.5f), "the host's cooldown, seen by the friend");
+            Assert.That(World.CooldownLeft(friend, "bolt"), Is.GreaterThan(2.5f));
+
+            World.Abilities.ReduceCooldowns(friend, 0.5f);
+            Pump();
+            Assert.That(guest.World.CooldownLeft("bolt"), Is.LessThan(1.6f).And.GreaterThan(1f));
+
+            var cooldowns = _game.Container.Resolve<RPGFramework.Abilities.ICooldownTracker>();
+            cooldowns.ClearCooldown(friend, "bolt");
+            Pump();
+            Assert.That(guest.World.CooldownLeft("bolt"), Is.Zero);
+            Assert.That(guest.World.UseAbility("bolt", goblin), Is.True);
+
+            cooldowns.ClearAllCooldowns(World.PlayerId);
+            Pump();
+            Assert.That(guest.World.CooldownLeft(World.PlayerId, "bolt"), Is.Zero);
+            Assert.That(cleared.Select(c => (c.EntityId, c.AbilityId)),
+                Is.EqualTo(new[] { (friend, "bolt"), (World.PlayerId, (string)null) }));
+        }
+
+        [Test]
         public void AHasteEffect_RaisesTheSpeedTheHostAllows()
         {
             _powers = true;

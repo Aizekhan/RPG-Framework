@@ -422,7 +422,8 @@ namespace RPGFramework.ActionRpg.Coop
             EffectOff = 5,
 
             /// <summary>
-            /// A character's ability went on cooldown (Name = ability id, Amount = seconds).
+            /// A character's ability went on cooldown (Name = ability id, Amount = seconds). 0 seconds: the cooldown
+            /// was cleared; with an empty Name every cooldown of the character was.
             /// </summary>
             Cooldown = 6,
 

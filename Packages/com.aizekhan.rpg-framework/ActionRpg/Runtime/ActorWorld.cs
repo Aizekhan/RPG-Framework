@@ -122,7 +122,9 @@ namespace RPGFramework.ActionRpg
         public bool UseAbility(string abilityId, int targetId = -1) =>
             IsStarted && Abilities != null && Abilities.Use(PlayerId, abilityId, targetId).Success;
 
-        public float CooldownLeft(string abilityId) => Abilities?.CooldownLeft(PlayerId, abilityId) ?? 0f;
+        public float CooldownLeft(string abilityId) => CooldownLeft(PlayerId, abilityId);
+
+        public float CooldownLeft(int entityId, string abilityId) => Abilities?.CooldownLeft(entityId, abilityId) ?? 0f;
 
         public long CurrencyOf(string currency = RPGFramework.Trading.Currencies.Gold) => IsStarted ? CurrencyOf(PlayerId, currency) : 0;
 
