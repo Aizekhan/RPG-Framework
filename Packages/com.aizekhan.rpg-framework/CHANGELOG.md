@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+Co-op protocol stays 14: a cleared cooldown travels as a cooldown of 0 seconds.
+
+### Added
+- **The game's say over abilities in the action RPG kit** (MythRunner FG-18): `ActorAbilities.CanUse(caster, ability)` refuses a use before range, target, costs and cooldown (a perk not bought, no weapon in hand; on the host for a friend's use); `CooldownFor(caster, ability)` picks the cooldown of each use (negative keeps the ability's own, 0 none); `SetEffect(id, Func<int, int, bool>)` whose effect returns false when it found nothing: the cost comes back through `ResourceRefund`, the cooldown is cleared, `AbilityRefundedEvent` is published and `Use` reports a failure (for casts too; a charge stays used).
+- **Cooldowns that are cleared reach everyone** (MythRunner FG-19): `CooldownClearedEvent` (Abilities; `AbilityId` null when all were) from `CooldownTracker.ClearCooldown` / `ClearAllCooldowns` when something was running, sent to friends by the kit's co-op; `ReduceCooldowns` reaches them too. `IActorWorld.CooldownLeft(entityId, abilityId)` for any character (a friend's hero on a friend's machine).
+- **Rows with buttons of their own** (MythRunner FG-20): `ActionListPanel` (UI) builds itself from `ActionRow`s (a picture, a text read again while shown, `ActionButton`s with a caption, whether it can be pressed and what it does) for trainers, shops, smiths, roads. `StatListPanel` (`FontSize`, `Width`), `EquipmentSlotsPanel` (`FontSize`, `SlotSize`, `Width`) and `ActionListPanel` (`FontSize`, `Width`, `IconSize`, `ButtonWidth`) take sizes from code, also after `Bind`. `ItemSlotUI.Create(..., caption)`, `Caption`, `Count` (shown above one), and a slot made in code raises its hover events by itself (no `EventTrigger`). `UIBuilder.Discard`.
+
+### Changed
+- `IActorWorld` has `CooldownLeft(entityId, abilityId)` (a game that implements it itself adds it). `CooldownTracker` publishes `CooldownClearedEvent` on its event publisher.
+
 ## [0.10.0] - 2026-10-28
 
 **Co-op protocol version 14**: 0.9.0 builds are refused.
