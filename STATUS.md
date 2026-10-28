@@ -11,6 +11,7 @@
 
 | Gate | Result | SHA |
 |---|---|---|
+| **MythRunner FG-14 + FG-15** (unreleased): `ActorEffects.Update` allocates nothing on a quiet frame; `AttackContext.AsCritical` / `WithMultiplier` / `IsCritical` / `Multiplier`, co-op protocol v13 (`624923c`, test fix `bacdceb`). Verify worktree | ✅ EditMode **1854 / 1854**, PlayMode **13 / 13** | `bacdceb` |
 | **Release `v0.8.1`** (tag on `db33d4e`, GitHub release; GA14 tightened): CI green (run `40711267385`) | ✅ | `db33d4e` |
 | **GA14 tightened** (unreleased): `Math.Max(0, x - dt)` countdowns, delta fields (`-= _deltaTime`), inventories as id lists (owned/inventory/backpack/equipped); game CLAUDE asks for recipe 16 before new rules state. From a read-only audit of MythRunner (~8-10% of its Core duplicated the framework). Verify worktree | ✅ EditMode **1851 / 1851** | `b5f9055` |
 | **Release `v0.8.0`** (tag on `4641d1c`, GitHub release): CI green (run `40707945967`) | ✅ | `4641d1c` |
