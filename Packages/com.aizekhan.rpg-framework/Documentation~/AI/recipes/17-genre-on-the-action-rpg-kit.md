@@ -14,6 +14,7 @@ the obstacles). It knows nothing about health, cooldowns or loot. Everything els
 |---|---|
 | ability range (`Range` on the ability) | override `ActionRpgHost.AbilityDistance(casterId, targetId)`: `Math.Abs(track.At(a) - track.At(b))` (default: scene distance) |
 | who an ability without a target hits | `World.Abilities.ResolveTarget = (caster, ability) => track.NearestAhead(caster)` (return -1 for none) |
+| how near a player is to a chest, a gate, a shrine | override `ActionRpgHost.InteractionDistance(playerId, point)`: `Math.Abs(track.At(playerId) - point.X)` with the place added at its track distance, `World.Interactions.Add(new InteractionPoint("chest_12", "chest", 2f, once: true).At(distance, 0, 0))` (default: scene distance; the HUD prompt and E work unchanged). A joined friend's machine runs it too, for the prompt only, and has no `Track`: measure there from what it sees (the views' positions) |
 | where a character respawns | `IRespawnPointProvider` (recipe 11) |
 | whether an attack on a friend lands (dodged by a lane change) | owner-decided defence: `host.DefenseAuthority = DefenseAuthority.Owner`, the friend answers `client.Defend(...)` (recipe 11) |
 

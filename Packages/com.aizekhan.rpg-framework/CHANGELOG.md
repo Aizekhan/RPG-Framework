@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+Closes MythRunner's FG-10 and FG-12. **Co-op protocol version 11**: 0.6.0 builds are refused.
+
+### Changed
+- `IActorWorld` has `Interactions`, `NearestInteraction` and `Interact` (a game that implements it itself adds them). `CoopWorldMessage` carries places (`Places`, `PlacesGone`, change `Interacted`), `CoopIntentMessage` has `Interact` and `PointId`.
+- `ItemSlotUI` shows the picture from its `IconOf` function (before, the icon was only switched on; setting the sprite was left to a subclass that could not override anything). Without a function the slot keeps the prefab's picture, as before.
+
+### Added
+- **Places players use** (MythRunner FG-10): the `Interaction` module (`InteractionPoint` with an id, a kind, a radius, a prompt, used once or not; `IInteractionService` with the game's `Distance`, `NearestFor(player)`, `Interact`, a rule per kind; `InteractedEvent`) and `InteractionModule`. Distance is the game's, so it fits free 3D, a track or a grid.
+- **Places in the action RPG kit**: `World.Interactions`, `World.NearestInteraction`, `World.Interact(pointId)`; `InteractionPointView` for places in the scene (open and closed looks); E or the gamepad's West button uses the nearest place and the HUD shows its prompt; `ActionRpgHost.InteractionDistance` (scene distance by default, a runner overrides it). In co-op the host decides every use: friends get the places and their state from it, send what they use, and hear `InteractedEvent` on their own bus (to play the opening).
+- `World.GiveLoot(player, tableId)`: a chest or a reward rolls a loot table into the player's backpack and wallet (the same payout a kill uses).
+- **Screens that build themselves** (MythRunner FG-12): `CodeViewFactory` makes `INavigationService` screens in code (made once, reused; `Fallback` for prefab screens); `StatListPanel` (`BindStats`: one row per stat of any `IStatContainer`; `Bind`: rows of your own), `EquipmentSlotsPanel` (slots from the game's own list), `ItemSlotUI.Create`, `UIBuilder` (boxes, labels, lists, buttons on Unity's built-in font). No prefab, no fields to wire.
+- **Navigation in the kit**: `ActionRpgHost.Navigation`, `ActionRpgHost.Screens` and `ConfigureScreens(screens)`; Escape or the gamepad's East button closes the top screen; a scene without an `EventSystem` gets one with the first screen.
+
 ## [0.6.0] - 2026-10-28
 
 Fixes from the MythRunner audit (a runner + action RPG on the kit, co-op 1-4). **Co-op protocol version 10**: 0.5.1 builds are refused. Install with `#v0.6.0`. A game that hand-rolls loot, prices, cooldowns or timers in its rules now fails GA14: move it to the modules (recipe 16) or record the gap.

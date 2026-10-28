@@ -64,7 +64,7 @@ namespace RPGFramework.UI.Tests
             stats.SetBaseStat(RunnerStat.Luck, 3f);
             var panel = Panel<StatListPanel>();
 
-            panel.Bind(() => stats, stat => stat == RunnerStat.Speed ? "Top speed" : null);
+            panel.BindStats(() => stats, stat => stat == RunnerStat.Speed ? "Top speed" : null);
             panel.Title = "Runner";
 
             Assert.That(panel.RowCount, Is.EqualTo(2));

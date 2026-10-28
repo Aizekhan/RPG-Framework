@@ -19,6 +19,8 @@ one through. Core services (spawning, assets, scenes, timers, logs) are in recip
 | Experience, levels, stat growth | `IProgressionTracker`, `IStatGrowthFormula` (kit: `World.GrantExperience`) | `xp += n; if (xp > 100) level++` |
 | A backpack | `IInventoryContainer<IItem>` (kit: `World.InventoryOf`, `GiveItem`) | `List<string> items` |
 | Quests and objectives | `IQuestManager` + Quest assets (recipe 10) | flags in a dictionary |
+| A chest, a door, a lever, a shrine: "press E near it" | a **place**: `InteractionPointView` in the scene (kit) or `IInteractionService.Add(new InteractionPoint(id, kind, radius, prompt, once))` (`InteractionModule`); react to `InteractedEvent` in a module; a chest pays with `World.GiveLoot(player, table)`; a locked door is `SetRule(kind, ...)` | a trigger collider and `Vector3.Distance` checks in an `Update` |
+| A screen: stats, equipment, a shop, a pause menu | `StatListPanel`, `EquipmentSlotsPanel`, `ItemSlotUI.Create` (they build themselves) registered on `CodeViewFactory`; kit: `ActionRpgHost.Screens` / `ConfigureScreens`, opened with `Navigation.NavigateToAsync(id)` | a hand-built canvas per screen and a bool for which one is open |
 | Talking to a character | `Dialogue` (`DialogueManager`, conditions, branches, events) | a script of `if`s |
 | Crafting | `Crafting` (recipes, requirements, timed crafts) | a recipe table checked by hand |
 | Reputation with a side | `Factions` | a number per faction |

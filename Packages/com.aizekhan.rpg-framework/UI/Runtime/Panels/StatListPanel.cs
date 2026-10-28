@@ -78,7 +78,7 @@ namespace RPGFramework.UI.Panels
         /// </summary>
         /// <param name="name">A stat's name on screen; its enum name when null.</param>
         /// <param name="format">A value on screen; rounded to a whole number when null.</param>
-        public void Bind<TStat, TValue>(Func<IStatContainer<TStat, TValue>> stats, Func<TStat, string> name = null,
+        public void BindStats<TStat, TValue>(Func<IStatContainer<TStat, TValue>> stats, Func<TStat, string> name = null,
             Func<TValue, string> format = null)
             where TStat : struct, IConvertible
             where TValue : struct, IComparable<TValue>

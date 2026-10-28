@@ -8,6 +8,8 @@
         "RPGFramework.UINavigation.Unity",
         "RPGFramework.Items.Runtime",
         "RPGFramework.Stats.Runtime",
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Serialization.Runtime",
         "RPGFramework.Events.Runtime",
         "RPGFramework.Logging.Runtime",
         "UniTask",
