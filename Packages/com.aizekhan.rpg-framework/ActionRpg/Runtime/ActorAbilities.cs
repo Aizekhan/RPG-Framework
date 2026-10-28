@@ -58,6 +58,13 @@ namespace RPGFramework.ActionRpg
         public IAbilityRegistry Registry => _registry;
 
         /// <summary>
+        /// Picks the target when an ability is used without one (target -1): the game's own idea of "in front",
+        /// "nearest in my lane", "the boss" (caster, ability; return -1 for none). Runs where the rules run, so a
+        /// friend's ability in co-op is aimed with the host's world. Null: an ability used without a target has none.
+        /// </summary>
+        public Func<int, IAbility, int> ResolveTarget { get; set; }
+
+        /// <summary>
         /// What an ability does once it goes off (caster, target; -1 without a target): deal damage with
         /// <see cref="ActorWorld.Attack"/> or <see cref="ActorWorld.DealDamage"/>, put on an effect, heal.
         /// Abilities without one only start their cooldown and announce themselves (<see cref="AbilityExecutedEvent"/>).
@@ -82,6 +89,12 @@ namespace RPGFramework.ActionRpg
                 return AbilityExecutionResult.CreateFailure(abilityId, casterId, "The caster is not in the world", Time);
             if (caster.Controls.Any(BlockingControls.Contains))
                 return AbilityExecutionResult.CreateFailure(abilityId, casterId, "The caster cannot act", Time);
+            if (targetId < 0 && ResolveTarget != null)
+            {
+                var ability = _registry.GetAbility(abilityId);
+                if (ability != null)
+                    targetId = ResolveTarget(casterId, ability);
+            }
             return _executor.ExecuteAbility(abilityId, casterId, targetId, Time,
                 ResourceCheck ?? ((_, __, ___) => true), ResourceConsume ?? ((_, __, ___) => { }), Apply);
         }

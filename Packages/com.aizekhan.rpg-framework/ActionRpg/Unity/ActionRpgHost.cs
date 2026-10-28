@@ -348,7 +348,21 @@ namespace RPGFramework.ActionRpg
             }
 
             _module = ActionRpgComposition.Configure(builder, _settings, _content);
+            _module.Distance = AbilityDistance;
             ConfigureGameModules(builder);
+        }
+
+        /// <summary>
+        /// Distance between two characters for ability range (<c>Range</c> on the ability asset). By default the
+        /// distance between where the scene shows them; a game whose characters do not live in free 3D (a runner's
+        /// lanes and distance along the track, a grid) returns its own measure. 0 counts the target as in range.
+        /// </summary>
+        protected virtual float AbilityDistance(int casterId, int targetId)
+        {
+            if (_presenter == null || !_presenter.TryGetPose(casterId, out var caster) || !_presenter.TryGetPose(targetId, out var target))
+                return 0f;
+            float x = caster.X - target.X, y = caster.Y - target.Y, z = caster.Z - target.Z;
+            return Mathf.Sqrt(x * x + y * y + z * z);
         }
 
         /// <summary>

@@ -184,6 +184,38 @@ namespace RPGFramework.ActionRpg.Tests
         }
 
         [Test]
+        public void AGameOffFree3D_MeasuresRange_PicksTargets_AndAddsItsOwnActions()
+        {
+            // A runner: characters stand at a distance along the track; the game measures, aims and acts
+            _content.Abilities.Add(new Ability(new AbilityMetadata("ram", "Ram", cooldown: 2f, range: 5f), targetType: TargetType.Enemy));
+            _content.Abilities.Add(new Ability(new AbilityMetadata("lane", "Change lane", cooldown: 1f), targetType: TargetType.None));
+            var track = new Dictionary<int, float>();
+            _host.Start(builder =>
+            {
+                _module = ActionRpgComposition.Configure(builder, _settings, _content);
+                _module.Distance = (a, b) => System.Math.Abs(track[a] - track[b]);
+            });
+            int near = World.SpawnEnemy(Goblin), far = World.SpawnEnemy(Goblin);
+            track[World.PlayerId] = 0f;
+            track[near] = 4f;
+            track[far] = 30f;
+            var rammed = new List<int>();
+            int lane = 1;
+            World.Abilities.SetEffect("ram", (caster, target) => rammed.Add(target));
+            World.Abilities.SetEffect("lane", (caster, target) => lane++);
+            World.Abilities.ResolveTarget = (caster, ability) =>
+                ability.Range > 0f ? track.Where(t => t.Key != caster).OrderBy(t => t.Value).First().Key : -1;
+
+            Assert.That(World.UseAbility("ram", far), Is.False, "30 along the track is out of range");
+            Assert.That(World.UseAbility("ram"), Is.True, "the game aims at the nearest one ahead");
+            Assert.That(rammed, Is.EqualTo(new[] { near }));
+
+            Assert.That(World.UseAbility("lane"), Is.True);
+            Assert.That(lane, Is.EqualTo(2), "an action the framework does not know, with its cooldown");
+            Assert.That(World.UseAbility("lane"), Is.False, "cooling down");
+        }
+
+        [Test]
         public void Stunned_CannotUseAbilities()
         {
             StartGame();

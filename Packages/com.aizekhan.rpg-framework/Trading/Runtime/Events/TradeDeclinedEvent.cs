@@ -4,8 +4,9 @@ namespace RPGFramework.Trading
 {
     /// <summary>
     /// Event raised when a player declines a trade offer.
-    /// Published by <c>TradingManager.DeclineTrade</c> when a proposed offer is dropped. Reason is null (DeclineTrade
-    /// takes none) and Timestamp is 0 (the manager keeps no clock).
+    /// Published by <c>TradingManager.DeclineTrade</c> when a proposed offer is dropped, with a null Reason (DeclineTrade
+    /// takes none), and by <c>TradingManager.Trade</c> when the trade it proposed fails, with the failure as Reason.
+    /// Timestamp is 0 (the manager keeps no clock).
     /// </summary>
     public struct TradeDeclinedEvent : IEvent
     {

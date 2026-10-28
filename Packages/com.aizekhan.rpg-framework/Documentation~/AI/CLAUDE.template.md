@@ -5,7 +5,9 @@ This game is built on the RPG Framework package (`com.aizekhan.rpg-framework`). 
 Automated tests enforce the architecture, so a change that breaks it fails.
 
 ## Read before changing code
-- `Docs/RPGFramework/architecture.md`: the layers and the rules GA01–GA13 (test failures name the rule).
+- `Docs/RPGFramework/architecture.md`: the layers and the rules GA01–GA14 (test failures name the rule).
+- `Docs/RPGFramework/recipes/16-game-needs-to-modules.md`: which module a game need goes to (a chest → loot table,
+  a shop → Trading, a perk → Abilities, poison → StatusEffects). GA14 fails on rules that hand-roll them.
 - `Docs/RPGFramework/recipes/`: step-by-step recipes. Find the one that matches the task and follow it.
 - The framework's own README (`Packages/com.aizekhan.rpg-framework/README.md`, or the package in `Library/PackageCache`)
   lists the modules. **Use a framework module before writing your own**: combat, stats, progression, quests,

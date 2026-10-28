@@ -35,7 +35,7 @@ The reference game `Assets/ReferenceGame` (Goblin Valley) follows all of this. R
 ## Rules
 
 Each rule is a test in `<Game>ArchitectureTests`. A failure prints the rule id, the place and the fix.
-A single source line may opt out of a source rule (GA05, GA08, GA11, GA13) with a reason:
+A single source line may opt out of a source rule (GA05, GA08, GA11, GA13; not GA14) with a reason:
 `// architecture: allow GA05 (third-party plugin needs it)`. GA13 also accepts `// framework-ok: <reason>` at the end
 of the line. Use it rarely.
 
@@ -110,3 +110,21 @@ need to its service. The rule catches the usual re-inventions:
 Text in strings and comments does not count. When a line really needs the Unity call (a context object for the
 console, an object the spawner never made, a material the view created), end it with `// framework-ok: <reason>`;
 the reason is required.
+
+### GA14 The game's rules use the framework's gameplay modules
+GA11 catches a framework type rebuilt under its own name; GA14 catches the same work done without a type. Rules code
+(`<Game>.Core`) does not hand-roll what a gameplay module does. Recipe 16 (`recipes/16-game-needs-to-modules.md`)
+maps each game need to its module. The rule looks for:
+
+| Found in rules code | Use instead |
+|---|---|
+| a random amount of currency (`_random.Next(GoldMin, GoldMax)`) | a loot table entry for the currency (its quantity range) |
+| a weighted pick (`roll -= entry.Weight`, `Weighted*.Pick(...)`) in a file that rolls dice | `ILootTable` + `ILootGenerator` |
+| currency taken by hand (`profile.Gold -= price`) | `ICurrencyWallet.TrySpend`; a shop: `ITradingManager.Trade` (`TradingModule`) |
+| a cooldown counted down or kept in a `Dictionary<..., float>` named `*cooldown*` | an ability: `ActorAbilities.Use` / `IAbilityExecutor`, the game's own action in `SetEffect` |
+| an effect timer (`_poisonLeft -= dt`) | a status effect: `ActorEffects.Apply` / `IStatusEffectManager` |
+| any other countdown (`_spawnIn -= dt;`) | `ITimerService.Schedule` / `Repeat` |
+
+These are heuristics, so `// architecture: allow GA14` does **not** work. The only way past is a recorded gap: a
+`// framework-gap: <id>` marker on the line, on the line above it, or above the type it is in, with its section in
+`FRAMEWORK-GAPS.md` (GA12). Either the module does the job, or the framework learns what it lacks.

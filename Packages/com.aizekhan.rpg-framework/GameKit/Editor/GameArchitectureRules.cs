@@ -38,7 +38,8 @@ namespace RPGFramework.GameKit.Editor
     /// <summary>
     /// The architecture rules of a game built on the framework. Each rule returns its violations; an empty result
     /// means the rule holds. A source line can opt out of a source rule with a comment naming it:
-    /// <c>// architecture: allow GA05 (reason)</c>; GA13 also accepts <c>// framework-ok: reason</c>.
+    /// <c>// architecture: allow GA05 (reason)</c>; GA13 also accepts <c>// framework-ok: reason</c>. GA14 accepts only a
+    /// recorded framework gap (<c>// framework-gap: id</c>).
     /// </summary>
     public static class GameArchitectureRules
     {
@@ -53,6 +54,11 @@ namespace RPGFramework.GameKit.Editor
         /// The recipe that maps each everyday need to the framework service for it (GA13 points here).
         /// </summary>
         public const string CoreServicesRecipe = "Docs/RPGFramework/recipes/14-core-services.md";
+
+        /// <summary>
+        /// The recipe that maps each game need (a chest, a shop, a perk, poison) to the gameplay module for it (GA14).
+        /// </summary>
+        public const string ModulesRecipe = "Docs/RPGFramework/recipes/16-game-needs-to-modules.md";
 
         public static readonly IReadOnlyList<(string Id, string Title, Func<GameCodebase, IEnumerable<ArchitectureViolation>> Check)> All =
             new (string, string, Func<GameCodebase, IEnumerable<ArchitectureViolation>>)[]
@@ -69,7 +75,8 @@ namespace RPGFramework.GameKit.Editor
                 ("GA10", "Every rules and runtime assembly has tests", AssembliesAreTested),
                 ("GA11", "The game does not redo the framework", GameDoesNotRedoTheFramework),
                 ("GA12", "Framework gaps are recorded", FrameworkGapsAreRecorded),
-                ("GA13", "The game uses the framework's core services", GameUsesCoreServices)
+                ("GA13", "The game uses the framework's core services", GameUsesCoreServices),
+                ("GA14", "The game's rules use the framework's gameplay modules", GameUsesGameplayModules)
             };
 
         /// <summary>
@@ -428,6 +435,87 @@ namespace RPGFramework.GameKit.Editor
             }
         }
 
+        // The delta a per-frame update counts down with: "x -= dt;", "_left[id] -= deltaTime)"
+        private const string CountDown = @"(\s*\[[^\]]*\])?\s*-=\s*(dt|deltaTime|delta|deltaSeconds|elapsed|elapsedSeconds)\s*[;)]";
+
+        private static readonly Regex UsesRandom = new Regex(@"\.Next(Double|Single|Float)?\s*\(|\bRandom\.(Range|value)\b");
+
+        // Checked in order; a line reports the first that matches. Weighted picks only count in files that roll dice.
+        private static readonly (Regex Pattern, bool NeedsRandom, string Found, string Use)[] ModuleBypasses =
+        {
+            (new Regex(@"\.Next(Double|Single|Float)?\s*\([^;]*(gold|coin|money|currenc|cash|gem|silver)", RegexOptions.IgnoreCase), false,
+                "a random amount of currency",
+                "a loot table entry for the currency with its quantity range (Loot Table asset or LootTableBuilder; " +
+                "ILootGenerator rolls it, the action RPG kit pays it into ICurrencyWallet)"),
+            (new Regex(@"\bWeighted\w*\.(Pick|Roll|Choose|Select|Random)\w*\s*\(|(roll|total|sum|cumulative|acc|pick)\w*\s*(\+=|-=)\s*[\w.\[\]()]*weight\b|\.Next(Double|Single|Float)?\s*\([^;]*weight",
+                    RegexOptions.IgnoreCase), true,
+                "a hand-made weighted pick",
+                "an ILootTable (Loot Table asset or LootTableBuilder) rolled by ILootGenerator: weights, chances, " +
+                "quantity ranges, level limits and a seed"),
+            (new Regex(@"\w*(gold|coin|money|currenc|cash|gem|silver)\w*\s*-=", RegexOptions.IgnoreCase), false,
+                "currency taken by hand",
+                "ICurrencyWallet.TrySpend (TradingModule) for any price; a shop is a trader whose offers ITradingManager.Trade " +
+                "runs (checks money and items, pays, moves the items)"),
+            (new Regex(@"\w*cooldown\w*" + CountDown + @"|\b(Dictionary|SortedDictionary)\s*<[^>]+>\s+_?\w*cooldown", RegexOptions.IgnoreCase), false,
+                "a hand-made cooldown",
+                "an ability (Ability asset or AbilityMetadata) used through ActorAbilities.Use / IAbilityExecutor: cooldowns, " +
+                "charges (MaxCharges), cast times, costs and co-op sync; the game's own action goes in ActorAbilities.SetEffect"),
+            (new Regex(@"\w*(poison|burn|bleed|stun|freez|frozen|slow|haste|shield|invuln|buff|debuff|effect|status)\w*" + CountDown,
+                    RegexOptions.IgnoreCase), false,
+                "a hand-made status effect timer",
+                "a status effect (Status Effect asset) applied with ActorEffects.Apply / IStatusEffectManager: duration, " +
+                "ticks, stacks, stat modifiers and controls"),
+            (new Regex(@"\w+" + CountDown), false,
+                "a timer counted down by hand",
+                "ITimerService.Schedule(seconds, action) / Repeat(interval, action) (game time, pausable, cancellable); " +
+                "a cooldown or an effect duration belongs to Abilities or StatusEffects"),
+        };
+
+        /// <summary>
+        /// Rules code that does by hand what a gameplay module does: weighted picks and random currency (Loot),
+        /// prices taken from a balance (wallet and Trading), cooldowns (Abilities), effect timers (StatusEffects),
+        /// countdowns (timers). These are heuristics, so the only way past one is a recorded gap: a
+        /// <c>// framework-gap: &lt;id&gt;</c> marker on the line, the line above it, or above the type it is in
+        /// (GA12 then requires the section in FRAMEWORK-GAPS.md).
+        /// </summary>
+        public static IEnumerable<ArchitectureViolation> GameUsesGameplayModules(GameCodebase codebase)
+        {
+            foreach (var assembly in codebase.OfKind(GameAssemblyKind.Rules))
+            {
+                foreach (var file in assembly.SourceFiles.Where(File.Exists))
+                {
+                    var raw = File.ReadAllLines(file);
+                    bool MarkedAt(int number) => number >= 1 && number <= raw.Length && GapMarker.IsMatch(raw[number - 1]);
+                    bool rollsDice = raw.Any(line => UsesRandom.IsMatch(StripStrings(line)));
+                    bool typeMarked = false;
+                    foreach (var (code, number) in CodeLines(file, "GA14", allowOptOut: false))
+                    {
+                        if (Declaration.IsMatch(code))
+                        {
+                            // The marker sits above the type, possibly above its attributes
+                            int above = number - 1;
+                            while (above >= 1 && raw[above - 1].Trim().StartsWith("[", StringComparison.Ordinal))
+                                above--;
+                            typeMarked = MarkedAt(above) || MarkedAt(above - 1);
+                        }
+                        if (typeMarked || MarkedAt(number) || MarkedAt(number - 1))
+                            continue;
+
+                        string line = StripStrings(code);
+                        foreach (var (pattern, needsRandom, found, use) in ModuleBypasses)
+                        {
+                            if ((needsRandom && !rollsDice) || !pattern.IsMatch(line))
+                                continue;
+                            yield return new ArchitectureViolation("GA14", $"{file}:{number}", $"{found}, which a framework module does",
+                                $"Use {use}. {ModulesRecipe} maps each need to its module. If the module cannot do what this game " +
+                                $"needs, record the gap in {GapsFile} and mark the stand-in // framework-gap: <id> (no other opt-out).");
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
         private static ArchitectureViolation CoreServiceViolation(string file, int number, string found, string use) =>
             new ArchitectureViolation("GA13", $"{file}:{number}", $"uses {found}, which a framework service does",
                 $"Use {use}. The services come from the host's container ({CoreServicesRecipe}). If this line really needs " +
@@ -478,7 +566,7 @@ namespace RPGFramework.GameKit.Editor
         /// and optionally lines inside <c>#if UNITY_EDITOR</c> blocks and lines matching <paramref name="allowLine"/> skipped.
         /// </summary>
         internal static IEnumerable<(string Line, int Number)> CodeLines(string file, string rule, bool skipEditorBlocks = false,
-            Regex allowLine = null)
+            Regex allowLine = null, bool allowOptOut = true)
         {
             if (!File.Exists(file))
                 yield break;
@@ -513,7 +601,7 @@ namespace RPGFramework.GameKit.Editor
                 }
                 if (skipEditorBlocks && editorBlocks.Contains(true))
                     continue;
-                if (raw.Contains("architecture: allow " + rule) || (allowLine != null && allowLine.IsMatch(raw)))
+                if ((allowOptOut && raw.Contains("architecture: allow " + rule)) || (allowLine != null && allowLine.IsMatch(raw)))
                     continue;
 
                 line = StripComments(line, ref inBlockComment);

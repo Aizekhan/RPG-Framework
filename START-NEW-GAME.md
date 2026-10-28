@@ -60,6 +60,19 @@ parameters in its rules. The architecture test GA13 fails on the hand-made versi
 
 A line that truly needs the Unity call ends with `// framework-ok: <reason>`.
 
+### Gameplay modules — what a game need goes to
+
+The architecture test GA14 fails on rules that hand-roll these (only a recorded framework gap lets one through).
+Full list: `Docs/RPGFramework/recipes/16-game-needs-to-modules.md`.
+
+| Need | Use | Not |
+|---|---|---|
+| Chest, drop, gold from a monster | a loot table (Loot Table asset / `LootTableBuilder`), `ILootGenerator` | a weighted pick or `Random.Next(min, max)` by hand |
+| Money, prices, a shop | `ICurrencyWallet`, a trader and `ITradingManager.Trade` (`TradingModule`) | `gold -= price` |
+| Perk, skill, dash with a cooldown | an ability (`ActorAbilities.Use`, the game's action in `SetEffect`) | a `switch` with hand-made cooldowns |
+| Poison, shield, slow, stun | a status effect (`ActorEffects.Apply`) | `_poisonLeft -= dt` |
+| Anything after N seconds | `ITimerService` | `_left -= dt` |
+
 ### Checklist (copy into `SETUP.md` in step 0)
 
 ```

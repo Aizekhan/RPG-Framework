@@ -56,7 +56,7 @@ Assets/MyGame/
   Scripts/Core/   MyGame.Core: your rules and modules (no UnityEngine)
   Scripts/        MyGame: MyGameHost (an ActionRpgHost), your views and input
   Scenes/         MyGame.unity: host, camera, light, ground
-  Tests/          boot test, scene test, MyGameArchitectureTests (rules GA01-GA13)
+  Tests/          boot test, scene test, MyGameArchitectureTests (rules GA01-GA14)
 ```
 
 The tests keep the game healthy: the setup is valid, the game boots and plays a wave, the code follows the

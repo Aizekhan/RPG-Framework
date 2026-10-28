@@ -10,7 +10,8 @@ namespace RPGFramework.Trading
     {
         /// <summary>
         /// Propose a trade to a player.
-        /// Validates all conditions and constraints.
+        /// Checks that the offer exists, can be used again and that the player has the trader's reputation.
+        /// Each player has their own proposals: two players can propose the same offer.
         /// </summary>
         /// <param name="playerEntityId">Entity receiving the trade</param>
         /// <param name="offerId">ID of the offer to propose</param>
@@ -18,16 +19,28 @@ namespace RPGFramework.Trading
         bool ProposeTradeOffer(int playerEntityId, string offerId);
 
         /// <summary>
-        /// Accept a proposed trade and execute it.
-        /// Transfers items, gold, and records reputation changes.
+        /// Accept a trade this player proposed and execute it: moves the gold (through the wallet when the manager
+        /// has one), takes the requested items and gives the offered ones (when the manager has a trade inventory),
+        /// and records reputation. All or nothing: a failed trade changes nothing and stays proposed.
         /// </summary>
         /// <param name="playerEntityId">Entity accepting the trade</param>
         /// <param name="offerId">ID of the offer to accept</param>
-        /// <returns>Result of the trade execution</returns>
+        /// <returns>Result of the trade execution; on failure, ErrorMessage says why ("Missing items",
+        /// "Insufficient gold", ...)</returns>
         TradeResultData AcceptTrade(int playerEntityId, string offerId);
 
         /// <summary>
-        /// Decline a proposed trade.
+        /// Propose and accept an offer in one call, as a shop purchase or sale does.
+        /// A trade that fails is not left proposed.
+        /// </summary>
+        /// <param name="playerEntityId">Entity trading</param>
+        /// <param name="offerId">ID of the offer</param>
+        /// <returns>Result of the trade; on failure, ErrorMessage says why (including "Offer not found",
+        /// "Offer not available" or "Reputation too low" when it could not be proposed)</returns>
+        TradeResultData Trade(int playerEntityId, string offerId);
+
+        /// <summary>
+        /// Decline a trade this player proposed.
         /// </summary>
         /// <param name="playerEntityId">Entity declining the trade</param>
         /// <param name="offerId">ID of the offer to decline</param>
@@ -42,7 +55,7 @@ namespace RPGFramework.Trading
         IReadOnlyList<ITradeOffer> GetTraderOffers(string traderId, int playerEntityId);
 
         /// <summary>
-        /// Get player's current gold balance.
+        /// Get player's current gold balance (the wallet's gold when the manager has a wallet).
         /// </summary>
         long GetPlayerGold(int playerEntityId);
 

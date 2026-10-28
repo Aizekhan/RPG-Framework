@@ -2,13 +2,15 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using RPGFramework.Abilities;
 using RPGFramework.Bootstrap.Gameplay;
+using RPGFramework.DI;
 using RPGFramework.Logging;
 using RPGFramework.StatusEffects;
+using RPGFramework.Trading;
 
 namespace RPGFramework.Bootstrap.Tests
 {
     /// <summary>
-    /// The Abilities and StatusEffects feature modules give a game working services from the container alone.
+    /// The Abilities, StatusEffects and Trading feature modules give a game working services from the container alone.
     /// </summary>
     public sealed class GameplayModuleTests
     {
@@ -54,6 +56,60 @@ namespace RPGFramework.Bootstrap.Tests
 
             Assert.That(manager.HasEffect(entity, "rage"), Is.True);
             Assert.That(target.Applied, Is.EqualTo(new[] { "Attack +3" }));
+        }
+
+        [Test]
+        public void TradingModule_ManagerPaysFromTheWalletAndUsesTheInventoryInTheContainer()
+        {
+            const int hero = 1;
+            var container = new DIContainer();
+            var inventory = new BagInventory();
+            container.RegisterInstance<ITradeInventory>(inventory);
+            _host.Start(b => b.UseModule(new TradingModule()), container);
+            var c = _host.Container;
+            var shop = Trader.Create("shop", "Shop", TraderType.Merchant);
+            var potion = TradeOffer.Create("buy_potion", "shop");
+            potion.AddOfferedItem(TradeItem.Create("potion", 1));
+            potion.SetGoldAmount(-30);
+            shop.AddOffer(potion);
+            c.Resolve<ITraderRegistry>().RegisterTrader(shop);
+            var wallet = c.Resolve<ICurrencyWallet>();
+            wallet.Add(hero, 100);
+            var manager = c.Resolve<ITradingManager>();
+
+            var result = manager.Trade(hero, "buy_potion");
+
+            Assert.That(manager, Is.SameAs(c.Resolve<ITradingManager>()));
+            Assert.That(wallet, Is.InstanceOf<CurrencyWallet>());
+            Assert.That(result.Success, Is.True, result.ErrorMessage);
+            Assert.That(wallet.Balance(hero), Is.EqualTo(70));
+            Assert.That(manager.GetPlayerGold(hero), Is.EqualTo(70));
+            Assert.That(inventory.Added, Is.EqualTo(new[] { "potion x1" }));
+        }
+
+        [Test]
+        public void TradingModule_UsesTheWalletFromTheOptions()
+        {
+            var wallet = new CurrencyWallet();
+            _host.Start(b => b.UseModule(new TradingModule(new TradingOptions { Wallet = wallet })));
+
+            Assert.That(_host.Container.Resolve<ICurrencyWallet>(), Is.SameAs(wallet));
+            wallet.Add(1, 5);
+            Assert.That(_host.Container.Resolve<ITradingManager>().GetPlayerGold(1), Is.EqualTo(5));
+        }
+
+        private sealed class BagInventory : ITradeInventory
+        {
+            public readonly List<string> Added = new List<string>();
+
+            public bool HasItem(int ownerId, string itemId, int quantity) => false;
+            public bool RemoveItem(int ownerId, string itemId, int quantity) => false;
+
+            public bool AddItem(int ownerId, string itemId, int quantity)
+            {
+                Added.Add($"{itemId} x{quantity}");
+                return true;
+            }
         }
 
         private sealed class RecordingTarget : IStatusEffectTarget

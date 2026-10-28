@@ -78,6 +78,9 @@ namespace RPGFramework.GameKit.TestSupport
         [Test]
         public void GA13_GameUsesCoreServices() => Check(GameArchitectureRules.GameUsesCoreServices);
 
+        [Test]
+        public void GA14_GameUsesGameplayModules() => Check(GameArchitectureRules.GameUsesGameplayModules);
+
         private void Check(Func<GameCodebase, IEnumerable<ArchitectureViolation>> rule)
         {
             var violations = rule(_codebase).ToList();

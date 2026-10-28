@@ -295,6 +295,71 @@ namespace RPGFramework.GameKit.Tests
         }
 
         [Test]
+        public void GA14_RulesThatRedoGameplayModules_AreCaught()
+        {
+            // What MythRunner's rules did instead of Loot, Trading, Abilities, StatusEffects and timers
+            var file = Source("Run.cs", string.Join("\n",
+                "class Run {",
+                "  void A() => _gold += _random.Next(GoldMin, GoldMax);",
+                "  string B() => WeightedId.Pick(_chest, _random);",
+                "  void C() { int roll = _random.Next(_total); foreach (var e in _entries) { roll -= e.Weight; } }",
+                "  void D(int price) { profile.Gold -= price; }",
+                "  readonly Dictionary<string, float> _perkCooldowns = new Dictionary<string, float>();",
+                "  void E(float dt) { _dashCooldown -= dt; }",
+                "  void F(float dt) { _poisonLeft -= dt; }",
+                "  void G(float dt) { _spawnIn -= dt; }",
+                "  void H(float dt) { _left[id] -= deltaTime; }",
+                "  void I(float dt) { _distance -= _speed * dt; }",
+                "  void J(int damage) { _health -= damage; }",
+                "  void K() { _carried += item.Weight; }",
+                "  void L(float dt) { _time += dt; }",
+                "  void M() { _log.Write(\"gold -= price\"); }",
+                "  // _gold -= price in a comment is fine",
+                "}"));
+            var view = Source("View.cs", "class View { void Update(float dt) { _blink -= dt; } }");
+            var game = Game(
+                Assembly("Game.Core", GameAssemblyKind.Rules, noEngine: true, sources: new[] { file }),
+                Assembly("Game", GameAssemblyKind.Runtime, sources: new[] { view }));
+
+            var violations = GameArchitectureRules.GameUsesGameplayModules(game).ToList();
+
+            Assert.That(violations.Select(v => v.Where.Split(':').Last()),
+                Is.EqualTo(new[] { "2", "3", "4", "5", "6", "7", "8", "9", "10" }), "views and plain arithmetic are not checked");
+            Assert.That(violations.All(v => v.Rule == "GA14" && v.Fix.Contains(GameArchitectureRules.ModulesRecipe)), Is.True);
+            Assert.That(violations[0].Fix, Does.Contain("loot table"));
+            Assert.That(violations[1].Fix, Does.Contain("ILootGenerator"));
+            Assert.That(violations[3].Fix, Does.Contain("ICurrencyWallet"));
+            Assert.That(violations[4].Fix, Does.Contain("ActorAbilities"));
+            Assert.That(violations[6].Fix, Does.Contain("ActorEffects"));
+            Assert.That(violations[7].Fix, Does.Contain("ITimerService"));
+        }
+
+        [Test]
+        public void GA14_OnlyARecordedGapLetsABypassThrough()
+        {
+            var file = Source("Shop.cs", string.Join("\n",
+                "class Shop {",
+                "  void A(int price) { _gold -= price; } // architecture: allow GA14 (the general opt-out does not count)",
+                "  void B(int price) { _gold -= price; } // framework-gap: fg-10",
+                "  // framework-gap: fg-11",
+                "  void C(float dt) { _spawnIn -= dt; }",
+                "}",
+                "// framework-gap: fg-12",
+                "[Serializable]",
+                "sealed class Rewind {",
+                "  void Tick(float dt) { _left -= dt; }",
+                "}",
+                "class After {",
+                "  void Tick(float dt) { _left -= dt; }",
+                "}"));
+            var game = Game(Assembly("Game.Core", GameAssemblyKind.Rules, noEngine: true, sources: new[] { file }));
+
+            var violations = GameArchitectureRules.GameUsesGameplayModules(game).ToList();
+
+            Assert.That(violations.Select(v => v.Where.Split(':').Last()), Is.EqualTo(new[] { "2", "13" }));
+        }
+
+        [Test]
         public void GA13_TheFrameworksOwnActionRpgViews_UseTheCoreServices()
         {
             // The action RPG views are what games copy: they hold to the rule they teach

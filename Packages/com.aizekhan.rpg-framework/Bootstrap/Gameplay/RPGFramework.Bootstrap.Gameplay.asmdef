@@ -16,6 +16,7 @@
         "RPGFramework.Loot.Runtime",
         "RPGFramework.Abilities.Runtime",
         "RPGFramework.StatusEffects.Runtime",
+        "RPGFramework.Trading.Runtime",
         "RPGFramework.Integration.CombatQuests.Runtime",
         "UniTask"
     ],
