@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using NUnit.Framework;
 using RPGFramework.Networking.UnityTransport;
@@ -114,6 +115,26 @@ namespace RPGFramework.Networking.Tests
             client.StartClient();
 
             PumpUntil("the client over UDP", () => client.IsConnected && server.Connections.Count == 1, server, client);
+        }
+
+        [Test]
+        public void Lan_OffersEveryAddressFriendsCanReach_HomeNetworkFirst_ThenVpns()
+        {
+            var addresses = new[] { "26.12.0.4", "127.0.0.1", "100.101.2.3", "169.254.9.9", "192.168.1.20", "8.8.4.4", "192.168.1.20" }
+                .Select(System.Net.IPAddress.Parse).Concat(new[] { System.Net.IPAddress.IPv6Loopback });
+
+            Assert.That(LanSessionProvider.OrderForFriends(addresses),
+                Is.EqualTo(new[] { "192.168.1.20", "26.12.0.4", "100.101.2.3", "8.8.4.4" }),
+                "Radmin and Tailscale kept, loopback, self-assigned, IPv6 and duplicates out");
+
+            // This machine: the session's codes are all its addresses with the port
+            var provider = new LanSessionProvider(port: 0);
+            var session = provider.HostAsync(new SessionOptions()).GetAwaiter().GetResult();
+            _disposables.Add((IDisposable)session.Transport);
+            var local = LanSessionProvider.LocalAddresses();
+            if (local.Count > 0)
+                Assert.That(session.OtherJoinCodes.Count, Is.EqualTo(local.Count - 1));
+            Assert.That(session.OtherJoinCodes, Has.None.EqualTo(session.JoinCode));
         }
 
         [Test]

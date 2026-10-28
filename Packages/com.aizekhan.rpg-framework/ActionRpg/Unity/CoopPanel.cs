@@ -122,6 +122,8 @@ namespace RPGFramework.ActionRpg
         private void DrawHosting()
         {
             GUILayout.Label($"Friends join with  <b>{_host.JoinCode}</b>", _rich);
+            if (_host.OtherJoinCodes.Count > 0)
+                GUILayout.Label($"or, over a VPN or another network:  {string.Join(",  ", _host.OtherJoinCodes)}", _rich);
             GUILayout.Label($"Players  {_host.CoopHost.PlayerCount} / {_host.CoopHost.MaxPlayers}:  {Party()}", _rich);
             if (GUILayout.Button("Stop hosting", GUILayout.Height(34f)))
                 _host.LeaveGame();

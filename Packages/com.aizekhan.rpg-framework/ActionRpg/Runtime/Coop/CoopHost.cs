@@ -47,6 +47,7 @@ namespace RPGFramework.ActionRpg.Coop
 
         private sealed class KeptSeat
         {
+            public int PlayerId;
             public int Seat;
             public string Name;
             public float Health;
@@ -79,6 +80,10 @@ namespace RPGFramework.ActionRpg.Coop
         private readonly List<Happening> _happenings = new List<Happening>();
         private readonly SubscriptionBag _subscriptions = new SubscriptionBag();
         private readonly Dictionary<string, KeptSeat> _keptSeats = new Dictionary<string, KeptSeat>();
+        // With progress of their own: names whose brought profile was taken this session, and what they left with
+        private readonly HashSet<string> _profilesTaken = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, PlayerProgress> _leftWith = new Dictionary<string, PlayerProgress>(StringComparer.OrdinalIgnoreCase);
+        private long _stateSequence;
         private readonly IEventBus _bus;
         private readonly List<AnnouncedAttack> _announced = new List<AnnouncedAttack>();
         private int _nextAttackId = 1;
@@ -327,6 +332,21 @@ namespace RPGFramework.ActionRpg.Coop
         }
 
         /// <summary>
+        /// Sends the newest state of something that changes all the time (a run's snapshot, a scoreboard) to everyone
+        /// who joined, unreliably: a lost packet is not resent and does not hold up newer ones, and machines drop a
+        /// packet older than one they already have (<see cref="CoopClient.OnLatest{T}"/>). The message's
+        /// <c>Timestamp</c> becomes its place in the order. Send the last state of a series (the run ended) with
+        /// <paramref name="final"/> true: it goes reliably, so it always arrives.
+        /// </summary>
+        public void SendLatestToAll(NetworkMessage message, bool final = false)
+        {
+            if (message == null)
+                throw new ArgumentNullException(nameof(message));
+            message.Timestamp = ++_stateSequence;
+            SendToAll(message, reliable: final);
+        }
+
+        /// <summary>
         /// Most players in the party, the host included.
         /// </summary>
         public int MaxPlayers { get; set; } = CoopProtocol.DefaultMaxPlayers;
@@ -432,6 +452,21 @@ namespace RPGFramework.ActionRpg.Coop
         public event Action<int> PlayerLeft;
 
         /// <summary>
+        /// A player whose link was lost came back within <see cref="RejoinWindow"/> (previous player id, new player id),
+        /// raised right before <see cref="PlayerJoined"/>: hand them back what the game kept under the old id (their
+        /// runner, their loot, their place in a vote).
+        /// </summary>
+        public event Action<int, int> PlayerRejoined;
+
+        /// <summary>
+        /// Checks the progress a joining player brings (<see cref="ProgressMode.PerPlayer"/>) before it is used: cap
+        /// levels, drop items the game does not sell yet, refuse a save that cannot be real. Null takes it as it is
+        /// (fine among friends). Either way a player's own profile is taken once per session (by name): coming back
+        /// later, they continue with what they left with here, not with what their machine brings.
+        /// </summary>
+        public IGuestProfileValidator ProfileValidator { get; set; }
+
+        /// <summary>
         /// Nothing has come from this joined player for a while (<see cref="CoopProtocol.UnstableAfter"/> seconds).
         /// </summary>
         public bool IsUnstable(int playerId)
@@ -509,6 +544,8 @@ namespace RPGFramework.ActionRpg.Coop
                 _world.RemovePlayer(guest.PlayerId);
             _guests.Clear();
             _keptSeats.Clear();
+            _profilesTaken.Clear();
+            _leftWith.Clear();
         }
 
         private void ForgetOldSeats(float deltaTime)
@@ -522,6 +559,7 @@ namespace RPGFramework.ActionRpg.Coop
                 if (kept.Since > RejoinWindow)
                 {
                     _keptSeats.Remove(token);
+                    Remember(kept.Name, kept.Progress);
                     _logger?.LogInfo($"Seat {kept.Seat} of {kept.Name} is free again", Category);
                 }
             }
@@ -542,6 +580,10 @@ namespace RPGFramework.ActionRpg.Coop
                 _keptSeats[guest.Token] = KeepSeat(guest, player);
                 _logger?.LogInfo($"Lost {player.DisplayName}; their seat waits {RejoinWindow:0} s", Category);
             }
+            else if (player != null && _world.ProgressMode == ProgressMode.PerPlayer)
+            {
+                Remember(player.PlayerName, _world.CaptureProgress(player.EntityId));
+            }
             _world.RemovePlayer(guest.PlayerId);
             PlayerLeft?.Invoke(guest.PlayerId);
         }
@@ -553,11 +595,14 @@ namespace RPGFramework.ActionRpg.Coop
 
             var kept = TakeKeptSeat(hello.RejoinToken, connectionId);
             string refusal = null;
+            PlayerProgress profile = null;
             if (hello.Fingerprint != _fingerprint)
                 refusal = "The host plays a different version of the game. Both need the same build.";
             // Seats kept for lost players count as taken for newcomers
             else if (PlayerCount + (kept != null ? 0 : _keptSeats.Count) >= MaxPlayers)
                 refusal = $"The party is full ({MaxPlayers} players).";
+            else if (kept == null && _world.ProgressMode == ProgressMode.PerPlayer)
+                profile = ProfileFor(hello.Name, hello.Profile, out refusal);
             if (refusal != null)
             {
                 if (kept != null)
@@ -575,8 +620,8 @@ namespace RPGFramework.ActionRpg.Coop
             }
             else
             {
-                // With progress of their own, they bring it: trusted, as among friends
-                guest.PlayerId = _world.AddPlayer(name: hello.Name, seat: FreeSeat(), progress: hello.Profile);
+                // With progress of their own, they bring it (checked by the validator, once per session)
+                guest.PlayerId = _world.AddPlayer(name: hello.Name, seat: FreeSeat(), progress: profile);
             }
             guest.Token = Guid.NewGuid().ToString("N");
             _network.Send(connectionId, new CoopWelcomeMessage
@@ -587,7 +632,10 @@ namespace RPGFramework.ActionRpg.Coop
             if (Scene.Length > 0)
                 _network.Send(connectionId, new CoopSceneMessage { Scene = Scene });
             if (kept != null)
+            {
                 PutBack(guest.PlayerId, kept.Seat, RespawnReason.Rejoin, kept.Pose);
+                PlayerRejoined?.Invoke(kept.PlayerId, guest.PlayerId);
+            }
             PlayerJoined?.Invoke(guest.PlayerId);
         }
 
@@ -600,7 +648,7 @@ namespace RPGFramework.ActionRpg.Coop
                 pose = seen;
             return new KeptSeat
             {
-                Seat = player.Seat, Name = player.PlayerName, Health = player.Health, Pose = pose,
+                PlayerId = player.EntityId, Seat = player.Seat, Name = player.PlayerName, Health = player.Health, Pose = pose,
                 Progress = _world.ProgressMode == ProgressMode.PerPlayer ? _world.CaptureProgress(player.EntityId) : null
             };
         }
@@ -642,6 +690,35 @@ namespace RPGFramework.ActionRpg.Coop
                 return kept;
             }
             return null;
+        }
+
+        // The progress a newcomer starts with: what they left with this session, or what they bring (checked)
+        private PlayerProgress ProfileFor(string name, PlayerProgress brought, out string refusal)
+        {
+            refusal = null;
+            string key = (name ?? "").Trim();
+            if (key.Length > 0 && _leftWith.TryGetValue(key, out var left))
+                return left;
+            if (key.Length > 0 && _profilesTaken.Contains(key))
+                return null;
+            if (brought == null)
+                return null;
+            var check = ProfileValidator?.Check(key, brought) ?? GuestProfileCheck.Accept(brought);
+            if (check.Refused)
+            {
+                refusal = check.Reason;
+                return null;
+            }
+            if (key.Length > 0)
+                _profilesTaken.Add(key);
+            return check.Profile;
+        }
+
+        private void Remember(string name, PlayerProgress progress)
+        {
+            string key = (name ?? "").Trim();
+            if (key.Length > 0 && progress != null)
+                _leftWith[key] = progress;
         }
 
         private int FreeSeat()

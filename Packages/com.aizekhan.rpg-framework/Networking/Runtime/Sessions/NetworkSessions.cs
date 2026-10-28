@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 
@@ -58,14 +59,21 @@ namespace RPGFramework.Networking
     /// </summary>
     public sealed class HostedSession
     {
-        public HostedSession(INetworkTransport transport, string joinCode)
+        public HostedSession(INetworkTransport transport, string joinCode, IReadOnlyList<string> otherJoinCodes = null)
         {
             Transport = transport ?? throw new ArgumentNullException(nameof(transport));
             JoinCode = joinCode ?? "";
+            OtherJoinCodes = otherJoinCodes ?? Array.Empty<string>();
         }
 
         public INetworkTransport Transport { get; }
         public string JoinCode { get; }
+
+        /// <summary>
+        /// Other codes that reach the same session (the host's address on a VPN such as Tailscale or Radmin, a second
+        /// network card); empty when there is only one.
+        /// </summary>
+        public IReadOnlyList<string> OtherJoinCodes { get; }
     }
 
     /// <summary>

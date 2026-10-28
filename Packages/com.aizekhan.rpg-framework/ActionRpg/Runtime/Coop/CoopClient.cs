@@ -109,6 +109,24 @@ namespace RPGFramework.ActionRpg.Coop
         }
 
         /// <summary>
+        /// Handles the newest state the host sends with <see cref="CoopHost.SendLatestToAll"/>: a packet older than one
+        /// already handled (it came late over the unreliable channel) is dropped. Dispose the result to stop.
+        /// </summary>
+        public IDisposable OnLatest<T>(Action<T> handler) where T : INetworkMessage
+        {
+            if (handler == null)
+                throw new ArgumentNullException(nameof(handler));
+            long newest = long.MinValue;
+            return _network.RegisterMessageHandler<T>((_, message) =>
+            {
+                if (message.Timestamp <= newest)
+                    return;
+                newest = message.Timestamp;
+                handler(message);
+            });
+        }
+
+        /// <summary>
         /// Sends a game message to the host (<see cref="CoopGameMessages"/>).
         /// </summary>
         /// <returns>False when not playing.</returns>

@@ -1194,6 +1194,85 @@ namespace RPGFramework.ActionRpg.Tests
         }
     
         [Test]
+        public void Rejoin_TellsTheGameTheOldAndNewPlayerId()
+        {
+            var rejoined = new List<(int Before, int Now)>();
+            var joined = new List<int>();
+            _host.PlayerRejoined += (before, now) => rejoined.Add((before, now));
+            _host.PlayerJoined += joined.Add;
+            var ann = Join(name: "Ann");
+            int before = ann.World.PlayerId;
+            Assert.That(rejoined, Is.Empty, "a first join is not a rejoin");
+
+            string token = ann.Client.RejoinToken;
+            ann.Transport.GoSilent();
+            Run(CoopProtocol.ConnectionTimeout + 0.5f);
+            var back = Join(name: "Ann", rejoinToken: token);
+
+            Assert.That(back.World.PlayerId, Is.Not.EqualTo(before), "a new player id");
+            Assert.That(rejoined, Is.EqualTo(new[] { (before, back.World.PlayerId) }));
+            Assert.That(joined, Is.EqualTo(new[] { before, back.World.PlayerId }));
+        }
+
+        private sealed class CapLevels : IGuestProfileValidator
+        {
+            public readonly List<string> Checked = new List<string>();
+
+            public GuestProfileCheck Check(string playerName, PlayerProgress profile)
+            {
+                Checked.Add(playerName);
+                if (profile.Level > 50)
+                    return GuestProfileCheck.Refuse("That save cannot be real.");
+                profile.Level = System.Math.Min(profile.Level, 5);
+                return GuestProfileCheck.Accept(profile);
+            }
+        }
+
+        [Test]
+        public void PerPlayer_TheHostChecksABroughtProfile_OncePerSession()
+        {
+            PlayWith(() =>
+            {
+                var settings = Settings();
+                settings.ProgressMode = ProgressMode.PerPlayer;
+                return settings;
+            });
+            var validator = new CapLevels();
+            _host.ProfileValidator = validator;
+
+            var cheat = Join(name: "Bob", profile: new PlayerProgress { Level = 99 });
+            Assert.That(cheat.Client.State, Is.Not.EqualTo(CoopClientState.Playing), "refused");
+            Assert.That(cheat.Client.EndReason, Does.Contain("cannot be real"));
+
+            var ann = Join(name: "Ann", profile: new PlayerProgress { Level = 9 });
+            Assert.That(World.LevelOf(ann.World.PlayerId), Is.EqualTo(5), "capped by the game");
+
+            ann.Client.Leave();
+            Pump();
+            var again = Join(name: "Ann", profile: new PlayerProgress { Level = 40 });
+            Assert.That(World.LevelOf(again.World.PlayerId), Is.EqualTo(5), "she continues with what she left with");
+            Assert.That(validator.Checked, Is.EqualTo(new[] { "Bob", "Ann" }), "her second profile was never taken");
+        }
+
+        [Test]
+        public void LatestState_DropsALatePacket_AndTheFinalOneArrives()
+        {
+            var guest = Join();
+            var seen = new List<int>();
+            guest.Client.OnLatest<SeedMessage>(m => seen.Add(m.Seed));
+
+            _host.SendLatestToAll(new SeedMessage { Seed = 1 });
+            _host.SendLatestToAll(new SeedMessage { Seed = 2 });
+            Pump();
+            // A packet from before the last one, arriving late over the unreliable channel
+            _host.Send(guest.World.PlayerId, new SeedMessage { Seed = 0, Timestamp = 1 }, reliable: false);
+            _host.SendLatestToAll(new SeedMessage { Seed = 3 }, final: true);
+            Pump();
+
+            Assert.That(seen, Is.EqualTo(new[] { 1, 2, 3 }));
+        }
+
+        [Test]
         public void PerPlayer_AFriendBringsTheirGold_SeesIt_AndBuysThroughTheHost()
         {
             PlayWith(() =>

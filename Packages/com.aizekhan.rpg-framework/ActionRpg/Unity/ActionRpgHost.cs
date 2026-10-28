@@ -249,6 +249,11 @@ namespace RPGFramework.ActionRpg
         public string JoinCode { get; private set; } = "";
 
         /// <summary>
+        /// Other codes that reach this game (the host's VPN addresses, a second network); empty when there is one.
+        /// </summary>
+        public IReadOnlyList<string> OtherJoinCodes { get; private set; } = Array.Empty<string>();
+
+        /// <summary>
         /// The latest co-op news for the player ("The host left the game.").
         /// </summary>
         public string CoopStatus { get; private set; } = "";
@@ -584,6 +589,7 @@ namespace RPGFramework.ActionRpg
             KeepRunningInBackground();
             OnCoopHostOpened(_coopHost);
             JoinCode = session.JoinCode;
+            OtherJoinCodes = session.OtherJoinCodes;
             CoopStatus = $"Hosting: friends join with {JoinCode}";
             Host.Logger.LogInfo(CoopStatus, Category);
         }
@@ -800,6 +806,7 @@ namespace RPGFramework.ActionRpg
             (_transport as IDisposable)?.Dispose();
             _transport = null;
             JoinCode = "";
+            OtherJoinCodes = Array.Empty<string>();
         }
 
         private void OnJoined()
