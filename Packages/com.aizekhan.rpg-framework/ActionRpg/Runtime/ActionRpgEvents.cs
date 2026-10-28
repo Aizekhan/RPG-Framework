@@ -42,18 +42,26 @@ namespace RPGFramework.ActionRpg
     /// </summary>
     public readonly struct ActorKilledEvent : IEvent
     {
-        public ActorKilledEvent(int entityId, string characterId, int killerId, bool byPlayer)
+        public ActorKilledEvent(int entityId, string characterId, int killerId, bool byPlayer, AttackContext context = default)
         {
             EntityId = entityId;
             CharacterId = characterId;
             KillerId = killerId;
             ByPlayer = byPlayer;
+            Context = context;
         }
 
         public int EntityId { get; }
         public string CharacterId { get; }
         public int KillerId { get; }
         public bool ByPlayer { get; }
+
+        /// <summary>
+        /// The hit that killed: its tags and source, and whether an effect dealt it (a poison kill has
+        /// <c>FromEffect</c> and <c>SourceId == ActorEffects.SourceIdOf("poison")</c>). Default when the character
+        /// was killed without a hit (a rule calling the life states directly).
+        /// </summary>
+        public AttackContext Context { get; }
     }
 
     /// <summary>

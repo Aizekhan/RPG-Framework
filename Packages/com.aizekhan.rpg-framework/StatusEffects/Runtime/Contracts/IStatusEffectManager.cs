@@ -30,6 +30,17 @@ namespace RPGFramework.StatusEffects
         bool ApplyEffect(int entityId, string effectId, string sourceId, float currentTime);
 
         /// <summary>
+        /// Apply a status effect with a strength and a duration of this application's own (a poison that a
+        /// stronger trap doubles, a shield that lasts as long as the pickup says).
+        /// </summary>
+        /// <param name="power">How many times its modifiers count: Add values are multiplied by it, Multiply
+        /// values raised to it (0.8 slow at power 2 is 0.64), Overrides and controls stay as they are. Applied
+        /// again, the stronger power stays.</param>
+        /// <param name="duration">Seconds it lasts (-1 = until removed); null uses the duration of the effect.
+        /// Applied again, the duration starts over with the new value.</param>
+        bool ApplyEffect(int entityId, string effectId, string sourceId, float currentTime, float power, float? duration = null);
+
+        /// <summary>
         /// Remove a specific effect from an entity.
         /// </summary>
         /// <param name="entityId">Target entity</param>

@@ -104,6 +104,56 @@ namespace RPGFramework.ActionRpg.Tests
         }
 
         [Test]
+        public void Apply_WithPowerAndDuration_AndTheKillSaysItWasThePoison()
+        {
+            StartGame();
+            var killed = new List<ActorKilledEvent>();
+            _host.Container.Resolve<IEventBus>().Subscribe<ActorKilledEvent>(killed.Add);
+            int weak = World.SpawnEnemy(Goblin);
+            int strong = World.SpawnEnemy(Goblin);
+
+            Assert.That(World.Effects.Apply(weak, Poison, World.PlayerId, power: 2f, duration: 2.5f), Is.True);
+            Assert.That(World.Effects.Apply(strong, Poison, World.PlayerId, power: 4f), Is.True);
+            Tick(3.05f);
+
+            Assert.That(World.Get(weak).Health, Is.EqualTo(14f), "2 ticks of 8, then it ran out");
+            Assert.That(World.EffectsOn(weak), Is.Empty);
+            Assert.That(World.Get(strong), Is.Null, "2 ticks of 16");
+            var kill = killed.Single();
+            Assert.That(kill.EntityId, Is.EqualTo(strong));
+            Assert.That(kill.Context.FromEffect, Is.True);
+            Assert.That(kill.Context.SourceId, Is.EqualTo(ActorEffects.SourceIdOf(Poison)));
+        }
+
+        [Test]
+        public void Pause_StopsEffectsAndTheirTime_UntilTheLastReasonIsLifted()
+        {
+            StartGame();
+            var pause = _host.Container.Resolve<RPGFramework.Systems.IGamePause>();
+            var paused = new List<RPGFramework.Systems.GamePausedEvent>();
+            _host.Container.Resolve<IEventBus>().Subscribe<RPGFramework.Systems.GamePausedEvent>(paused.Add);
+            int goblin = World.SpawnEnemy(Goblin);
+            World.Effects.Apply(goblin, Poison, World.PlayerId);
+
+            Assert.That(pause.Pause("vote"), Is.True);
+            Assert.That(pause.Pause("menu"), Is.True);
+            Assert.That(World.IsPaused, Is.True);
+            Tick(5f);
+            Assert.That(World.Get(goblin).Health, Is.EqualTo(30f), "no poison ticks while paused");
+            Assert.That(World.Effects.Time, Is.EqualTo(0f));
+
+            pause.Resume("vote");
+            Tick(2f);
+            Assert.That(World.Get(goblin).Health, Is.EqualTo(30f), "the menu still pauses it");
+
+            pause.Resume("menu");
+            Assert.That(World.IsPaused, Is.False);
+            Tick(1.05f);
+            Assert.That(World.Get(goblin).Health, Is.EqualTo(26f));
+            Assert.That(paused.Select(p => p.Reason), Is.EqualTo(new[] { "vote" }), "one pause, however many reasons");
+        }
+
+        [Test]
         public void Buff_ChangesTheStat_AndRunsOut()
         {
             StartGame();

@@ -443,11 +443,12 @@ namespace RPGFramework.GameKit.Editor
         // Checked in order; a line reports the first that matches. Weighted picks only count in files that roll dice.
         private static readonly (Regex Pattern, bool NeedsRandom, string Found, string Use)[] ModuleBypasses =
         {
-            (new Regex(@"\.Next(Double|Single|Float)?\s*\([^;]*(gold|coin|money|currenc|cash|gem|silver)", RegexOptions.IgnoreCase), false,
+            (new Regex(@"\.Next(Double|Single|Float)?\s*\((?:[^;()]|\([^;()]*\))*(gold|coin|money|currenc|cash|gem|silver)|\.Next(Double|Single|Float)?\s*\(\s*\)\s*\*[^;<>=]*(gold|coin|money|currenc|cash|gem|silver)",
+                    RegexOptions.IgnoreCase), false,
                 "a random amount of currency",
                 "a loot table entry for the currency with its quantity range (Loot Table asset or LootTableBuilder; " +
                 "ILootGenerator rolls it, the action RPG kit pays it into ICurrencyWallet)"),
-            (new Regex(@"\bWeighted\w*\.(Pick|Roll|Choose|Select|Random)\w*\s*\(|(roll|total|sum|cumulative|acc|pick)\w*\s*(\+=|-=)\s*[\w.\[\]()]*weight\b|\.Next(Double|Single|Float)?\s*\([^;]*weight",
+            (new Regex(@"\bWeighted\w*\.(Pick|Roll|Choose|Select|Random)\w*\s*\(|(roll|total|sum|cumulative|acc|pick)\w*\s*(\+=|-=)\s*[\w.\[\]()]*weight\b|\.Next(Double|Single|Float)?\s*\((?:[^;()]|\([^;()]*\))*weight|\.Next(Double|Single|Float)?\s*\(\s*\)\s*\*[^;<>=]*weight",
                     RegexOptions.IgnoreCase), true,
                 "a hand-made weighted pick",
                 "an ILootTable (Loot Table asset or LootTableBuilder) rolled by ILootGenerator: weights, chances, " +
@@ -492,9 +493,9 @@ namespace RPGFramework.GameKit.Editor
                     {
                         if (Declaration.IsMatch(code))
                         {
-                            // The marker sits above the type, possibly above its attributes
+                            // The marker sits above the type, possibly above its doc comment and attributes
                             int above = number - 1;
-                            while (above >= 1 && raw[above - 1].Trim().StartsWith("[", StringComparison.Ordinal))
+                            while (above >= 1 && AboveDeclaration(raw[above - 1]))
                                 above--;
                             typeMarked = MarkedAt(above) || MarkedAt(above - 1);
                         }
@@ -514,6 +515,14 @@ namespace RPGFramework.GameKit.Editor
                     }
                 }
             }
+        }
+
+        // Lines between a type and the marker above it: attributes, its doc comment, blank lines
+        private static bool AboveDeclaration(string line)
+        {
+            string trimmed = line.Trim();
+            return trimmed.Length == 0 || trimmed.StartsWith("[", StringComparison.Ordinal)
+                   || trimmed.StartsWith("///", StringComparison.Ordinal);
         }
 
         private static ArchitectureViolation CoreServiceViolation(string file, int number, string found, string use) =>

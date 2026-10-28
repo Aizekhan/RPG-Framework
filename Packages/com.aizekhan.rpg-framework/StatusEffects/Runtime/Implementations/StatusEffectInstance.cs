@@ -12,6 +12,7 @@ namespace RPGFramework.StatusEffects
         public int CurrentStacks { get; private set; }
         public string SourceId { get; }
         public float LastTickTime { get; private set; }
+        public float Power { get; private set; } = 1f;
         public bool IsExpired => RemainingDuration <= 0f && RemainingDuration != -1f;
 
         private readonly IStatusEffect _effect;
@@ -38,6 +39,7 @@ namespace RPGFramework.StatusEffects
             RemainingDuration = data.RemainingDuration;
             CurrentStacks = data.CurrentStacks;
             LastTickTime = data.LastTickTime;
+            Power = data.Power > 0f ? data.Power : 1f;
         }
 
         public void Update(float deltaTime)
@@ -65,6 +67,14 @@ namespace RPGFramework.StatusEffects
             RemainingDuration = newDuration;
         }
 
+        /// <summary>
+        /// Sets how strong it is (above 0; anything else counts as 1).
+        /// </summary>
+        public void SetPower(float power)
+        {
+            Power = power > 0f && !float.IsInfinity(power) ? power : 1f;
+        }
+
         public bool ShouldTick(float currentTime)
         {
             if (_effect.TickInterval <= 0f)
@@ -88,7 +98,8 @@ namespace RPGFramework.StatusEffects
                 RemainingDuration = RemainingDuration,
                 CurrentStacks = CurrentStacks,
                 SourceId = SourceId,
-                LastTickTime = LastTickTime
+                LastTickTime = LastTickTime,
+                Power = Power
             };
         }
     }

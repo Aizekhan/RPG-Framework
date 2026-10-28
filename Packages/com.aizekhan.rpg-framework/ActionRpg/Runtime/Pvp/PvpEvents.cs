@@ -1,3 +1,4 @@
+using RPGFramework.Combat;
 using RPGFramework.Events;
 
 namespace RPGFramework.ActionRpg
@@ -7,16 +8,22 @@ namespace RPGFramework.ActionRpg
     /// </summary>
     public readonly struct PlayerDefeatedEvent : IEvent
     {
-        public PlayerDefeatedEvent(int playerId, int killerId, bool byPlayer)
+        public PlayerDefeatedEvent(int playerId, int killerId, bool byPlayer, AttackContext context = default)
         {
             PlayerId = playerId;
             KillerId = killerId;
             ByPlayer = byPlayer;
+            Context = context;
         }
 
         public int PlayerId { get; }
         public int KillerId { get; }
         public bool ByPlayer { get; }
+
+        /// <summary>
+        /// The hit that brought them down (see <see cref="ActorKilledEvent.Context"/>).
+        /// </summary>
+        public AttackContext Context { get; }
     }
 
     /// <summary>

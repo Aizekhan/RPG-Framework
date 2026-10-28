@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using RPGFramework.ECS;
 
@@ -113,6 +114,54 @@ namespace RPGFramework.StatusEffects.Tests
         }
 
         [Test]
+        public void Power_ScalesModifiersLikeStacks_AndDurationOverridesTheAuthoredOne()
+        {
+            _manager.RegisterEffect(Effect("might", 10f,
+                Mod(ModifierType.Stat, "AttackPower", 5f, ModifierOperation.Add),
+                Mod(ModifierType.Stat, "Defense", 0.9f, ModifierOperation.Multiply)));
+
+            Assert.That(_manager.ApplyEffect(_entity, "might", "caster", 0f, power: 2f, duration: 3f), Is.True);
+
+            var instance = _manager.GetActiveEffects(_entity).Single();
+            Assert.That(instance.Power, Is.EqualTo(2f));
+            Assert.That(instance.RemainingDuration, Is.EqualTo(3f));
+            Assert.That(_target.Stats[StatusEffectManager.StatModifierId("might", 0)].Value, Is.EqualTo(10f));
+            Assert.That(_target.Stats[StatusEffectManager.StatModifierId("might", 1)].Value, Is.EqualTo(0.81f).Within(1e-5f));
+
+            _manager.UpdateEffects(_entity, 3f);
+            Assert.That(_target.Stats, Is.Empty, "it lasted 3 seconds, not the authored 10");
+        }
+
+        [Test]
+        public void Power_ReapplyingKeepsTheStronger_AndThePlainApplyIsPowerOne()
+        {
+            _manager.RegisterEffect(Effect("might", 10f, Mod(ModifierType.Stat, "AttackPower", 5f, ModifierOperation.Add)));
+
+            _manager.ApplyEffect(_entity, "might", "caster", 0f);
+            Assert.That(_manager.GetActiveEffects(_entity).Single().Power, Is.EqualTo(1f));
+
+            _manager.ApplyEffect(_entity, "might", "caster", 0f, power: 3f);
+            _manager.ApplyEffect(_entity, "might", "caster", 0f, power: 0.5f, duration: 4f);
+
+            var instance = _manager.GetActiveEffects(_entity).Single();
+            Assert.That(instance.Power, Is.EqualTo(3f));
+            Assert.That(instance.RemainingDuration, Is.EqualTo(4f), "the new application sets how long it lasts");
+            Assert.That(_target.Stats[StatusEffectManager.StatModifierId("might", 0)].Value, Is.EqualTo(15f));
+        }
+
+        [Test]
+        public void Power_InvalidValuesCountAsOne_AndAnInvalidDurationThrows()
+        {
+            _manager.RegisterEffect(Effect("might", 10f, Mod(ModifierType.Stat, "AttackPower", 5f, ModifierOperation.Add)));
+
+            _manager.ApplyEffect(_entity, "might", "caster", 0f, power: float.NaN);
+
+            Assert.That(_manager.GetActiveEffects(_entity).Single().Power, Is.EqualTo(1f));
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                _manager.ApplyEffect(_entity, "might", "caster", 0f, 1f, float.PositiveInfinity));
+        }
+
+        [Test]
         public void RemoveAllEffects_TakesOffEveryStatModifier()
         {
             _manager.RegisterEffect(Effect("a", 10f, Mod(ModifierType.Stat, "AttackPower", 5f, ModifierOperation.Add)));
@@ -160,6 +209,18 @@ namespace RPGFramework.StatusEffects.Tests
 
             _manager.ProcessTicks(_entity, 1f);
             Assert.That(_target.Resources["Mana"], Is.EqualTo(92f));
+        }
+
+        [Test]
+        public void ResourceAdd_ScalesWithPower()
+        {
+            RegisterTicking("drain", 1f, Mod(ModifierType.Resource, "Mana", -4f, ModifierOperation.Add));
+            _target.Resources["Mana"] = 100f;
+            _manager.ApplyEffect(_entity, "drain", "caster", 0f, power: 2.5f);
+
+            _manager.ProcessTicks(_entity, 1f);
+
+            Assert.That(_target.Resources["Mana"], Is.EqualTo(90f));
         }
 
         [Test]

@@ -11,6 +11,7 @@ using RPGFramework.Logging;
 using RPGFramework.Loot;
 using RPGFramework.Progression;
 using RPGFramework.Quests;
+using RPGFramework.Systems;
 using RPGFramework.Trading;
 
 namespace RPGFramework.ActionRpg
@@ -52,6 +53,8 @@ namespace RPGFramework.ActionRpg
         private readonly Dictionary<int, IInventoryContainer<IItem>> _inventories = new Dictionary<int, IInventoryContainer<IItem>>();
         private readonly Dictionary<int, int> _kills = new Dictionary<int, int>();
         private readonly List<string> _log = new List<string>();
+        // The hit that brought a character to 0, until its death is handled
+        private readonly Dictionary<int, AttackContext> _killingHits = new Dictionary<int, AttackContext>();
         private readonly SubscriptionBag _subscriptions = new SubscriptionBag();
 
         public ActorWorld(ActionRpgSettings settings, IEntityManager entities, ILifeStateManager lifeStates,
@@ -516,7 +519,12 @@ namespace RPGFramework.ActionRpg
             float dealt = target.ApplyDamage(damage * share);
             _bus.Publish(new ActorDamagedEvent(target.EntityId, context.AttackerId, dealt, target.Health, context));
             if (target.Health <= 0f)
+            {
+                _killingHits[target.EntityId] = context;
                 _lifeStates.Kill(target.EntityId, context.AttackerId, context.FromEffect ? "effect" : "slain");
+                // The death is handled during Kill; a refused kill (invulnerable) leaves nothing behind
+                _killingHits.Remove(target.EntityId);
+            }
             return dealt;
         }
 
@@ -711,6 +719,8 @@ namespace RPGFramework.ActionRpg
 
         private void OnDeath(DeathEvent death)
         {
+            _killingHits.TryGetValue(death.EntityId, out var killingHit);
+            _killingHits.Remove(death.EntityId);
             var victim = Get(death.EntityId);
             if (victim == null)
                 return;
@@ -721,7 +731,7 @@ namespace RPGFramework.ActionRpg
                 bool byPlayer = killer != null && killer.IsPlayer && killer != victim;
                 if (!byPlayer)
                     Write($"{victim.DisplayName} falls");
-                _bus.Publish(new PlayerDefeatedEvent(victim.EntityId, death.KillerEntityId, byPlayer));
+                _bus.Publish(new PlayerDefeatedEvent(victim.EntityId, death.KillerEntityId, byPlayer, killingHit));
                 return;
             }
 
@@ -730,7 +740,7 @@ namespace RPGFramework.ActionRpg
             int owner = byParty ? ProgressOwnerOf(death.KillerEntityId) : PlayerId;
             if (byParty || _settings.ProgressMode == ProgressMode.Shared)
                 _kills[owner] = KillsOf(owner) + 1;
-            _bus.Publish(new ActorKilledEvent(victim.EntityId, victim.CharacterId, death.KillerEntityId, byParty));
+            _bus.Publish(new ActorKilledEvent(victim.EntityId, victim.CharacterId, death.KillerEntityId, byParty, killingHit));
             Remove(death.EntityId);
             if (!byParty)
                 return;
@@ -934,6 +944,14 @@ namespace RPGFramework.ActionRpg
         /// the game adds). The game's rules react to <see cref="InteractedEvent"/>; the host measures the distance.
         /// </summary>
         public IInteractionService Interactions { get; internal set; }
+
+        /// <summary>
+        /// The game's pause (set by the module): a rule pauses with <c>GamePause.Pause("vote")</c> and lifts it with
+        /// <c>Resume("vote")</c>; systems then tick with no time passing.
+        /// </summary>
+        public IGamePause GamePause { get; internal set; }
+
+        public bool IsPaused => GamePause?.IsPaused == true;
 
         public InteractionPoint NearestInteraction => IsStarted ? Interactions.NearestFor(PlayerId) : null;
 

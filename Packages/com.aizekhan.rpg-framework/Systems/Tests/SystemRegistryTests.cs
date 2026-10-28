@@ -542,6 +542,66 @@ namespace RPGFramework.Systems.Tests
         }
 
         [Test]
+        public void Paused_SystemsStillTick_WithNoTimePassing()
+        {
+            var ticks = new List<float>();
+            var registry = new SystemRegistry();
+            registry.Register(new DeltaSystem(ticks));
+            var pause = new GamePause();
+            var world = new World("W", new EntityManager(), registry, pause);
+            world.Initialize();
+
+            world.Update(0.5f);
+            pause.Pause("vote");
+            world.Update(0.5f);
+            pause.Resume("vote");
+            world.Update(0.25f);
+
+            Assert.That(ticks, Is.EqualTo(new[] { 0.5f, 0f, 0.25f }));
+            Assert.That(world.Time, Is.EqualTo(0.75).Within(1e-9));
+            Assert.That(world.FrameCount, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void GamePause_CountsReasons_AndAnnouncesOnlyTheEdges()
+        {
+            var log = new List<string>();
+            var bus = new EventBus();
+            bus.Subscribe<GamePausedEvent>(e => log.Add("paused:" + e.Reason));
+            bus.Subscribe<GameResumedEvent>(e => log.Add("resumed:" + e.Reason));
+            var pause = new GamePause(bus);
+
+            Assert.That(pause.Pause("vote"), Is.True);
+            Assert.That(pause.Pause("vote"), Is.False);
+            Assert.That(pause.Pause("menu"), Is.True);
+            Assert.That(pause.Resume("vote"), Is.True);
+            Assert.That(pause.Resume("vote"), Is.False);
+            Assert.That(pause.IsPaused, Is.True);
+            Assert.That(pause.Resume("menu"), Is.True);
+            pause.Pause("cutscene");
+            pause.Pause("menu");
+            pause.ResumeAll();
+
+            Assert.That(pause.IsPaused, Is.False);
+            Assert.That(pause.Reasons, Is.Empty);
+            Assert.That(log, Is.EqualTo(new[] { "paused:vote", "resumed:menu", "paused:cutscene", "resumed:" }),
+                "ResumeAll lifts no single reason");
+            Assert.Throws<ArgumentException>(() => pause.Pause(" "));
+            bus.Dispose();
+        }
+
+        private sealed class DeltaSystem : IUpdateSystem
+        {
+            private readonly List<float> _ticks;
+
+            public DeltaSystem(List<float> ticks) => _ticks = ticks;
+
+            public void Initialize() { }
+            public void Update(float deltaTime) => _ticks.Add(deltaTime);
+            public void Dispose() { }
+        }
+
+        [Test]
         public void SeveralWorlds_AreIndependent()
         {
             var log = new List<string>();

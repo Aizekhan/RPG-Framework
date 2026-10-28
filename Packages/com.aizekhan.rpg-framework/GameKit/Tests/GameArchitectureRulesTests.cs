@@ -360,6 +360,33 @@ namespace RPGFramework.GameKit.Tests
         }
 
         [Test]
+        public void GA14_AMarkerAboveTheDocComment_Counts_AndAChanceIsNotAnAmount()
+        {
+            // MythRunner: the marker sat above the type's summary; NextDouble() < CoinChance only asks whether coins drop
+            var file = Source("Run.cs", string.Join("\n",
+                "// framework-gap: fg-13",
+                "/// <summary>",
+                "/// Rewinds the run.",
+                "/// </summary>",
+                "[Serializable]",
+                "sealed class Rewind {",
+                "  void Tick(float dt) { _left -= dt; }",
+                "}",
+                "class Drops {",
+                "  bool A() => random.NextDouble() < plan.CoinChance;",
+                "  void B() => _gold += _random.Next(GoldMin, GoldMax);",
+                "  void C() => _gold += (int)(_random.NextDouble() * maxGold);",
+                "  void D() => _gold += _random.Next(0, (int)plan.MaxGold);",
+                "  bool E() => _random.NextDouble() <= dropWeight;",
+                "}"));
+            var game = Game(Assembly("Game.Core", GameAssemblyKind.Rules, noEngine: true, sources: new[] { file }));
+
+            var violations = GameArchitectureRules.GameUsesGameplayModules(game).ToList();
+
+            Assert.That(violations.Select(v => v.Where.Split(':').Last()), Is.EqualTo(new[] { "11", "12", "13" }));
+        }
+
+        [Test]
         public void GA13_TheFrameworksOwnActionRpgViews_UseTheCoreServices()
         {
             // The action RPG views are what games copy: they hold to the rule they teach

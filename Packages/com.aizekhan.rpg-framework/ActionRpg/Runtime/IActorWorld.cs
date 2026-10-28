@@ -113,5 +113,11 @@ namespace RPGFramework.ActionRpg
         /// </summary>
         /// <returns>False when it was refused here; a client cannot know yet and returns true once sent.</returns>
         bool Interact(string pointId = null);
+
+        /// <summary>
+        /// A rule paused the game (<c>IGamePause</c>; on a co-op client, the host's): the kit's controls and enemy
+        /// brains stand still until it resumes.
+        /// </summary>
+        bool IsPaused { get; }
     }
 }

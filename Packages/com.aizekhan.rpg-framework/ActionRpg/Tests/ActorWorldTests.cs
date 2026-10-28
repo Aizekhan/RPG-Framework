@@ -160,12 +160,17 @@ namespace RPGFramework.ActionRpg.Tests
             _host.Container.Resolve<IEventBus>().Subscribe<ActorKilledEvent>(killed.Add);
             int goblin = World.SpawnEnemy(Goblin);
 
-            Slay(goblin);
+            var axe = new AttackContext(tags: 4, sourceId: 9);
+            for (int round = 0; round < 50 && World.Get(goblin) != null; round++)
+                World.Attack(World.PlayerId, goblin, axe);
 
             Assert.That(killed.Count, Is.EqualTo(1));
             Assert.That(killed[0].EntityId, Is.EqualTo(goblin));
             Assert.That(killed[0].CharacterId, Is.EqualTo(Goblin));
             Assert.That(killed[0].ByPlayer, Is.True);
+            Assert.That(killed[0].Context.SourceId, Is.EqualTo(9), "the blow that killed: the axe");
+            Assert.That(killed[0].Context.HasAll(4), Is.True);
+            Assert.That(killed[0].Context.FromEffect, Is.False);
         }
 
         [Test]

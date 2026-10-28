@@ -32,8 +32,9 @@ namespace RPGFramework.Systems
     {
         private readonly ILogger _logger;
 
-        public World(string name, IEntityManager entities, ISystemRegistry systems, ILogger logger = null)
+        public World(string name, IEntityManager entities, ISystemRegistry systems, ILogger logger = null, IGamePause pause = null)
         {
+            Pause = pause;
             if (string.IsNullOrWhiteSpace(name))
                 throw new ArgumentException("World name is required", nameof(name));
             Name = name;
@@ -54,6 +55,13 @@ namespace RPGFramework.Systems
 
         public long FrameCount { get; private set; }
 
+        /// <summary>
+        /// While it is paused the systems are ticked with a delta of 0 (time stands still, events still flow).
+        /// </summary>
+        public IGamePause Pause { get; }
+
+        private float Scaled(float deltaTime) => Pause != null && Pause.IsPaused ? 0f : deltaTime;
+
         public void Initialize()
         {
             switch (State)
@@ -73,6 +81,7 @@ namespace RPGFramework.Systems
         {
             if (!CanTick())
                 return;
+            deltaTime = Scaled(deltaTime);
             Time += deltaTime;
             FrameCount++;
             Systems.Update(deltaTime);
@@ -81,13 +90,13 @@ namespace RPGFramework.Systems
         public void FixedUpdate(float fixedDeltaTime)
         {
             if (CanTick())
-                Systems.FixedUpdate(fixedDeltaTime);
+                Systems.FixedUpdate(Scaled(fixedDeltaTime));
         }
 
         public void LateUpdate(float deltaTime)
         {
             if (CanTick())
-                Systems.LateUpdate(deltaTime);
+                Systems.LateUpdate(Scaled(deltaTime));
         }
 
         public void Dispose()

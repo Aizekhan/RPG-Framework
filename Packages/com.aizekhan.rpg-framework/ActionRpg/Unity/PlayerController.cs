@@ -78,7 +78,8 @@ namespace RPGFramework.ActionRpg
         protected virtual void Update()
         {
             var player = Actor;
-            if (player == null)
+            // A paused game: the player stands where they are
+            if (player == null || World.IsPaused)
                 return;
 
             if (!player.IsAlive())

@@ -59,7 +59,7 @@ namespace RPGFramework.ActionRpg.Coop
         /// <summary>
         /// Changes whenever the messages change, so older and newer builds refuse each other instead of misreading.
         /// </summary>
-        public const int Version = 11;
+        public const int Version = 12;
 
         public const int DefaultPort = 7777;
         public const int DefaultMaxPlayers = 4;
@@ -676,6 +676,11 @@ namespace RPGFramework.ActionRpg.Coop
         /// </summary>
         public PvpStatus Pvp;
 
+        /// <summary>
+        /// The host's game is paused (<see cref="ActorWorld.IsPaused"/>): friends' characters stand still too.
+        /// </summary>
+        public bool Paused;
+
         public static PartyStatus Of(ActorWorld world) => Of(world, world.PlayerId);
 
         /// <summary>
@@ -689,7 +694,7 @@ namespace RPGFramework.ActionRpg.Coop
             {
                 Level = world.LevelOf(playerId), TotalExperience = world.ExperienceOf(playerId),
                 ExperienceForNextLevel = world.ExperienceForNextLevelOf(playerId), Kills = world.KillsOf(playerId),
-                Wave = world.CurrentWave
+                Wave = world.CurrentWave, Paused = world.IsPaused
             };
             status.Items.AddRange(world.InventoryOf(playerId).GetAllItems().Where(i => i != null).Select(i => i.ItemId));
             status.Currencies.AddRange(world.Wallet.BalancesOf(world.ProgressOwnerOf(playerId)).Where(b => b.Value > 0)
@@ -744,6 +749,7 @@ namespace RPGFramework.ActionRpg.Coop
             WriteStrings(writer, Log);
             writer.Write(Pvp != null);
             Pvp?.Write(writer);
+            writer.Write(Paused);
         }
 
         public void Read(BinaryReader reader)
@@ -773,6 +779,7 @@ namespace RPGFramework.ActionRpg.Coop
                 Pvp = new PvpStatus();
                 Pvp.Read(reader, CoopProtocol.ReadCount);
             }
+            Paused = reader.ReadBoolean();
         }
 
         private static void WriteStrings(BinaryWriter writer, List<string> values)

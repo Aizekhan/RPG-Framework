@@ -15,6 +15,7 @@ using RPGFramework.Loot;
 using RPGFramework.Progression;
 using RPGFramework.Quests;
 using RPGFramework.StatusEffects;
+using RPGFramework.Systems;
 using RPGFramework.Trading;
 
 namespace RPGFramework.ActionRpg
@@ -124,6 +125,7 @@ namespace RPGFramework.ActionRpg
             World = Container.Resolve<ActorWorld>();
             World.Trading = Container.Resolve<ITradingManager>();
             World.Interactions = Container.Resolve<IInteractionService>();
+            World.GamePause = Container.Resolve<IGamePause>();
             if (InteractionDistance != null)
                 World.Interactions.Distance = InteractionDistance;
             Pvp = Container.Resolve<PvpMatch>();

@@ -85,11 +85,15 @@ namespace RPGFramework.Bootstrap
                 MaxConsecutiveErrors = _options.MaxConsecutiveSystemErrors
             });
 
+            // A rule pauses the game's time through it (a vote, a cutscene, a menu)
+            Container.RegisterFactory<IGamePause>(c => new GamePause(c.Resolve<IEventPublisher>()));
+
             Container.RegisterFactory<IWorld>(c => new World(
                 _options.WorldName,
                 c.Resolve<IEntityManager>(),
                 c.Resolve<ISystemRegistry>(),
-                c.Resolve<ILogger>()));
+                c.Resolve<ILogger>(),
+                c.Resolve<IGamePause>()));
         }
 
         public override void Initialize()

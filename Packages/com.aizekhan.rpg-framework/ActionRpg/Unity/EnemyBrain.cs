@@ -27,7 +27,7 @@ namespace RPGFramework.ActionRpg
         protected virtual void Update()
         {
             var self = Actor;
-            if (self == null || !self.IsAlive() || self.IsStunned || !TryFindNearestPlayer(out int target, out var playerPosition))
+            if (self == null || World.IsPaused || !self.IsAlive() || self.IsStunned || !TryFindNearestPlayer(out int target, out var playerPosition))
                 return;
 
             var toPlayer = Flat(playerPosition - transform.position);

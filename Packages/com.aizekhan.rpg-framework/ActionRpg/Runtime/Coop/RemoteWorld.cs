@@ -156,6 +156,8 @@ namespace RPGFramework.ActionRpg.Coop
 
         public IInteractionService Interactions => _places;
 
+        public bool IsPaused => IsStarted && _party.Paused;
+
         public InteractionPoint NearestInteraction => IsStarted ? _places.NearestFor(PlayerId) : null;
 
         /// <summary>

@@ -31,6 +31,11 @@ namespace RPGFramework.StatusEffects
         int CurrentStacks { get; }
 
         /// <summary>
+        /// How strong it is: its modifiers count this many times (1 = as authored, 2 = a doubled poison).
+        /// </summary>
+        float Power { get; }
+
+        /// <summary>
         /// Entity or source that applied this effect.
         /// </summary>
         string SourceId { get; }

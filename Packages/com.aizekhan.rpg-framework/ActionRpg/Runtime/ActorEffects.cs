@@ -182,6 +182,21 @@ namespace RPGFramework.ActionRpg
             return _manager.ApplyEffect(targetId, effectId, sourceId.ToString(CultureInfo.InvariantCulture), Time);
         }
 
+        /// <summary>
+        /// Puts an effect on a living character with a strength and a duration of this application's own: a trap's
+        /// poison twice as strong (<paramref name="power"/> 2 doubles its damage per tick and its flat stat changes),
+        /// a shield that lasts as long as the pickup says. Applied again, the stronger power stays and the time
+        /// starts over.
+        /// </summary>
+        /// <param name="duration">Seconds (-1 = until removed); null keeps the duration of the effect.</param>
+        public bool Apply(int targetId, string effectId, int sourceId, float power, float? duration = null)
+        {
+            var target = _world.Get(targetId);
+            if (target == null || !target.IsAlive() || string.IsNullOrEmpty(effectId))
+                return false;
+            return _manager.ApplyEffect(targetId, effectId, sourceId.ToString(CultureInfo.InvariantCulture), Time, power, duration);
+        }
+
         public bool Remove(int targetId, string effectId) => _manager.RemoveEffect(targetId, effectId);
 
         public bool Has(int targetId, string effectId) => _manager.HasEffect(targetId, effectId);

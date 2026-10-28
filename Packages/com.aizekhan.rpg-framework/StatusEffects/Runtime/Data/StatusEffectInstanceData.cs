@@ -17,6 +17,11 @@ namespace RPGFramework.StatusEffects
         public float LastTickTime;
 
         /// <summary>
+        /// How strong this application is (1 = as authored; 0 in data saved before it existed counts as 1).
+        /// </summary>
+        public float Power;
+
+        /// <summary>
         /// Create a new StatusEffectInstanceData.
         /// </summary>
         public static StatusEffectInstanceData Create(string effectId, int entityId, float duration, string sourceId, float currentTime)
@@ -29,7 +34,8 @@ namespace RPGFramework.StatusEffects
                 RemainingDuration = duration,
                 CurrentStacks = 1,
                 SourceId = sourceId,
-                LastTickTime = currentTime
+                LastTickTime = currentTime,
+                Power = 1f
             };
         }
     }

@@ -68,10 +68,16 @@ namespace RPGFramework.StatusEffects
             return RegisterEffect(new StatusEffect(data));
         }
 
-        public bool ApplyEffect(int entityId, string effectId, string sourceId, float currentTime)
+        public bool ApplyEffect(int entityId, string effectId, string sourceId, float currentTime) =>
+            ApplyEffect(entityId, effectId, sourceId, currentTime, 1f);
+
+        public bool ApplyEffect(int entityId, string effectId, string sourceId, float currentTime, float power, float? duration = null)
         {
-            if (!_effectRegistry.TryGetValue(effectId, out var effect))
+            if (effectId == null || !_effectRegistry.TryGetValue(effectId, out var effect))
                 return false;
+            if (duration.HasValue && (float.IsNaN(duration.Value) || float.IsInfinity(duration.Value)))
+                throw new ArgumentOutOfRangeException(nameof(duration), duration, "A duration is seconds, or -1 for until removed");
+            float lasts = duration ?? effect.Duration;
 
             if (!_entityManager.TryGetComponent<ActiveEffectsData>(entityId, out var activeEffects))
             {
@@ -87,33 +93,37 @@ namespace RPGFramework.StatusEffects
             {
                 instance = new StatusEffectInstance(existingEffect.Value, effect);
                 int stacksBefore = instance.CurrentStacks;
+                float powerBefore = instance.Power;
 
-                // Stackable effects gain a stack; either way the duration starts over
+                // Stackable effects gain a stack; either way the duration starts over, and the stronger power stays
                 if (effect.IsStackable)
                     instance.AddStack();
-                instance.Refresh(effect.Duration);
+                instance.Refresh(lasts);
+                instance.SetPower(Math.Max(powerBefore, power > 0f ? power : 1f));
 
                 activeEffects.RemoveEffect(effectId);
                 activeEffects.AddEffect(instance.ToData());
                 _entityManager.AddComponent(entityId, activeEffects);
 
-                if (instance.CurrentStacks != stacksBefore)
+                if (instance.CurrentStacks != stacksBefore || instance.Power != powerBefore)
                 {
                     RemoveStatModifiers(entityId, effect);
-                    ApplyStatModifiers(entityId, effect, instance.CurrentStacks);
+                    ApplyStatModifiers(entityId, effect, instance.CurrentStacks, instance.Power);
                 }
             }
             else
             {
                 instance = new StatusEffectInstance(effect, entityId, sourceId, currentTime);
+                instance.Refresh(lasts);
+                instance.SetPower(power);
                 activeEffects.AddEffect(instance.ToData());
                 _entityManager.AddComponent(entityId, activeEffects);
-                ApplyStatModifiers(entityId, effect, instance.CurrentStacks);
+                ApplyStatModifiers(entityId, effect, instance.CurrentStacks, instance.Power);
             }
 
             // Effects that never tick change their resources once per application
             if (effect.TickInterval <= 0f)
-                ApplyResourceChanges(entityId, effect, 1);
+                ApplyResourceChanges(entityId, effect, 1, instance.Power);
 
             NotifyMovementAndControls(entityId, before);
             _events?.Publish(new EffectAppliedEvent(entityId, effectId, sourceId, currentTime, instance.CurrentStacks));
@@ -277,14 +287,14 @@ namespace RPGFramework.StatusEffects
             float multiplied = 1f;
             float? overridden = null;
 
-            foreach (var (effect, stacks) in ActiveDefinitions(entityId))
+            foreach (var (effect, stacks, power) in ActiveDefinitions(entityId))
             {
                 foreach (var modifier in effect.Modifiers)
                 {
                     if (modifier.Type != ModifierType.Movement)
                         continue;
 
-                    float value = StackedValue(modifier, stacks);
+                    float value = StackedValue(modifier, stacks, power);
                     switch (modifier.Operation)
                     {
                         case ModifierOperation.Add:
@@ -319,7 +329,7 @@ namespace RPGFramework.StatusEffects
         public IReadOnlyCollection<string> GetActiveControls(int entityId)
         {
             var controls = new HashSet<string>();
-            foreach (var (effect, _) in ActiveDefinitions(entityId))
+            foreach (var (effect, _, _) in ActiveDefinitions(entityId))
             {
                 foreach (var modifier in effect.Modifiers)
                 {
@@ -368,17 +378,17 @@ namespace RPGFramework.StatusEffects
                         if (modifier.Type == ModifierType.Damage)
                         {
                             // Damage is how far the value goes down
-                            if (TryGetChange(entityId, modifier, instance.CurrentStacks, -1f, out float change))
+                            if (TryGetChange(entityId, modifier, instance.CurrentStacks, instance.Power, -1f, out float change))
                                 totalDamage += Math.Max(0f, -change);
                         }
                         else if (modifier.Type == ModifierType.Healing)
                         {
-                            if (TryGetChange(entityId, modifier, instance.CurrentStacks, 1f, out float change))
+                            if (TryGetChange(entityId, modifier, instance.CurrentStacks, instance.Power, 1f, out float change))
                                 totalHealing += Math.Max(0f, change);
                         }
                     }
 
-                    ApplyResourceChanges(entityId, effect, instance.CurrentStacks);
+                    ApplyResourceChanges(entityId, effect, instance.CurrentStacks, instance.Power);
 
                     if (totalDamage > 0f || totalHealing > 0f)
                     {
@@ -410,9 +420,10 @@ namespace RPGFramework.StatusEffects
         // ---- What effects hand to the target ----
 
         // Add values grow with each stack, Multiply values compound, an Override is the same at any stack count
-        private static float StackedValue(IEffectModifier modifier, int stacks)
+        private static float StackedValue(IEffectModifier modifier, int stacks, float power)
         {
-            int count = Math.Max(1, stacks);
+            // The power counts like stacks: 2 doubles an Add value and squares a Multiply value
+            float count = Math.Max(1, stacks) * (power > 0f ? power : 1f);
             switch (modifier.Operation)
             {
                 case ModifierOperation.Add:
@@ -427,24 +438,24 @@ namespace RPGFramework.StatusEffects
         // How much one application of the modifier changes its TargetId. addSign turns a flat Add amount into a
         // change (damage amounts go down, healing and resources as authored). Multiply and Override need the
         // current value from the target.
-        private bool TryGetChange(int entityId, IEffectModifier modifier, int stacks, float addSign, out float change)
+        private bool TryGetChange(int entityId, IEffectModifier modifier, int stacks, float power, float addSign, out float change)
         {
             change = 0f;
             if (modifier.Operation == ModifierOperation.Add)
             {
-                change = addSign * StackedValue(modifier, stacks);
+                change = addSign * StackedValue(modifier, stacks, power);
                 return true;
             }
 
             if (_target == null || !_target.TryGetResource(entityId, modifier.TargetId, out float current))
                 return false;
 
-            change = StackedValue(modifier, stacks) * (modifier.Operation == ModifierOperation.Multiply ? current : 1f)
+            change = StackedValue(modifier, stacks, power) * (modifier.Operation == ModifierOperation.Multiply ? current : 1f)
                      - current;
             return true;
         }
 
-        private void ApplyResourceChanges(int entityId, IStatusEffect effect, int stacks)
+        private void ApplyResourceChanges(int entityId, IStatusEffect effect, int stacks, float power)
         {
             if (_target == null)
                 return;
@@ -454,12 +465,12 @@ namespace RPGFramework.StatusEffects
                 if (modifier.Type != ModifierType.Resource)
                     continue;
 
-                if (TryGetChange(entityId, modifier, stacks, 1f, out float change) && change != 0f)
+                if (TryGetChange(entityId, modifier, stacks, power, 1f, out float change) && change != 0f)
                     _target.ChangeResource(entityId, modifier.TargetId, change);
             }
         }
 
-        private void ApplyStatModifiers(int entityId, IStatusEffect effect, int stacks)
+        private void ApplyStatModifiers(int entityId, IStatusEffect effect, int stacks, float power)
         {
             if (_target == null)
                 return;
@@ -470,7 +481,7 @@ namespace RPGFramework.StatusEffects
                 if (modifier.Type == ModifierType.Stat)
                 {
                     _target.ApplyStatModifier(entityId, StatModifierId(effect.Id, i), modifier.TargetId,
-                        modifier.Operation, StackedValue(modifier, stacks));
+                        modifier.Operation, StackedValue(modifier, stacks, power));
                 }
             }
         }
@@ -487,7 +498,7 @@ namespace RPGFramework.StatusEffects
             }
         }
 
-        private IEnumerable<(IStatusEffect effect, int stacks)> ActiveDefinitions(int entityId)
+        private IEnumerable<(IStatusEffect effect, int stacks, float power)> ActiveDefinitions(int entityId)
         {
             if (!_entityManager.TryGetComponent<ActiveEffectsData>(entityId, out var activeEffects)
                 || activeEffects.ActiveInstances == null)
@@ -496,7 +507,7 @@ namespace RPGFramework.StatusEffects
             foreach (var instance in activeEffects.ActiveInstances)
             {
                 if (_effectRegistry.TryGetValue(instance.EffectId, out var effect))
-                    yield return (effect, instance.CurrentStacks);
+                    yield return (effect, instance.CurrentStacks, instance.Power > 0f ? instance.Power : 1f);
             }
         }
 
