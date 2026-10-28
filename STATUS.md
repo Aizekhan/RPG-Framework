@@ -1,6 +1,6 @@
 # RPG Framework - Project Status
 
-**Last Updated:** 2026-10-27
+**Last Updated:** 2026-10-28
 **Repository:** https://github.com/Aizekhan/RPG-Framework (public, MIT)
 **Branch:** main (force-push and deletion blocked)
 **Unity:** 6000.0.45f1 · Unity CLI 1.0.0-beta.14
@@ -11,6 +11,7 @@
 
 | Gate | Result | SHA |
 |---|---|---|
+| **MythRunner audit fixes** (unreleased, on `main`): game CI fails without licence secrets and on 0 EditMode tests, New Game player settings (run in background, Linear, company), LFS `.gitattributes`, gap review after updates (`679b29d`); GA14 + currency wallet + Trading as a shop + `AbilityDistance` / `ResolveTarget` (`4eee717`); gold and shops in the action RPG kit, protocol v10 (`4730935`); `PlayerRejoined`, `IGuestProfileValidator`, `SendLatestToAll`/`OnLatest`, `LocalAddresses` (`f9a43dd`). EditMode in the verify worktree | ✅ **1829 / 1829** (`D:/RPG-Results/edit-f9a43dd.xml`; earlier steps 1791/1792 at `679b29d` with only the known flaky `AMovementFrame_AllocatesNothing`, 1818/1818 at `4eee717`, 1825/1825 at `4730935`). Meta check 0 problems. PlayMode **12 / 12** (`D:/RPG-Results/play-558e8d9.xml`) | `f9a43dd` (docs on top: `558e8d9`) |
 | **Release `v0.5.1`** (tag on `157a68e`, GitHub release): CI green (run `40549188071`) | ✅ | `157a68e` |
 | **Co-op across scene changes** (`ActionRpgHost.ChangeScene`, `CoopSceneMessage`, protocol v9, pools survive scene loads) + Game Setup progress mode and `ConfigureSettings`: EditMode / PlayMode in the verify worktree | ✅ **1790 / 1790** (`7bbc287`), **12 / 12** (`e67e640`, incl. a hub → run change with a friend over UDP and pooled objects across a scene load). `EcsPerformanceTests.AMovementFrame_AllocatesNothing` failed once at `189eccb` and passed at `7bbc287` (flaky, untouched code). CI green (run `40542922481`) | `e67e640` |
 | **MythRunner gaps FG-01..FG-08** (attack context, status effects and abilities in the action RPG kit, speed boosts, owner-decided defence, game messages over co-op, respawn points, ally revive, per-player progress and backpacks), EditMode in the verify worktree | ✅ **1788 / 1788 passed** (`D:/RPG-Results/edit-96bf79d.xml`) | `96bf79d` |
@@ -150,7 +151,8 @@ Checked before moving the old plans to `Docs/archive/` (2026-10-26). Ideas that 
 
 **Low**
 - Dialogue: `ConditionType.Custom` always fails (no game hook in `IDialogueContext`); `ItemOwned` ignores the quantity; several active dialogues on one entity act on the first
-- Abilities: a channel lands once (no per-tick effect, no end event); no upkeep for toggles; range is enforced only with a `distanceCheck`; `CanMoveWhileCasting` is left to the game
+- Abilities: a channel lands once (no per-tick effect, no end event); no upkeep for toggles; `CanMoveWhileCasting` is left to the game; charges (`MaxCharges`) are uses until `RestoreCharge`, they do not refill over time. (Range is now measured in kit games through `ActionRpgHost.AbilityDistance`.)
+- MythRunner audit, not done yet (need the owner's go, each is a new system): **FG-10** an interaction module (places with a radius, nearest place per player, a prompt, `InteractedEvent`); **FG-12** UI panels that build themselves without prefabs (stats from `StatContainer<TStat>`, equipment slots from the game's list, `ItemSlotUI` with an icon function) and `INavigationService` in the kit; a test for "module added but unused" (e.g. `LootModule` with no loot table) is not written: GA14 catches the hand-made loot instead; `SendLatestToAll` sends whole messages (no `DeltaCompression` on top yet)
 - `EcsPerformanceTests.AMovementFrame_AllocatesNothing` failed once locally with an allocation, then passed twice: noisy, watch it
 - Modules without tests: Editor (Tools and DeltaCompression got tests in `c685e43`)
 - Crafting and Persistence deliver their events as C# `event`s, not on the bus
@@ -159,6 +161,8 @@ Checked before moving the old plans to `Docs/archive/` (2026-10-26). Ideas that 
 - CI: the license file is bound to another machine, so GameCI falls back to email/password activation (works)
 
 ## Next steps
+
+**2026-10-28: MythRunner audit** (feedback from the game, priority 3 → 1 → 2 → 4 → 5). Done on `main`, not released: item 3 (CI, project settings, LFS, gap review), item 1 (GA14, wallet, Trading as a shop, gold in the kit, recipe 16), item 2 (ability distance and target hooks, recipe 17), item 4 (rejoin ids, profile check, latest-state channel), FG-11. Open: FG-10, FG-12 (ask the owner), release as **0.6.0** (co-op protocol v10, GA14 will fail MythRunner's current rules until they move to the modules or record gaps) on the owner's yes.
 
 Agreed with the user (2026-10-26, 2026-10-27): the plan is finished and released as **v0.3.0**; the next step is the owner's own game on top of the framework (a roguelike is a candidate). **Licence decided (2026-10-27): the framework stays MIT**, so 1.0 is no longer blocked. Order agreed: close the API-breaking gaps (0.4.0) → 1.0 prep (public API review, CONTRIBUTING, issue templates, stable-API note) → tag 1.0 only on the owner's explicit yes.
 1. ~~Network reliability (co-op stage 3)~~ done (`555f079`). Still open: the live Relay test across two networks when the owner provides a UGS project (host creates → friend joins by code → both see and interact → disconnect handled); no host migration (by design for now).
