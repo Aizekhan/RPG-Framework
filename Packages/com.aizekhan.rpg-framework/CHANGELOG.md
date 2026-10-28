@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-28
+
 ### Added
 - **Audio module** (`RPGFramework.Audio`, MythRunner FG-21):
   - `IAudioService` / `AudioService`: cues (`AudioCueData`) with clip variants (never the same twice running), a volume and pitch spread, 2D or 3D (`AudioPosition`), `MaxVoices` and `MinInterval` per cue; `Play(cueId, position)`, `Voices`, `StopAll`; `On<TEvent>(cueId, at, when)` and `On<TEvent>(cueOf, at)` to play from bus events; music with crossfades (`PlayMusic(trackId, fade)`, `StopMusic`); volume channels (`AudioChannels`: master, music, sfx, ui, or the game's own), kept in an `IVolumeStore`.
