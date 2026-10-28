@@ -34,6 +34,8 @@ namespace RPGFramework.Audio
         public override bool Equals(object obj) => obj is AudioPosition other && Equals(other);
         public override int GetHashCode() => (X, Y, Z).GetHashCode();
         public override string ToString() => $"({X}, {Y}, {Z})";
+        public static bool operator ==(AudioPosition a, AudioPosition b) => a.Equals(b);
+        public static bool operator !=(AudioPosition a, AudioPosition b) => !a.Equals(b);
     }
 
     /// <summary>

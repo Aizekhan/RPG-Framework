@@ -6,6 +6,7 @@ using RPGFramework.Bootstrap;
 using RPGFramework.Events;
 using RPGFramework.Logging;
 using UnityEngine;
+using Logger = RPGFramework.Logging.Logger;
 
 namespace RPGFramework.Audio.Tests
 {
