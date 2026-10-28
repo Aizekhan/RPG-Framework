@@ -132,6 +132,8 @@ namespace RPGFramework.ActionRpg.Coop
                 progress.ActiveQuests.Add(copy);
             }
             progress.CompletedQuests.AddRange(_party.CompletedQuests);
+            progress.Gear.AddRange(_party.Gear.Select(g => new GearRecord { Loadout = g.Loadout, SlotId = g.SlotId, ItemId = g.ItemId }));
+            progress.Loadout = _party.Loadout ?? "";
             return progress;
         }
 
@@ -157,6 +159,45 @@ namespace RPGFramework.ActionRpg.Coop
         public IInteractionService Interactions => _places;
 
         public bool IsPaused => IsStarted && _party.Paused;
+
+        public string Loadout => _party.Loadout ?? "";
+
+        /// <summary>
+        /// What the host last reported this player wears in the slot.
+        /// </summary>
+        public IItem WornIn(string slotId)
+        {
+            string loadout = Loadout;
+            var record = _party.Gear.FirstOrDefault(g => g.SlotId == slotId && (g.Loadout ?? "") == loadout);
+            return record != null ? _content.Items.FirstOrDefault(i => i != null && i.ItemId == record.ItemId) : null;
+        }
+
+        /// <summary>
+        /// Asks the host to put the item on; refused here only when the backpack the host reported does not have it.
+        /// </summary>
+        public bool Equip(string itemId, string slotId = null)
+        {
+            if (!IsStarted || string.IsNullOrEmpty(itemId) || !_party.Items.Contains(itemId))
+                return false;
+            _send(new CoopIntentMessage { Kind = CoopIntentMessage.IntentKind.Equip, ItemId = itemId, SlotId = slotId ?? "" });
+            return true;
+        }
+
+        public bool Unequip(string slotId)
+        {
+            if (!IsStarted || WornIn(slotId) == null)
+                return false;
+            _send(new CoopIntentMessage { Kind = CoopIntentMessage.IntentKind.Unequip, SlotId = slotId });
+            return true;
+        }
+
+        public bool UseLoadout(string loadout)
+        {
+            if (!IsStarted || loadout == null)
+                return false;
+            _send(new CoopIntentMessage { Kind = CoopIntentMessage.IntentKind.UseLoadout, Loadout = loadout });
+            return true;
+        }
 
         public InteractionPoint NearestInteraction => IsStarted ? _places.NearestFor(PlayerId) : null;
 

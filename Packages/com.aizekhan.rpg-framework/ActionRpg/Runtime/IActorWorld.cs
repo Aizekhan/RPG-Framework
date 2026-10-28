@@ -119,5 +119,33 @@ namespace RPGFramework.ActionRpg
         /// brains stand still until it resumes.
         /// </summary>
         bool IsPaused { get; }
+
+        /// <summary>
+        /// The set this machine's player wears (<see cref="ActorGear.UseLoadout"/>; "" for the default).
+        /// </summary>
+        string Loadout { get; }
+
+        /// <summary>
+        /// What this machine's player wears in a slot of <see cref="ActionRpgSettings.GearSlots"/>, or null.
+        /// </summary>
+        IItem WornIn(string slotId);
+
+        /// <summary>
+        /// This machine's player puts an item from their backpack on (in a slot, or the first that takes it). On a
+        /// co-op client it is sent to the host.
+        /// </summary>
+        /// <returns>False when it was refused here; a client cannot know yet and returns true once sent.</returns>
+        bool Equip(string itemId, string slotId = null);
+
+        /// <summary>
+        /// This machine's player takes off what is in a slot (back to the backpack). On a co-op client it is sent
+        /// to the host.
+        /// </summary>
+        bool Unequip(string slotId);
+
+        /// <summary>
+        /// This machine's player wears another of their sets (another hero). On a co-op client it is sent to the host.
+        /// </summary>
+        bool UseLoadout(string loadout);
     }
 }

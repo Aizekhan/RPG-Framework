@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using RPGFramework.Items;
 using RPGFramework.Quests;
 using RPGFramework.Tools.ItemDatabaseManager;
 using RPGFramework.Tools.LootTableDesigner;
@@ -47,6 +48,11 @@ namespace RPGFramework.ActionRpg
         [Tooltip("0 = different every run; any other number repeats loot and waves exactly")]
         [SerializeField] private int _seed;
 
+        [Header("Gear")]
+        [Tooltip("Where players wear items. An Equipment item goes in the slots whose Kind is its Equipment Slot; " +
+                 "its stat modifiers are its bonuses. Empty: the game has no gear.")]
+        [SerializeField] private List<GearSlot> _gearSlots = new List<GearSlot>();
+
         [Header("Co-op progress")]
         [Tooltip("Shared: the party has one level, backpack and quests. Per Player: each player has their own, brought from their save and taken home")]
         [SerializeField] private ProgressMode _progressMode = ProgressMode.Shared;
@@ -67,6 +73,11 @@ namespace RPGFramework.ActionRpg
         public Vector3 CameraOffset => _cameraOffset;
         public PvpSetup Pvp => _pvp ?? (_pvp = new PvpSetup());
         public List<ItemAsset> Items => _items;
+
+        /// <summary>
+        /// Where players wear items (<see cref="ActionRpgSettings.GearSlots"/>).
+        /// </summary>
+        public List<GearSlot> GearSlots => _gearSlots;
         public List<LootTableAsset> LootTables => _lootTables;
         public List<QuestAsset> StartingQuests => _startingQuests;
         public List<QuestAsset> OtherQuests => _otherQuests;
@@ -124,6 +135,7 @@ namespace RPGFramework.ActionRpg
             };
             settings.Enemies.AddRange(_enemies.Where(e => e != null).Select(e => e.ToData()));
             settings.StartingQuests.AddRange(_startingQuests.Where(q => q != null).Select(q => q.questId));
+            settings.GearSlots.AddRange(_gearSlots.Where(s => s != null).Select(s => new GearSlot(s.Id, string.IsNullOrEmpty(s.Kind) ? s.Id : s.Kind, s.DisplayName)));
             return settings;
         }
 
@@ -131,6 +143,16 @@ namespace RPGFramework.ActionRpg
         {
             var content = new ActionRpgContent();
             content.Items.AddRange(_items.Where(i => i != null).Distinct().Select(i => i.ToItem()));
+            if (_gearSlots.Count > 0)
+            {
+                foreach (var item in _items.Where(i => i != null && i.itemType == ItemType.Equipment && !string.IsNullOrEmpty(i.equipmentSlot)).Distinct())
+                {
+                    var gear = new GearData(item.itemId, item.equipmentSlot) { MinimumLevel = item.requiredLevel };
+                    gear.Bonuses.AddRange((item.statModifiers ?? new ItemStatModifierEntry[0]).Where(m => m != null)
+                        .Select(m => new GearBonus(m.statName, m.value)));
+                    content.Gear.Add(gear);
+                }
+            }
 
             var tables = _lootTables.Concat(Characters.Select(c => c.Loot)).Where(t => t != null).Distinct();
             content.LootTables.AddRange(tables.Select(t => t.ToLootTable()));

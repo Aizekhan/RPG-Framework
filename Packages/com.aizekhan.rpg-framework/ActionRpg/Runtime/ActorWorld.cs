@@ -74,9 +74,25 @@ namespace RPGFramework.ActionRpg
             _logger = logger;
             Wallet = wallet ?? new CurrencyWallet(bus);
             Interactions = new InteractionService(bus);
+            Gear = new ActorGear(this, settings.GearSlots, bus);
             _random = settings.Seed != 0 ? new Random(settings.Seed) : new Random();
             Hostility = HostilityRules.For(settings);
         }
+
+        /// <summary>
+        /// What the players wear: slots, items, bonuses and sets per hero (<see cref="ActorGear"/>).
+        /// </summary>
+        public ActorGear Gear { get; }
+
+        public string Loadout => Gear.LoadoutOf(PlayerId);
+
+        public IItem WornIn(string slotId) => Gear.WornIn(PlayerId, slotId);
+
+        public bool Equip(string itemId, string slotId = null) => IsStarted && Gear.Equip(PlayerId, itemId, slotId);
+
+        public bool Unequip(string slotId) => IsStarted && Gear.Unequip(PlayerId, slotId);
+
+        public bool UseLoadout(string loadout) => IsStarted && Gear.UseLoadout(PlayerId, loadout);
 
         /// <summary>
         /// Who may attack whom (<see cref="HostilityRules.For"/> the settings).
@@ -412,6 +428,8 @@ namespace RPGFramework.ActionRpg
             var player = Get(playerId);
             if (player == null || !_party.Contains(playerId))
                 return false;
+            // Worn items go back into the backpack the party shares, or leave with the player
+            Gear.Forget(playerId, backToBackpack: _settings.ProgressMode != ProgressMode.PerPlayer);
             _party.Remove(playerId);
             _inventories.Remove(playerId);
             _kills.Remove(playerId);
@@ -577,6 +595,8 @@ namespace RPGFramework.ActionRpg
                 progress.ActiveQuests.Add(record);
             }
             progress.CompletedQuests.AddRange(_quests.GetCompletedQuests(owner));
+            progress.Gear.AddRange(Gear.RecordsOf(playerId));
+            progress.Loadout = Gear.LoadoutOf(playerId);
             return progress;
         }
 
@@ -634,6 +654,7 @@ namespace RPGFramework.ActionRpg
                     else if (!inventory.Add(item))
                         break;
                 }
+                Gear.Restore(playerId, progress.Gear, progress.Loadout);
 
                 var completed = _quests.GetCompletedQuests(owner);
                 foreach (var questId in progress.CompletedQuests ?? new List<string>())

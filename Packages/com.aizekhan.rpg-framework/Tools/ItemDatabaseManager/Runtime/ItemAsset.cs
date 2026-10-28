@@ -52,6 +52,10 @@ namespace RPGFramework.Tools.ItemDatabaseManager
         [Tooltip("Stat modifiers (for Equipment type)")]
         public ItemStatModifierEntry[] statModifiers = new ItemStatModifierEntry[0];
 
+        [Tooltip("Level a character needs to wear it (for Equipment type; 0 = any)")]
+        [Min(0)]
+        public int requiredLevel;
+
         [Header("Consumable Properties")]
         [Tooltip("What using it does: the effect id your game's effect system knows (for Consumable type)")]
         public string effectId = "default_effect";

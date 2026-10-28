@@ -769,6 +769,15 @@ namespace RPGFramework.ActionRpg.Coop
                     // The host measures how near the player is, as for its own player
                     _world.Interact(guest.PlayerId, string.IsNullOrEmpty(intent.PointId) ? null : intent.PointId);
                     break;
+                case CoopIntentMessage.IntentKind.Equip:
+                    _world.Gear.Equip(guest.PlayerId, intent.ItemId, string.IsNullOrEmpty(intent.SlotId) ? null : intent.SlotId);
+                    break;
+                case CoopIntentMessage.IntentKind.Unequip:
+                    _world.Gear.Unequip(guest.PlayerId, intent.SlotId);
+                    break;
+                case CoopIntentMessage.IntentKind.UseLoadout:
+                    _world.Gear.UseLoadout(guest.PlayerId, intent.Loadout ?? "");
+                    break;
             }
         }
 
@@ -1015,8 +1024,10 @@ namespace RPGFramework.ActionRpg.Coop
                     message.States.Add(state);
                 }
 
-                // Shared progress is the same for everyone; progress of their own is each player's
-                var status = _world.ProgressMode == ProgressMode.PerPlayer ? PartyStatus.Of(_world, guest.PlayerId) : null;
+                // Shared progress is the same for everyone; progress of their own, and what they wear, is each player's
+                var status = _world.ProgressMode == ProgressMode.PerPlayer || _world.Gear.Slots.Count > 0
+                    ? PartyStatus.Of(_world, guest.PlayerId)
+                    : null;
                 byte[] bytes;
                 if (status != null)
                     bytes = status.ToBytes();

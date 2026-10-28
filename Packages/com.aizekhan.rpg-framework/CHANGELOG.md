@@ -2,11 +2,14 @@
 
 ## [Unreleased]
 
+**Co-op protocol version 14**: 0.9.0 builds are refused.
+
 ### Added
+- **Gear in the action RPG kit** (MythRunner FG-17): `ActionRpgSettings.GearSlots` (`GearSlot`: id and kind, so two ring slots both take rings), `ActionRpgContent.Gear` (`GearData`: item, kind, minimum level, `GearBonus` stats), `World.Gear` (`ActorGear`: `Equip`, `Unequip`, `WornIn`, `WornBy`, `BonusesOf`, `UseLoadout`, `LoadoutsOf`). An item goes on from the backpack and comes back off into it (all or nothing); bonuses on the kit's stats (MaxHealth, Attack, Defense) change the character, others are the game's to read from `BonusesOf`. A player keeps a set per hero (`UseLoadout`), only the set in use counts. `GearChangedEvent`, `LoadoutChangedEvent`. Saved with the progress (`PlayerProgress.Gear`, `Loadout`); in co-op the host decides (`IntentKind.Equip` / `Unequip` / `UseLoadout`) and each friend gets what they wear (`PartyStatus.Gear`, `Loadout`); a friend who leaves a shared game leaves their gear in the party's backpack. `IActorWorld` has `Loadout`, `WornIn`, `Equip`, `Unequip`, `UseLoadout`. Game Setup > Gear: slots; an Equipment item asset is gear of its Equipment Slot kind, with its stat modifiers as bonuses and `Required Level`. `EquipmentSlotsPanel.Bind(world.Settings.GearSlots.Select(s => s.Id), world.WornIn)` shows it.
 - **Prices that depend on who trades** (MythRunner FG-16): `ITradePricing.GoldFor(player, trader, offer)` (a discount from a stat, a faction price), given to `TradingManager` (new last constructor parameter) or `TradingOptions.Pricing` / the container; `ITradingManager.GoldFor(player, offerId)` for price labels. Proposals, checks, payments, results and events use the player's price. In the kit: `World.TradePricing` (or an `ITradePricing` in the container) and `World.GoldFor(player, offerId)`; the price is the buying party member's even when the party's wallet pays.
 
 ### Changed
-- `ITradingManager` has `GoldFor` (a game that implements it itself adds it).
+- `ITradingManager` has `GoldFor` (a game that implements it itself adds it). `IActorWorld` has the gear members above.
 
 ## [0.9.0] - 2026-10-28
 

@@ -126,6 +126,8 @@ namespace RPGFramework.ActionRpg
             World.Trading = Container.Resolve<ITradingManager>();
             World.Interactions = Container.Resolve<IInteractionService>();
             World.GamePause = Container.Resolve<IGamePause>();
+            foreach (var gear in _content.Gear.Where(g => g != null && !string.IsNullOrEmpty(g.ItemId)))
+                World.Gear.Register(gear);
             if (Container.IsRegistered<ITradePricing>())
                 World.TradePricing = Container.Resolve<ITradePricing>();
             if (InteractionDistance != null)

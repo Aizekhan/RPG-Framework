@@ -127,6 +127,10 @@ namespace RPGFramework.ActionRpg.Tests
         // Games with status effects and abilities (PlayWithPowers)
         private bool _powers;
 
+        // Games with gear (a helm for the head)
+        private bool _gear;
+        private const string Helm = "helm";
+
         private ActionRpgContent Content()
         {
             var content = new ActionRpgContent();
@@ -142,6 +146,11 @@ namespace RPGFramework.ActionRpg.Tests
                     targetType: RPGFramework.Abilities.TargetType.Enemy));
             }
             content.Items.Add(new Item(Ear, "Goblin Ear", "Proof", ItemType.Crafting, maxStackSize: 99));
+            if (_gear)
+            {
+                content.Items.Add(new Item(Helm, "Helm", "Iron", ItemType.Equipment));
+                content.Gear.Add(new GearData(Helm, "head", new GearBonus("Defense", 10f)));
+            }
             content.LootTables.Add(LootTableBuilder.Create(Goblin, "Goblin").AddGuaranteedDrop(Ear).WithDrops(0, 0).Build());
             content.Quests.Add(new Quest(HuntQuest, "The Hunt", "Slay 2 goblins",
                 new List<IQuestObjective> { new QuestObjective("slay", ObjectiveType.Kill, Goblin, 2, "Slay goblins") },
@@ -156,6 +165,7 @@ namespace RPGFramework.ActionRpg.Tests
             _logger = new Logger(LogSeverity.Warning, new MemoryLogSink(256));
             _settings = () => Settings();
             _powers = false;
+            _gear = false;
             StartHost();
         }
 
@@ -871,6 +881,36 @@ namespace RPGFramework.ActionRpg.Tests
         {
             public override float CalculateDamage(float baseDamage, float defenseValue, RPGFramework.Combat.AttackContext context) =>
                 context.HasAny(1) ? 20f : 5f;
+        }
+
+        [Test]
+        public void AFriend_PutsGearOn_ThroughTheHost_AndSeesWhatTheyWear()
+        {
+            _gear = true;
+            PlayWith(() =>
+            {
+                var settings = Settings();
+                settings.GearSlots.Add(new GearSlot("head"));
+                return settings;
+            });
+            var guest = Join();
+            int friend = guest.World.PlayerId;
+            World.GiveItem(friend, Helm, 1);
+            Pump();
+
+            Assert.That(guest.World.Equip(Helm), Is.True);
+            Pump();
+
+            Assert.That(World.Gear.WornIn(friend, "head")?.ItemId, Is.EqualTo(Helm));
+            Assert.That(World.Get(friend).Defense, Is.EqualTo(15f));
+            Assert.That(World.WornIn("head"), Is.Null, "the host's own player wears nothing");
+            Assert.That(guest.World.WornIn("head")?.ItemId, Is.EqualTo(Helm));
+            Assert.That(guest.World.CaptureProgress().Gear.Single().ItemId, Is.EqualTo(Helm));
+
+            Assert.That(guest.World.Unequip("head"), Is.True);
+            Pump();
+            Assert.That(guest.World.WornIn("head"), Is.Null);
+            Assert.That(guest.World.Inventory.GetAllItems().Count(i => i != null && i.ItemId == Helm), Is.EqualTo(1));
         }
 
         [Test]

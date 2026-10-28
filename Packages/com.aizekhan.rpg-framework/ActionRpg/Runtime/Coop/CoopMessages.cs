@@ -59,7 +59,7 @@ namespace RPGFramework.ActionRpg.Coop
         /// <summary>
         /// Changes whenever the messages change, so older and newer builds refuse each other instead of misreading.
         /// </summary>
-        public const int Version = 13;
+        public const int Version = 14;
 
         public const int DefaultPort = 7777;
         public const int DefaultMaxPlayers = 4;
@@ -692,6 +692,12 @@ namespace RPGFramework.ActionRpg.Coop
         /// </summary>
         public bool Paused;
 
+        /// <summary>
+        /// What this player wears, every set (<see cref="ActorGear.RecordsOf"/>), and the set in use.
+        /// </summary>
+        public List<GearRecord> Gear = new List<GearRecord>();
+        public string Loadout = "";
+
         public static PartyStatus Of(ActorWorld world) => Of(world, world.PlayerId);
 
         /// <summary>
@@ -705,8 +711,9 @@ namespace RPGFramework.ActionRpg.Coop
             {
                 Level = world.LevelOf(playerId), TotalExperience = world.ExperienceOf(playerId),
                 ExperienceForNextLevel = world.ExperienceForNextLevelOf(playerId), Kills = world.KillsOf(playerId),
-                Wave = world.CurrentWave, Paused = world.IsPaused
+                Wave = world.CurrentWave, Paused = world.IsPaused, Loadout = world.Gear.LoadoutOf(playerId)
             };
+            status.Gear.AddRange(world.Gear.RecordsOf(playerId));
             status.Items.AddRange(world.InventoryOf(playerId).GetAllItems().Where(i => i != null).Select(i => i.ItemId));
             status.Currencies.AddRange(world.Wallet.BalancesOf(world.ProgressOwnerOf(playerId)).Where(b => b.Value > 0)
                 .OrderBy(b => b.Key, StringComparer.Ordinal).Select(b => new CurrencyRecord { Currency = b.Key, Amount = b.Value }));
@@ -761,6 +768,14 @@ namespace RPGFramework.ActionRpg.Coop
             writer.Write(Pvp != null);
             Pvp?.Write(writer);
             writer.Write(Paused);
+            writer.Write(Loadout ?? "");
+            writer.Write(Gear.Count);
+            foreach (var record in Gear)
+            {
+                writer.Write(record.Loadout ?? "");
+                writer.Write(record.SlotId ?? "");
+                writer.Write(record.ItemId ?? "");
+            }
         }
 
         public void Read(BinaryReader reader)
@@ -791,6 +806,11 @@ namespace RPGFramework.ActionRpg.Coop
                 Pvp.Read(reader, CoopProtocol.ReadCount);
             }
             Paused = reader.ReadBoolean();
+            Loadout = reader.ReadString();
+            int worn = CoopProtocol.ReadCount(reader);
+            Gear = new List<GearRecord>(worn);
+            for (int i = 0; i < worn; i++)
+                Gear.Add(new GearRecord { Loadout = reader.ReadString(), SlotId = reader.ReadString(), ItemId = reader.ReadString() });
         }
 
         private static void WriteStrings(BinaryWriter writer, List<string> values)
@@ -890,7 +910,22 @@ namespace RPGFramework.ActionRpg.Coop
             /// <summary>
             /// The player uses a place (<see cref="PointId"/>; empty: the nearest to them on the host).
             /// </summary>
-            Interact = 6
+            Interact = 6,
+
+            /// <summary>
+            /// The player puts an item (<see cref="ItemId"/>) on, in <see cref="SlotId"/> (empty: the first that takes it).
+            /// </summary>
+            Equip = 7,
+
+            /// <summary>
+            /// The player takes off what is in <see cref="SlotId"/>.
+            /// </summary>
+            Unequip = 8,
+
+            /// <summary>
+            /// The player wears another of their sets (<see cref="Loadout"/>).
+            /// </summary>
+            UseLoadout = 9
         }
 
         public override int MessageTypeId => CoopProtocol.IntentId;
@@ -906,6 +941,9 @@ namespace RPGFramework.ActionRpg.Coop
         public string AbilityId = "";
         public string OfferId = "";
         public string PointId = "";
+        public string ItemId = "";
+        public string SlotId = "";
+        public string Loadout = "";
 
         public void Write(BinaryWriter writer)
         {
@@ -916,6 +954,9 @@ namespace RPGFramework.ActionRpg.Coop
             writer.Write(AbilityId ?? "");
             writer.Write(OfferId ?? "");
             writer.Write(PointId ?? "");
+            writer.Write(ItemId ?? "");
+            writer.Write(SlotId ?? "");
+            writer.Write(Loadout ?? "");
         }
 
         public void Read(BinaryReader reader)
@@ -927,6 +968,9 @@ namespace RPGFramework.ActionRpg.Coop
             AbilityId = reader.ReadString();
             OfferId = reader.ReadString();
             PointId = reader.ReadString();
+            ItemId = reader.ReadString();
+            SlotId = reader.ReadString();
+            Loadout = reader.ReadString();
         }
     }
 }

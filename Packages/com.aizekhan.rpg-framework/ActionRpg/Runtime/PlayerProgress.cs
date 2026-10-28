@@ -22,6 +22,16 @@ namespace RPGFramework.ActionRpg
         /// </summary>
         public List<CurrencyRecord> Currencies { get; set; } = new List<CurrencyRecord>();
 
+        /// <summary>
+        /// What the player wears, in every set of theirs (<see cref="ActorGear"/>); not in <see cref="Items"/>.
+        /// </summary>
+        public List<GearRecord> Gear { get; set; } = new List<GearRecord>();
+
+        /// <summary>
+        /// The set the player wears (<see cref="ActorGear.UseLoadout"/>).
+        /// </summary>
+        public string Loadout { get; set; } = "";
+
         public List<QuestRecord> ActiveQuests { get; set; } = new List<QuestRecord>();
         public List<string> CompletedQuests { get; set; } = new List<string>();
     }

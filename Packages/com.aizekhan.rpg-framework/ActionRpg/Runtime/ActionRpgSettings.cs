@@ -50,6 +50,12 @@ namespace RPGFramework.ActionRpg
         public HashSet<string> Currencies { get; } = new HashSet<string> { RPGFramework.Trading.Currencies.Gold };
 
         /// <summary>
+        /// Where players wear items (a head, two weapon hands, two rings): <see cref="ActorWorld.Gear"/>. Empty: the
+        /// game has no gear.
+        /// </summary>
+        public List<GearSlot> GearSlots { get; } = new List<GearSlot>();
+
+        /// <summary>
         /// Fixed random seed (loot, wave composition); 0 picks a new one every run.
         /// </summary>
         public int Seed { get; set; }
@@ -128,6 +134,19 @@ namespace RPGFramework.ActionRpg
                     problems.Add($"Loot table '{table.TableId}' drops '{missing}', which is not an item or a currency in the setup.");
             }
 
+            var slots = GearSlots.Where(s => s != null).ToList();
+            foreach (var blank in slots.Where(s => string.IsNullOrWhiteSpace(s.Id)))
+                problems.Add($"A gear slot ('{blank.DisplayName}') has no id.");
+            foreach (var duplicate in slots.GroupBy(s => s.Id).Where(g => g.Count() > 1 && !string.IsNullOrWhiteSpace(g.Key)))
+                problems.Add($"Several gear slots use the id '{duplicate.Key}'.");
+            foreach (var gear in content.Gear.Where(g => g != null))
+            {
+                if (!items.Contains(gear.ItemId))
+                    problems.Add($"Gear '{gear.ItemId}' is not an item in the setup.");
+                else if (!slots.Any(s => s.Takes(gear)))
+                    problems.Add($"No gear slot takes '{gear.ItemId}' (kind '{gear.Kind}').");
+            }
+
             foreach (var quest in StartingQuests.Where(id => !questIds.Contains(id)))
                 problems.Add($"Starting quest '{quest}' is not in the setup.");
 
@@ -180,5 +199,11 @@ namespace RPGFramework.ActionRpg
         /// Abilities the game knows; what each does is set with <see cref="ActorAbilities.SetEffect"/>.
         /// </summary>
         public List<IAbility> Abilities { get; } = new List<IAbility>();
+
+        /// <summary>
+        /// Items that can be worn: the slot kind that takes them, their level and bonuses
+        /// (<see cref="ActionRpgSettings.GearSlots"/>).
+        /// </summary>
+        public List<GearData> Gear { get; } = new List<GearData>();
     }
 }

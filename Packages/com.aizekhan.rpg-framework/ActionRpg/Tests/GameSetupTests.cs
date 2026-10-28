@@ -78,6 +78,30 @@ namespace RPGFramework.ActionRpg.Tests
         }
 
         [Test]
+        public void GearSlots_MakeEquipmentItemsWearable_WithTheirStatModifiers()
+        {
+            var setup = GoodSetup(out _);
+            var helm = Item("helm");
+            helm.itemType = ItemType.Equipment;
+            helm.equipmentSlot = "head";
+            helm.requiredLevel = 3;
+            helm.statModifiers = new[] { new ItemStatModifierEntry { statName = "Defense", value = 4f } };
+            setup.Items.Add(helm);
+            Assert.That(setup.BuildContent().Gear, Is.Empty, "no slots: no gear");
+
+            setup.GearSlots.Add(new GearSlot("head"));
+            var gear = setup.BuildContent().Gear.Single();
+
+            Assert.That(setup.BuildSettings().GearSlots.Single().Kind, Is.EqualTo("head"));
+            Assert.That(gear.ItemId, Is.EqualTo("helm"));
+            Assert.That(gear.Kind, Is.EqualTo("head"));
+            Assert.That(gear.MinimumLevel, Is.EqualTo(3));
+            Assert.That(gear.Bonuses.Single().Stat, Is.EqualTo("Defense"));
+            Assert.That(gear.Bonuses.Single().Value, Is.EqualTo(4f));
+            Assert.That(setup.Validate(), Is.Empty);
+        }
+
+        [Test]
         public void GoodSetup_IsReadyToPlay()
         {
             var setup = GoodSetup(out _);
