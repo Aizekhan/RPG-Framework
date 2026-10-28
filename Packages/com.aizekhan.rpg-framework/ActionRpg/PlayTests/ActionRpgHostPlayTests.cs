@@ -72,6 +72,65 @@ namespace RPGFramework.ActionRpg.PlayTests
         }
 
         [UnityTest]
+        public IEnumerator ScenePlaces_AndScreensMadeInCode_Work()
+        {
+            var world = _host.World;
+            yield return WaitUntil(() => _host.Views != null && _host.Views.TryGetView(world.PlayerId, out _), "player view");
+            _host.Views.TryGetView(world.PlayerId, out var playerView);
+
+            // A chest beside the player: the host adds it to the world where it stands
+            var chest = new GameObject("chest");
+            chest.transform.position = playerView.transform.position + Vector3.right;
+            var lid = new GameObject("Lid");
+            lid.transform.SetParent(chest.transform, false);
+            chest.SetActive(false);
+            var place = chest.AddComponent<InteractionPointView>();
+            SetField(place, "_kind", "chest");
+            SetField(place, "_prompt", "Open the chest");
+            SetField(place, "_once", true);
+            SetField(place, "_shownWhileOpen", lid);
+            chest.SetActive(true);
+            var opened = new System.Collections.Generic.List<RPGFramework.Interaction.InteractedEvent>();
+            _host.Host.Container.Resolve<RPGFramework.Events.IEventBus>().Subscribe<RPGFramework.Interaction.InteractedEvent>(opened.Add);
+            yield return null;
+
+            Assert.That(world.Interactions.Get("chest"), Is.Not.Null);
+            Assert.That(world.NearestInteraction?.Prompt, Is.EqualTo("Open the chest"));
+            Assert.That(_host.CurrentWorld.Interact(), Is.True);
+            Assert.That(opened.Single().PointId, Is.EqualTo("chest"));
+            yield return null;
+            Assert.That(lid.activeSelf, Is.False, "the opened chest shows open");
+            Assert.That(world.NearestInteraction, Is.Null);
+
+            // Out of reach once it moves away; gone with its object
+            Object.Destroy(chest);
+            yield return null;
+            Assert.That(world.Interactions.Get("chest"), Is.Null);
+
+            // A screen made in code opens through the kit's navigation
+            _host.Screens.Register<RPGFramework.UI.Panels.StatListPanel>("stats", panel =>
+                panel.Bind(new (string, Func<string>)[] { ("Level", () => world.Level.ToString()) }));
+            var open = _host.Navigation.NavigateToAsync("stats");
+            yield return WaitUntil(() => open.Status != Cysharp.Threading.Tasks.UniTaskStatus.Pending, "the screen");
+            var screen = (RPGFramework.UI.Panels.StatListPanel)open.GetAwaiter().GetResult();
+            Assert.That(screen.IsVisible, Is.True);
+            Assert.That(screen.ValueAt(0), Is.EqualTo("1"));
+            Assert.That(screen.Navigation, Is.SameAs(_host.Navigation));
+            Assert.That(UnityEngine.EventSystems.EventSystem.current != null
+                        || Object.FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>() != null, Is.True, "buttons can be clicked");
+            screen.Close();
+            yield return null;
+            Assert.That(screen.IsVisible, Is.True, "the only screen: Close goes back, there is nothing before it");
+            var clear = _host.Navigation.ClearAsync();
+            yield return WaitUntil(() => clear.Status != Cysharp.Threading.Tasks.UniTaskStatus.Pending, "closing");
+            Assert.That(screen.IsVisible, Is.False);
+        }
+
+        private static void SetField(object target, string name, object value) =>
+            target.GetType().GetField(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                .SetValue(target, value);
+
+        [UnityTest]
         public IEnumerator AssetsOnlyGame_Plays()
         {
             var world = _host.World;

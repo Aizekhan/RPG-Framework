@@ -37,6 +37,9 @@
         "UniTask",
         "Unity.InputSystem",
         "UnityEngine.UI",
+        "RPGFramework.UI.Runtime",
+        "RPGFramework.UINavigation.Runtime",
+        "RPGFramework.UINavigation.Unity",
         "RPGFramework.Networking.Runtime",
         "RPGFramework.Scenes.Runtime",
         "RPGFramework.Networking.UnityTransport"

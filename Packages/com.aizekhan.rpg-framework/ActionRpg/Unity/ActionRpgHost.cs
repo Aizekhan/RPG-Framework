@@ -19,7 +19,12 @@ using RPGFramework.Progression;
 using RPGFramework.Quests;
 using RPGFramework.Scenes;
 using RPGFramework.Spawning;
+using RPGFramework.UINavigation;
+using RPGFramework.UINavigation.Unity;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.UI;
 
 namespace RPGFramework.ActionRpg
 {
@@ -85,6 +90,9 @@ namespace RPGFramework.ActionRpg
         private ActionRpgContent _content;
         private IPrefabSpawner _spawner;
         private ActorPresenter _presenter;
+        private CodeViewFactory _screens;
+        private NavigationService _navigation;
+        private InputAction _back;
         private ActionRpgSaves _saves;
 
         // A guest's own progress, loaded from the save to bring along (ProgressMode.PerPlayer)
@@ -149,6 +157,35 @@ namespace RPGFramework.ActionRpg
         /// Views of the characters (null until the game is shown).
         /// </summary>
         public IEntityViewRegistry Views => _presenter?.Views;
+
+        /// <summary>
+        /// Screens over the game (a shop, a stats page, a map, a pause menu): <c>Navigation.NavigateToAsync(id)</c>
+        /// opens one, Escape or the gamepad's East button closes the top one. Screens are made in code, registered in
+        /// <see cref="ConfigureScreens"/> (panels such as <c>StatListPanel</c> build themselves); made on first use.
+        /// </summary>
+        public INavigationService Navigation
+        {
+            get
+            {
+                if (_navigation == null)
+                    MakeScreens();
+                return _navigation;
+            }
+        }
+
+        /// <summary>
+        /// Where the game's code-made screens are registered (also after <see cref="ConfigureScreens"/>, from a module
+        /// or a scene object); made on first use, with <see cref="Navigation"/>.
+        /// </summary>
+        public CodeViewFactory Screens
+        {
+            get
+            {
+                if (_screens == null)
+                    MakeScreens();
+                return _screens;
+            }
+        }
 
         /// <summary>
         /// The player's saved progress (null when 'Save Progress' is off, the game did not start, or while joined).
@@ -384,6 +421,16 @@ namespace RPGFramework.ActionRpg
                 return float.NaN;
             float x = pose.X - point.X, y = pose.Y - point.Y, z = pose.Z - point.Z;
             return Mathf.Sqrt(x * x + y * y + z * z);
+        }
+
+        /// <summary>
+        /// Registers the game's screens, made in code with no prefab:
+        /// <c>screens.Register&lt;StatListPanel&gt;("stats", panel => panel.Bind(...))</c>. Screens with prefabs go
+        /// through a <see cref="PrefabViewFactory"/> set as <c>screens.Fallback</c>. Runs once, the first time
+        /// <see cref="Navigation"/> is used; screens read the game through <see cref="CurrentWorld"/> when they open.
+        /// </summary>
+        protected virtual void ConfigureScreens(CodeViewFactory screens)
+        {
         }
 
         /// <summary>
@@ -659,9 +706,54 @@ namespace RPGFramework.ActionRpg
             }
             base.Update();
             ShowPlaces();
+            if (_navigation != null && _back.WasPressedThisFrame())
+                CloseTopScreen();
             _coopHost?.Update(Time.unscaledDeltaTime);
             _coopClient?.Update(Time.unscaledDeltaTime);
             Autosave(Time.unscaledDeltaTime);
+        }
+
+        private void MakeScreens()
+        {
+            var canvasObject = new GameObject("Screens", typeof(Canvas), typeof(UnityEngine.UI.CanvasScaler), typeof(UnityEngine.UI.GraphicRaycaster));
+            canvasObject.transform.SetParent(transform, false);
+            var canvas = canvasObject.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 200;
+            var scaler = canvasObject.GetComponent<UnityEngine.UI.CanvasScaler>();
+            scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
+            scaler.matchWidthOrHeight = 0.5f;
+
+            _screens = new CodeViewFactory(canvasObject.transform);
+            _navigation = new NavigationService(_screens, events: Host?.Container?.Resolve<IEventBus>(), logger: Host?.Logger);
+            _screens.ViewCreated = (id, view) =>
+            {
+                if (view is RPGFramework.UI.UIViewBase panel)
+                    panel.Navigation = _navigation;
+                // Buttons on screens need an event system; a scene without one gets it here
+                if (EventSystem.current == null && FindAnyObjectByType<EventSystem>() == null)
+                {
+                    var events = new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
+                    events.transform.SetParent(transform, false);
+                }
+            };
+            _back = new InputAction("Back", InputActionType.Button);
+            _back.AddBinding("<Keyboard>/escape");
+            _back.AddBinding("<Gamepad>/buttonEast");
+            _back.Enable();
+            ConfigureScreens(_screens);
+        }
+
+        // A modal or a screen above another goes back; the last screen closes, back to the game
+        private void CloseTopScreen()
+        {
+            if (_navigation.IsBusy)
+                return;
+            if (_navigation.CanGoBack)
+                _navigation.GoBackAsync().Forget();
+            else if (_navigation.History.Count > 0)
+                _navigation.ClearAsync().Forget();
         }
 
         private void OnPlaceChanged(InteractionPointView view, bool active)
@@ -1036,6 +1128,8 @@ namespace RPGFramework.ActionRpg
                 _carried = null;
             // Save, leave and drop views first: they read the world, which the host shuts down
             HideGame();
+            _back?.Dispose();
+            _screens?.Dispose();
             base.OnDestroy();
         }
     }

@@ -25,7 +25,12 @@
         "RPGFramework.Scenes.Runtime",
         "RPGFramework.Pooling.Runtime",
         "RPGFramework.Pooling.Unity",
-        "RPGFramework.Logging.Runtime"
+        "RPGFramework.Logging.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Interaction.Runtime",
+        "RPGFramework.UI.Runtime",
+        "RPGFramework.UINavigation.Runtime",
+        "RPGFramework.UINavigation.Unity"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
