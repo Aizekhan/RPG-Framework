@@ -70,6 +70,11 @@ unity test "<path>" --mode EditMode --output "<xml>" --verbose --timeout <second
 1. Read `STATUS.md` and `HANDOFF_NEXT_CHAT.md` from project root (`D:\RPG-Framework\`)
 2. Verify current phase and active tasks
 3. When documents contradict, reconcile them BEFORE implementation
+4. Read `FRAMEWORK-GAPS.md` of every game that uses the framework (READ ONLY, never edit those repos), so gaps and bugs are seen even when a cross-session message was missed:
+   - `D:\HuntersRunner\FRAMEWORK-GAPS.md` (MythRunner)
+   - `D:\The Bloodline Hunt\FRAMEWORK-GAPS.md` (The Bloodline Hunt)
+
+   When a new game or project starts using the framework, add its `FRAMEWORK-GAPS.md` to this list.
 
 **During session:**
 - Track work with TodoWrite tool.
