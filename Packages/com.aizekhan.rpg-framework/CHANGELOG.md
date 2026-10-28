@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-10-28
+
 ### Added
 - `StatListPanel`, `EquipmentSlotsPanel` and `ActionListPanel` hang where the game says: `Anchor` (also the pivot: (0.5, 1) from the top, (0, 1) top left; centred by default) and `Offset`, in code or the inspector, before or after `Bind` (MythRunner follow-up to FG-20).
 

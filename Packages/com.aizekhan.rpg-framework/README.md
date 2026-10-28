@@ -10,11 +10,11 @@ The package needs UniTask. Add both lines to the game's `Packages/manifest.json`
 
 ```json
 "com.cysharp.unitask": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask#2.5.10",
-"com.aizekhan.rpg-framework": "https://github.com/Aizekhan/RPG-Framework.git?path=/Packages/com.aizekhan.rpg-framework#v0.11.0"
+"com.aizekhan.rpg-framework": "https://github.com/Aizekhan/RPG-Framework.git?path=/Packages/com.aizekhan.rpg-framework#v0.11.1"
 ```
 
 Input System and Test Framework come with it; if Unity asks to enable the new input backend, answer Yes (it restarts the
-editor once). Pin a tag (`#v0.11.0`) so updates are deliberate. To develop the framework and a game side by side, point the game at a
+editor once). Pin a tag (`#v0.11.1`) so updates are deliberate. To develop the framework and a game side by side, point the game at a
 local copy instead: `"com.aizekhan.rpg-framework": "file:../../RPG-Framework/Packages/com.aizekhan.rpg-framework"`.
 
 Addressables are optional: when `com.unity.addressables` is installed, `AddressablesAssetProvider` compiles automatically.
