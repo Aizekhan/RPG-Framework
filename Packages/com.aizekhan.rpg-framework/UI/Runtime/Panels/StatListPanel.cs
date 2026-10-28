@@ -9,7 +9,8 @@ namespace RPGFramework.UI.Panels
     /// <summary>
     /// A panel that builds itself: one row per stat, name on the left and value on the right, kept up to date while
     /// it is shown. Bind it to a stat container (every stat it has) or to rows of your own; no prefab or fields to
-    /// wire. Works placed in a scene or as a screen of <c>INavigationService</c> (<c>CodeViewFactory.Register</c>).
+    /// wire; sizes can be set in code (<see cref="FontSize"/>, <see cref="Width"/>). Works placed in a scene or as a
+    /// screen of <c>INavigationService</c> (<c>CodeViewFactory.Register</c>).
     /// </summary>
     public class StatListPanel : UIViewBase
     {
@@ -20,11 +21,13 @@ namespace RPGFramework.UI.Panels
 
         private sealed class Row
         {
+            public string Label;
             public Text Value;
             public Func<string> Read;
         }
 
         private readonly List<Row> _rows = new List<Row>();
+        private RectTransform _panel;
         private RectTransform _list;
         private Text _title;
         private GameObject _titleRow;
@@ -49,21 +52,32 @@ namespace RPGFramework.UI.Panels
         }
 
         /// <summary>
+        /// Sizes can change after <see cref="Bind"/>: the panel is built again with the same rows.
+        /// </summary>
+        public int FontSize
+        {
+            get => _fontSize;
+            set => Resize(ref _fontSize, Math.Max(8, value));
+        }
+
+        public float Width
+        {
+            get => _width;
+            set => Resize(ref _width, Math.Max(200f, value));
+        }
+
+        /// <summary>
         /// Rows of your own: a name and a function that reads the value ("Gold", () => world.CurrencyOf()).
         /// Replaces the rows shown before.
         /// </summary>
         public void Bind(IEnumerable<(string Label, Func<string> Value)> rows)
         {
+            var given = rows != null ? new List<(string, Func<string>)>(rows) : null;
             Build();
             for (int i = _list.childCount - 1; i >= 0; i--)
-            {
-                var child = _list.GetChild(i).gameObject;
-                if (Application.isPlaying)
-                    Destroy(child);
-                else
-                    DestroyImmediate(child);
-            }
+                UIBuilder.Discard(_list.GetChild(i).gameObject);
             _rows.Clear();
+            rows = given;
             if (rows != null)
             {
                 foreach (var (label, value) in rows)
@@ -137,14 +151,14 @@ namespace RPGFramework.UI.Panels
             UIBuilder.Sized((RectTransform)row.transform, 0f, _fontSize * 1.5f);
             UIBuilder.Label(row.transform, "Name", label, _fontSize, TextAnchor.MiddleLeft);
             var text = UIBuilder.Label(row.transform, "Value", "", _fontSize, TextAnchor.MiddleRight);
-            _rows.Add(new Row { Value = text, Read = value });
+            _rows.Add(new Row { Label = label, Value = text, Read = value });
         }
 
         private void Build()
         {
             if (_list != null)
                 return;
-            var panel = UIBuilder.Box(transform, "Panel", new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(_width, 0f), _panelColor);
+            var panel = _panel = UIBuilder.Box(transform, "Panel", new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(_width, 0f), _panelColor);
             var layout = panel.gameObject.AddComponent<VerticalLayoutGroup>();
             int padding = Mathf.RoundToInt(_fontSize * 0.8f);
             layout.padding = new RectOffset(padding, padding, padding, padding);
@@ -161,6 +175,23 @@ namespace RPGFramework.UI.Panels
             _titleRow.SetActive(false);
 
             _list = UIBuilder.List(panel, "Rows", vertical: true, spacing: _fontSize * 0.2f);
+        }
+
+        private void Resize<T>(ref T field, T value)
+        {
+            field = value;
+            if (_panel == null)
+                return;
+            var rows = new List<(string, Func<string>)>();
+            foreach (var row in _rows)
+                rows.Add((row.Label, row.Read));
+            string title = Title;
+            UIBuilder.Discard(_panel.gameObject);
+            _panel = null;
+            _list = null;
+            Bind(rows);
+            if (!string.IsNullOrEmpty(title))
+                Title = title;
         }
 
         private static string Whole<TValue>(TValue value) =>

@@ -15,7 +15,8 @@ namespace RPGFramework.UI.Tests
 {
     /// <summary>
     /// Panels that build themselves with no prefab: stats from a stat container, equipment slots from the game's
-    /// own list with icons from the game's function, and screens made in code opened through the navigation.
+    /// own list with icons from the game's function, rows with buttons of their own, sizes set in code, slots with a
+    /// caption, a count and hover, and screens made in code opened through the navigation.
     /// </summary>
     public sealed class SelfBuildingPanelsTests
     {
@@ -117,6 +118,102 @@ namespace RPGFramework.UI.Tests
 
             panel.SlotOf("charm").GetComponent<Button>().onClick.Invoke();
             Assert.That(clicked, Is.EqualTo(new[] { "charm" }));
+        }
+
+        [Test]
+        public void ActionList_RowsHaveTheirOwnButtons_ThatFollowTheGame()
+        {
+            int rank = 1;
+            long gold = 50;
+            var potion = NewSprite();
+            var panel = Panel<ActionListPanel>();
+            panel.Title = "Trainer";
+
+            panel.Bind(new[]
+            {
+                new ActionRow(() => "Strength " + rank, () => potion,
+                    new ActionButton("+", () => { rank++; gold -= 20; }, () => gold >= 20),
+                    new ActionButton(() => rank >= 3 ? "Rank up!" : "Rank up", () => rank = 1, () => rank >= 3)),
+                new ActionRow(() => "Gate", null, new ActionButton("Choose", null))
+            });
+
+            Assert.That(panel.RowCount, Is.EqualTo(2));
+            Assert.That(panel.TextAt(0), Is.EqualTo("Strength 1"));
+            Assert.That(panel.ButtonAt(0, 0).interactable, Is.True);
+            Assert.That(panel.ButtonAt(0, 1).interactable, Is.False);
+            Assert.That(panel.ButtonAt(1, 0).interactable, Is.False, "a button with nothing to do");
+            Assert.That(panel.transform.GetComponentsInChildren<Image>(true).Select(i => i.sprite), Does.Contain(potion));
+            Assert.That(panel.Title, Is.EqualTo("Trainer"));
+
+            panel.ButtonAt(0, 0).onClick.Invoke();
+            panel.ButtonAt(0, 0).onClick.Invoke();
+            Assert.That(panel.TextAt(0), Is.EqualTo("Strength 3"), "a click shows its result at once");
+            Assert.That(panel.ButtonAt(0, 0).interactable, Is.False, "10 gold left");
+            Assert.That(panel.ButtonAt(0, 1).interactable, Is.True);
+            Assert.That(panel.ButtonAt(0, 1).GetComponentInChildren<Text>().text, Is.EqualTo("Rank up!"));
+
+            gold = 100;
+            panel.Refresh();
+            Assert.That(panel.ButtonAt(0, 0).interactable, Is.True, "the game changed and the panel follows");
+
+            panel.FontSize = 30;
+            panel.Width = 900f;
+            Assert.That(panel.RowCount, Is.EqualTo(2), "built again with the same rows");
+            Assert.That(panel.TextAt(0), Is.EqualTo("Strength 3"));
+            Assert.That(panel.ButtonAt(0, 0).GetComponentInChildren<Text>().fontSize, Is.EqualTo(30));
+            Assert.That(((RectTransform)panel.transform.Find("Panel")).sizeDelta.x, Is.EqualTo(900f));
+            Assert.That(panel.transform.childCount, Is.EqualTo(1), "the old panel is gone");
+            Assert.That(panel.Title, Is.EqualTo("Trainer"));
+        }
+
+        [Test]
+        public void PanelSizes_CanBeSetInCode()
+        {
+            var stats = Panel<StatListPanel>();
+            stats.Bind(new (string, System.Func<string>)[] { ("Gold", () => "5") });
+            stats.Title = "Purse";
+            stats.FontSize = 40;
+            stats.Width = 300f;
+            Assert.That(stats.ValueAt(0), Is.EqualTo("5"));
+            Assert.That(stats.Title, Is.EqualTo("Purse"));
+            Assert.That(stats.GetComponentsInChildren<Text>(true).First(t => t.text == "Gold").fontSize, Is.EqualTo(40));
+            Assert.That(((RectTransform)stats.transform.Find("Panel")).sizeDelta.x, Is.EqualTo(300f));
+
+            var slots = Panel<EquipmentSlotsPanel>();
+            var helm = new Item("helm", "Helm", "", ItemType.Equipment);
+            slots.Bind(new[] { "head" }, slot => helm);
+            slots.SlotSize = 100f;
+            Assert.That(slots.SlotOf("head").CurrentItem, Is.SameAs(helm), "built again with the same slots");
+            Assert.That(((RectTransform)slots.SlotOf("head").transform).sizeDelta.x, Is.EqualTo(100f));
+        }
+
+        [Test]
+        public void ASlotMadeInCode_HasACaptionACount_AndHoversByItself()
+        {
+            var canvas = new GameObject("Canvas", typeof(RectTransform), typeof(Canvas));
+            _cleanup.Add(canvas);
+            var slot = ItemSlotUI.Create(canvas.transform, "Slot", 64f, caption: "Head");
+            var arrow = new Item("arrow", "Arrow", "", ItemType.Consumable);
+            var hovered = new List<IItem>();
+            int left = 0;
+            slot.OnSlotHoverEnter += hovered.Add;
+            slot.OnSlotHoverExit += () => left++;
+
+            Assert.That(slot.Caption, Is.EqualTo("Head"));
+            Assert.That(slot.transform.Find("Caption/Text").gameObject.activeSelf, Is.True);
+            slot.SetItem(arrow);
+            slot.Count = 12;
+            Assert.That(slot.transform.Find("Count").GetComponent<Text>().text, Is.EqualTo("12"));
+            slot.Count = 1;
+            Assert.That(slot.transform.Find("Count").gameObject.activeSelf, Is.False, "one is not counted");
+            slot.Caption = "";
+            Assert.That(slot.transform.Find("Caption/Text").gameObject.activeSelf, Is.False);
+
+            var pointer = new UnityEngine.EventSystems.PointerEventData(null);
+            UnityEngine.EventSystems.ExecuteEvents.Execute(slot.gameObject, pointer, UnityEngine.EventSystems.ExecuteEvents.pointerEnterHandler);
+            UnityEngine.EventSystems.ExecuteEvents.Execute(slot.gameObject, pointer, UnityEngine.EventSystems.ExecuteEvents.pointerExitHandler);
+            Assert.That(hovered, Is.EqualTo(new[] { arrow }));
+            Assert.That(left, Is.EqualTo(1));
         }
 
         [Test]

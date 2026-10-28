@@ -9,7 +9,8 @@ namespace RPGFramework.UI.Panels
     /// <summary>
     /// A panel that builds itself: one <see cref="ItemSlotUI"/> per equipment slot of the game's own list (a runner's
     /// "board" and "charm", an RPG's eight), with the slot's name and the item in it, kept up to date while shown.
-    /// No prefab or fields to wire. Works placed in a scene or as a screen of <c>INavigationService</c>.
+    /// No prefab or fields to wire; sizes can be set in code (<see cref="FontSize"/>, <see cref="SlotSize"/>,
+    /// <see cref="Width"/>). Works placed in a scene or as a screen of <c>INavigationService</c>.
     /// </summary>
     public class EquipmentSlotsPanel : UIViewBase
     {
@@ -22,6 +23,9 @@ namespace RPGFramework.UI.Panels
         private readonly Dictionary<string, ItemSlotUI> _slots = new Dictionary<string, ItemSlotUI>(StringComparer.Ordinal);
         private readonly List<string> _order = new List<string>();
         private Func<string, IItem> _itemIn;
+        private Func<IItem, Sprite> _iconOf;
+        private Func<string, string> _slotName;
+        private RectTransform _panel;
         private RectTransform _list;
         private float _sinceRefresh;
 
@@ -36,6 +40,27 @@ namespace RPGFramework.UI.Panels
         public ItemSlotUI SlotOf(string slotId) => slotId != null && _slots.TryGetValue(slotId, out var slot) ? slot : null;
 
         /// <summary>
+        /// Sizes can change after <see cref="Bind"/>: the panel is built again with the same slots.
+        /// </summary>
+        public int FontSize
+        {
+            get => _fontSize;
+            set => Resize(ref _fontSize, Math.Max(8, value));
+        }
+
+        public float SlotSize
+        {
+            get => _slotSize;
+            set => Resize(ref _slotSize, Math.Max(24f, value));
+        }
+
+        public float Width
+        {
+            get => _width;
+            set => Resize(ref _width, Math.Max(200f, value));
+        }
+
+        /// <summary>
         /// Shows these slots, in this order. Replaces the slots shown before.
         /// </summary>
         /// <param name="slots">The game's slot ids.</param>
@@ -47,20 +72,17 @@ namespace RPGFramework.UI.Panels
         {
             if (slots == null)
                 throw new ArgumentNullException(nameof(slots));
+            var given = new List<string>(slots);
             Build();
             for (int i = _list.childCount - 1; i >= 0; i--)
-            {
-                var child = _list.GetChild(i).gameObject;
-                if (Application.isPlaying)
-                    Destroy(child);
-                else
-                    DestroyImmediate(child);
-            }
+                UIBuilder.Discard(_list.GetChild(i).gameObject);
             _slots.Clear();
             _order.Clear();
             _itemIn = itemIn;
+            _iconOf = iconOf;
+            _slotName = slotName;
 
-            foreach (string id in slots)
+            foreach (string id in given)
             {
                 if (string.IsNullOrEmpty(id) || _slots.ContainsKey(id))
                     continue;
@@ -111,7 +133,7 @@ namespace RPGFramework.UI.Panels
         {
             if (_list != null)
                 return;
-            var panel = UIBuilder.Box(transform, "Panel", new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(_width, 0f), _panelColor);
+            var panel = _panel = UIBuilder.Box(transform, "Panel", new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(_width, 0f), _panelColor);
             var layout = panel.gameObject.AddComponent<VerticalLayoutGroup>();
             int padding = Mathf.RoundToInt(_fontSize * 0.8f);
             layout.padding = new RectOffset(padding, padding, padding, padding);
@@ -120,6 +142,18 @@ namespace RPGFramework.UI.Panels
             layout.childForceExpandHeight = false;
             panel.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             _list = UIBuilder.List(panel, "Slots", vertical: true, spacing: _fontSize * 0.4f);
+        }
+
+        private void Resize<T>(ref T field, T value)
+        {
+            field = value;
+            if (_panel == null)
+                return;
+            var slots = new List<string>(_order);
+            UIBuilder.Discard(_panel.gameObject);
+            _panel = null;
+            _list = null;
+            Bind(slots, _itemIn, _iconOf, _slotName);
         }
     }
 }

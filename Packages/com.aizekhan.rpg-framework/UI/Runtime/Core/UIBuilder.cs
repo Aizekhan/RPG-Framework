@@ -103,6 +103,24 @@ namespace RPGFramework.UI
         }
 
         /// <summary>
+        /// Removes a piece built here: at once in the editor, at the end of the frame while playing.
+        /// </summary>
+        public static void Discard(GameObject piece)
+        {
+            if (piece == null)
+                return;
+            if (Application.isPlaying)
+            {
+                piece.transform.SetParent(null, false);
+                Object.Destroy(piece);
+            }
+            else
+            {
+                Object.DestroyImmediate(piece);
+            }
+        }
+
+        /// <summary>
         /// A filled button with a caption.
         /// </summary>
         public static UnityEngine.UI.Button Button(Transform parent, string name, string caption, int size, Color color)
