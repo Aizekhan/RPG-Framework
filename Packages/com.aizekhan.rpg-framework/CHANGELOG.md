@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+Closes MythRunner's FG-05 and FG-13 and two GA14 false results. **Co-op protocol version 12**: 0.7.0 builds are refused.
+
+### Changed
+- `IStatusEffectManager` has `ApplyEffect(entity, effect, source, time, power, duration)` and `IStatusEffectInstance` has `Power`; `IActorWorld` has `IsPaused` (a game that implements them itself adds them). `PartyStatus` carries `Paused`.
+- `World`'s constructor takes an optional `IGamePause` last; while it is paused systems get a delta of 0 and `World.Time` stands still.
+
+### Added
+- **How strong and how long an effect is** (MythRunner FG-05): `ActorEffects.Apply(target, effect, source, power, duration)`. Power scales the effect's modifiers the way stacks do (poison of power 2 ticks twice as hard); the duration replaces the authored one for this application. Applying again keeps the stronger power and sets the new duration.
+- **What killed**: `ActorKilledEvent.Context` and `PlayerDefeatedEvent.Context` are the `AttackContext` of the killing blow, so a game tells a poison kill (`FromEffect`, `SourceId` = `ActorEffects.SourceIdOf("poison")`) from a hit (its tags and source).
+- **A pause the rules can call** (MythRunner FG-13): `IGamePause` in the core (`Pause(reason)`, `Resume(reason)`, `ResumeAll()`, `GamePausedEvent`, `GameResumedEvent`). The game runs again when no reason is left, so a menu and a vote do not undo each other. Timers, effects, cooldowns and waves stand still; `World.IsPaused` stops the kit's player controls and enemy brains, and friends in co-op stop with the host. Networking keeps running.
+
+### Fixed
+- GA14: a `// framework-gap:` marker above a type's doc comment counts (it only counted right above the declaration or its attributes).
+- GA14: a chance check such as `random.NextDouble() < plan.CoinChance` is no longer read as a random amount of gold; `Next(min, maxGold)` and `NextDouble() * maxGold` still are.
+
 ## [0.7.0] - 2026-10-28
 
 Closes MythRunner's FG-10 and FG-12. **Co-op protocol version 11**: 0.6.0 builds are refused. Install with `#v0.7.0`.

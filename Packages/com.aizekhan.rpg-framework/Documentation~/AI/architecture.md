@@ -126,5 +126,5 @@ maps each game need to its module. The rule looks for:
 | any other countdown (`_spawnIn -= dt;`) | `ITimerService.Schedule` / `Repeat` |
 
 These are heuristics, so `// architecture: allow GA14` does **not** work. The only way past is a recorded gap: a
-`// framework-gap: <id>` marker on the line, on the line above it, or above the type it is in, with its section in
+`// framework-gap: <id>` marker on the line, on the line above it, or above the type it is in (above its doc comment and attributes too), with its section in
 `FRAMEWORK-GAPS.md` (GA12). Either the module does the job, or the framework learns what it lacks.

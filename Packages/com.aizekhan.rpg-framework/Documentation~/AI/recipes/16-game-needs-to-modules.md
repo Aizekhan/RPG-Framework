@@ -13,7 +13,8 @@ one through. Core services (spawning, assets, scenes, timers, logs) are in recip
 | A shop, a merchant, selling loot | a **trader** with offers (`Trader.Create`, `TradeOffer.Create`, `SetGoldAmount(-price)`, `AddOfferedItem`) on `ITraderRegistry`; buying is `ITradingManager.Trade` (kit: `World.TakeOffer(offerId)`) | a dictionary of prices and manual item moves |
 | A quest that pays | a quest reward `RewardType.Currency` (id `gold`, amount) | granting money in a quest handler |
 | A perk, a skill, a dash, any action with a cooldown | an **ability** (Ability asset or `AbilityMetadata`, in `content.Abilities`); what it does: `ActorAbilities.SetEffect(id, effect)`; use: `World.UseAbility(id)` | a `switch` over perk ids with `_cooldowns[id] -= dt` |
-| Poison, burning, a shield, a slow, a stun, a speed boost | a **status effect** (Status Effect asset or `StatusEffectData`, in `content.StatusEffects`), `World.Effects.Apply(target, id, source)` | `_poisonLeft -= dt` and a tick counter |
+| Poison, burning, a shield, a slow, a stun, a speed boost | a **status effect** (Status Effect asset or `StatusEffectData`, in `content.StatusEffects`), `World.Effects.Apply(target, id, source)`; stronger or shorter this time: `Apply(target, id, source, power, duration)`; what killed: `ActorKilledEvent.Context` (`FromEffect`, `SourceId`) | `_poisonLeft -= dt` and a tick counter |
+| Pausing the game: a vote, a menu, a cutscene | `IGamePause.Pause(reason)` / `Resume(reason)` (systems tick with no time passing; the kit's controls and enemies stand still, co-op friends too) | a `bool _paused` checked in every rule |
 | "After 3 seconds", "every 2 seconds" | `ITimerService.Schedule` / `Repeat` / `DelayAsync` | `_spawnIn -= dt` |
 | A wave of enemies | `WaveSettings` in the Game Setup (`WaveSystem`) | a spawn timer in a rule |
 | Experience, levels, stat growth | `IProgressionTracker`, `IStatGrowthFormula` (kit: `World.GrantExperience`) | `xp += n; if (xp > 100) level++` |
