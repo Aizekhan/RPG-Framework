@@ -18,6 +18,9 @@ namespace RPGFramework.UI.Panels
         [SerializeField, Min(200f)] private float _width = 560f;
         [SerializeField, Min(0f), Tooltip("Seconds between value updates while shown")] private float _refreshSeconds = 0.25f;
         [SerializeField] private Color _panelColor = new Color(0.05f, 0.05f, 0.07f, 0.92f);
+        [SerializeField, Tooltip("Where the box hangs on this object: (0.5, 0.5) centred, (0.5, 1) from the top")]
+        private Vector2 _anchor = new Vector2(0.5f, 0.5f);
+        [SerializeField] private Vector2 _offset;
 
         private sealed class Row
         {
@@ -58,6 +61,33 @@ namespace RPGFramework.UI.Panels
         {
             get => _fontSize;
             set => Resize(ref _fontSize, Math.Max(8, value));
+        }
+
+        /// <summary>
+        /// Where the box hangs on this object, and its pivot: (0.5, 0.5) centred, (0.5, 1) from the top, (0, 1) top
+        /// left. <see cref="Offset"/> moves it from there. Takes effect at once.
+        /// </summary>
+        public Vector2 Anchor
+        {
+            get => _anchor;
+            set
+            {
+                _anchor = new Vector2(Mathf.Clamp01(value.x), Mathf.Clamp01(value.y));
+                Place();
+            }
+        }
+
+        /// <summary>
+        /// The box's distance from <see cref="Anchor"/> (y up: (0, -20) is 20 below the top).
+        /// </summary>
+        public Vector2 Offset
+        {
+            get => _offset;
+            set
+            {
+                _offset = value;
+                Place();
+            }
         }
 
         public float Width
@@ -158,7 +188,7 @@ namespace RPGFramework.UI.Panels
         {
             if (_list != null)
                 return;
-            var panel = _panel = UIBuilder.Box(transform, "Panel", new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(_width, 0f), _panelColor);
+            var panel = _panel = UIBuilder.Box(transform, "Panel", _anchor, _offset, new Vector2(_width, 0f), _panelColor);
             var layout = panel.gameObject.AddComponent<VerticalLayoutGroup>();
             int padding = Mathf.RoundToInt(_fontSize * 0.8f);
             layout.padding = new RectOffset(padding, padding, padding, padding);
@@ -196,5 +226,13 @@ namespace RPGFramework.UI.Panels
 
         private static string Whole<TValue>(TValue value) =>
             Math.Round(Convert.ToDouble(value)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        private void Place()
+        {
+            if (_panel == null)
+                return;
+            _panel.anchorMin = _panel.anchorMax = _panel.pivot = _anchor;
+            _panel.anchoredPosition = _offset;
+        }
     }
 }

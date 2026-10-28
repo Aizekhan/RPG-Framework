@@ -188,6 +188,35 @@ namespace RPGFramework.UI.Tests
         }
 
         [Test]
+        public void Panels_HangWhereTheGameSays()
+        {
+            var actions = Panel<ActionListPanel>();
+            actions.Anchor = new Vector2(0.5f, 1f);
+            actions.Offset = new Vector2(0f, -20f);
+            actions.Bind(new[] { new ActionRow(() => "Road") });
+            var box = (RectTransform)actions.transform.Find("Panel");
+            Assert.That(box.pivot, Is.EqualTo(new Vector2(0.5f, 1f)), "set before it was built");
+            Assert.That(box.anchorMin, Is.EqualTo(new Vector2(0.5f, 1f)));
+            Assert.That(box.anchoredPosition, Is.EqualTo(new Vector2(0f, -20f)));
+            actions.FontSize = 30;
+            box = (RectTransform)actions.transform.Find("Panel");
+            Assert.That(box.pivot, Is.EqualTo(new Vector2(0.5f, 1f)), "kept when built again");
+
+            var stats = Panel<StatListPanel>();
+            stats.Bind(new (string, System.Func<string>)[] { ("Gold", () => "5") });
+            stats.Anchor = new Vector2(0f, 1f);
+            box = (RectTransform)stats.transform.Find("Panel");
+            Assert.That(box.pivot, Is.EqualTo(new Vector2(0f, 1f)), "set after it was built");
+            Assert.That(box.anchorMax, Is.EqualTo(new Vector2(0f, 1f)));
+
+            var slots = Panel<EquipmentSlotsPanel>();
+            slots.Offset = new Vector2(5f, 0f);
+            slots.Bind(new[] { "head" }, slot => null);
+            Assert.That(((RectTransform)slots.transform.Find("Panel")).anchoredPosition.x, Is.EqualTo(5f));
+            Assert.That(slots.Anchor, Is.EqualTo(new Vector2(0.5f, 0.5f)), "centred unless told");
+        }
+
+        [Test]
         public void ASlotMadeInCode_HasACaptionACount_AndHoversByItself()
         {
             var canvas = new GameObject("Canvas", typeof(RectTransform), typeof(Canvas));
