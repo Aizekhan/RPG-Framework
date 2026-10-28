@@ -397,6 +397,8 @@ namespace RPGFramework.GameKit.Editor
                 "IAssetManager.InstantiateAsync for one-off objects"),
             (new Regex(@"\b(Stack|Queue)\s*<\s*(GameObject|Transform)\s*>|\b(Stack|Queue|List|HashSet)\s*<[^>]+>\s+_?\w*[Pp]ool\w*\b"),
                 "a hand-made pool", "IPrefabSpawner.ConfigurePool for prefabs, ObjectPool<T> (registered in IPoolManager) for plain objects"),
+            (new Regex(@"\.(PlayOneShot|PlayClipAtPoint)\s*\("), "AudioSource.PlayOneShot / PlayClipAtPoint",
+                "IAudioService.Play(cueId, position) with the cue in an AudioLibrary (AudioModule: variants, voice limits, volume channels)"),
         };
 
         private static readonly Regex DestroyCall = new Regex(UnityObjectCall + @"Destroy\s*\(");
@@ -405,7 +407,7 @@ namespace RPGFramework.GameKit.Editor
 
         /// <summary>
         /// Player code that does by hand what a framework service does: loading, scenes, logging, delayed calls,
-        /// creating and destroying objects, pools. A line with a real reason to keep the Unity call says so with
+        /// creating and destroying objects, pools, one-shot sounds. A line with a real reason to keep the Unity call says so with
         /// <c>// framework-ok: reason</c>.
         /// </summary>
         public static IEnumerable<ArchitectureViolation> GameUsesCoreServices(GameCodebase codebase)

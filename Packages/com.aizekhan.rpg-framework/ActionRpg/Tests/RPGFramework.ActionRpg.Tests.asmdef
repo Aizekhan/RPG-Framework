@@ -31,7 +31,8 @@
         "RPGFramework.Abilities.Runtime",
         "RPGFramework.StatusEffects.Runtime",
         "RPGFramework.Trading.Runtime",
-        "RPGFramework.Interaction.Runtime"
+        "RPGFramework.Interaction.Runtime",
+        "RPGFramework.Audio.Runtime"
     ],
     "includePlatforms": [
         "Editor"

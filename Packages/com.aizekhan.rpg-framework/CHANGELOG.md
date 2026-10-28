@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+- **Audio module** (`RPGFramework.Audio`, MythRunner FG-21):
+  - `IAudioService` / `AudioService`: cues (`AudioCueData`) with clip variants (never the same twice running), a volume and pitch spread, 2D or 3D (`AudioPosition`), `MaxVoices` and `MinInterval` per cue; `Play(cueId, position)`, `Voices`, `StopAll`; `On<TEvent>(cueId, at, when)` and `On<TEvent>(cueOf, at)` to play from bus events; music with crossfades (`PlayMusic(trackId, fade)`, `StopMusic`); volume channels (`AudioChannels`: master, music, sfx, ui, or the game's own), kept in an `IVolumeStore`.
+  - `IAudioOutput` makes the sound: `RecordingAudioOutput` for tests and servers; `RPGFramework.Audio.Unity` has `UnityAudioOutput` (pooled `AudioSource`s, no Instantiate; two music sources that crossfade; mixer groups and exposed volume parameters per channel).
+  - Unity assets and wiring: `AudioCue` and `AudioLibrary` assets (cues, `MusicTrack`s, mixer routes), `AudioModule` (registers the service on the host's bus, PlayerPrefs volumes, real time even when the game is paused), `audio.Play(cueId, transform)`.
+  - Co-op: nothing goes over the network. Each machine plays from the events and states it receives.
+- Action RPG kit: `ActionRpgHost` has an Audio field. With a library it adds `AudioModule` and plays the `ActionRpgSounds` cues the library has: `kit.hit`, `kit.hit.critical`, `kit.killed`, `kit.heal`, `kit.level_up`, `kit.trade` and `kit.interact`, at the character.
+- GA13 flags `PlayOneShot` / `PlayClipAtPoint` in game code (use `IAudioService.Play`).
+
 ## [0.11.1] - 2026-10-28
 
 ### Added

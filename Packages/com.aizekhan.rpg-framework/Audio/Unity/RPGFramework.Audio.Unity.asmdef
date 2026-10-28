@@ -1,0 +1,24 @@
+{
+    "name": "RPGFramework.Audio.Unity",
+    "rootNamespace": "RPGFramework.Audio.Unity",
+    "references": [
+        "RPGFramework.Audio.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Pooling.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "RPGFramework.Bootstrap.Runtime",
+        "RPGFramework.Core.Runtime",
+        "RPGFramework.DI.Runtime",
+        "RPGFramework.Systems.Runtime",
+        "UniTask"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

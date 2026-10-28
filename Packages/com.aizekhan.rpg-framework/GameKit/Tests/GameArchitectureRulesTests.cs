@@ -278,6 +278,8 @@ namespace RPGFramework.GameKit.Tests
                 "#if UNITY_EDITOR",
                 "  void O() => Debug.Log(\"editor only\");",
                 "#endif",
+                "  void P() => _source.PlayOneShot(_hit);",
+                "  void Q() => AudioSource.PlayClipAtPoint(_hit, transform.position);",
                 "}"));
             var editorTool = Source("Builder.cs", "class Builder { void Build() { Debug.Log(\"built\"); Object.Instantiate(_prefab); } }");
             var game = Game(
@@ -287,11 +289,12 @@ namespace RPGFramework.GameKit.Tests
             var violations = GameArchitectureRules.GameUsesCoreServices(game).ToList();
 
             Assert.That(violations.Select(v => v.Where.Split(':').Last()),
-                Is.EqualTo(new[] { "2", "3", "4", "5", "6", "7", "8", "9", "10", "12" }));
+                Is.EqualTo(new[] { "2", "3", "4", "5", "6", "7", "8", "9", "10", "12", "23", "24" }));
             Assert.That(violations.All(v => v.Rule == "GA13" && v.Fix.Contains(GameArchitectureRules.CoreServicesRecipe)), Is.True);
             Assert.That(violations[0].Fix, Does.Contain("IAssetManager"));
             Assert.That(violations[2].Fix, Does.Contain("ILogger"));
             Assert.That(violations[6].Fix, Does.Contain("IPrefabSpawner"));
+            Assert.That(violations[10].Fix, Does.Contain("IAudioService"));
         }
 
         [Test]

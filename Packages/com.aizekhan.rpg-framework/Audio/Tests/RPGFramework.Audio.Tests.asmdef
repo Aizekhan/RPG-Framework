@@ -1,0 +1,32 @@
+{
+    "name": "RPGFramework.Audio.Tests",
+    "rootNamespace": "RPGFramework.Audio.Tests",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "RPGFramework.Audio.Runtime",
+        "RPGFramework.Audio.Unity",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "RPGFramework.Bootstrap.Runtime",
+        "RPGFramework.DI.Runtime",
+        "RPGFramework.Core.Runtime",
+        "RPGFramework.Systems.Runtime",
+        "UniTask"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

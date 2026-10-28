@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using RPGFramework.ActionRpg.Coop;
+using RPGFramework.Audio;
+using RPGFramework.Audio.Unity;
 using RPGFramework.Bootstrap.UnityServices;
 using RPGFramework.Bootstrap.Unity;
 using RPGFramework.Cameras;
@@ -60,6 +62,9 @@ namespace RPGFramework.ActionRpg
 
         [SerializeField] private bool _showHud = true;
 
+        [Tooltip("The game's sounds; the kit plays the ActionRpgSounds cues it has (kit.hit, kit.killed...). Empty: no audio module")]
+        [SerializeField] private AudioLibrary _audio;
+
         [Tooltip("Keep the player's level, backpack and quests between sessions (saved on level-up, finished quests and quit)")]
         [SerializeField] private bool _saveProgress;
 
@@ -99,6 +104,7 @@ namespace RPGFramework.ActionRpg
         private PlayerProgress _profile;
         private SubscriptionBag _saveTriggers = new SubscriptionBag();
         private SubscriptionBag _pvpTriggers = new SubscriptionBag();
+        private IDisposable _sounds;
         private DiagnosticsOverlay _overlay;
         private ActionRpgHud _hud;
         private Transform _charactersRoot;
@@ -381,6 +387,8 @@ namespace RPGFramework.ActionRpg
             var services = new UnityServicesOptions();
             ConfigureUnityServices(services);
             builder.UseModule(new UnityServicesModule(services));
+            if (_audio != null)
+                builder.UseModule(new AudioModule(_audio));
             if (DiagnosticsEnabled)
                 builder.UseModule(new DiagnosticsModule());
             if (_joinCode != null)
@@ -904,6 +912,13 @@ namespace RPGFramework.ActionRpg
             _presenter.PartyColors = _partyColors;
             _presenter.ViewShown += OnViewShown;
             _presenter.Start();
+            if (_audio != null && Host.Container.IsRegistered<IAudioService>())
+            {
+                _sounds = ActionRpgSounds.Wire(Host.Container.Resolve<IAudioService>(), entityId =>
+                    _presenter != null && _presenter.TryGetPose(entityId, out var pose)
+                        ? new AudioPosition(pose.X, pose.Y, pose.Z)
+                        : (AudioPosition?)null);
+            }
 
             // This machine runs the match: it puts players at their side's spawn point
             if (_coopClient == null && World?.Settings.Pvp != null)
@@ -941,6 +956,8 @@ namespace RPGFramework.ActionRpg
             _saveTriggers.Dispose();
             _saveTriggers = new SubscriptionBag();
             _pvpTriggers.Dispose();
+            _sounds?.Dispose();
+            _sounds = null;
             InteractionPointView.ActiveChanged -= OnPlaceChanged;
             foreach (var view in InteractionPointView.Active)
                 RemovePlace(view);
