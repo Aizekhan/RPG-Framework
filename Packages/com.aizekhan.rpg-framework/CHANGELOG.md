@@ -2,7 +2,9 @@
 
 ## [Unreleased]
 
-Fixes from the MythRunner audit (a runner + action RPG on the kit, co-op 1-4). **Co-op protocol version 10**: 0.5.1 builds are refused.
+## [0.6.0] - 2026-10-28
+
+Fixes from the MythRunner audit (a runner + action RPG on the kit, co-op 1-4). **Co-op protocol version 10**: 0.5.1 builds are refused. Install with `#v0.6.0`. A game that hand-rolls loot, prices, cooldowns or timers in its rules now fails GA14: move it to the modules (recipe 16) or record the gap.
 
 ### Changed
 - **Ability range is checked in kit games.** `ActionRpgHost` never set `ActionRpgModule.Distance`, so `Range` on an ability was ignored. Now `ActionRpgHost.AbilityDistance(caster, target)` measures it (scene distance by default; a runner or grid game overrides it with its own measure).
