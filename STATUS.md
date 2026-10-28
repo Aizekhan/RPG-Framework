@@ -11,7 +11,8 @@
 
 | Gate | Result | SHA |
 |---|---|---|
-| **The Bloodline Hunt BH-05 + BH-04** (unreleased): `RPGFramework.Dice` (`IDiceService`, `DiceService`, `ScriptedDice`, `DieRolledEvent`; registered by `FrameworkCoreModule` with `DiceSeed`), `RPGFramework.Cards` (`Deck<T>`, `Hand<T>`) + `Cards.Unity` (`DeckAsset<T>`) (`61d236b`). Verify worktree | ✅ EditMode **1894 / 1894**, PlayMode **13 / 13** | `61d236b` |
+| **Release `v0.13.0`** (tag on `898bf1e`, GitHub release; BH-05 dice, BH-04 decks): CI green (run `40755159703`) | ✅ | `898bf1e` |
+| **The Bloodline Hunt BH-05 + BH-04** (released in v0.13.0): `RPGFramework.Dice` (`IDiceService`, `DiceService`, `ScriptedDice`, `DieRolledEvent`; registered by `FrameworkCoreModule` with `DiceSeed`), `RPGFramework.Cards` (`Deck<T>`, `Hand<T>`) + `Cards.Unity` (`DeckAsset<T>`) (`61d236b`). Verify worktree | ✅ EditMode **1894 / 1894**, PlayMode **13 / 13** | `61d236b` |
 | **Release `v0.12.0`** (tag on `aaa33dc`, GitHub release; FG-21 audio module, protocol v14): CI green (run `40752971254`) | ✅ | `aaa33dc` |
 | **MythRunner FG-21: audio module** (released in v0.12.0): `RPGFramework.Audio` (`IAudioService`, cues with variants / voice limits / interval, music crossfades, volume channels, `RecordingAudioOutput`), `Audio.Unity` (`AudioCue`, `AudioLibrary`, `UnityAudioOutput` on pooled sources, `AudioModule`), kit `ActionRpgSounds` + host Audio field, GA13 for PlayOneShot (`0083905`); package depends on `com.unity.modules.audio` (`c2485bb`); fixes `3d2f8c2`. Verify worktree | ✅ EditMode **1887 / 1887**, PlayMode **13 / 13** | `3d2f8c2` |
 | **Release `v0.11.1`** (tag on `acc670e`; panel `Anchor` / `Offset`, `7803469`, EditMode **1877 / 1877**): CI green (run `40729860850`) | ✅ | `acc670e` |
