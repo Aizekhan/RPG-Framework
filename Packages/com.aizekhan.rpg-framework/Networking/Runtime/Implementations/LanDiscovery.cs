@@ -91,8 +91,12 @@ namespace RPGFramework.Networking
             var reader = Open(data, Query);
             if (reader == null)
                 return false;
+            string readKey = null;
+            bool ok;
             using (reader)
-                return TryRead(() => key = reader.ReadString());
+                ok = TryRead(() => readKey = reader.ReadString());
+            key = readKey;
+            return ok;
         }
 
         internal static bool TryReadAnswer(byte[] data, out string key, out LanGameDescription game)
