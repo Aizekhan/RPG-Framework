@@ -62,6 +62,7 @@ namespace RPGFramework.Abilities
             AoeRadius = aoeRadius;
             MinLevel = minLevel;
             MaxCharges = maxCharges;
+            ChargeRechargeTime = 0f;
         }
     }
 }

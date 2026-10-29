@@ -30,6 +30,7 @@ namespace RPGFramework.Abilities
             ChannelDuration = channelDuration;
             IsInterruptible = isInterruptible;
             CanMoveWhileCasting = canMoveWhileCasting;
+            ChannelTickInterval = 0f;
         }
 
         /// <summary>Instant cast (no cast time)</summary>
