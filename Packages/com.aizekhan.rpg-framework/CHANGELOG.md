@@ -11,9 +11,11 @@
 - StatusEffects: `StatusEffectsOptions.UseStatContainers<TStatType>()` (and `TargetFactory`) lands effects on each entity's `StatContainer<TStatType, float>` through `StatContainerEffectTarget` without hand wiring.
 - Abilities: channel ticks: `CastInfo.ChannelTickInterval` calls the ability's effect again on every tick of a channel up to its end (driven by `IAbilityExecutor.Update`; ticks due before a cancel or interrupt still land), `AbilityChannelTickEvent`, `AbilityChannelEndedEvent` (completed or stopped, with the reason and the tick count). Ability asset: 'Channel Tick Interval'.
 - Abilities: charges that come back over time: `AbilityMetadata.ChargeRechargeTime` (one at a time), `IAbilityInstance.RefreshCharges` / `NextChargeIn`. Ability asset: 'Charge Recharge Time'.
+- Dialogue: `IDialogueGameContext` (`CountItem`, `CheckCustom`) and a ready `DialogueContext` made of the game's answers (`QuestDone`, `ItemCount`, `Stat`, `Custom`).
 
 ### Fixed
 - StatusEffects: `ProcessTicks` catches up the ticks missed in a long frame (up to `StatusEffectManager.MaxTicksPerCall`, reported as one total) and keeps the effect's own rhythm; it ran at most one tick per call.
+- Dialogue: `ConditionType.Custom` asks the game (`IDialogueGameContext.CheckCustom`); it always failed. `ItemOwned` honours `RequiredValue` as the quantity (counted through `IDialogueGameContext`; a plain context can confirm one item only); it ignored it.
 
 ## [0.17.0] - 2026-10-29
 

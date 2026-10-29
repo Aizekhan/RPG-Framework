@@ -59,14 +59,17 @@ namespace RPGFramework.Dialogue
                     return context.GetStatValue(ParameterId) >= RequiredValue;
 
                 case ConditionType.ItemOwned:
-                    return context.HasItem(ParameterId);
+                    // RequiredValue is how many (0 or 1: one); counted when the context can count
+                    if (RequiredValue > 1 && context is IDialogueGameContext counting)
+                        return counting.CountItem(ParameterId) >= RequiredValue;
+                    return RequiredValue <= 1 && context.HasItem(ParameterId);
 
                 case ConditionType.VariableCheck:
                     return context.Variables.TryGetValue(ParameterId, out var value) && value == RequiredValue;
 
                 case ConditionType.Custom:
-                    // Custom conditions always evaluate to false unless overridden by game logic
-                    return false;
+                    // The game's own question; a context that cannot answer it fails it
+                    return context is IDialogueGameContext game && game.CheckCustom(ParameterId, RequiredValue);
 
                 default:
                     return false;
