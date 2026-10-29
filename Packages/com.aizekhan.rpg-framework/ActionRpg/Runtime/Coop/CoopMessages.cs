@@ -50,6 +50,8 @@ namespace RPGFramework.ActionRpg.Coop
         public const int IncomingAttackId = 1106;
         public const int DefenseResultId = 1107;
         public const int SceneId = 1108;
+        public const int LobbyId = 1109;
+        public const int LobbyChoiceId = 1110;
 
         /// <summary>
         /// The first id a game may give its own messages (<see cref="CoopGameMessages"/>).
@@ -59,7 +61,7 @@ namespace RPGFramework.ActionRpg.Coop
         /// <summary>
         /// Changes whenever the messages change, so older and newer builds refuse each other instead of misreading.
         /// </summary>
-        public const int Version = 14;
+        public const int Version = 15;
 
         public const int DefaultPort = 7777;
         public const int DefaultMaxPlayers = 4;
@@ -107,6 +109,8 @@ namespace RPGFramework.ActionRpg.Coop
             serializer.RegisterMessageType<CoopIncomingAttackMessage>(IncomingAttackId);
             serializer.RegisterMessageType<CoopDefenseResultMessage>(DefenseResultId);
             serializer.RegisterMessageType<CoopSceneMessage>(SceneId);
+            serializer.RegisterMessageType<CoopLobbyMessage>(LobbyId);
+            serializer.RegisterMessageType<CoopLobbyChoiceMessage>(LobbyChoiceId);
             return serializer;
         }
 
@@ -119,6 +123,8 @@ namespace RPGFramework.ActionRpg.Coop
             .Set(IncomingAttackId, MessageAuthority.Server)
             .Set(DefenseResultId, MessageAuthority.Client)
             .Set(SceneId, MessageAuthority.Server)
+            .Set(LobbyId, MessageAuthority.Server)
+            .Set(LobbyChoiceId, MessageAuthority.Client)
             .Set(MotionId, MessageAuthority.Any);
 
         /// <param name="connectionTimeout">Seconds of silence before the link counts as lost (tests use less).</param>
@@ -341,6 +347,12 @@ namespace RPGFramework.ActionRpg.Coop
         /// </summary>
         public bool Rejoined;
 
+        /// <summary>
+        /// Let in to wait in the host's lobby (<see cref="CoopHost.UseLobby"/>); a second welcome with the player id
+        /// follows when the match starts.
+        /// </summary>
+        public bool InLobby;
+
         public void Write(BinaryWriter writer)
         {
             writer.Write(Accepted);
@@ -348,6 +360,7 @@ namespace RPGFramework.ActionRpg.Coop
             writer.Write(Reason ?? "");
             writer.Write(RejoinToken ?? "");
             writer.Write(Rejoined);
+            writer.Write(InLobby);
         }
 
         public void Read(BinaryReader reader)
@@ -357,6 +370,92 @@ namespace RPGFramework.ActionRpg.Coop
             Reason = reader.ReadString();
             RejoinToken = reader.ReadString();
             Rejoined = reader.ReadBoolean();
+            InLobby = reader.ReadBoolean();
+        }
+    }
+
+    /// <summary>
+    /// Someone in the host's lobby: their name, the hero (loadout) they picked and whether they are ready. Id 0 is the
+    /// host.
+    /// </summary>
+    public sealed class CoopLobbyEntry
+    {
+        public int Id;
+        public string Name = "";
+        public string Loadout = "";
+        public bool Ready;
+        public bool IsHost => Id == 0;
+
+        public override string ToString() => $"{Name}{(Loadout.Length > 0 ? " (" + Loadout + ")" : "")}{(Ready ? " ready" : "")}";
+    }
+
+    /// <summary>
+    /// Host → a player in the lobby: who is there, how many may come, and the seconds to the start once the host
+    /// started it (below 0: not starting).
+    /// </summary>
+    public sealed class CoopLobbyMessage : NetworkMessage, INetworkPayload
+    {
+        public override int MessageTypeId => CoopProtocol.LobbyId;
+        public List<CoopLobbyEntry> Entries = new List<CoopLobbyEntry>();
+        public int MaxPlayers;
+        public float Countdown = -1f;
+
+        /// <summary>
+        /// The receiver's own entry.
+        /// </summary>
+        public int YourId = -1;
+
+        public void Write(BinaryWriter writer)
+        {
+            writer.Write(Entries.Count);
+            foreach (var entry in Entries)
+            {
+                writer.Write(entry.Id);
+                writer.Write(entry.Name ?? "");
+                writer.Write(entry.Loadout ?? "");
+                writer.Write(entry.Ready);
+            }
+            writer.Write(MaxPlayers);
+            writer.Write(Countdown);
+            writer.Write(YourId);
+        }
+
+        public void Read(BinaryReader reader)
+        {
+            int count = CoopProtocol.ReadCount(reader);
+            Entries = new List<CoopLobbyEntry>(count);
+            for (int i = 0; i < count; i++)
+            {
+                Entries.Add(new CoopLobbyEntry
+                {
+                    Id = reader.ReadInt32(), Name = reader.ReadString(), Loadout = reader.ReadString(), Ready = reader.ReadBoolean()
+                });
+            }
+            MaxPlayers = reader.ReadInt32();
+            Countdown = reader.ReadSingle();
+            YourId = reader.ReadInt32();
+        }
+    }
+
+    /// <summary>
+    /// A player in the lobby → host: ready or not, and the hero (loadout) they picked.
+    /// </summary>
+    public sealed class CoopLobbyChoiceMessage : NetworkMessage, INetworkPayload
+    {
+        public override int MessageTypeId => CoopProtocol.LobbyChoiceId;
+        public bool Ready;
+        public string Loadout = "";
+
+        public void Write(BinaryWriter writer)
+        {
+            writer.Write(Ready);
+            writer.Write(Loadout ?? "");
+        }
+
+        public void Read(BinaryReader reader)
+        {
+            Ready = reader.ReadBoolean();
+            Loadout = reader.ReadString();
         }
     }
 

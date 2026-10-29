@@ -269,6 +269,73 @@ namespace RPGFramework.ActionRpg.Tests
         }
 
         [Test]
+        public void Lobby_FriendsWaitWithTheirHero_ThenComeInTogether()
+        {
+            _host.UseLobby = true;
+            var bob = Join(name: "Bob");
+            var cid = Join(name: "Cid");
+
+            Assert.That(bob.Client.State, Is.EqualTo(CoopClientState.Lobby));
+            Assert.That(World.Players, Has.Count.EqualTo(1), "nobody is in the world yet");
+            Assert.That(_host.Lobby.Select(e => e.Name).Skip(1), Is.EqualTo(new[] { "Bob", "Cid" }));
+            Assert.That(_host.Lobby[0].IsHost, Is.True);
+            Assert.That(cid.Client.Lobby, Has.Count.EqualTo(3), "everyone in the lobby sees who is there");
+
+            Assert.That(bob.Client.SetLobbyChoice(true, "ranger"), Is.True);
+            Pump();
+            Assert.That(_host.Lobby[1].Ready, Is.True);
+            Assert.That(cid.Client.Lobby.Single(e => e.Id == bob.Client.LobbyId).Loadout, Is.EqualTo("ranger"));
+            Assert.That(_host.AllReady, Is.False);
+            _host.SetLobbyChoice(true);
+            cid.Client.SetLobbyChoice(true);
+            Pump();
+            Assert.That(_host.AllReady, Is.True);
+
+            bool began = false;
+            _host.MatchBegan += () => began = true;
+            Assert.That(_host.StartMatch(1f), Is.True);
+            Pump();
+            Assert.That(cid.Client.StartCountdown, Is.GreaterThan(0f).And.LessThanOrEqualTo(1f));
+            Assert.That(World.Players, Has.Count.EqualTo(1));
+            Run(1.2f);
+
+            Assert.That(began, Is.True);
+            Assert.That(_host.MatchStarted, Is.True);
+            Assert.That(World.Players, Has.Count.EqualTo(3));
+            Assert.That(bob.Client.State, Is.EqualTo(CoopClientState.Playing));
+            Assert.That(bob.Client.RejoinToken, Is.Not.Empty);
+            Assert.That(World.Gear.LoadoutOf(bob.World.PlayerId), Is.EqualTo("ranger"), "they play the hero they picked");
+            Assert.That(_host.StartMatch(), Is.False, "once");
+
+            var dan = Join(name: "Dan");
+            Assert.That(dan.Client.State, Is.EqualTo(CoopClientState.Playing), "after the start a friend comes straight in");
+        }
+
+        [Test]
+        public void Lobby_TheHostRemovesAPlayer_AndTheLobbyCountsTowardsAFullParty()
+        {
+            _host.UseLobby = true;
+            _host.MaxPlayers = 3;
+            var bob = Join(name: "Bob");
+            var cid = Join(name: "Cid");
+            var dan = Join(name: "Dan");
+            Assert.That(dan.Client.State, Is.EqualTo(CoopClientState.Ended));
+            Assert.That(dan.Client.EndReason, Does.Contain("full"));
+
+            Assert.That(_host.Kick(bob.Client.LobbyId), Is.True);
+            Pump();
+            Assert.That(bob.Client.State, Is.EqualTo(CoopClientState.Ended));
+            Assert.That(bob.Client.EndReason, Does.Contain("removed"));
+            Assert.That(_host.Lobby, Has.Count.EqualTo(2));
+
+            cid.Client.Leave();
+            Pump();
+            Assert.That(_host.Lobby, Has.Count.EqualTo(1));
+            Assert.That(_host.StartMatch(0f), Is.True);
+            Assert.That(World.Players, Has.Count.EqualTo(1));
+        }
+
+        [Test]
         public void FriendsAttack_TheHostDecides_TheHitTheKillAndTheLootReachThem()
         {
             var guest = Join();

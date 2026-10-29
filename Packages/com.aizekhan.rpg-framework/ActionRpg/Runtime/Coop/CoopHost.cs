@@ -46,6 +46,14 @@ namespace RPGFramework.ActionRpg.Coop
 
             // After a teleport or a correction: until then, poses sent before the player got there are dropped
             public float SettlingUntil = float.NegativeInfinity;
+
+            // Waiting in the lobby (UseLobby) until the match starts
+            public int LobbyId = -1;
+            public string Name = "";
+            public string Loadout = "";
+            public bool Ready;
+            public PlayerProgress Profile;
+            public bool Removed;
         }
 
         private sealed class KeptSeat
@@ -94,6 +102,12 @@ namespace RPGFramework.ActionRpg.Coop
         private bool _settling;
         private float _sinceSend;
         private float _clock;
+        private int _nextLobbyId = 1;
+        private bool _hostReady;
+        private string _hostLoadout = "";
+        private float _countdown = -1f;
+        private bool _matchStarted;
+        private const int MaxLoadoutLength = 64;
 
         private sealed class AnnouncedAttack
         {
@@ -144,6 +158,7 @@ namespace RPGFramework.ActionRpg.Coop
             _network.RegisterMessageHandler<CoopIntentMessage>(OnIntent).AddTo(_subscriptions);
             _network.RegisterMessageHandler<CoopMotionMessage>(OnMotion).AddTo(_subscriptions);
             _network.RegisterMessageHandler<CoopDefenseResultMessage>(OnDefenseResult).AddTo(_subscriptions);
+            _network.RegisterMessageHandler<CoopLobbyChoiceMessage>(OnLobbyChoice).AddTo(_subscriptions);
             _world.HoldAttack = HoldAttack;
         }
 
@@ -436,6 +451,173 @@ namespace RPGFramework.ActionRpg.Coop
         public bool IsOpen => _network.IsConnected;
 
         /// <summary>
+        /// Friends who join wait in a lobby (name, hero, ready) until <see cref="StartMatch"/>, instead of landing in the
+        /// world at once; those who join after the start come straight in. Set before <see cref="Open()"/>.
+        /// </summary>
+        public bool UseLobby { get; set; }
+
+        /// <summary>
+        /// The lobby's players are in the world (always true without <see cref="UseLobby"/>).
+        /// </summary>
+        public bool MatchStarted => !UseLobby || _matchStarted;
+
+        /// <summary>
+        /// Who is in the lobby, the host first (Id 0); empty once the match started.
+        /// </summary>
+        public IReadOnlyList<CoopLobbyEntry> Lobby
+        {
+            get
+            {
+                if (MatchStarted)
+                    return Array.Empty<CoopLobbyEntry>();
+                var entries = new List<CoopLobbyEntry>
+                {
+                    new CoopLobbyEntry { Id = 0, Name = _world.Player?.PlayerName ?? "Host", Loadout = _hostLoadout, Ready = _hostReady }
+                };
+                foreach (var guest in _guests.Values.Where(g => g.LobbyId >= 0).OrderBy(g => g.LobbyId))
+                    entries.Add(new CoopLobbyEntry { Id = guest.LobbyId, Name = guest.Name, Loadout = guest.Loadout, Ready = guest.Ready });
+                return entries;
+            }
+        }
+
+        /// <summary>
+        /// Everyone in the lobby is ready, the host included, and at least one friend is there.
+        /// </summary>
+        public bool AllReady
+        {
+            get
+            {
+                var lobby = Lobby;
+                return lobby.Count > 1 && lobby.All(e => e.Ready);
+            }
+        }
+
+        /// <summary>
+        /// Seconds to the start after <see cref="StartMatch"/>; below 0 while not starting.
+        /// </summary>
+        public float StartCountdown => _countdown;
+
+        /// <summary>
+        /// Someone came into the lobby, left it, picked a hero, got ready, or the countdown started or stopped.
+        /// </summary>
+        public event Action LobbyChanged;
+
+        /// <summary>
+        /// The countdown ended: the lobby's players are in the world (each already raised <see cref="PlayerJoined"/>).
+        /// </summary>
+        public event Action MatchBegan;
+
+        /// <summary>
+        /// The host's own pick in the lobby: ready or not, and the hero (loadout) they play.
+        /// </summary>
+        public void SetLobbyChoice(bool ready, string loadout = null)
+        {
+            if (MatchStarted)
+                return;
+            _hostReady = ready;
+            if (loadout != null)
+                _hostLoadout = CleanLoadout(loadout);
+            LobbyHasChanged();
+        }
+
+        /// <summary>
+        /// Sends a player out of the lobby with the reason (their machine shows it).
+        /// </summary>
+        /// <returns>False when nobody in the lobby has that id.</returns>
+        public bool Kick(int lobbyId, string reason = "The host removed you from the lobby.")
+        {
+            var pair = _guests.FirstOrDefault(p => p.Value.LobbyId == lobbyId && lobbyId > 0);
+            if (pair.Value == null)
+                return false;
+            pair.Value.LobbyId = -1;
+            pair.Value.Removed = true;
+            _network.Send(pair.Key, new CoopWelcomeMessage { Accepted = false, Reason = reason ?? "" });
+            _logger?.LogInfo($"{pair.Value.Name} was removed from the lobby", Category);
+            LobbyHasChanged();
+            return true;
+        }
+
+        /// <summary>
+        /// Starts the match in <paramref name="countdownSeconds"/> (the lobby sees it count down): then everyone in the
+        /// lobby comes into the world with their hero, and <see cref="MatchBegan"/> is raised. 0 starts at once.
+        /// </summary>
+        /// <returns>False without a lobby, or when it already started.</returns>
+        public bool StartMatch(float countdownSeconds = 3f)
+        {
+            if (MatchStarted)
+                return false;
+            _countdown = Math.Max(0f, countdownSeconds);
+            if (_countdown <= 0f)
+                BeginMatch();
+            else
+                LobbyHasChanged();
+            return true;
+        }
+
+        /// <summary>
+        /// Stops the countdown (someone was not ready after all).
+        /// </summary>
+        public void CancelStart()
+        {
+            if (MatchStarted || _countdown < 0f)
+                return;
+            _countdown = -1f;
+            LobbyHasChanged();
+        }
+
+        private void BeginMatch()
+        {
+            _matchStarted = true;
+            _countdown = -1f;
+            if (_hostLoadout.Length > 0)
+                _world.UseLoadout(_hostLoadout);
+            foreach (var pair in _guests.Where(p => p.Value.LobbyId >= 0).OrderBy(p => p.Value.LobbyId).ToList())
+            {
+                var guest = pair.Value;
+                guest.LobbyId = -1;
+                Admit(pair.Key, guest, guest.Name, guest.Profile, null);
+                if (guest.Loadout.Length > 0 && guest.PlayerId >= 0)
+                    _world.Gear.UseLoadout(guest.PlayerId, guest.Loadout);
+            }
+            _logger?.LogInfo("The match started", Category);
+            LobbyChanged?.Invoke();
+            MatchBegan?.Invoke();
+        }
+
+        private void OnLobbyChoice(int connectionId, CoopLobbyChoiceMessage choice)
+        {
+            if (MatchStarted || !_guests.TryGetValue(connectionId, out var guest) || guest.LobbyId < 0)
+                return;
+            guest.Ready = choice.Ready;
+            guest.Loadout = CleanLoadout(choice.Loadout);
+            LobbyHasChanged();
+        }
+
+        private static string CleanLoadout(string loadout)
+        {
+            string clean = (loadout ?? "").Trim();
+            return clean.Length > MaxLoadoutLength ? clean.Substring(0, MaxLoadoutLength) : clean;
+        }
+
+        private void LobbyHasChanged()
+        {
+            if (_network.IsConnected && !MatchStarted)
+            {
+                var entries = Lobby.ToList();
+                foreach (var pair in _guests)
+                {
+                    if (pair.Value.LobbyId < 0)
+                        continue;
+                    _network.Send(pair.Key, new CoopLobbyMessage
+                    {
+                        Entries = entries, MaxPlayers = MaxPlayers, Countdown = _countdown, YourId = pair.Value.LobbyId
+                    });
+                }
+            }
+            LobbyChanged?.Invoke();
+        }
+
+        /// <summary>
         /// Seats waiting for players whose link was lost.
         /// </summary>
         public int KeptSeats => _keptSeats.Count;
@@ -516,6 +698,12 @@ namespace RPGFramework.ActionRpg.Coop
             _clock += deltaTime;
             _network.Update(deltaTime);
             ForgetOldSeats(deltaTime);
+            if (!MatchStarted && _countdown >= 0f)
+            {
+                _countdown -= deltaTime;
+                if (_countdown <= 0f)
+                    BeginMatch();
+            }
             SettleDueAttacks();
             if (!_network.IsConnected)
                 return;
@@ -578,6 +766,12 @@ namespace RPGFramework.ActionRpg.Coop
             if (!_guests.TryGetValue(connectionId, out var guest))
                 return;
             _guests.Remove(connectionId);
+            if (guest.LobbyId >= 0)
+            {
+                _logger?.LogInfo($"{guest.Name} left the lobby", Category);
+                LobbyHasChanged();
+                return;
+            }
             if (guest.PlayerId < 0)
                 return;
             var player = _world.Get(guest.PlayerId);
@@ -596,7 +790,7 @@ namespace RPGFramework.ActionRpg.Coop
 
         private void OnHello(int connectionId, CoopHelloMessage hello)
         {
-            if (!_guests.TryGetValue(connectionId, out var guest) || guest.PlayerId >= 0)
+            if (!_guests.TryGetValue(connectionId, out var guest) || guest.PlayerId >= 0 || guest.LobbyId >= 0 || guest.Removed)
                 return;
 
             var kept = TakeKeptSeat(hello.RejoinToken, connectionId);
@@ -605,7 +799,7 @@ namespace RPGFramework.ActionRpg.Coop
             if (hello.Fingerprint != _fingerprint)
                 refusal = "The host plays a different version of the game. Both need the same build.";
             // Seats kept for lost players count as taken for newcomers
-            else if (PlayerCount + (kept != null ? 0 : _keptSeats.Count) >= MaxPlayers)
+            else if (PlayerCount + LobbyGuests + (kept != null ? 0 : _keptSeats.Count) >= MaxPlayers)
                 refusal = $"The party is full ({MaxPlayers} players).";
             else if (kept == null && _world.ProgressMode == ProgressMode.PerPlayer)
                 profile = ProfileFor(hello.Name, hello.Profile, out refusal);
@@ -618,6 +812,25 @@ namespace RPGFramework.ActionRpg.Coop
                 return;
             }
 
+            if (kept == null && !MatchStarted)
+            {
+                // The lobby: in the party once the host starts the match
+                guest.LobbyId = _nextLobbyId++;
+                guest.Name = ActorWorld.CleanName(hello.Name) ?? "Player " + (guest.LobbyId + 1);
+                guest.Profile = profile;
+                _network.Send(connectionId, new CoopWelcomeMessage { Accepted = true, InLobby = true });
+                _logger?.LogInfo($"{guest.Name} is in the lobby", Category);
+                LobbyHasChanged();
+                return;
+            }
+            Admit(connectionId, guest, hello.Name, profile, kept);
+        }
+
+        private int LobbyGuests => _guests.Values.Count(g => g.LobbyId >= 0);
+
+        // Into the party: a player, the welcome with their id and token, the scene
+        private void Admit(int connectionId, Guest guest, string name, PlayerProgress profile, KeptSeat kept)
+        {
             if (kept != null)
             {
                 guest.PlayerId = _world.AddPlayer(name: kept.Name, seat: kept.Seat, progress: kept.Progress);
@@ -627,7 +840,7 @@ namespace RPGFramework.ActionRpg.Coop
             else
             {
                 // With progress of their own, they bring it (checked by the validator, once per session)
-                guest.PlayerId = _world.AddPlayer(name: hello.Name, seat: FreeSeat(), progress: profile);
+                guest.PlayerId = _world.AddPlayer(name: name, seat: FreeSeat(), progress: profile);
             }
             guest.Token = Guid.NewGuid().ToString("N");
             _network.Send(connectionId, new CoopWelcomeMessage

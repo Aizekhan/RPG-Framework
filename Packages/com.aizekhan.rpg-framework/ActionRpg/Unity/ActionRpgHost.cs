@@ -87,6 +87,9 @@ namespace RPGFramework.ActionRpg
         [Tooltip("Most players in a hosted game, the host included (tested up to 8)")]
         [SerializeField, Range(2, CoopProtocol.MaxSupportedPlayers)] private int _maxPlayers = CoopProtocol.DefaultMaxPlayers;
 
+        [Tooltip("Friends who join wait in a lobby (name, hero, ready) until the host starts the match, instead of landing in the world at once")]
+        [SerializeField] private bool _lobby;
+
         [Tooltip("UDP port of games hosted on the local network (the default session provider)")]
         [SerializeField, Range(1024, 65535)] private int _coopPort = CoopProtocol.DefaultPort;
 
@@ -123,6 +126,7 @@ namespace RPGFramework.ActionRpg
         private CoopHost _coopHost;
         private CoopClient _coopClient;
         private string _joinCode;
+        private LanDiscoveryResponder _discovery;
         private bool _restartPending;
         private float _sinceSave;
 
@@ -245,6 +249,25 @@ namespace RPGFramework.ActionRpg
         /// GameObject), or tick 'Start On Request'.
         /// </summary>
         public void UseStartOnRequest(bool startOnRequest) => _startOnRequest = startOnRequest;
+
+        /// <summary>
+        /// Friends wait in a lobby until the host starts the match (<see cref="Coop.CoopHost.StartMatch"/>), or tick
+        /// 'Lobby'. Applies to the next hosted game.
+        /// </summary>
+        public void UseLobby(bool lobby) => _lobby = lobby;
+
+        /// <summary>
+        /// What games of this setup and build call themselves on the local network (<see cref="LanDiscovery"/>):
+        /// only players of the same find them.
+        /// </summary>
+        public static string DiscoveryKeyOf(GameSetup setup) => $"{(setup != null ? setup.name : "Game")}|{Application.version}";
+
+        /// <summary>
+        /// Looks for games of this setup hosted on the local network, for a start menu's "Join" list: call
+        /// <c>Search()</c>, then <c>Poll(deltaTime)</c> every frame, and join a game's <c>JoinCode</c>. Dispose it after.
+        /// While hosting on the local network, this machine answers such searches by itself.
+        /// </summary>
+        public static LanDiscovery SearchLanGames(GameSetup setup) => new LanDiscovery(DiscoveryKeyOf(setup));
 
         public CoopRole Role => _coopClient != null ? CoopRole.Joined : _coopHost != null ? CoopRole.Hosting : CoopRole.Solo;
 
@@ -767,7 +790,8 @@ namespace RPGFramework.ActionRpg
             {
                 // A friend's strike is checked against where this machine sees them, with slack for lag
                 MaxAttackDistance = _setup.Player.AttackRange + 1.5f,
-                MaxPlayers = MaxPlayers
+                MaxPlayers = MaxPlayers,
+                UseLobby = _lobby
             };
             World.SetPlayerName(World.PlayerId, PlayerName);
             // Friends who join load the scene the game is in
@@ -777,6 +801,7 @@ namespace RPGFramework.ActionRpg
             OnCoopHostOpened(_coopHost);
             JoinCode = session.JoinCode;
             OtherJoinCodes = session.OtherJoinCodes;
+            AnswerLanSearches(session.JoinCode);
             CoopStatus = $"Hosting: friends join with {JoinCode}";
             Host.Logger.LogInfo(CoopStatus, Category);
         }
@@ -786,6 +811,28 @@ namespace RPGFramework.ActionRpg
         /// guest times out. Set at runtime so games whose Player Settings still say otherwise keep working.
         /// </summary>
         private static void KeepRunningInBackground() => Application.runInBackground = true;
+
+        // Hosting on the local network: friends' start menus find this game without typing its address
+        private void AnswerLanSearches(string joinCode)
+        {
+            if (!(SessionProvider is LanSessionProvider lan)
+                || !LanSessionProvider.TryParse(joinCode, lan.Port > 0 ? lan.Port : LanSessionProvider.DefaultPort, out _, out int port))
+                return;
+            _discovery = new LanDiscoveryResponder(DiscoveryKeyOf(_setup), () => new LanGameDescription
+            {
+                HostName = PlayerName,
+                Players = _coopHost == null ? 0 : _coopHost.MatchStarted ? _coopHost.PlayerCount : _coopHost.Lobby.Count,
+                MaxPlayers = MaxPlayers,
+                InLobby = _coopHost != null && !_coopHost.MatchStarted,
+                GamePort = port
+            });
+            if (!_discovery.Start())
+            {
+                Host.Logger.LogInfo($"Friends cannot find this game by searching (port {_discovery.Port} is taken); they type {joinCode}", Category);
+                _discovery.Dispose();
+                _discovery = null;
+            }
+        }
 
         /// <summary>
         /// Leaves this game and joins a friend's (it restarts at the next frame); their machine then runs the rules.
@@ -836,6 +883,7 @@ namespace RPGFramework.ActionRpg
             if (_navigation != null && _back.WasPressedThisFrame())
                 CloseTopScreen();
             _coopHost?.Update(Time.unscaledDeltaTime);
+            _discovery?.Poll();
             _coopClient?.Update(Time.unscaledDeltaTime);
             Autosave(Time.unscaledDeltaTime);
         }
@@ -1027,6 +1075,7 @@ namespace RPGFramework.ActionRpg
             _coopClient.World.Interactions.Distance = InteractionDistance;
             OnCoopClientCreated(_coopClient);
             _coopClient.Joined += OnJoined;
+            _coopClient.LobbyJoined += OnLobbyJoined;
             _coopClient.Ended += OnClientEnded;
             _coopClient.SceneChanged += FollowHostScene;
             ShowWorld();
@@ -1115,10 +1164,13 @@ namespace RPGFramework.ActionRpg
         {
             _coopHost?.Dispose();
             _coopHost = null;
+            _discovery?.Dispose();
+            _discovery = null;
             if (_coopClient != null)
             {
                 // Closing the connection here is a restart (or a leave already handled), not the player walking out
                 _coopClient.Joined -= OnJoined;
+                _coopClient.LobbyJoined -= OnLobbyJoined;
                 _coopClient.Ended -= OnClientEnded;
                 _coopClient.SceneChanged -= FollowHostScene;
                 _coopClient.Dispose();
@@ -1137,6 +1189,8 @@ namespace RPGFramework.ActionRpg
             CoopStatus = _coopClient.Rejoined ? "Reconnected: back in your seat." : "";
             _reconnectAttempt = 0;
         }
+
+        private void OnLobbyJoined() => CoopStatus = "In the lobby: the host starts the match.";
 
         private void OnClientEnded(string reason)
         {

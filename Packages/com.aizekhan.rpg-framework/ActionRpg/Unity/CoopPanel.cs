@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using RPGFramework.ActionRpg.Coop;
 using UnityEngine;
@@ -124,17 +125,58 @@ namespace RPGFramework.ActionRpg
             GUILayout.Label($"Friends join with  <b>{_host.JoinCode}</b>", _rich);
             if (_host.OtherJoinCodes.Count > 0)
                 GUILayout.Label($"or, over a VPN or another network:  {string.Join(",  ", _host.OtherJoinCodes)}", _rich);
-            GUILayout.Label($"Players  {_host.CoopHost.PlayerCount} / {_host.CoopHost.MaxPlayers}:  {Party()}", _rich);
+            var coop = _host.CoopHost;
+            if (!coop.MatchStarted)
+            {
+                DrawLobby(coop.Lobby, coop.MaxPlayers, coop.StartCountdown, kick: id => coop.Kick(id));
+                bool ready = coop.Lobby.Count > 0 && coop.Lobby[0].Ready;
+                if (GUILayout.Button(ready ? "Not ready" : "Ready", GUILayout.Height(28f)))
+                    coop.SetLobbyChoice(!ready);
+                if (coop.StartCountdown < 0f && GUILayout.Button("Start", GUILayout.Height(34f)))
+                    coop.StartMatch();
+                else if (coop.StartCountdown >= 0f && GUILayout.Button("Wait", GUILayout.Height(34f)))
+                    coop.CancelStart();
+            }
+            else
+            {
+                GUILayout.Label($"Players  {coop.PlayerCount} / {coop.MaxPlayers}:  {Party()}", _rich);
+            }
             if (GUILayout.Button("Stop hosting", GUILayout.Height(34f)))
                 _host.LeaveGame();
+        }
+
+        // Who waits in the lobby; the host can send a player out
+        private void DrawLobby(IReadOnlyList<CoopLobbyEntry> lobby, int maxPlayers, float countdown, Action<int> kick)
+        {
+            GUILayout.Label($"Lobby  {lobby.Count} / {maxPlayers}" + (countdown >= 0f ? $"   starting in {Mathf.CeilToInt(countdown)}..." : ""), _rich);
+            foreach (var entry in lobby)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label($"{Escape(entry.Name)}{(entry.Loadout.Length > 0 ? "  (" + Escape(entry.Loadout) + ")" : "")}"
+                    + (entry.Ready ? "  <color=#7CFC00>ready</color>" : ""), _rich);
+                if (kick != null && !entry.IsHost && GUILayout.Button("Remove", GUILayout.Width(80f)))
+                    kick(entry.Id);
+                GUILayout.EndHorizontal();
+            }
         }
 
         private void DrawJoined()
         {
             var client = _host.CoopClient;
-            GUILayout.Label(client.State == CoopClientState.Playing
-                ? $"Playing in a friend's game:  {Party()}"
-                : "Connecting...", _rich);
+            if (client.State == CoopClientState.Lobby)
+            {
+                DrawLobby(client.Lobby, client.LobbyMaxPlayers, client.StartCountdown, kick: null);
+                var mine = client.Lobby.FirstOrDefault(e => e.Id == client.LobbyId);
+                bool ready = mine != null && mine.Ready;
+                if (GUILayout.Button(ready ? "Not ready" : "Ready", GUILayout.Height(28f)))
+                    client.SetLobbyChoice(!ready, mine?.Loadout ?? "");
+            }
+            else
+            {
+                GUILayout.Label(client.State == CoopClientState.Playing
+                    ? $"Playing in a friend's game:  {Party()}"
+                    : "Connecting...", _rich);
+            }
             if (client.IsUnstable)
                 GUILayout.Label("<color=#FFB000>The connection to the host is unstable...</color>", _rich);
             if (GUILayout.Button("Leave", GUILayout.Height(34f)))
@@ -165,7 +207,8 @@ namespace RPGFramework.ActionRpg
                 case CoopRole.Hosting:
                     return $"{Party()}   (F2)";
                 case CoopRole.Joined:
-                    return _host.CoopClient.State == CoopClientState.Playing ? $"{Party()}   (F2)" : "Connecting...   (F2)";
+                    return _host.CoopClient.State == CoopClientState.Playing ? $"{Party()}   (F2)"
+                        : _host.CoopClient.State == CoopClientState.Lobby ? "In the lobby   (F2)" : "Connecting...   (F2)";
                 default:
                     return "";
             }

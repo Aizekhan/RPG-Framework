@@ -2,7 +2,11 @@
 
 ## [Unreleased]
 
+Co-op protocol 15: host and friends need the same version (friends on 14 are refused with the reason).
+
 ### Added
+- **Co-op lobby before play** (MythRunner, step 2 of the start flow): with `CoopHost.UseLobby` (`ActionRpgHost` 'Lobby', `UseLobby`) friends who join wait in a lobby instead of landing in the world. `CoopHost.Lobby` (`CoopLobbyEntry`: name, hero (loadout), ready; the host is Id 0), `SetLobbyChoice(ready, loadout)`, `AllReady`, `Kick(id, reason)`, `StartMatch(countdown)` / `CancelStart()`, `StartCountdown`, `LobbyChanged`, `MatchBegan`; the lobby counts towards `MaxPlayers`. On the start everyone comes into the world with the hero they picked; friends who join later come straight in. `CoopClient`: state `Lobby`, `Lobby`, `LobbyId`, `LobbyMaxPlayers`, `StartCountdown`, `SetLobbyChoice`, `LobbyJoined`, `LobbyChanged`; removed from the lobby ends with the reason. The F2 panel shows the lobby (ready, start / wait, remove).
+- **Finding games on the local network**: `LanDiscovery` (a player's search: `Search()`, `Poll()`, `Games` of `LanGame` with host name, players, max, in lobby, `JoinCode`) and `LanDiscoveryResponder` (a host's answers), over UDP port 47777 (`LanDiscoveryProtocol`), keyed by game and version. `ActionRpgHost` answers by itself while hosting on the local network; `ActionRpgHost.SearchLanGames(setup)` for a start menu, `DiscoveryKeyOf(setup)`.
 - **Start on request** (MythRunner, step 1 of the start flow): `ActionRpgHost` with 'Start On Request' (`UseStartOnRequest`) waits for `StartGame(GameStart)` instead of starting at once; the world does not run until then. `GameStart`: `Continue`, `NewGame` (deletes the save), `Host`, `Join(code)`; `IsStarted`, `GameStarted`. A menu scene starts the game scene with `ActionRpgHost.Launch(sceneName, start)`; its host starts so even without the option. `-host` / `-join` on the command line start a waiting game too.
 - **Save summary for a start menu**: `ActionRpgHost.SavedGame` / `SavedGameOf(setup)` / `ActionRpgSaves.ReadSummary(directory, version)` give a `SaveSummary` (player name, level, `Loadout` (the hero), `PlaySeconds`, `Location` (the scene), `SavedAt`, `MadeByNewerVersion`) without starting a game. `ActionRpgSaves.PlaySeconds` and `Location` are kept in the save; the host counts the time played. `ActionRpgHost.SaveDirectoryOf(setup)`.
 

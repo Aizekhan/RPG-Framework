@@ -12,7 +12,12 @@ namespace RPGFramework.ActionRpg.Coop
         Idle,
         Connecting,
         Playing,
-        Ended
+        Ended,
+
+        /// <summary>
+        /// In the host's lobby (<see cref="CoopHost.UseLobby"/>), waiting for the match to start.
+        /// </summary>
+        Lobby
     }
 
     /// <summary>
@@ -72,6 +77,7 @@ namespace RPGFramework.ActionRpg.Coop
         private float _sinceSend;
         private string _pendingEnd;
         private CoopEndKind _pendingKind;
+        private List<CoopLobbyEntry> _lobby = new List<CoopLobbyEntry>();
 
         /// <param name="network">An unstarted network manager made by <see cref="CoopProtocol.CreateNetwork"/>.</param>
         /// <param name="motion">Where characters are; null sends and applies no movement.</param>
@@ -96,6 +102,60 @@ namespace RPGFramework.ActionRpg.Coop
             _network.RegisterMessageHandler<CoopCorrectionMessage>(OnCorrection).AddTo(_subscriptions);
             _network.RegisterMessageHandler<CoopIncomingAttackMessage>(OnIncomingAttack).AddTo(_subscriptions);
             _network.RegisterMessageHandler<CoopSceneMessage>(OnScene).AddTo(_subscriptions);
+            _network.RegisterMessageHandler<CoopLobbyMessage>(OnLobby).AddTo(_subscriptions);
+        }
+
+        /// <summary>
+        /// Who is in the host's lobby, the host first (while <see cref="State"/> is Lobby).
+        /// </summary>
+        public IReadOnlyList<CoopLobbyEntry> Lobby => _lobby;
+
+        /// <summary>
+        /// This player's entry in <see cref="Lobby"/>.
+        /// </summary>
+        public int LobbyId { get; private set; } = -1;
+
+        /// <summary>
+        /// Most players the host takes, the host included (as the lobby says).
+        /// </summary>
+        public int LobbyMaxPlayers { get; private set; }
+
+        /// <summary>
+        /// Seconds to the start once the host started the match; below 0 while not starting.
+        /// </summary>
+        public float StartCountdown { get; private set; } = -1f;
+
+        /// <summary>
+        /// The host let this player into its lobby; <see cref="Joined"/> follows when the match starts.
+        /// </summary>
+        public event Action LobbyJoined;
+
+        /// <summary>
+        /// The lobby changed: someone came or left, picked a hero, got ready, or the countdown started or stopped.
+        /// </summary>
+        public event Action LobbyChanged;
+
+        /// <summary>
+        /// Tells the host's lobby whether this player is ready and which hero (loadout) they play.
+        /// </summary>
+        /// <returns>False when not in a lobby.</returns>
+        public bool SetLobbyChoice(bool ready, string loadout = "")
+        {
+            if (State != CoopClientState.Lobby || !_network.IsConnected)
+                return false;
+            _network.SendToServer(new CoopLobbyChoiceMessage { Ready = ready, Loadout = loadout ?? "" });
+            return true;
+        }
+
+        private void OnLobby(int connectionId, CoopLobbyMessage lobby)
+        {
+            if (State != CoopClientState.Lobby)
+                return;
+            _lobby = lobby.Entries ?? new List<CoopLobbyEntry>();
+            LobbyId = lobby.YourId;
+            LobbyMaxPlayers = lobby.MaxPlayers;
+            StartCountdown = lobby.Countdown;
+            LobbyChanged?.Invoke();
         }
 
         /// <summary>
@@ -251,7 +311,7 @@ namespace RPGFramework.ActionRpg.Coop
 
         private void Begin(string address, Action start)
         {
-            if (State == CoopClientState.Connecting || State == CoopClientState.Playing)
+            if (State == CoopClientState.Connecting || State == CoopClientState.Playing || State == CoopClientState.Lobby)
                 throw new InvalidOperationException("Already joining a game");
             _address = address;
             EndReason = "";
@@ -281,6 +341,8 @@ namespace RPGFramework.ActionRpg.Coop
                 End(reason, _pendingKind);
                 return;
             }
+            if (State == CoopClientState.Lobby && StartCountdown > 0f)
+                StartCountdown = Math.Max(0f, StartCountdown - deltaTime);
             if (State != CoopClientState.Playing || Motion == null)
                 return;
             _sinceSend += deltaTime;
@@ -307,7 +369,7 @@ namespace RPGFramework.ActionRpg.Coop
             // Tell the host this is on purpose, so it keeps no seat
             if (State == CoopClientState.Playing && _network.IsConnected)
                 _network.SendToServer(new CoopIntentMessage { Kind = CoopIntentMessage.IntentKind.Leave });
-            if (State == CoopClientState.Connecting || State == CoopClientState.Playing)
+            if (State == CoopClientState.Connecting || State == CoopClientState.Playing || State == CoopClientState.Lobby)
                 End("You left the game.", CoopEndKind.Left);
         }
 
@@ -331,7 +393,7 @@ namespace RPGFramework.ActionRpg.Coop
                 return; // already known why (dropped, refused)
             if (State == CoopClientState.Connecting)
                 EndLater($"Could not reach a game at {_address}.", CoopEndKind.Unreachable);
-            else if (State == CoopClientState.Playing)
+            else if (State == CoopClientState.Playing || State == CoopClientState.Lobby)
                 EndLater("The host left the game.", CoopEndKind.HostLeft);
         }
 
@@ -339,7 +401,7 @@ namespace RPGFramework.ActionRpg.Coop
         {
             if (State == CoopClientState.Connecting)
                 EndLater($"Could not reach a game at {_address}.", CoopEndKind.Unreachable);
-            else if (State != CoopClientState.Playing)
+            else if (State != CoopClientState.Playing && State != CoopClientState.Lobby)
                 return;
             else if (reason == PeerDropReason.TimedOut)
                 EndLater("Lost the connection to the host.", CoopEndKind.ConnectionLost);
@@ -363,13 +425,26 @@ namespace RPGFramework.ActionRpg.Coop
 
         private void OnWelcome(int connectionId, CoopWelcomeMessage welcome)
         {
-            if (State != CoopClientState.Connecting)
+            if (State != CoopClientState.Connecting && State != CoopClientState.Lobby)
                 return;
             if (!welcome.Accepted)
             {
+                // Refused, or sent out of the lobby
                 EndLater(welcome.Reason, CoopEndKind.Refused);
                 return;
             }
+            if (welcome.InLobby)
+            {
+                if (State == CoopClientState.Connecting)
+                {
+                    State = CoopClientState.Lobby;
+                    _logger?.LogInfo($"In the lobby at {_address}", Category);
+                    LobbyJoined?.Invoke();
+                }
+                return;
+            }
+            _lobby = new List<CoopLobbyEntry>();
+            StartCountdown = -1f;
             RejoinToken = welcome.RejoinToken ?? "";
             Rejoined = welcome.Rejoined;
             World.Begin(welcome.PlayerId);
