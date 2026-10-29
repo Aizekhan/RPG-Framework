@@ -69,6 +69,16 @@ namespace RPGFramework.TurnBased
         public string LootTableId = "";
 
         /// <summary>
+        /// The faction this enemy belongs to (<see cref="TurnBasedContent.Factions"/>); empty for none.
+        /// </summary>
+        public string Faction = "";
+
+        /// <summary>
+        /// How the party's reputation with its <see cref="Faction"/> changes when it is beaten.
+        /// </summary>
+        public int ReputationOnKill;
+
+        /// <summary>
         /// Its own chance (0..1) to land a critical hit, added to the formula's
         /// (<see cref="DefaultBattleFormula.CriticalChance"/>): a rogue 0.2, a boss 0.
         /// </summary>

@@ -22,6 +22,7 @@
         "RPGFramework.Quests.Runtime",
         "RPGFramework.Achievements.Runtime",
         "RPGFramework.Skills.Runtime",
+        "RPGFramework.Factions.Runtime",
         "UniTask"
     ],
     "includePlatforms": [],

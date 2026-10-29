@@ -81,6 +81,7 @@ namespace RPGFramework.TurnBased
 
             Random = settings.Seed != 0 ? new Random(settings.Seed) : new Random();
             Skills = new PartySkills(this, content.SkillTree, entities, bus);
+            Reputation = new PartyReputation(entities, bus, content);
             Formula = settings.Formula ?? new DefaultBattleFormula();
             StatusEffects = new StatusEffectManager(entities, bus, new EffectTarget(this));
             // Battles have no distances: every target is in range
@@ -157,6 +158,8 @@ namespace RPGFramework.TurnBased
                 throw new InvalidOperationException("TurnBasedSettings.Party is empty");
 
             Bus.Subscribe<LevelUpEvent>(OnLevelUp).AddTo(_subscriptions);
+            Reputation.Start();
+            Bus.Subscribe<CombatantDefeatedEvent>(OnFactionFoeDefeated).AddTo(_subscriptions);
             if (_quests != null)
             {
                 QuestHolderId = _entities.CreateEntity();
@@ -254,6 +257,7 @@ namespace RPGFramework.TurnBased
             EncounterIndex = 0;
             IsRunOver = false;
             StockUp();
+            Reputation.Restore(null);
             Write("A new run begins");
             if (HasQuests)
             {
@@ -302,6 +306,11 @@ namespace RPGFramework.TurnBased
         /// What each party member learned in the skill tree (<see cref="TurnBasedContent.SkillTree"/>), and their points.
         /// </summary>
         public PartySkills Skills { get; }
+
+        /// <summary>
+        /// The party's standing with the game's factions (<see cref="TurnBasedContent.Factions"/>).
+        /// </summary>
+        public PartyReputation Reputation { get; }
 
         /// <summary>
         /// The party's achievements (<see cref="TurnBasedContent.Achievements"/>), a profile apart from the saves:
@@ -407,6 +416,13 @@ namespace RPGFramework.TurnBased
             }
         }
 
+        private void OnFactionFoeDefeated(CombatantDefeatedEvent defeated)
+        {
+            var data = defeated.IsParty ? null : Battle?.Get(defeated.CombatantId)?.Data;
+            if (data != null && !string.IsNullOrEmpty(data.Faction) && data.ReputationOnKill != 0)
+                Reputation.Change(data.Faction, data.ReputationOnKill);
+        }
+
         private void OnDefeated(CombatantDefeatedEvent defeated)
         {
             if (!defeated.IsParty)
@@ -441,6 +457,9 @@ namespace RPGFramework.TurnBased
                         break;
                     case RewardType.Item:
                         GiveItem(reward.RewardId, Math.Max(1, reward.Amount));
+                        break;
+                    case RewardType.Custom when reward.RewardId != null && reward.RewardId.StartsWith(PartyReputation.Prefix, StringComparison.Ordinal):
+                        Reputation.Change(reward.RewardId.Substring(PartyReputation.Prefix.Length), reward.Amount);
                         break;
                     default:
                         Logger?.LogWarning($"Reward type {reward.Type} is not handled by TurnBasedWorld; subscribe to " +
@@ -494,6 +513,7 @@ namespace RPGFramework.TurnBased
                 }
                 progress.CompletedQuests.AddRange(_quests.GetCompletedQuests(QuestHolderId));
             }
+            progress.Reputations.AddRange(Reputation.Records());
             return progress;
         }
 
@@ -546,6 +566,7 @@ namespace RPGFramework.TurnBased
                 Battle = null;
                 if (HasQuests)
                     RestoreQuests(progress);
+                Reputation.Restore(progress.Reputations);
             }
             finally
             {

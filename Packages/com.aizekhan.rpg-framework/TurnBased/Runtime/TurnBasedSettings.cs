@@ -224,6 +224,17 @@ namespace RPGFramework.TurnBased
         /// bonuses are <see cref="CombatStat"/> names (or aliases) or "resist:fire". Null: no skill tree.
         /// </summary>
         public RPGFramework.Skills.ISkillTree SkillTree { get; set; }
+
+        /// <summary>
+        /// The game's factions: the party's reputation with them (<see cref="TurnBasedWorld.Reputation"/>).
+        /// </summary>
+        public List<RPGFramework.Factions.IFaction> Factions { get; } = new List<RPGFramework.Factions.IFaction>();
+
+        /// <summary>
+        /// How the factions stand with each other: reputation with one spreads to its allies and enemies.
+        /// </summary>
+        public List<RPGFramework.Factions.IFactionRelationship> FactionRelations { get; } =
+            new List<RPGFramework.Factions.IFactionRelationship>();
     }
 
     /// <summary>

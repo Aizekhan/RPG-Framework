@@ -23,6 +23,7 @@
         "RPGFramework.Quests.Runtime",
         "RPGFramework.Achievements.Runtime",
         "RPGFramework.Skills.Runtime",
+        "RPGFramework.Factions.Runtime",
         "RPGFramework.TurnBased.Unity",
         "RPGFramework.UI.Runtime",
         "RPGFramework.UINavigation.Runtime",

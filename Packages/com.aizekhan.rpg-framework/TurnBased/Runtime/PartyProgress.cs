@@ -21,6 +21,11 @@ namespace RPGFramework.TurnBased
 
         public List<PartyQuestRecord> ActiveQuests { get; set; } = new List<PartyQuestRecord>();
         public List<string> CompletedQuests { get; set; } = new List<string>();
+
+        /// <summary>
+        /// The party's reputation with the factions (<see cref="PartyReputation.Of"/>).
+        /// </summary>
+        public List<PartyReputationRecord> Reputations { get; set; } = new List<PartyReputationRecord>();
     }
 
     /// <summary>

@@ -172,5 +172,36 @@ namespace RPGFramework.TurnBased.Tests
             Assert.That(restored.Gold, Is.EqualTo(gold), "the hunt's gold is not paid again");
             Assert.That(restored.CountOf(Potion), Is.EqualTo(world.CountOf(Potion)));
         }
+
+        [Test]
+        public void BeatenFactionEnemies_AndAQuestReward_MoveTheReputation_AndASaveKeepsIt()
+        {
+            var game = NewGame();
+            game.Content.Factions.Add(new RPGFramework.Factions.Faction("goblins", "Goblin Tribes", "", RPGFramework.Factions.FactionType.Clan));
+            game.Content.Factions.Add(new RPGFramework.Factions.Faction("village", "The Village", "", RPGFramework.Factions.FactionType.Kingdom));
+            game.Content.FactionRelations.Add(new RPGFramework.Factions.FactionRelationship("goblins", "village", RPGFramework.Factions.FactionRelationType.Enemy, -0.5f));
+            game.GoblinData.Faction = "goblins";
+            game.GoblinData.ReputationOnKill = -10;
+            game.Content.Quests.Add(new Quest("thanks", "Thanks", "Win at the pack",
+                new List<IQuestObjective> { new QuestObjective("win", ObjectiveType.Explore, "pack", 1, "Beat the pack") },
+                new List<IQuestReward> { new QuestReward(RewardType.Custom, PartyReputation.Prefix + "village", 25) },
+                new List<string>(), minimumLevel: 1, isRepeatable: false));
+            game.Settings.StartingQuests.Add("thanks");
+            var world = game.Start();
+
+            PlayToTheEnd(world.StartBattle());
+
+            Assert.That(world.Reputation.Of("goblins"), Is.EqualTo(-20), "two goblins");
+            Assert.That(world.Reputation.Of("village"), Is.EqualTo(10 + 25), "their enemy, and the quest");
+            Assert.That(world.Reputation.StandingOf("village"), Is.EqualTo(RPGFramework.Factions.FactionStanding.Friendly));
+            var progress = world.CaptureProgress();
+
+            world.Reputation.Set("village", -90);
+            world.RestoreProgress(progress);
+            Assert.That(world.Reputation.Of("village"), Is.EqualTo(35));
+
+            world.Restart();
+            Assert.That(world.Reputation.Of("goblins"), Is.EqualTo(0), "a new run starts from the defaults");
+        }
     }
 }
