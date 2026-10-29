@@ -10,6 +10,7 @@ using RPGFramework.Items;
 using RPGFramework.Logging;
 using RPGFramework.Loot;
 using RPGFramework.Progression;
+using RPGFramework.Quests;
 
 namespace RPGFramework.TurnBased
 {
@@ -63,7 +64,10 @@ namespace RPGFramework.TurnBased
                 c.Resolve<ICooldownTracker>(),
                 c.Resolve<IEventBus>(),
                 c.Resolve<ILogger>(),
-                c.Resolve<IStatGrowthFormula>()));
+                c.Resolve<IStatGrowthFormula>(),
+                // Quests are there when the game composes QuestsModule (TurnBasedComposition does)
+                Container.IsRegistered<IQuestManager>() ? c.Resolve<IQuestManager>() : null,
+                Container.IsRegistered<IQuestRegistry>() ? c.Resolve<IQuestRegistry>() : null));
         }
 
         protected override void OnInitialize()
@@ -83,6 +87,20 @@ namespace RPGFramework.TurnBased
             var abilities = Container.Resolve<IAbilityRegistry>();
             foreach (var ability in _content.Abilities)
                 abilities.RegisterAbility(ability);
+            if (Container.IsRegistered<IQuestRegistry>())
+            {
+                var quests = Container.Resolve<IQuestRegistry>();
+                foreach (var quest in _content.Quests)
+                {
+                    if (quest != null)
+                        quests.RegisterQuest(quest);
+                }
+            }
+            else if (_content.Quests.Count > 0)
+            {
+                Container.Resolve<ILogger>()?.LogWarning("The setup has quests but the game does not compose QuestsModule; " +
+                                                         "they are left out", "TurnBased");
+            }
 
             World = Container.Resolve<TurnBasedWorld>();
             World.Start();
@@ -113,6 +131,7 @@ namespace RPGFramework.TurnBased
                 .UseModule(new ProgressionModule(new ProgressionOptions { LevelTable = settings.LevelTable }))
                 .UseModule(new ItemsModule())
                 .UseModule(new LootModule())
+                .UseModule(new QuestsModule())
                 .UseModule(game);
             return game;
         }

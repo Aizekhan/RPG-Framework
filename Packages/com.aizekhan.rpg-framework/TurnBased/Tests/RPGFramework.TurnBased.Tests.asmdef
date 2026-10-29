@@ -20,6 +20,7 @@
         "RPGFramework.Stats.Runtime",
         "RPGFramework.Combat.Runtime",
         "RPGFramework.Persistence.Runtime",
+        "RPGFramework.Quests.Runtime",
         "RPGFramework.TurnBased.Unity",
         "RPGFramework.UI.Runtime",
         "RPGFramework.UINavigation.Runtime",

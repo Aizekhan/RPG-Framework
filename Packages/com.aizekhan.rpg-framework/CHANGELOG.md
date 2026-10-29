@@ -15,6 +15,7 @@
 - TurnBased: elements. `AbilityEffectData.Element` ("fire") and `CombatantData.Resistances` (resist, weakness, immunity); `TurnBasedWorld.Resistances` (a `DamageResistances`) for a game's own sources (gear, a ward). Plain attacks have no element.
 - Action RPG kit: a status effect with a "resist:<element>" stat modifier (a fire-ward potion) grants that resistance while it lasts, added to the character's and gear's.
 - Turn-based: critical hits - `DefaultBattleFormula.CriticalChance` and `CriticalMultiplier` (1.5), `CombatantData.CriticalChance` per fighter, `HitResult.Critical`, `TargetOutcome.Critical` and "(critical)" in the battle log. No roll is made while the chances are 0, so seeded battles replay as before.
+- Turn-based: quests. `TurnBasedContent.Quests`, `TurnBasedSettings.StartingQuests` and `CompleteQuestsAutomatically`; the party's quests live on `TurnBasedWorld.QuestHolderId`. Beaten enemies advance Kill objectives (character id), items the party gets advance Collect ones (item id) and won encounters advance Explore ones (encounter id). Rewards: experience for every member standing, gold (Currency) and items. `AcceptQuest`, `CompleteQuest`, `ReportQuestProgress`, `ActiveQuests`, `CompletedQuests`, `HasQuests`. A new run takes the starting quests again (not the done ones). Saves keep active and completed quests (`PartyProgress.ActiveQuests`, `CompletedQuests`) without paying rewards again. `TurnBasedComposition` now composes `QuestsModule`; a game composing its own modules gets quests when it adds `QuestsModule`.
 
 ## [0.18.0] - 2026-10-29
 

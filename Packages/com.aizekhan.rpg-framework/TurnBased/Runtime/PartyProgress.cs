@@ -3,8 +3,8 @@ using System.Collections.Generic;
 namespace RPGFramework.TurnBased
 {
     /// <summary>
-    /// What a save keeps of a run: each member's level, experience, health and mana, the inventory, the gold and how
-    /// far the run got. A battle in progress is not kept: loading puts the party before the next encounter.
+    /// What a save keeps of a run: each member's level, experience, health and mana, the inventory, the gold, the
+    /// quests and how far the run got. A battle in progress is not kept: loading puts the party before the next encounter.
     /// </summary>
     public sealed class PartyProgress
     {
@@ -18,6 +18,24 @@ namespace RPGFramework.TurnBased
         public List<string> Items { get; set; } = new List<string>();
 
         public List<MemberRecord> Members { get; set; } = new List<MemberRecord>();
+
+        public List<PartyQuestRecord> ActiveQuests { get; set; } = new List<PartyQuestRecord>();
+        public List<string> CompletedQuests { get; set; } = new List<string>();
+    }
+
+    /// <summary>
+    /// A quest the party is on, with how far each objective got.
+    /// </summary>
+    public sealed class PartyQuestRecord
+    {
+        public string QuestId { get; set; }
+        public List<PartyObjectiveRecord> Objectives { get; set; } = new List<PartyObjectiveRecord>();
+    }
+
+    public sealed class PartyObjectiveRecord
+    {
+        public string ObjectiveId { get; set; }
+        public int Progress { get; set; }
     }
 
     public sealed class MemberRecord

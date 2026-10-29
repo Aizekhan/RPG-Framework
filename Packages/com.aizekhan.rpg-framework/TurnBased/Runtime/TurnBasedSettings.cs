@@ -37,6 +37,17 @@ namespace RPGFramework.TurnBased
 
         public int StartingGold { get; set; }
 
+        /// <summary>
+        /// Quests the party has from the start (and again after <see cref="TurnBasedWorld.Restart"/> when not done yet).
+        /// </summary>
+        public List<string> StartingQuests { get; } = new List<string>();
+
+        /// <summary>
+        /// A quest whose objectives are all done completes (and pays its rewards) by itself; false: the game calls
+        /// <see cref="TurnBasedWorld.CompleteQuest"/> (a quest giver to go back to).
+        /// </summary>
+        public bool CompleteQuestsAutomatically { get; set; } = true;
+
         public int InventoryCapacity { get; set; } = 60;
 
         /// <summary>
@@ -159,6 +170,10 @@ namespace RPGFramework.TurnBased
             foreach (var missing in StartingItems.Where(id => !items.Contains(id)).Distinct())
                 problems.Add($"Starting item '{missing}' is not an item in the setup.");
 
+            var questIds = new HashSet<string>(content.Quests.Where(q => q != null).Select(q => q.Id));
+            foreach (var missing in StartingQuests.Where(id => !questIds.Contains(id)).Distinct())
+                problems.Add($"Starting quest '{missing}' is not a quest in the setup.");
+
             return problems;
         }
     }
@@ -179,6 +194,12 @@ namespace RPGFramework.TurnBased
         /// What each ability does when it lands, by ability id.
         /// </summary>
         public List<AbilityEffectData> AbilityEffects { get; } = new List<AbilityEffectData>();
+
+        /// <summary>
+        /// The game's quests: beaten enemies advance Kill objectives (by character id), items the party gets advance
+        /// Collect ones (by item id) and won encounters advance Explore ones (by encounter id).
+        /// </summary>
+        public List<RPGFramework.Quests.IQuest> Quests { get; } = new List<RPGFramework.Quests.IQuest>();
     }
 
     /// <summary>

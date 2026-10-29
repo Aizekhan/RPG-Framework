@@ -9,6 +9,7 @@ using RPGFramework.Items;
 using RPGFramework.Logging;
 using RPGFramework.Loot;
 using RPGFramework.Progression;
+using RPGFramework.Quests;
 using RPGFramework.StatusEffects;
 
 namespace RPGFramework.TurnBased
@@ -24,6 +25,9 @@ namespace RPGFramework.TurnBased
     /// <para>Defeat ends the run (<see cref="Restart"/> begins a new one). Fleeing keeps the party as it is and the
     /// same encounter comes next.</para>
     /// <para>Status effects (StatusEffects) and cooldowns (Abilities) last one battle.</para>
+    /// <para>Quests (when the game composes QuestsModule) belong to the whole party (<see cref="QuestHolderId"/>):
+    /// beaten enemies advance Kill objectives, items the party gets Collect ones, won encounters Explore ones;
+    /// rewards are experience for every member standing, gold ("Currency") and items.</para>
     /// </summary>
     public sealed class TurnBasedWorld : ITurnBasedWorld, IDisposable
     {
@@ -53,11 +57,16 @@ namespace RPGFramework.TurnBased
         private readonly SubscriptionBag _subscriptions = new SubscriptionBag();
         private BattleRewards _collecting;
         private bool _restoring;
+        private readonly IQuestManager _quests;
+        private readonly IQuestRegistry _questRegistry;
 
         public TurnBasedWorld(TurnBasedSettings settings, TurnBasedContent content, IEntityManager entities,
             IProgressionTracker progression, ILootGenerator loot, IItemRegistry items, IAbilityRegistry abilities,
-            ICooldownTracker cooldowns, IEventBus bus, ILogger logger = null, IStatGrowthFormula growth = null)
+            ICooldownTracker cooldowns, IEventBus bus, ILogger logger = null, IStatGrowthFormula growth = null,
+            IQuestManager quests = null, IQuestRegistry questRegistry = null)
         {
+            _quests = questRegistry != null ? quests : null;
+            _questRegistry = quests != null ? questRegistry : null;
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
             _entities = entities ?? throw new ArgumentNullException(nameof(entities));
             _progression = progression ?? throw new ArgumentNullException(nameof(progression));
@@ -147,6 +156,13 @@ namespace RPGFramework.TurnBased
                 throw new InvalidOperationException("TurnBasedSettings.Party is empty");
 
             Bus.Subscribe<LevelUpEvent>(OnLevelUp).AddTo(_subscriptions);
+            if (_quests != null)
+            {
+                QuestHolderId = _entities.CreateEntity();
+                Bus.Subscribe<CombatantDefeatedEvent>(OnDefeated).AddTo(_subscriptions);
+                Bus.Subscribe<ObjectiveProgressedEvent>(OnObjectiveProgressed).AddTo(_subscriptions);
+                Bus.Subscribe<QuestCompletedEvent>(OnQuestCompleted).AddTo(_subscriptions);
+            }
 
             int slot = 0;
             foreach (var data in _settings.Party.Where(p => p != null).Take(TurnBasedSettings.MaxPartySize))
@@ -161,6 +177,7 @@ namespace RPGFramework.TurnBased
             IsStarted = true;
             StockUp();
             Write($"The party sets out: {string.Join(", ", _party.Select(m => m.Name))}");
+            TakeStartingQuests();
         }
 
         public string WhyCannotStartBattle()
@@ -236,6 +253,12 @@ namespace RPGFramework.TurnBased
             IsRunOver = false;
             StockUp();
             Write("A new run begins");
+            if (HasQuests)
+            {
+                foreach (var active in _quests.GetActiveQuests(QuestHolderId).ToList())
+                    _quests.AbandonQuest(QuestHolderId, active.QuestId);
+            }
+            TakeStartingQuests();
         }
 
         /// <summary>
@@ -256,10 +279,128 @@ namespace RPGFramework.TurnBased
                 if (!Inventory.Add(item))
                 {
                     Write("The inventory is full");
+                    ReportQuestProgress(ObjectiveType.Collect, itemId, i);
                     return false;
                 }
             }
+            ReportQuestProgress(ObjectiveType.Collect, itemId, quantity);
             return true;
+        }
+
+        // ---- Quests ----
+
+        /// <summary>
+        /// The entity the party's quests are kept on; -1 without quests (no QuestsModule) or before the start.
+        /// </summary>
+        public int QuestHolderId { get; private set; } = -1;
+
+        public bool HasQuests => _quests != null && QuestHolderId >= 0;
+
+        /// <summary>
+        /// The quests the party is on, with their progress.
+        /// </summary>
+        public IEnumerable<(IQuest Quest, IQuestProgress Progress)> ActiveQuests => HasQuests
+            ? _quests.GetActiveQuests(QuestHolderId).Select(p => (_questRegistry.GetQuest(p.QuestId), p)).Where(q => q.Item1 != null).ToList()
+            : Enumerable.Empty<(IQuest, IQuestProgress)>();
+
+        public IReadOnlyList<string> CompletedQuests => HasQuests
+            ? _quests.GetCompletedQuests(QuestHolderId)
+            : (IReadOnlyList<string>)Array.Empty<string>();
+
+        /// <summary>
+        /// The party takes a quest (from a quest giver between fights); false when it is unknown, taken or done.
+        /// </summary>
+        public bool AcceptQuest(string questId)
+        {
+            ThrowIfNotStarted();
+            if (!HasQuests || !_quests.AcceptQuest(QuestHolderId, questId))
+                return false;
+            Write($"New quest: {_questRegistry.GetQuest(questId)?.Title ?? questId}");
+            return true;
+        }
+
+        /// <summary>
+        /// Hands in a quest whose objectives are done and pays its rewards (with
+        /// <see cref="TurnBasedSettings.CompleteQuestsAutomatically"/> off); false while something is still open.
+        /// </summary>
+        public bool CompleteQuest(string questId)
+        {
+            ThrowIfNotStarted();
+            return HasQuests && _quests.CompleteQuest(QuestHolderId, questId);
+        }
+
+        /// <summary>
+        /// Advances the party's quests by something the game counts itself (a talked-to villager: Interact).
+        /// </summary>
+        /// <returns>How many objectives advanced.</returns>
+        public int ReportQuestProgress(ObjectiveType type, string targetId, int amount = 1)
+        {
+            if (!HasQuests || _restoring || amount <= 0)
+                return 0;
+            return _quests.ReportProgress(QuestHolderId, type, targetId, amount);
+        }
+
+        private void TakeStartingQuests()
+        {
+            if (!HasQuests)
+                return;
+            var completed = _quests.GetCompletedQuests(QuestHolderId);
+            foreach (var questId in _settings.StartingQuests)
+            {
+                if (!completed.Contains(questId) && _quests.GetQuestProgress(QuestHolderId, questId) == null)
+                    AcceptQuest(questId);
+            }
+        }
+
+        private void OnDefeated(CombatantDefeatedEvent defeated)
+        {
+            if (!defeated.IsParty)
+                ReportQuestProgress(ObjectiveType.Kill, defeated.CharacterId);
+        }
+
+        private void OnObjectiveProgressed(ObjectiveProgressedEvent progress)
+        {
+            if (progress.EntityId != QuestHolderId || _restoring)
+                return;
+            Write($"{_questRegistry.GetQuest(progress.QuestId)?.Title ?? progress.QuestId}: {progress.CurrentProgress}/{progress.RequiredProgress}");
+            // CompleteQuest refuses while any objective is still open
+            if (progress.IsCompleted && _settings.CompleteQuestsAutomatically)
+                _quests.CompleteQuest(QuestHolderId, progress.QuestId);
+        }
+
+        private void OnQuestCompleted(QuestCompletedEvent completed)
+        {
+            if (completed.EntityId != QuestHolderId || _restoring)
+                return;
+            Write($"Quest complete: {_questRegistry.GetQuest(completed.QuestId)?.Title ?? completed.QuestId}");
+            foreach (var reward in completed.Rewards ?? new List<IQuestReward>())
+            {
+                switch (reward.Type)
+                {
+                    case RewardType.Experience:
+                        foreach (var member in _party.Where(m => m.IsAlive))
+                            _progression.AddExperience(member.Id, reward.Amount);
+                        break;
+                    case RewardType.Currency:
+                        Gold += Math.Max(0, reward.Amount);
+                        break;
+                    case RewardType.Item:
+                        GiveItem(reward.RewardId, Math.Max(1, reward.Amount));
+                        break;
+                    default:
+                        Logger?.LogWarning($"Reward type {reward.Type} is not handled by TurnBasedWorld; subscribe to " +
+                                           "QuestCompletedEvent in a game module to grant it", Category);
+                        break;
+                }
+            }
+        }
+
+        private void SetObjective(string questId, string objectiveId, int target)
+        {
+            var current = _quests.GetQuestProgress(QuestHolderId, questId);
+            int done = current != null && current.ObjectiveProgress.TryGetValue(objectiveId, out int value) ? value : 0;
+            if (target > done)
+                _quests.UpdateObjectiveProgress(QuestHolderId, questId, objectiveId, target - done);
         }
 
         /// <summary>
@@ -285,6 +426,17 @@ namespace RPGFramework.TurnBased
                     CharacterId = member.CharacterId, Level = member.Level, TotalExperience = ExperienceOf(member.Id),
                     Health = member.Health, Mana = member.Mana
                 });
+            }
+            if (HasQuests)
+            {
+                foreach (var active in _quests.GetActiveQuests(QuestHolderId))
+                {
+                    var record = new PartyQuestRecord { QuestId = active.QuestId };
+                    record.Objectives.AddRange(active.ObjectiveProgress.OrderBy(p => p.Key, StringComparer.Ordinal)
+                        .Select(p => new PartyObjectiveRecord { ObjectiveId = p.Key, Progress = p.Value }));
+                    progress.ActiveQuests.Add(record);
+                }
+                progress.CompletedQuests.AddRange(_quests.GetCompletedQuests(QuestHolderId));
             }
             return progress;
         }
@@ -335,12 +487,52 @@ namespace RPGFramework.TurnBased
                 EncounterIndex = Math.Max(0, Math.Min(progress.EncounterIndex, _settings.Encounters.Count));
                 IsRunOver = progress.RunOver;
                 Battle = null;
+                if (HasQuests)
+                    RestoreQuests(progress);
             }
             finally
             {
                 _restoring = false;
             }
             Write($"Welcome back: encounter {Math.Min(EncounterIndex + 1, _settings.Encounters.Count)} of {_settings.Encounters.Count}");
+        }
+
+        // The save's quests come back (the done ones done, without their rewards again); ones taken since are dropped
+        private void RestoreQuests(PartyProgress progress)
+        {
+            var saved = new HashSet<string>((progress.ActiveQuests ?? new List<PartyQuestRecord>())
+                .Where(r => r?.QuestId != null).Select(r => r.QuestId), StringComparer.Ordinal);
+            foreach (var active in _quests.GetActiveQuests(QuestHolderId).ToList())
+            {
+                if (!saved.Contains(active.QuestId))
+                    _quests.AbandonQuest(QuestHolderId, active.QuestId);
+            }
+
+            var completed = _quests.GetCompletedQuests(QuestHolderId);
+            foreach (var questId in progress.CompletedQuests ?? new List<string>())
+            {
+                var quest = _questRegistry.GetQuest(questId);
+                if (quest == null || completed.Contains(questId))
+                    continue;
+                if (_quests.GetQuestProgress(QuestHolderId, questId) == null)
+                    _quests.AcceptQuest(QuestHolderId, questId);
+                foreach (var objective in quest.Objectives)
+                    SetObjective(questId, objective.Id, objective.RequiredCount);
+                _quests.CompleteQuest(QuestHolderId, questId);
+            }
+
+            foreach (var record in progress.ActiveQuests ?? new List<PartyQuestRecord>())
+            {
+                if (record?.QuestId == null || _questRegistry.GetQuest(record.QuestId) == null)
+                {
+                    Logger?.LogWarning($"Saved quest '{record?.QuestId}' is no longer in the game; skipped", Category);
+                    continue;
+                }
+                if (_quests.GetQuestProgress(QuestHolderId, record.QuestId) == null && !_quests.AcceptQuest(QuestHolderId, record.QuestId))
+                    continue;
+                foreach (var objective in record.Objectives ?? new List<PartyObjectiveRecord>())
+                    SetObjective(record.QuestId, objective.ObjectiveId, objective.Progress);
+            }
         }
 
         public void Dispose()
@@ -353,6 +545,9 @@ namespace RPGFramework.TurnBased
                 if (_entities.Exists(member.Id))
                     _entities.DestroyEntity(member.Id);
             }
+            if (QuestHolderId >= 0 && _entities.Exists(QuestHolderId))
+                _entities.DestroyEntity(QuestHolderId);
+            QuestHolderId = -1;
         }
 
         // ---- Called by the battle ----
@@ -374,6 +569,7 @@ namespace RPGFramework.TurnBased
                 }
                 EncounterIndex++;
                 Rest();
+                ReportQuestProgress(ObjectiveType.Explore, battle.Encounter.Id);
             }
             else if (battle.Outcome == BattleOutcome.Defeat)
             {
