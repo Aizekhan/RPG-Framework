@@ -89,6 +89,8 @@ namespace RPGFramework.ActionRpg
             AddSystem<WaveSystem>();
             Container.RegisterFactory(c => c.Resolve<ActorWorld>().Crafting);
             AddSystem<ActorCrafting>();
+            Container.RegisterFactory(c => c.Resolve<ActorWorld>().Consumables);
+            AddSystem<ActorConsumables>();
             AddSystem<PvpMatch>();
             if (_settings.UsesStatusEffects(_content))
             {

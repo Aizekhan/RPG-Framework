@@ -80,6 +80,7 @@ namespace RPGFramework.ActionRpg
             Skills = new ActorSkills(this, bus);
             Crafting = new ActorCrafting(this, bus);
             Dialogue = new ActorDialogue(this, entities, bus);
+            Consumables = new ActorConsumables(this, bus);
             _random = settings.Seed != 0 ? new Random(settings.Seed) : new Random();
             Hostility = HostilityRules.For(settings);
         }
@@ -103,6 +104,11 @@ namespace RPGFramework.ActionRpg
         /// Conversations with conditions and effects (<see cref="ActionRpgContent.Dialogues"/>).
         /// </summary>
         public ActorDialogue Dialogue { get; }
+
+        /// <summary>
+        /// Potions, food and scrolls the players use from their backpacks, with their cooldowns.
+        /// </summary>
+        public ActorConsumables Consumables { get; }
 
         /// <summary>
         /// The players' achievements (<see cref="ActionRpgContent.Achievements"/>): their deeds counted by kind, what
@@ -524,6 +530,7 @@ namespace RPGFramework.ActionRpg
             // Worn items go back into the backpack the party shares, or leave with the player
             Crafting.CancelAll(playerId);
             Dialogue.Forget(playerId);
+            Consumables.Forget(playerId);
             Gear.Forget(playerId, backToBackpack: _settings.ProgressMode != ProgressMode.PerPlayer);
             Skills.Forget(playerId);
             _party.Remove(playerId);
