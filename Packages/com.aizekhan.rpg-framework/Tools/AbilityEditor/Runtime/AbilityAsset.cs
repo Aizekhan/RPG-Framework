@@ -50,6 +50,10 @@ namespace RPGFramework.Tools.AbilityEditor
         [Min(0f)]
         public float channelDuration = 0f;
 
+        [Tooltip("Seconds between the ticks of a held ability (a beam burning every 0.5 s); each tick calls its effect again. 0: it lands once")]
+        [Min(0f)]
+        public float channelTickInterval = 0f;
+
         [Tooltip("Whether being hit or stunned can stop the cast")]
         public bool isInterruptible = true;
 
@@ -59,6 +63,10 @@ namespace RPGFramework.Tools.AbilityEditor
         [Tooltip("How many times it can be used before it runs out; 0 means no limit")]
         [Min(0)]
         public int maxCharges = 0;
+
+        [Tooltip("Seconds for a used charge to come back, one at a time; 0 means charges come back only when the game gives them")]
+        [Min(0f)]
+        public float chargeRechargeTime = 0f;
 
         [Header("Targeting")]
         [Tooltip("Who or what it may be aimed at")]
@@ -88,7 +96,8 @@ namespace RPGFramework.Tools.AbilityEditor
                 maxCharges: maxCharges)
             {
                 Description = description ?? string.Empty,
-                IconId = iconId ?? string.Empty
+                IconId = iconId ?? string.Empty,
+                ChargeRechargeTime = chargeRechargeTime
             };
 
             var resourceCosts = new List<ResourceCost>();
@@ -101,7 +110,10 @@ namespace RPGFramework.Tools.AbilityEditor
                 }
             }
 
-            var castInfo = new CastInfo(castTime, channelDuration, isInterruptible, canMoveWhileCasting);
+            var castInfo = new CastInfo(castTime, channelDuration, isInterruptible, canMoveWhileCasting)
+            {
+                ChannelTickInterval = channelTickInterval
+            };
 
             return new Ability(metadata, resourceCosts, castInfo, targetType);
         }
@@ -133,6 +145,12 @@ namespace RPGFramework.Tools.AbilityEditor
 
             if (maxCharges < 0)
                 errors.Add("Max Charges cannot be negative (0 means no limit)");
+
+            if (channelTickInterval < 0f)
+                errors.Add("Channel Tick Interval cannot be negative");
+
+            if (chargeRechargeTime < 0f)
+                errors.Add("Charge Recharge Time cannot be negative");
 
             if (range < 0f)
                 errors.Add("Range cannot be negative");

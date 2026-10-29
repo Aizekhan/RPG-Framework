@@ -36,6 +36,12 @@ namespace RPGFramework.Abilities
         /// <summary>Maximum number of charges (0 for unlimited)</summary>
         public int MaxCharges;
 
+        /// <summary>
+        /// Seconds for a used charge to come back, one at a time (0: charges come back only by
+        /// <see cref="IAbilityInstance.RestoreCharge"/>).
+        /// </summary>
+        public float ChargeRechargeTime;
+
         public AbilityMetadata(
             string abilityId,
             string name,

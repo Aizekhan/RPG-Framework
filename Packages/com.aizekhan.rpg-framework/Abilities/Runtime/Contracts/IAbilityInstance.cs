@@ -41,5 +41,15 @@ namespace RPGFramework.Abilities
 
         /// <summary>Restore one charge</summary>
         void RestoreCharge();
+
+        /// <summary>
+        /// Gives back the charges whose recharge time has passed (<see cref="AbilityMetadata.ChargeRechargeTime"/>).
+        /// </summary>
+        void RefreshCharges(float currentTime);
+
+        /// <summary>
+        /// Seconds until the next charge comes back; 0 when none is on its way.
+        /// </summary>
+        float NextChargeIn(float currentTime);
     }
 }

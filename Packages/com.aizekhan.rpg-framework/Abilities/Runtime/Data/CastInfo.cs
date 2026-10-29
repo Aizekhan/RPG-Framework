@@ -18,6 +18,12 @@ namespace RPGFramework.Abilities
         /// <summary>Whether caster can move while casting</summary>
         public bool CanMoveWhileCasting;
 
+        /// <summary>
+        /// Seconds between the ticks of a channel (a beam that burns every 0.5 s); 0: the channel lands once, when
+        /// it starts. Each tick calls the ability's effect again and raises <see cref="AbilityChannelTickEvent"/>.
+        /// </summary>
+        public float ChannelTickInterval;
+
         public CastInfo(float castTime, float channelDuration = 0f, bool isInterruptible = true, bool canMoveWhileCasting = false)
         {
             CastTime = castTime;

@@ -20,8 +20,12 @@ namespace RPGFramework.Abilities
     ///   <see cref="Update"/>) finishes it once the cast time has passed, checks target and costs again, then pays,
     ///   applies the effect, starts the cooldown and raises AbilityExecuted. A canceled or interrupted cast costs nothing.
     /// - An ability with a channel duration lands when the channel starts (after any cast time) and keeps the caster
-    ///   busy until the duration is over or the channel is canceled. Effects over the channel are driven by the game
-    ///   (see <see cref="IsChanneling"/>).
+    ///   busy until the duration is over or the channel is canceled. With <see cref="CastInfo.ChannelTickInterval"/>
+    ///   the effect is called again on every tick during the channel (<see cref="Update"/> drives it,
+    ///   AbilityChannelTick); without one, effects over the channel are driven by the game (see <see cref="IsChanneling"/>).
+    ///   AbilityChannelEnded is raised when the channel ends, run out or stopped.
+    /// - Charges with <see cref="AbilityMetadata.ChargeRechargeTime"/> come back one at a time while the executor is
+    ///   given time.
     /// - A toggle ability switches on like an Active one (target, costs, cooldown) and the next use switches it off
     ///   for free, even during its cooldown.
     /// - A caster does one cast or channel at a time; other abilities are refused until it ends.
@@ -59,6 +63,8 @@ namespace RPGFramework.Abilities
             public int TargetEntityId;
             public bool Channeling;
             public float EndTime;
+            public float NextTick;
+            public int Ticks;
             public Func<int, string, float, bool> ResourceCheck;
             public Action<int, string, float> ResourceConsume;
             public Action<int, int, string> ApplyEffect;
@@ -193,6 +199,22 @@ namespace RPGFramework.Abilities
         public int Update(float currentTime)
         {
             _lastTime = currentTime;
+            foreach (var byAbility in _abilityInstances.Values)
+            {
+                foreach (var instance in byAbility.Values)
+                    instance.RefreshCharges(currentTime);
+            }
+
+            // Channel ticks up to now, the last one at most at the channel's end
+            _due.Clear();
+            foreach (var pair in _casts)
+            {
+                if (pair.Value.Channeling && pair.Value.Ability.CastInfo.ChannelTickInterval > 0f)
+                    _due.Add(pair.Key);
+            }
+            foreach (int entityId in _due)
+                TickChannel(entityId, currentTime);
+
             _due.Clear();
             foreach (var pair in _casts)
             {
@@ -210,6 +232,7 @@ namespace RPGFramework.Abilities
                 {
                     _casts.Remove(entityId);
                     cast.Instance.CancelCast();
+                    PublishChannelEnded(entityId, cast, currentTime, null);
                 }
                 else
                 {
@@ -320,6 +343,8 @@ namespace RPGFramework.Abilities
                 cast.Instance.StartCast(currentTime);
                 cast.Channeling = true;
                 cast.EndTime = currentTime + ability.CastInfo.ChannelDuration;
+                cast.NextTick = currentTime + ability.CastInfo.ChannelTickInterval;
+                cast.Ticks = 0;
                 _casts[casterEntityId] = cast;
             }
 
@@ -340,6 +365,9 @@ namespace RPGFramework.Abilities
 
         private void EndCast(int entityId, ActiveCast cast, float currentTime, string reason)
         {
+            // Ticks due before the stop still land
+            if (cast.Channeling)
+                TickChannel(entityId, currentTime);
             _casts.Remove(entityId);
             cast.Instance.CancelCast();
             _events?.Publish(new AbilityCanceledEvent
@@ -349,11 +377,56 @@ namespace RPGFramework.Abilities
                 Timestamp = currentTime,
                 Reason = reason
             });
+            if (cast.Channeling)
+                PublishChannelEnded(entityId, cast, currentTime, reason);
+        }
+
+        private void TickChannel(int entityId, float currentTime)
+        {
+            if (!_casts.TryGetValue(entityId, out var cast) || !cast.Channeling)
+                return;
+            float interval = cast.Ability.CastInfo.ChannelTickInterval;
+            if (interval <= 0f)
+                return;
+            float until = Math.Min(currentTime, cast.EndTime);
+            while (cast.NextTick <= until + 1e-5f)
+            {
+                float at = cast.NextTick;
+                cast.Ticks++;
+                cast.NextTick += interval;
+                cast.ApplyEffect?.Invoke(entityId, cast.TargetEntityId, cast.Ability.AbilityId);
+                _events?.Publish(new AbilityChannelTickEvent
+                {
+                    AbilityId = cast.Ability.AbilityId,
+                    CasterEntityId = entityId,
+                    TargetEntityId = cast.TargetEntityId,
+                    Tick = cast.Ticks,
+                    Timestamp = at
+                });
+                // The effect may have ended the channel (the caster died)
+                if (!_casts.TryGetValue(entityId, out var still) || still != cast)
+                    return;
+            }
+        }
+
+        private void PublishChannelEnded(int entityId, ActiveCast cast, float currentTime, string reason)
+        {
+            _events?.Publish(new AbilityChannelEndedEvent
+            {
+                AbilityId = cast.Ability.AbilityId,
+                CasterEntityId = entityId,
+                TargetEntityId = cast.TargetEntityId,
+                Completed = reason == null,
+                Reason = reason,
+                Ticks = cast.Ticks,
+                Timestamp = currentTime
+            });
         }
 
         // Why the ability cannot be used right now, or null when it can (target and costs aside).
         private string Blocked(IAbility ability, IAbilityInstance instance, int casterEntityId, float currentTime)
         {
+            instance.RefreshCharges(currentTime);
             if (_casts.TryGetValue(casterEntityId, out var active))
                 return $"Caster is busy {(active.Channeling ? "channeling" : "casting")} {active.Ability.AbilityId}";
 
