@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-10-29
+
 Co-op protocol 15: host and friends need the same version (friends on 14 are refused with the reason).
 
 ### Added
