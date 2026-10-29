@@ -63,6 +63,21 @@ namespace RPGFramework.ActionRpg
         public Dictionary<string, int> ElementTags { get; } = new Dictionary<string, int>(StringComparer.Ordinal);
 
         /// <summary>
+        /// The chance (0..1) that a spawned enemy is elite (<see cref="ActionRpgContent.EliteAffixes"/>).
+        /// </summary>
+        public float EliteChance { get; set; }
+
+        /// <summary>
+        /// How many affixes an elite rolls, as the rarity's count in the pool (Rare: 2 by default).
+        /// </summary>
+        public RPGFramework.Items.ItemRarity EliteRarity { get; set; } = RPGFramework.Items.ItemRarity.Rare;
+
+        /// <summary>
+        /// An elite's experience is its character's times this; its loot table is rolled this many times (rounded).
+        /// </summary>
+        public float EliteRewardMultiplier { get; set; } = 2f;
+
+        /// <summary>
         /// Fixed random seed (loot, wave composition); 0 picks a new one every run.
         /// </summary>
         public int Seed { get; set; }
@@ -236,6 +251,14 @@ namespace RPGFramework.ActionRpg
         /// (stats, or "resist:fire"). Rolled gear counts as its base item.
         /// </summary>
         public ItemSets ItemSets { get; } = new ItemSets();
+
+        /// <summary>
+        /// Affixes an elite enemy can roll ("Frenzied": +50% Attack, "of Stone": +10 Defense): stats are
+        /// <see cref="ActorStat"/> names (or "resist:fire"); an enemy spawns elite with
+        /// <see cref="ActionRpgSettings.EliteChance"/> and rolls them at the player's level and
+        /// <see cref="ActionRpgSettings.EliteRarity"/>, the character's id as the affix kind. Null: no elites.
+        /// </summary>
+        public AffixPool EliteAffixes { get; set; }
 
         private readonly Dictionary<string, IItem> _rolledItems = new Dictionary<string, IItem>(StringComparer.Ordinal);
         private readonly Dictionary<string, GearData> _rolledGear = new Dictionary<string, GearData>(StringComparer.Ordinal);

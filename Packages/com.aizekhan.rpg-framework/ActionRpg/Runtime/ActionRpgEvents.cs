@@ -21,6 +21,26 @@ namespace RPGFramework.ActionRpg
     }
 
     /// <summary>
+    /// An enemy is elite (<see cref="ActionRpgContent.EliteAffixes"/>): its name with the affixes and their ids, for
+    /// the look (a glow, a bigger health bar) and the HUD.
+    /// </summary>
+    public readonly struct EliteSpawnedEvent : IEvent
+    {
+        public EliteSpawnedEvent(int entityId, string characterId, string name, System.Collections.Generic.IReadOnlyList<string> affixIds)
+        {
+            EntityId = entityId;
+            CharacterId = characterId;
+            Name = name;
+            AffixIds = affixIds ?? System.Array.Empty<string>();
+        }
+
+        public int EntityId { get; }
+        public string CharacterId { get; }
+        public string Name { get; }
+        public System.Collections.Generic.IReadOnlyList<string> AffixIds { get; }
+    }
+
+    /// <summary>
     /// A character left the world (a slain enemy, or everyone at shutdown); the presentation removes it.
     /// </summary>
     public readonly struct ActorDespawnedEvent : IEvent

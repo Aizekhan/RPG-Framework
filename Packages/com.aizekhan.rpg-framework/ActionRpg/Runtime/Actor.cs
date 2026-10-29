@@ -36,7 +36,20 @@ namespace RPGFramework.ActionRpg
         /// <summary>
         /// The name shown for it: a co-op player's own name, otherwise the character's.
         /// </summary>
-        public string DisplayName => PlayerName ?? Character.DisplayName;
+        public string DisplayName => PlayerName ?? EliteName ?? Character.DisplayName;
+
+        /// <summary>
+        /// An elite enemy's name with its affixes ("Frenzied Goblin of Flame"); null for an ordinary one.
+        /// </summary>
+        public string EliteName { get; internal set; }
+
+        /// <summary>
+        /// An elite enemy's affixes (<see cref="ActionRpgContent.EliteAffixes"/>); empty for an ordinary one.
+        /// </summary>
+        public IReadOnlyList<RPGFramework.Items.RolledAffix> EliteAffixes { get; internal set; } =
+            System.Array.Empty<RPGFramework.Items.RolledAffix>();
+
+        public bool IsElite => EliteAffixes.Count > 0;
 
         /// <summary>
         /// A player's own name in co-op; null uses the character's name.

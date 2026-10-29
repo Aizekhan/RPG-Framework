@@ -326,6 +326,41 @@ namespace RPGFramework.ActionRpg.Tests
         }
 
         [Test]
+        public void EliteEnemies_RollAffixes_AreNamedForThem_AndGiveMore()
+        {
+            _settings.Enemies.Add(new CharacterData { Id = "goblin", DisplayName = "Goblin", MaxHealth = 40f, Attack = 5f, ExperienceReward = 10 });
+            _settings.ElementTags["fire"] = 1;
+            _settings.EliteChance = 1f;
+            _content.EliteAffixes = new AffixPool()
+                .Add(new AffixDefinition("frenzied", AffixSlot.Prefix, "Frenzied", "Attack", 5f, 5f))
+                .Add(new AffixDefinition("stone", AffixSlot.Suffix, "of Stone", "resist:fire", 0.5f, 0.5f, StatModifierType.Additive) { Step = 0f })
+                .Add(new AffixDefinition("wolfish", AffixSlot.Prefix, "Wolfish", "Attack", 9f, 9f).OnlyOn("wolf"));
+            var elites = new List<EliteSpawnedEvent>();
+            StartGame();
+            _host.Container.Resolve<IEventBus>().Subscribe<EliteSpawnedEvent>(elites.Add);
+
+            int goblin = World.SpawnEnemy("goblin");
+            var actor = World.Get(goblin);
+            Assert.That(actor.IsElite, Is.True);
+            Assert.That(actor.DisplayName, Is.EqualTo("Frenzied Goblin of Stone"), "Wolfish is only for wolves");
+            Assert.That(actor.Attack, Is.EqualTo(10f));
+            Assert.That(World.Resistances.Of(goblin, "fire"), Is.EqualTo(0.5f));
+            Assert.That(elites.Single().Name, Is.EqualTo("Frenzied Goblin of Stone"));
+            Assert.That(World.DealDamage(-1, goblin, 20f, AttackContext.Effect(0, 1)), Is.EqualTo(10f).Within(1e-4f));
+
+            long before = World.TotalExperience;
+            World.DealDamage(World.PlayerId, goblin, 10000f);
+            Assert.That(World.TotalExperience - before, Is.EqualTo(20), "twice the goblin's 10");
+
+            _settings.EliteChance = 0f;
+            int plain = World.SpawnEnemy("goblin");
+            Assert.That(World.Get(plain).IsElite, Is.False);
+            Assert.That(World.MakeElite(plain, new[] { new RolledAffix("frenzied", 5f) }), Is.True);
+            Assert.That(World.Get(plain).DisplayName, Is.EqualTo("Frenzied Goblin"));
+            Assert.That(World.MakeElite(plain, new[] { new RolledAffix("stone", 0.5f) }), Is.False, "elite already");
+        }
+
+        [Test]
         public void SharedProgress_AFriendWhoLeaves_LeavesTheirGearInTheBackpack()
         {
             StartGame();

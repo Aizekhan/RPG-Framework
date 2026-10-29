@@ -10,6 +10,7 @@
 - Combat: damage elements. `DamageResistances` (per entity, from several sources that add up: the character, each piece of gear, a buff; held between `MaxWeakness` -1 and `MaxResistance` 0.75; immunities; `Apply(entity, element(s), damage)` splits mixed damage) and `ElementResistance` for content.
 - Action RPG kit: elemental hits. `ActionRpgSettings.ElementTags` maps attack tag bits to elements; `CharacterData.Resistances` (and the Character asset's "When hit" list) and gear bonuses "resist:<element>" set what a character resists; `ActorWorld.Resistances` for a game's own sources.
 - Items: item sets (`ItemSet` with `WithBonus(pieces, stat, value)`, `ItemSets.BonusesFor(wornIds)`; distinct pieces count, rolled items count as their base). Action RPG kit: `ActionRpgContent.ItemSets`; the set a player wears earns the bonuses of as many pieces (stats or "resist:<element>"), refreshed on every change; `ActorGear.SetBonusesOf`, also in `BonusesOf`.
+- Action RPG kit: elite enemies. `ActionRpgContent.EliteAffixes` (an `AffixPool` of `ActorStat` or "resist:<element>" bonuses, the character id as the kind) and `ActionRpgSettings.EliteChance` / `EliteRarity` / `EliteRewardMultiplier`: a spawned enemy may roll affixes at the player's level, takes the affixes' name ("Frenzied Goblin of Stone"), modifiers and resistances, and gives that many times the experience and loot rolls. `Actor.IsElite` / `EliteName` / `EliteAffixes`, `ActorWorld.MakeElite(entity, affixes)`, `EliteSpawnedEvent`. A friend's machine in co-op shows the base name.
 
 ## [0.18.0] - 2026-10-29
 

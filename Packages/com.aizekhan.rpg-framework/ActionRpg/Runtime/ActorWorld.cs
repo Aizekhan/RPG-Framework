@@ -482,8 +482,57 @@ namespace RPGFramework.ActionRpg
             var character = _settings.Enemies.FirstOrDefault(e => e != null && e.Id == characterId)
                             ?? throw new ArgumentException($"No enemy with id '{characterId}' in the settings", nameof(characterId));
             int id = _entities.CreateEntity();
-            Add(new Actor(id, character, isPlayer: false));
+            var actor = new Actor(id, character, isPlayer: false);
+            RollElite(actor);
+            Add(actor);
             return id;
+        }
+
+        /// <summary>
+        /// Makes a spawned enemy elite now with these affixes (a boss, a scripted champion); false when it is not an
+        /// enemy here, is elite already or none of the affixes is in <see cref="ActionRpgContent.EliteAffixes"/>.
+        /// </summary>
+        public bool MakeElite(int entityId, IEnumerable<RolledAffix> affixes)
+        {
+            var actor = Get(entityId);
+            if (actor == null || actor.IsPlayer || actor.IsElite || Content?.EliteAffixes == null)
+                return false;
+            var known = (affixes ?? Enumerable.Empty<RolledAffix>()).Where(a => Content.EliteAffixes.Find(a.AffixId) != null).ToList();
+            if (known.Count == 0)
+                return false;
+            Elevate(actor, known);
+            _bus.Publish(new EliteSpawnedEvent(actor.EntityId, actor.CharacterId, actor.EliteName, known.Select(a => a.AffixId).ToList()));
+            return true;
+        }
+
+        private void RollElite(Actor actor)
+        {
+            var pool = Content?.EliteAffixes;
+            if (pool == null || _settings.EliteChance <= 0f || _random.NextDouble() >= _settings.EliteChance)
+                return;
+            var affixes = pool.Roll(_random, Math.Max(1, Level), _settings.EliteRarity, new[] { actor.CharacterId });
+            if (affixes.Count > 0)
+                Elevate(actor, affixes);
+        }
+
+        // The affixes become the enemy's modifiers and name; it starts at its new full health
+        private void Elevate(Actor actor, IReadOnlyList<RolledAffix> affixes)
+        {
+            var pool = Content.EliteAffixes;
+            actor.EliteAffixes = affixes.ToList();
+            actor.EliteName = pool.NameFor(actor.Character.DisplayName, affixes);
+            for (int i = 0; i < affixes.Count; i++)
+            {
+                var definition = pool.Find(affixes[i].AffixId);
+                if (definition == null)
+                    continue;
+                string id = "elite:" + i;
+                if (definition.Stat.StartsWith(ActorGear.ResistancePrefix, StringComparison.Ordinal))
+                    Resistances.Set(actor.EntityId, definition.Stat.Substring(ActorGear.ResistancePrefix.Length), affixes[i].Value, id);
+                else if (Enum.TryParse(definition.Stat, false, out ActorStat stat) && Enum.IsDefined(typeof(ActorStat), stat))
+                    actor.AddModifier(new RPGFramework.Stats.StatModifier<ActorStat, float>(id, stat, affixes[i].Value, definition.ModifierType));
+            }
+            actor.RestoreFullHealth();
         }
 
         /// <summary>
@@ -787,8 +836,12 @@ namespace RPGFramework.ActionRpg
         {
             _actors.Add(actor.EntityId, actor);
             _lifeStates.RegisterEntity(actor.EntityId, actor);
+            var elite = actor.IsElite ? actor.EliteAffixes.ToList() : null;
+            // An elite's resistances (rolled before it was added) stay: SetBase replaces only the character's own
             Resistances.SetBase(actor.EntityId, actor.Character?.Resistances);
             _bus.Publish(new ActorSpawnedEvent(actor.EntityId, actor.CharacterId, actor.IsPlayer));
+            if (elite != null)
+                _bus.Publish(new EliteSpawnedEvent(actor.EntityId, actor.CharacterId, actor.EliteName, elite.Select(a => a.AffixId).ToList()));
         }
 
         private void Remove(int entityId)
@@ -832,12 +885,15 @@ namespace RPGFramework.ActionRpg
                 return;
 
             Write("kit.log.slain", ("name", victim.DisplayName));
+            float reward = victim.IsElite ? Math.Max(0f, _settings.EliteRewardMultiplier) : 1f;
             if (victim.Character.ExperienceReward > 0)
-                _progression.AddExperience(owner, victim.Character.ExperienceReward);
+                _progression.AddExperience(owner, (long)Math.Round(victim.Character.ExperienceReward * reward));
 
             if (string.IsNullOrEmpty(victim.Character.LootTableId))
                 return;
-            DropLoot(victim.Character.LootTableId, death.KillerEntityId, owner, victim.EntityId, _settings.LootToBackpack);
+            int rolls = victim.IsElite ? Math.Max(1, (int)Math.Round(reward)) : 1;
+            for (int roll = 0; roll < rolls; roll++)
+                DropLoot(victim.Character.LootTableId, death.KillerEntityId, owner, victim.EntityId, _settings.LootToBackpack);
         }
 
         // Rolls a table at the owner's level; money goes to the owner's wallet, items to the player's backpack. Without
