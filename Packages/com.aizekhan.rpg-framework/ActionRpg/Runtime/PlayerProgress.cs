@@ -34,6 +34,16 @@ namespace RPGFramework.ActionRpg
 
         public List<QuestRecord> ActiveQuests { get; set; } = new List<QuestRecord>();
         public List<string> CompletedQuests { get; set; } = new List<string>();
+
+        /// <summary>
+        /// What the player learned in the skill tree (<see cref="ActorSkills"/>).
+        /// </summary>
+        public List<SkillRecord> Skills { get; set; } = new List<SkillRecord>();
+
+        /// <summary>
+        /// Skill points granted beyond the levels (<see cref="ActorSkills.GrantPoints"/>).
+        /// </summary>
+        public int BonusSkillPoints { get; set; }
     }
 
     public sealed class CurrencyRecord

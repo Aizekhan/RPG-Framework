@@ -77,6 +77,7 @@ namespace RPGFramework.ActionRpg
             Wallet = wallet ?? new CurrencyWallet(bus);
             Interactions = new InteractionService(bus);
             Gear = new ActorGear(this, settings.GearSlots, bus);
+            Skills = new ActorSkills(this, bus);
             _random = settings.Seed != 0 ? new Random(settings.Seed) : new Random();
             Hostility = HostilityRules.For(settings);
         }
@@ -85,6 +86,13 @@ namespace RPGFramework.ActionRpg
         /// What the players wear: slots, items, bonuses and sets per hero (<see cref="ActorGear"/>).
         /// </summary>
         public ActorGear Gear { get; }
+
+        /// <summary>
+        /// What the players have learned in the skill tree (<see cref="ActionRpgContent.SkillTree"/>), and their points.
+        /// </summary>
+        public ActorSkills Skills { get; }
+
+        internal IEntityManager Entities => _entities;
 
         public string Loadout => Gear.LoadoutOf(PlayerId);
 
@@ -463,6 +471,7 @@ namespace RPGFramework.ActionRpg
                 return false;
             // Worn items go back into the backpack the party shares, or leave with the player
             Gear.Forget(playerId, backToBackpack: _settings.ProgressMode != ProgressMode.PerPlayer);
+            Skills.Forget(playerId);
             _party.Remove(playerId);
             _inventories.Remove(playerId);
             _kills.Remove(playerId);
@@ -711,6 +720,8 @@ namespace RPGFramework.ActionRpg
             progress.CompletedQuests.AddRange(_quests.GetCompletedQuests(owner));
             progress.Gear.AddRange(Gear.RecordsOf(playerId));
             progress.Loadout = Gear.LoadoutOf(playerId);
+            progress.Skills.AddRange(Skills.RecordsOf(playerId));
+            progress.BonusSkillPoints = Skills.BonusPointsOf(playerId);
             return progress;
         }
 
@@ -769,6 +780,7 @@ namespace RPGFramework.ActionRpg
                         break;
                 }
                 Gear.Restore(playerId, progress.Gear, progress.Loadout);
+                Skills.Restore(playerId, progress.Skills, progress.BonusSkillPoints);
 
                 var completed = _quests.GetCompletedQuests(owner);
                 foreach (var questId in progress.CompletedQuests ?? new List<string>())

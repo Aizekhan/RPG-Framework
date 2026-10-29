@@ -78,6 +78,16 @@ namespace RPGFramework.ActionRpg
         public float EliteRewardMultiplier { get; set; } = 2f;
 
         /// <summary>
+        /// Skill points a player has at level 1 (<see cref="ActorSkills"/>).
+        /// </summary>
+        public int StartingSkillPoints { get; set; }
+
+        /// <summary>
+        /// Skill points every level above 1 gives.
+        /// </summary>
+        public int SkillPointsPerLevel { get; set; } = 1;
+
+        /// <summary>
         /// The level enemies spawn at: 1 (the default) or the player's level, plus <see cref="EnemyLevelOffset"/>.
         /// Their stats grow by their character's per-level growth, their experience by <see cref="CharacterData.ExperiencePerLevel"/>.
         /// </summary>
@@ -274,6 +284,12 @@ namespace RPGFramework.ActionRpg
         /// (stats, or "resist:fire"). Rolled gear counts as its base item.
         /// </summary>
         public ItemSets ItemSets { get; } = new ItemSets();
+
+        /// <summary>
+        /// The skills players learn with the points their levels give (<see cref="ActorWorld.Skills"/>); bonuses are
+        /// <see cref="ActorStat"/> names or "resist:fire". Null: no skill tree.
+        /// </summary>
+        public RPGFramework.Skills.ISkillTree SkillTree { get; set; }
 
         /// <summary>
         /// Affixes an elite enemy can roll ("Frenzied": +50% Attack, "of Stone": +10 Defense): stats are
