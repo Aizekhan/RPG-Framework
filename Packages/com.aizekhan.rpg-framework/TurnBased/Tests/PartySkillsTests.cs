@@ -56,7 +56,7 @@ namespace RPGFramework.TurnBased.Tests
             var hit = Expect(battle.Perform(BattleAction.Attack(battle.Enemies[0].Id)));
             Assert.That(hit.Targets.Single().Damage, Is.EqualTo(defending ? 11 : 22), "24 less half of 4 (halved when it defends)");
             PlayToTheEnd(battle);
-            Assert.That(knight.Attack, Is.EqualTo(24f), "the battle's end leaves learned skills");
+            Assert.That(knight.Attack, Is.EqualTo(knight.BaseStat(CombatStat.Attack) + 4f), "the battle's end (and a level-up) leaves learned skills");
         }
 
         [Test]
