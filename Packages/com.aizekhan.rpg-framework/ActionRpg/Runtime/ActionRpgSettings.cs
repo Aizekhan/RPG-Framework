@@ -292,6 +292,11 @@ namespace RPGFramework.ActionRpg
         public RPGFramework.Skills.ISkillTree SkillTree { get; set; }
 
         /// <summary>
+        /// What players can craft from their backpacks (<see cref="ActorWorld.Crafting"/>).
+        /// </summary>
+        public List<RPGFramework.Crafting.ICraftingRecipe> Recipes { get; } = new List<RPGFramework.Crafting.ICraftingRecipe>();
+
+        /// <summary>
         /// Affixes an elite enemy can roll ("Frenzied": +50% Attack, "of Stone": +10 Defense): stats are
         /// <see cref="ActorStat"/> names (or "resist:fire"); an enemy spawns elite with
         /// <see cref="ActionRpgSettings.EliteChance"/> and rolls them at the player's level and

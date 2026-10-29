@@ -85,6 +85,8 @@ namespace RPGFramework.ActionRpg
                 c.Resolve<ILogger>(),
                 c.Resolve<ICurrencyWallet>()));
             AddSystem<WaveSystem>();
+            Container.RegisterFactory(c => c.Resolve<ActorWorld>().Crafting);
+            AddSystem<ActorCrafting>();
             AddSystem<PvpMatch>();
             if (_settings.UsesStatusEffects(_content))
             {
@@ -129,6 +131,8 @@ namespace RPGFramework.ActionRpg
             World.GamePause = Container.Resolve<IGamePause>();
             foreach (var gear in _content.Gear.Where(g => g != null && !string.IsNullOrEmpty(g.ItemId)))
                 World.Gear.Register(gear);
+            foreach (var recipe in _content.Recipes)
+                World.Crafting.Register(recipe);
             if (Container.IsRegistered<ITradePricing>())
                 World.TradePricing = Container.Resolve<ITradePricing>();
             if (InteractionDistance != null)

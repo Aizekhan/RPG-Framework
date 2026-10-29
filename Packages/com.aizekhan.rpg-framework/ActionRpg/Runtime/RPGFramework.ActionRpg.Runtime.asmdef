@@ -19,6 +19,7 @@
         "RPGFramework.Loot.Runtime",
         "RPGFramework.Stats.Runtime",
         "RPGFramework.Skills.Runtime",
+        "RPGFramework.Crafting.Runtime",
         "RPGFramework.Integration.CombatQuests.Runtime",
         "UniTask",
         "RPGFramework.Persistence.Runtime",

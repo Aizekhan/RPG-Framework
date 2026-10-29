@@ -78,6 +78,7 @@ namespace RPGFramework.ActionRpg
             Interactions = new InteractionService(bus);
             Gear = new ActorGear(this, settings.GearSlots, bus);
             Skills = new ActorSkills(this, bus);
+            Crafting = new ActorCrafting(this, bus);
             _random = settings.Seed != 0 ? new Random(settings.Seed) : new Random();
             Hostility = HostilityRules.For(settings);
         }
@@ -91,6 +92,11 @@ namespace RPGFramework.ActionRpg
         /// What the players have learned in the skill tree (<see cref="ActionRpgContent.SkillTree"/>), and their points.
         /// </summary>
         public ActorSkills Skills { get; }
+
+        /// <summary>
+        /// The players' crafts from their backpacks (<see cref="ActionRpgContent.Recipes"/>).
+        /// </summary>
+        public ActorCrafting Crafting { get; }
 
         internal IEntityManager Entities => _entities;
 
@@ -470,6 +476,7 @@ namespace RPGFramework.ActionRpg
             if (player == null || !_party.Contains(playerId))
                 return false;
             // Worn items go back into the backpack the party shares, or leave with the player
+            Crafting.CancelAll(playerId);
             Gear.Forget(playerId, backToBackpack: _settings.ProgressMode != ProgressMode.PerPlayer);
             Skills.Forget(playerId);
             _party.Remove(playerId);
@@ -709,6 +716,9 @@ namespace RPGFramework.ActionRpg
                 Level = _progression.GetLevel(owner), TotalExperience = _progression.GetTotalXP(owner), Kills = KillsOf(owner)
             };
             progress.Items.AddRange(_inventories[owner].GetAllItems().Where(i => i != null).Select(i => i.ItemId));
+            // A craft in progress is not saved; its ingredients are, as if it was called off
+            foreach (int member in _party.Where(m => ProgressOwnerOf(m) == owner))
+                progress.Items.AddRange(Crafting.IngredientsInProgress(member));
             progress.Currencies.AddRange(Wallet.BalancesOf(owner).Where(b => b.Value > 0).OrderBy(b => b.Key, StringComparer.Ordinal)
                 .Select(b => new CurrencyRecord { Currency = b.Key, Amount = b.Value }));
             foreach (var active in _quests.GetActiveQuests(owner))
@@ -747,6 +757,8 @@ namespace RPGFramework.ActionRpg
             if (owner < 0)
                 throw new ArgumentException($"{playerId} is not a player in the party", nameof(playerId));
             var inventory = _inventories[owner];
+            foreach (int member in _party.Where(m => ProgressOwnerOf(m) == owner).ToList())
+                Crafting.CancelAll(member);
 
             IsRestoring = true;
             try
