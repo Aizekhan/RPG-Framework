@@ -379,6 +379,71 @@ namespace RPGFramework.StatusEffects.Tests
             Assert.That(manager.GetMovementMultiplier(_entity), Is.EqualTo(1f));
         }
 
+        // ---- Long frames and loaded games ----
+
+        [Test]
+        public void Ticks_MissedInALongFrame_LandTogether_OnTheEffectsRhythm()
+        {
+            RegisterTicking("drain", 1f, Mod(ModifierType.Resource, "Mana", -4f, ModifierOperation.Add));
+            _target.Resources["Mana"] = 100f;
+            _manager.ApplyEffect(_entity, "drain", "caster", 0f);
+
+            _manager.ProcessTicks(_entity, 3.5f);
+            Assert.That(_target.Resources["Mana"], Is.EqualTo(88f), "three ticks");
+
+            _manager.ProcessTicks(_entity, 3.9f);
+            Assert.That(_target.Resources["Mana"], Is.EqualTo(88f), "the next is due at 4, not at 4.5");
+            _manager.ProcessTicks(_entity, 4f);
+            Assert.That(_target.Resources["Mana"], Is.EqualTo(84f));
+
+            _manager.ProcessTicks(_entity, 104f);
+            Assert.That(_target.Resources["Mana"], Is.EqualTo(84f - 4f * StatusEffectManager.MaxTicksPerCall), "at most the cap");
+            _manager.ProcessTicks(_entity, 104.5f);
+            Assert.That(_target.Resources["Mana"], Is.EqualTo(84f - 4f * StatusEffectManager.MaxTicksPerCall), "no backlog after the cap");
+        }
+
+        [Test]
+        public void Ticks_MissedInALongFrame_AreReportedAsOneTotal()
+        {
+            RegisterTicking("burn", 1f, Mod(ModifierType.Damage, "Health", 5f, ModifierOperation.Add));
+            _manager.ApplyEffect(_entity, "burn", "caster", 0f);
+
+            int calls = 0;
+            float damage = 0f;
+            _manager.ProcessTicks(_entity, 2f, (e, id, d, h) => { calls++; damage += d; });
+
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(damage, Is.EqualTo(10f));
+        }
+
+        [Test]
+        public void Reapply_GivesALoadedEntityItsModifiersMovementAndControls_Again()
+        {
+            _manager.RegisterEffect(Effect("frost", 10f,
+                Mod(ModifierType.Stat, "AttackSpeed", 0.8f, ModifierOperation.Multiply),
+                Mod(ModifierType.Movement, "", 0.5f, ModifierOperation.Multiply),
+                Mod(ModifierType.Control, "Silence", 0f, ModifierOperation.Add)));
+            _manager.ApplyEffect(_entity, "frost", "caster", 0f);
+
+            // A loaded game: the effects come back as the component, through a new manager and target
+            _entities.TryGetComponent<ActiveEffectsData>(_entity, out var saved);
+            var loaded = new EntityManager();
+            int entity = loaded.CreateEntity();
+            loaded.AddComponent(entity, saved);
+            var target = new RecordingTarget();
+            var manager = new StatusEffectManager(loaded, null, target);
+            manager.RegisterEffect(_manager.GetEffect("frost"));
+            Assert.That(target.Stats, Is.Empty, "nothing until it is reapplied");
+
+            manager.Reapply(entity);
+            manager.Reapply(entity);
+
+            Assert.That(target.Stats[StatusEffectManager.StatModifierId("frost", 0)].Value, Is.EqualTo(0.8f));
+            Assert.That(target.Movement[entity], Is.EqualTo(0.5f));
+            Assert.That(target.ControlChanges, Is.EqualTo(new[] { "Silence:on", "Silence:on" }));
+            Assert.That(manager.IsControlled(entity, "Silence"), Is.True);
+        }
+
         private sealed class RecordingTarget : IStatusEffectTarget
         {
             public readonly Dictionary<string, (string StatId, ModifierOperation Operation, float Value)> Stats =

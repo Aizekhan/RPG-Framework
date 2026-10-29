@@ -13,6 +13,7 @@
         "RPGFramework.Bootstrap.Gameplay",
         "RPGFramework.Abilities.Runtime",
         "RPGFramework.StatusEffects.Runtime",
+        "RPGFramework.Stats.Runtime",
         "RPGFramework.Trading.Runtime",
         "RPGFramework.Interaction.Runtime",
         "UniTask",

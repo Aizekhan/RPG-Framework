@@ -6,6 +6,7 @@ using RPGFramework.DI;
 using RPGFramework.Events;
 using RPGFramework.Interaction;
 using RPGFramework.Logging;
+using RPGFramework.Stats;
 using RPGFramework.StatusEffects;
 using RPGFramework.Trading;
 
@@ -73,6 +74,26 @@ namespace RPGFramework.Bootstrap.Tests
 
             Assert.That(manager.HasEffect(entity, "rage"), Is.True);
             Assert.That(target.Applied, Is.EqualTo(new[] { "Attack +3" }));
+        }
+
+        private enum HeroStat { Attack, Defense }
+
+        [Test]
+        public void StatusEffectsModule_UseStatContainers_LandsEffectsOnTheEntitysStats()
+        {
+            _host.Start(b => b.UseModule(new StatusEffectsModule(new StatusEffectsOptions().UseStatContainers<HeroStat>())));
+            var manager = _host.Container.Resolve<IStatusEffectManager>();
+            var entities = _host.World.Entities;
+            int entity = entities.CreateEntity();
+            var stats = new StatContainer<HeroStat, float>();
+            stats.Initialize();
+            stats.SetBaseStat(HeroStat.Attack, 10f);
+            entities.AddComponent(entity, stats);
+
+            manager.RegisterEffect(StatusEffectData.CreateStatModifier("rage", "Rage", EffectType.Buff, 5f, "Attack", 3f));
+            manager.ApplyEffect(entity, "rage", "test", 0f);
+
+            Assert.That(entities.GetComponentRef<StatContainer<HeroStat, float>>(entity).GetFinalStat(HeroStat.Attack), Is.EqualTo(13f));
         }
 
         [Test]

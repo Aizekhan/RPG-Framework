@@ -17,6 +17,12 @@ namespace RPGFramework.StatusEffects
     /// </summary>
     public class StatusEffectManager : IStatusEffectManager
     {
+        /// <summary>
+        /// Ticks one <see cref="ProcessTicks"/> call catches up at most (a long frame or a pause); time beyond that
+        /// is dropped instead of landing all at once.
+        /// </summary>
+        public const int MaxTicksPerCall = 10;
+
         private readonly IEntityManager _entityManager;
         private readonly Dictionary<string, IStatusEffect> _effectRegistry;
         private readonly IEventPublisher _events;
@@ -148,6 +154,21 @@ namespace RPGFramework.StatusEffects
 
             _events?.Publish(new EffectRemovedEvent(entityId, effectId, 0f, false));
             return true;
+        }
+
+        public void Reapply(int entityId)
+        {
+            if (_target == null)
+                return;
+            foreach (var (effect, stacks, power) in ActiveDefinitions(entityId))
+            {
+                RemoveStatModifiers(entityId, effect);
+                ApplyStatModifiers(entityId, effect, stacks, power);
+            }
+            // As if nothing was in force: the target hears every movement change and control there is
+            _target.SetMovementMultiplier(entityId, GetMovementMultiplier(entityId));
+            foreach (var control in GetActiveControls(entityId))
+                _target.SetControl(entityId, control, true);
         }
 
         public void RemoveAllEffects(int entityId)
@@ -364,6 +385,8 @@ namespace RPGFramework.StatusEffects
         /// amount per stack; Multiply and Override work on the current value of the TargetId read through the
         /// target (e.g. Damage x0.9 on "Health" deals 10% of current health) and are skipped if it cannot be read.
         /// Resource modifiers are handed to the target as a change of the resource, using the same rules.
+        /// Ticks missed since the last call (a long frame) land together, up to <see cref="MaxTicksPerCall"/>, reported
+        /// as one total; the next tick stays on the effect's own rhythm.
         /// </summary>
         public void ProcessTicks(int entityId, float currentTime, System.Action<int, string, float, float> onTick = null)
         {
@@ -385,28 +408,34 @@ namespace RPGFramework.StatusEffects
 
                 if (instance.ShouldTick(currentTime))
                 {
-                    instance.UpdateLastTickTime(currentTime);
+                    int due = (int)Math.Min(MaxTicksPerCall, Math.Floor((currentTime - instance.LastTickTime) / effect.TickInterval));
+                    due = Math.Max(1, due);
+                    float next = instance.LastTickTime + due * effect.TickInterval;
+                    // Further behind than the cap: start the rhythm from now
+                    instance.UpdateLastTickTime(currentTime - next >= effect.TickInterval ? currentTime : next);
 
                     float totalDamage = 0f;
                     float totalHealing = 0f;
 
-                    // Calculate damage/healing per tick
-                    foreach (var modifier in effect.Modifiers)
+                    for (int tick = 0; tick < due; tick++)
                     {
-                        if (modifier.Type == ModifierType.Damage)
+                        foreach (var modifier in effect.Modifiers)
                         {
-                            // Damage is how far the value goes down
-                            if (TryGetChange(entityId, modifier, instance.CurrentStacks, instance.Power, -1f, out float change))
-                                totalDamage += Math.Max(0f, -change);
+                            if (modifier.Type == ModifierType.Damage)
+                            {
+                                // Damage is how far the value goes down
+                                if (TryGetChange(entityId, modifier, instance.CurrentStacks, instance.Power, -1f, out float change))
+                                    totalDamage += Math.Max(0f, -change);
+                            }
+                            else if (modifier.Type == ModifierType.Healing)
+                            {
+                                if (TryGetChange(entityId, modifier, instance.CurrentStacks, instance.Power, 1f, out float change))
+                                    totalHealing += Math.Max(0f, change);
+                            }
                         }
-                        else if (modifier.Type == ModifierType.Healing)
-                        {
-                            if (TryGetChange(entityId, modifier, instance.CurrentStacks, instance.Power, 1f, out float change))
-                                totalHealing += Math.Max(0f, change);
-                        }
-                    }
 
-                    ApplyResourceChanges(entityId, effect, instance.CurrentStacks, instance.Power);
+                        ApplyResourceChanges(entityId, effect, instance.CurrentStacks, instance.Power);
+                    }
 
                     if (totalDamage > 0f || totalHealing > 0f)
                     {

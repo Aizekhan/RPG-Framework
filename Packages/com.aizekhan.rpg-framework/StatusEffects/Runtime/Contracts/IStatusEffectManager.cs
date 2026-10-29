@@ -20,6 +20,12 @@ namespace RPGFramework.StatusEffects
         bool RegisterEffect(StatusEffectData data);
 
         /// <summary>
+        /// Hands the target again what the entity's effects do (stat modifiers, movement, controls), for effects that
+        /// came back with a save or a copied component rather than through <c>ApplyEffect</c>. Safe to call twice.
+        /// </summary>
+        void Reapply(int entityId);
+
+        /// <summary>
         /// Apply a status effect to an entity.
         /// </summary>
         /// <param name="entityId">Target entity</param>

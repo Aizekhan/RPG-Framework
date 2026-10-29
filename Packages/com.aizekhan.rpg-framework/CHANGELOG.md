@@ -7,6 +7,11 @@
 - `DisplaySettings` (group "Display"): screen size, window mode (full screen / borderless / windowed), quality, vertical sync, frame-rate cap, applied at once through `IDisplayOutput`; the defaults are the screen as it is, so a first start changes nothing. Phones and consoles get quality and the cap only.
 - Unity: `SettingsModule` (PlayerPrefs `RPGFramework.Settings.<id>`, `UnityDisplayOutput`, and the volumes and the language when those modules are there: `SettingsBridges.AddVolumes`, `AddLanguage`), `SettingsRows.For(settings, localization)` builds a settings page on `ActionListPanel` (headings, `<` / `>`, Defaults; `settings.*` keys).
 - `ActionRpgHost` 'Settings' (on by default) registers the module and applies the kept display options at start; `ActionRpgHost.Settings`.
+- StatusEffects: `IStatusEffectManager.Reapply(entityId)` hands the target again what an entity's effects do (stat modifiers, movement, controls), for effects that came back with a save; safe to call twice.
+- StatusEffects: `StatusEffectsOptions.UseStatContainers<TStatType>()` (and `TargetFactory`) lands effects on each entity's `StatContainer<TStatType, float>` through `StatContainerEffectTarget` without hand wiring.
+
+### Fixed
+- StatusEffects: `ProcessTicks` catches up the ticks missed in a long frame (up to `StatusEffectManager.MaxTicksPerCall`, reported as one total) and keeps the effect's own rhythm; it ran at most one tick per call.
 
 ## [0.17.0] - 2026-10-29
 

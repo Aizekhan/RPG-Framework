@@ -16,6 +16,8 @@
         "RPGFramework.Loot.Runtime",
         "RPGFramework.Abilities.Runtime",
         "RPGFramework.StatusEffects.Runtime",
+        "RPGFramework.Stats.Runtime",
+        "RPGFramework.Integration.StatusEffectsStats.Runtime",
         "RPGFramework.Trading.Runtime",
         "RPGFramework.Interaction.Runtime",
         "RPGFramework.Integration.CombatQuests.Runtime",
