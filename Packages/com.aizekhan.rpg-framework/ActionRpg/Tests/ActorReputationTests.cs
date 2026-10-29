@@ -55,7 +55,7 @@ namespace RPGFramework.ActionRpg.Tests
                 new DialogueNode("hail", DialogueNodeType.Choice, Captain, "Citizen.", new string[0], new IDialogueChoice[]
                 {
                     new DialogueChoice("bribe", "A gift.", "bye"),
-                    new DialogueChoice("honor", "At your service.", "bye", new DialogueCondition(ConditionType.StatCheck, "rep:" + Guards, 50))
+                    new DialogueChoice("honor", "At your service.", "bye", new DialogueCondition(RPGFramework.Dialogue.ConditionType.StatCheck, "rep:" + Guards, 50))
                 }),
                 new DialogueNode("bye", DialogueNodeType.End, Captain, "Move along.", new string[0], new IDialogueChoice[0])
             };
