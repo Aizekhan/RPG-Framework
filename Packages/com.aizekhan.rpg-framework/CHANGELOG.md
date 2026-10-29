@@ -5,6 +5,8 @@
 ### Added
 - Items: `RolledItems` keeps an item's rolled rarity and affixes in its id ("sword~2~sturdy=2;str_1=9"): `Compose`, `TryParse`, `BaseOf`, `Roll(baseId, pool, rarities, random, itemLevel, luck, kinds)`, `Create(id, baseItem, pool)` builds the same named item on every machine.
 - Action RPG kit: gear that drops as loot rolls affixes when `ActionRpgContent.Affixes` is set (`Rarities`, `LuckOf(playerId)`): the gear's kind is the affix kind, the player's level the item level. Rolled items are built from the content (`ActionRpgContent.FindItem` / `FindGear`, `ActorWorld.ItemOf`); worn, they add a bonus per affix; backpacks, saves and co-op keep them by id (the co-op content fingerprint includes the affixes).
+- TurnBased: `BattleMenu.For(battle, inventory)` (engine-free) lists the current party member's commands (Attack, each ability with its cooldown, Defend, each battle item with its count, Flee) as `BattleCommand`s with their targets, nothing to aim, or why they are closed, by the battle's own rules; `With(target)` aims one.
+- TurnBased Unity layer (`RPGFramework.TurnBased.Unity`): `TurnBasedHost` (a `GameHostBehaviour`: the game fills `ConfigureGame(settings, content)`; enemies act one by one with `Enemy Turn Seconds` between them, the run is saved after every battle under the player's data folder and continued on start, `StartBattle`, `Act`, `NewRun`) and `BattleScreen` (built from code on the framework's panels: enemies, party, log, the turn's menu, a command then its target; between battles the next encounter or a new run; `Bind(world)` without a host).
 
 ## [0.18.0] - 2026-10-29
 

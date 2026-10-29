@@ -19,6 +19,11 @@
         "RPGFramework.Loot.Runtime",
         "RPGFramework.Stats.Runtime",
         "RPGFramework.Persistence.Runtime",
+        "RPGFramework.TurnBased.Unity",
+        "RPGFramework.UI.Runtime",
+        "RPGFramework.UINavigation.Runtime",
+        "RPGFramework.UINavigation.Unity",
+        "UnityEngine.UI",
         "UniTask",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"

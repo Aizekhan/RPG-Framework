@@ -95,7 +95,7 @@ The `Assets/ReferenceGame` project in the repository (Goblin Valley) is a comple
 | Genre | What you get | Start with |
 |---|---|---|
 | **Action RPG** (real-time, top-down or third person) | A playable game: hero, enemies, waves, loot, quests, HUD, saves, co-op for 2-8 players and PvP, all set up from inspector assets | **New Game** in the Game Kit (recipe 01) |
-| **Turn-based party RPG** (JRPG style) | The rules, tested: turn order, attacks, abilities with mana and cooldowns, defend, items, flee, status effects, enemy AI, rewards, levels, a run of encounters, saves. **No battle screen yet**: the game builds its own views on `ITurnBasedWorld` | `TurnBasedComposition.Configure` (recipe 15) |
+| **Turn-based party RPG** (JRPG style) | The rules, tested: turn order, attacks, abilities with mana and cooldowns, defend, items, flee, status effects, enemy AI, rewards, levels, a run of encounters, saves. A ready host and battle screen (`TurnBasedHost`, `BattleScreen`, `BattleMenu`); a game can also build its own views on `ITurnBasedWorld` | `TurnBasedHost.ConfigureGame` or `TurnBasedComposition.Configure` (recipe 15) |
 | Anything else (roguelike, narrative, survival...) | The gameplay modules below, the core services (recipe 14) and the architecture rules | A New Game, then replace what does not fit |
 
 ## Modules
@@ -104,7 +104,7 @@ The `Assets/ReferenceGame` project in the repository (Goblin Valley) is a comple
 |---|---|
 | Composition | `Core` (modules, builder), `DI`, `Bootstrap` (`GameHost`, `GameHostBehaviour`), `Bootstrap.Gameplay` (ready-made gameplay modules), `Bootstrap.UnityServices` (`UnityServicesModule`: shared pools, assets, prefab spawner, scenes) |
 | Runtime | `Events` (bus), `Systems` (update loop), `ECS` (entities, components), `Timers`, `Logging`, `Diagnostics` |
-| Game templates | `ActionRpg` (Game Setup and Character assets, `ActionRpgHost`, player controls, enemy AI, health bars, HUD); `TurnBased` (party battles in turns, rules only) |
+| Game templates | `ActionRpg` (Game Setup and Character assets, `ActionRpgHost`, player controls, enemy AI, health bars, HUD); `TurnBased` (party battles in turns; `TurnBasedHost`, a battle screen built from code) |
 | Gameplay | `Combat`, `Stats`, `StatusEffects`, `Abilities`, `Progression`, `Quests`, `Items` (random affixes: `AffixPool`, `RarityTable`), `Inventory`, `Loot`, `Crafting`, `Dialogue`, `Factions`, `Guilds`, `Trading`, `Housing`, `Companions`, `Achievements`, `Skills`, `DynamicEvents`, `Dice` (seeded dice with a log, `ScriptedDice`), `Cards` (`Deck<T>`, `Hand<T>`, `DeckAsset<T>`) |
 | Content & scenes | `AssetManagement` (Resources and Addressables providers), `Pooling`, `Spawning` (`PrefabSpawner`, `PrefabCatalog`), `Presentation` (`EntityViewRegistry`: entity ↔ GameObject), `Scenes`, `Persistence` |
 | UI & sound | `UINavigation` (screens, modals, transitions), `UI` (RPG panels and HUD), `Settings` (typed options for a settings page kept in PlayerPrefs `RPGFramework.Settings.<id>`, display options, volumes and language on one page; `SettingsModule`, `SettingsRows`), `Localization` (string tables per language, named values, plural forms incl. Ukrainian, CSV for translators, the language kept in PlayerPrefs `RPGFramework.Localization.Language`; `LocalizationModule`, `LocalizationLibrary`), `Audio` (`IAudioService`: cues with variants and voice limits, music crossfades, volume channels kept in PlayerPrefs as `RPGFramework.Audio.<channel>` (or the game's own `IVolumeStore` given to `AudioModule`); `AudioModule`, `AudioLibrary`) |
