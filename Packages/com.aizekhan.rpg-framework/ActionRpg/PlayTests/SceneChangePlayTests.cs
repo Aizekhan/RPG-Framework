@@ -155,6 +155,31 @@ namespace RPGFramework.ActionRpg.PlayTests
         }
 
         [UnityTest]
+        public IEnumerator EndGame_SavesLeavesCoopLoadsTheMenu_AndClosesTheHost()
+        {
+            _host = StartGame<SceneChangingHost>("Game");
+            _host.Populate = _ => new GameObject("Menu Camera", typeof(Camera)) { tag = "MainCamera" };
+            _friend = StartGame<ActionRpgHost>("Friend");
+            yield return null;
+            Assert.That(_host.HostGame(), Is.True, _host.CoopStatus);
+            yield return WaitUntil(() => _host.Role == CoopRole.Hosting, "hosting");
+            _friend.JoinGame("127.0.0.1");
+            yield return WaitUntil(() => _friend.CoopClient?.State == Coop.CoopClientState.Playing, "the friend to join");
+            var game = _host.gameObject;
+            Object.DontDestroyOnLoad(_friend.gameObject); // the friend's game is on another machine: it stays
+
+            bool ended = false;
+            yield return _host.EndGame("Run").ToCoroutine(result => ended = result);
+
+            Assert.That(ended, Is.True);
+            Assert.That(SceneManager.GetActiveScene().name, Is.EqualTo("Run"));
+            yield return null;
+            Assert.That(game == null, Is.True, "the host closed with the game");
+            _host = null;
+            yield return WaitUntil(() => _friend.Role == CoopRole.Solo, "the friend told the game ended");
+        }
+
+        [UnityTest]
         public IEnumerator PooledObjects_SurviveASceneChange()
         {
             _prefab = new GameObject("Crate");

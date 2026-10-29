@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- `ActionRpgHost.EndGame(sceneName)`: ends the game and goes back to a menu scene: saves, stops hosting (friends are told) or leaves the friend's game, loads the scene through `ISceneDispatcher` and closes the host, also one carried between scenes; `IsEnding` (MythRunner FG-23).
+
 ## [0.16.0] - 2026-10-29
 
 Co-op protocol 15: host and friends need the same version (friends on 14 are refused with the reason).

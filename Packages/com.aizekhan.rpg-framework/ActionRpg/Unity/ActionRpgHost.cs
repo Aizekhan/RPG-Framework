@@ -138,6 +138,7 @@ namespace RPGFramework.ActionRpg
         // How a menu scene asked the game scene's host to start (Launch)
         private static GameStart? _launch;
         private bool _started;
+        private bool _ending;
 
         /// <summary>
         /// Seconds without a word from the other side before a co-op link counts as lost (a crash, a pulled cable).
@@ -725,6 +726,47 @@ namespace RPGFramework.ActionRpg
         }
 
         /// <summary>
+        /// Ends the game and goes to another scene (back to the start menu): saves, leaves co-op (hosting stops and
+        /// friends are told; a joined player leaves the friend's game), loads the scene through <c>ISceneDispatcher</c>
+        /// and closes this host, also when it was carried between scenes. A host in the loaded scene starts as usual.
+        /// </summary>
+        /// <returns>False when it cannot end now (another scene change or end running), or the scene failed to load
+        /// (logged; the game then goes on alone).</returns>
+        public async UniTask<bool> EndGame(string sceneName)
+        {
+            if (string.IsNullOrEmpty(sceneName))
+                throw new ArgumentException("A scene name is required", nameof(sceneName));
+            if (_ending || _changingScene || Host?.Container == null)
+                return false;
+            _ending = true;
+            var scenes = Host.Container.Resolve<ISceneDispatcher>();
+            // Saves, stops hosting or leaves the friend's game, drops the views
+            HideGame();
+            _joinCode = null;
+            try
+            {
+                await scenes.LoadAsync(sceneName);
+            }
+            catch (Exception exception)
+            {
+                _ending = false;
+                if (this == null)
+                    return false;
+                Host.Logger.LogError($"Scene '{sceneName}' could not be loaded: {exception.Message}", Category);
+                ShowGame();
+                return false;
+            }
+            if (this != null)
+                Destroy(gameObject); // framework-ok: the game ended; the host closes with it
+            return true;
+        }
+
+        /// <summary>
+        /// <see cref="EndGame"/> is closing the game.
+        /// </summary>
+        public bool IsEnding => _ending;
+
+        /// <summary>
         /// From a menu scene: loads the game scene and has its <see cref="ActionRpgHost"/> start as the player chose
         /// (it starts so even without 'Start On Request'). Call it where no game is running.
         /// </summary>
@@ -867,8 +909,8 @@ namespace RPGFramework.ActionRpg
 
         protected override void Update()
         {
-            // Waiting for the start menu: the world does not run yet
-            if (!_started)
+            // Waiting for the start menu, or ending: the world does not run
+            if (!_started || _ending)
                 return;
             if (_restartPending)
             {
@@ -991,13 +1033,13 @@ namespace RPGFramework.ActionRpg
 
         protected override void FixedUpdate()
         {
-            if (_started)
+            if (_started && !_ending)
                 base.FixedUpdate();
         }
 
         protected override void LateUpdate()
         {
-            if (_started)
+            if (_started && !_ending)
                 base.LateUpdate();
         }
 
