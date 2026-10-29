@@ -88,9 +88,9 @@ namespace RPGFramework.Localization
             return true;
         }
 
-        public string Text(string key) => Lookup(key, null) ?? key ?? "";
+        public string Text(string key) => Text(new LocalizedText(key), null);
 
-        public string Text(string key, string fallback) => Lookup(key, null) ?? fallback ?? key ?? "";
+        public string Text(string key, string fallback) => Text(new LocalizedText(key), fallback);
 
         public string Text(LocalizedText text) => Text(text, null);
 
