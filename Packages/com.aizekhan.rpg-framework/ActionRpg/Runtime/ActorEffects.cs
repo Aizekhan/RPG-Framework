@@ -40,7 +40,8 @@ namespace RPGFramework.ActionRpg
     /// <summary>
     /// Where status effects land on the characters of an <see cref="ActorWorld"/>: stat modifiers go on the actor's
     /// stats (by <see cref="ActorStat"/> name), the "Health" resource heals or hurts through the world's rules as
-    /// effect damage, movement becomes <see cref="Actor.MoveMultiplier"/> and controls ("Stun") become
+    /// effect damage, a "resist:fire" stat is a resistance (<see cref="ActorWorld.Resistances"/>), movement becomes
+    /// <see cref="Actor.MoveMultiplier"/> and controls ("Stun") become
     /// <see cref="Actor.Controls"/>. The world is looked up when needed, so the target can be made before it.
     /// </summary>
     public sealed class ActorEffectTarget : IStatusEffectTarget
@@ -62,6 +63,13 @@ namespace RPGFramework.ActionRpg
         public void ApplyStatModifier(int entityId, string modifierId, string statId, ModifierOperation operation, float value)
         {
             var actor = Get(entityId);
+            // "resist:fire" is a resistance while the effect lasts (a fire-ward potion), added to the others
+            if (actor != null && statId != null && statId.StartsWith(ActorGear.ResistancePrefix, StringComparison.Ordinal) &&
+                statId.Length > ActorGear.ResistancePrefix.Length)
+            {
+                _world().Resistances.Set(entityId, statId.Substring(ActorGear.ResistancePrefix.Length), value, "effect:" + modifierId);
+                return;
+            }
             if (actor == null || !Enum.TryParse(statId, false, out ActorStat stat) || !Enum.IsDefined(typeof(ActorStat), stat))
                 return;
             StatModifierType type;
@@ -82,7 +90,11 @@ namespace RPGFramework.ActionRpg
             actor.AddModifier(new StatModifier<ActorStat, float>(modifierId, stat, value, type));
         }
 
-        public void RemoveStatModifier(int entityId, string modifierId) => Get(entityId)?.RemoveModifier(modifierId);
+        public void RemoveStatModifier(int entityId, string modifierId)
+        {
+            Get(entityId)?.RemoveModifier(modifierId);
+            _world()?.Resistances.RemoveSource(entityId, "effect:" + modifierId);
+        }
 
         public bool TryGetResource(int entityId, string resourceId, out float value)
         {

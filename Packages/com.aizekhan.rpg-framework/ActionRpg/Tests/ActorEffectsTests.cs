@@ -129,6 +129,23 @@ namespace RPGFramework.ActionRpg.Tests
         }
 
         [Test]
+        public void AResistStatModifier_IsAResistance_WhileTheEffectLasts()
+        {
+            _content.StatusEffects.Add(StatusEffectData.CreateStatModifier("fireward", "Fire Ward", EffectType.Buff, 2f, "resist:fire", 0.5f));
+            StartGame();
+            World.Resistances.Set(World.PlayerId, "fire", 0.1f, "ring");
+
+            Assert.That(World.Effects.Apply(World.PlayerId, "fireward", World.PlayerId), Is.True);
+            Assert.That(World.Resistances.Of(World.PlayerId, "fire"), Is.EqualTo(0.6f).Within(1e-4f), "added to the ring");
+            Assert.That(World.Get(World.PlayerId).Attack, Is.EqualTo(50f), "not a stat");
+
+            Tick(2.2f);
+
+            Assert.That(World.EffectsOn(World.PlayerId), Is.Empty);
+            Assert.That(World.Resistances.Of(World.PlayerId, "fire"), Is.EqualTo(0.1f).Within(1e-4f), "gone with the effect");
+        }
+
+        [Test]
         public void Pause_StopsEffectsAndTheirTime_UntilTheLastReasonIsLifted()
         {
             StartGame();
