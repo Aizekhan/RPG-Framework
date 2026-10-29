@@ -43,6 +43,7 @@
 - Factions: `FactionManager.GetReputation` and `ModifyReputation` start from the faction's `DefaultReputation` for an entity that already has other reputations. This also applies to reputation cascading to related factions, which used to start from 0.
 
 ### Changed
+- Action RPG kit: `KitTexts.All` now has 15 `kit.menu.*` keys (`KitRows`). A game that checks its tables with `LocalizationChecks` reports them as missing until it translates them or adds `KitTexts.Table()`.
 - Action RPG co-op: a friend's `LogLines` carry the host's texts to translate (`PartyStatus.LogTexts`, `LocalizedTextCodec`), so each friend reads the kit's and the game's log lines in their own language. It used to send English only. This changes `CoopProtocol.Version` from 15 to 16.
 
 ## [0.18.0] - 2026-10-29
