@@ -1,3 +1,4 @@
+using RPGFramework.Events;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,6 +20,7 @@ namespace RPGFramework.Crafting
         private readonly ICraftingRecipeRegistry _recipeRegistry;
         private readonly ICraftingInventory _inventory;
         private readonly ICraftingRequirementChecker _requirements;
+        private readonly IEventPublisher _events;
         private readonly Random _random;
         private readonly List<int> _crafters = new List<int>();
         private readonly List<int> _finished = new List<int>();
@@ -43,9 +45,12 @@ namespace RPGFramework.Crafting
         /// <param name="inventory">Where crafters keep their items; null leaves items to the game.</param>
         /// <param name="random">Rolls success chances; null picks a new seed.</param>
         /// <param name="requirements">Judges skill, quest and tool requirements; without it such recipes are refused.</param>
+        /// <param name="events">Where the crafting events also go, besides the C# events (the game's bus).</param>
         public CraftingManager(IEntityManager entityManager, ICraftingRecipeRegistry recipeRegistry,
-            ICraftingInventory inventory = null, Random random = null, ICraftingRequirementChecker requirements = null)
+            ICraftingInventory inventory = null, Random random = null, ICraftingRequirementChecker requirements = null,
+            IEventPublisher events = null)
         {
+            _events = events;
             _entityManager = entityManager ?? throw new ArgumentNullException(nameof(entityManager));
             _recipeRegistry = recipeRegistry ?? throw new ArgumentNullException(nameof(recipeRegistry));
             _inventory = inventory;
@@ -148,7 +153,9 @@ namespace RPGFramework.Crafting
             _entityManager.RemoveComponent<ActiveCraftingData>(entityId);
             _entityManager.AddComponent(entityId, activeCrafts);
 
-            CraftingStarted?.Invoke(this, new CraftingStartedEvent(entityId, recipeId, station, recipe.CraftingTimeSeconds));
+            var craftingStartedEvent = new CraftingStartedEvent(entityId, recipeId, station, recipe.CraftingTimeSeconds);
+            CraftingStarted?.Invoke(this, craftingStartedEvent);
+            _events?.Publish(craftingStartedEvent);
 
             return operationId;
         }
@@ -238,7 +245,9 @@ namespace RPGFramework.Crafting
                     _inventory.Give(entityId, ingredient.ItemId, ingredient.Quantity);
             }
 
-            CraftingCancelled?.Invoke(this, new CraftingCancelledEvent(entityId, recipeId, timeSpent));
+            var craftingCancelledEvent = new CraftingCancelledEvent(entityId, recipeId, timeSpent);
+            CraftingCancelled?.Invoke(this, craftingCancelledEvent);
+            _events?.Publish(craftingCancelledEvent);
 
             return true;
         }
@@ -286,11 +295,13 @@ namespace RPGFramework.Crafting
             _entityManager.RemoveComponent<ActiveCraftingData>(entityId);
             _entityManager.AddComponent(entityId, activeCrafts);
 
-            CraftingCompleted?.Invoke(this, new CraftingCompletedEvent(
+            var craftingCompletedEvent = new CraftingCompletedEvent(
                 entityId,
                 operation.RecipeId,
                 results,
-                operation.ElapsedTimeSeconds));
+                operation.ElapsedTimeSeconds);
+            CraftingCompleted?.Invoke(this, craftingCompletedEvent);
+            _events?.Publish(craftingCompletedEvent);
         }
 
         /// <summary>
@@ -306,11 +317,13 @@ namespace RPGFramework.Crafting
             _entityManager.RemoveComponent<ActiveCraftingData>(entityId);
             _entityManager.AddComponent(entityId, activeCrafts);
 
-            CraftingFailed?.Invoke(this, new CraftingFailedEvent(
+            var craftingFailedEvent = new CraftingFailedEvent(
                 entityId,
                 operation.RecipeId,
                 failureReason,
-                operation.ElapsedTimeSeconds));
+                operation.ElapsedTimeSeconds);
+            CraftingFailed?.Invoke(this, craftingFailedEvent);
+            _events?.Publish(craftingFailedEvent);
         }
     }
 }

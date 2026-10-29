@@ -1,3 +1,4 @@
+using RPGFramework.Events;
 using System;
 
 namespace RPGFramework.Crafting
@@ -5,7 +6,7 @@ namespace RPGFramework.Crafting
     /// <summary>
     /// Event fired when a crafting operation has failed.
     /// </summary>
-    public class CraftingFailedEvent : EventArgs
+    public class CraftingFailedEvent : EventArgs, IEvent
     {
         /// <summary>
         /// Entity ID whose crafting failed.

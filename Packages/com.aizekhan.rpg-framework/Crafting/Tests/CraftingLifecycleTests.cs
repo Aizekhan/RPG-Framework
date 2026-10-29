@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using RPGFramework.ECS;
+using RPGFramework.Events;
 
 namespace RPGFramework.Crafting.Tests
 {
@@ -53,6 +54,24 @@ namespace RPGFramework.Crafting.Tests
             Assert.That(done.Results.Single().ItemId, Is.EqualTo(IronBar));
             Assert.That(done.Results.Single().Quantity, Is.EqualTo(1));
             Assert.That(done.TotalTimeSeconds, Is.EqualTo(3f).Within(0.001f));
+        }
+
+        [Test]
+        public void CraftingEvents_AlsoGoOnTheBus()
+        {
+            using (var bus = new EventBus())
+            {
+                var seen = new List<string>();
+                bus.Subscribe<CraftingStartedEvent>(e => seen.Add("started " + e.RecipeId));
+                bus.Subscribe<CraftingCompletedEvent>(e => seen.Add("completed " + e.RecipeId));
+                var crafting = new CraftingManager(_entities, _recipes, events: bus);
+                int smith = _entities.CreateEntity();
+
+                crafting.StartCrafting(smith, IronBar, _forge);
+                crafting.UpdateCrafting(3f);
+
+                Assert.That(seen, Is.EqualTo(new[] { "started " + IronBar, "completed " + IronBar }));
+            }
         }
 
         [Test]

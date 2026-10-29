@@ -2,6 +2,8 @@
     "name": "RPGFramework.Persistence.Tests",
     "rootNamespace": "RPGFramework.Persistence.Tests",
     "references": [
+        "RPGFramework.Events.Runtime",
+        "UniTask",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
         "RPGFramework.Core.Runtime",

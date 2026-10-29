@@ -1,3 +1,4 @@
+using RPGFramework.Events;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -31,6 +32,11 @@ namespace RPGFramework.Persistence
         public event Action<SaveDeletedEvent> OnSaveDeleted;
         public event Action<SaveErrorEvent> OnSaveError;
         public event Action<AutoSaveTriggeredEvent> OnAutoSaveTriggered;
+
+        /// <summary>
+        /// Where the save events also go, besides the C# events (the game's bus); null: only the C# events.
+        /// </summary>
+        public IEventPublisher Events { get; set; }
 
         public SaveSystem(
             string saveDirectory,
@@ -107,7 +113,9 @@ namespace RPGFramework.Persistence
                 _activeSlot = _slotManager.GetSlot(slotId);
 
                 // Raise event
-                OnSaveCreated?.Invoke(new SaveCreatedEvent(slotId, metadata));
+                var raised0 = new SaveCreatedEvent(slotId, metadata);
+                OnSaveCreated?.Invoke(raised0);
+                Events?.Publish(raised0);
 
                 return SaveResult.CreateSuccess(slotId, metadata);
             }
@@ -115,6 +123,7 @@ namespace RPGFramework.Persistence
             {
                 var errorEvent = new SaveErrorEvent(slotId, SaveError.IOError, ex.Message);
                 OnSaveError?.Invoke(errorEvent);
+                Events?.Publish(errorEvent);
                 return SaveResult.CreateFailure(slotId, SaveError.IOError, ex.Message);
             }
         }
@@ -235,7 +244,9 @@ namespace RPGFramework.Persistence
                 if (info != null && !string.IsNullOrEmpty(info.Checksum) &&
                     _validator.ComputeChecksum(data) != info.Checksum)
                 {
-                    OnSaveError?.Invoke(new SaveErrorEvent(slotId, SaveError.InvalidChecksum, "Save data does not match its checksum."));
+                    var raised2 = new SaveErrorEvent(slotId, SaveError.InvalidChecksum, "Save data does not match its checksum.");
+                    OnSaveError?.Invoke(raised2);
+                    Events?.Publish(raised2);
                     return LoadResult.CreateFailure(slotId, SaveError.InvalidChecksum,
                         "Save data does not match its checksum (corrupted or modified).");
                 }
@@ -264,7 +275,9 @@ namespace RPGFramework.Persistence
                 _activeSlot = slot;
 
                 // Raise event
-                OnSaveLoaded?.Invoke(new SaveLoadedEvent(slotId, metadata));
+                var raised3 = new SaveLoadedEvent(slotId, metadata);
+                OnSaveLoaded?.Invoke(raised3);
+                Events?.Publish(raised3);
 
                 return LoadResult.CreateSuccess(slotId, gameState, metadata);
             }
@@ -272,6 +285,7 @@ namespace RPGFramework.Persistence
             {
                 var errorEvent = new SaveErrorEvent(slotId, SaveError.IOError, ex.Message);
                 OnSaveError?.Invoke(errorEvent);
+                Events?.Publish(errorEvent);
                 return LoadResult.CreateFailure(slotId, SaveError.IOError, ex.Message);
             }
         }
@@ -290,7 +304,9 @@ namespace RPGFramework.Persistence
                 if (success)
                 {
                     _slotManager.MarkSlotEmpty(slotId);
-                    OnSaveDeleted?.Invoke(new SaveDeletedEvent(slotId));
+                    var raised5 = new SaveDeletedEvent(slotId);
+                    OnSaveDeleted?.Invoke(raised5);
+                    Events?.Publish(raised5);
 
                     if (_activeSlot?.SlotId == slotId)
                     {
@@ -378,7 +394,11 @@ namespace RPGFramework.Persistence
             if (!AutoSaveEnabled)
                 return;
 
-            OnAutoSaveTriggered?.Invoke(new AutoSaveTriggeredEvent("autosave", _timeSinceLastAutoSave));
+            var raised6 = new AutoSaveTriggeredEvent("autosave", _timeSinceLastAutoSave);
+
+            OnAutoSaveTriggered?.Invoke(raised6);
+
+            Events?.Publish(raised6);
             Save("autosave", gameState, metadata);
             _timeSinceLastAutoSave = 0f;
         }

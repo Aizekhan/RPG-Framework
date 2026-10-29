@@ -2,7 +2,8 @@
     "name": "RPGFramework.Crafting.Runtime",
     "rootNamespace": "RPGFramework.Crafting",
     "references": [
-        "RPGFramework.ECS.Runtime"
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Events.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

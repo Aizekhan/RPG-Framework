@@ -1,9 +1,10 @@
+using RPGFramework.Events;
 namespace RPGFramework.Persistence
 {
     /// <summary>
     /// Event raised when a save/load operation fails.
     /// </summary>
-    public class SaveErrorEvent
+    public class SaveErrorEvent : IEvent
     {
         public string SlotId { get; }
         public SaveError Error { get; }

@@ -3,7 +3,8 @@
     "rootNamespace": "RPGFramework.Persistence",
     "references": [
         "RPGFramework.Core.Runtime",
-        "RPGFramework.ECS.Runtime"
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Events.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

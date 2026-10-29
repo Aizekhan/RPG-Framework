@@ -1,3 +1,4 @@
+using RPGFramework.Events;
 using System;
 
 namespace RPGFramework.Crafting
@@ -5,7 +6,7 @@ namespace RPGFramework.Crafting
     /// <summary>
     /// Event fired when a crafting operation has been initiated.
     /// </summary>
-    public class CraftingStartedEvent : EventArgs
+    public class CraftingStartedEvent : EventArgs, IEvent
     {
         /// <summary>
         /// Entity ID that started the crafting.

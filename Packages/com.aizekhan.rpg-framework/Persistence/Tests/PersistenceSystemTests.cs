@@ -534,6 +534,23 @@ namespace RPGFramework.Persistence.Tests
         }
 
         [Test]
+        public void SaveSystem_AlsoPublishesItsEventsOnTheBus()
+        {
+            using (var bus = new RPGFramework.Events.EventBus())
+            {
+                var seen = new List<string>();
+                bus.Subscribe<SaveCreatedEvent>(e => seen.Add("created " + e.SlotId));
+                bus.Subscribe<SaveLoadedEvent>(e => seen.Add("loaded " + e.SlotId));
+                ((SaveSystem)_saveSystem).Events = bus;
+
+                _saveSystem.Save("slot_0", new TestGameState { PlayerName = "Bus", Level = 1 }, new SaveMetadata("1.0.0", "Bus", 1f, "Start", 1));
+                _saveSystem.Load<TestGameState>("slot_0");
+
+                Assert.That(seen, Is.EqualTo(new[] { "created slot_0", "loaded slot_0" }));
+            }
+        }
+
+        [Test]
         public void SaveSystem_RaisesSaveLoadedEvent_OnSuccessfulLoad()
         {
             SaveLoadedEvent raisedEvent = null;

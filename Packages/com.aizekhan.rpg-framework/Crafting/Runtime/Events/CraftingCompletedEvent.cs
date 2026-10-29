@@ -1,3 +1,4 @@
+using RPGFramework.Events;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,7 +8,7 @@ namespace RPGFramework.Crafting
     /// <summary>
     /// Event fired when a crafting operation has completed successfully.
     /// </summary>
-    public class CraftingCompletedEvent : EventArgs
+    public class CraftingCompletedEvent : EventArgs, IEvent
     {
         /// <summary>
         /// Entity ID that completed the crafting.
