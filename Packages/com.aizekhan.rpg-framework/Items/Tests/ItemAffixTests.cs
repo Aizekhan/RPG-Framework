@@ -62,7 +62,7 @@ namespace RPGFramework.Items.Tests
             pool.Find("sturdy").Weight = 0;
             pool.SetCount(ItemRarity.Rare, 1, 1, 1);
             for (int seed = 0; seed < 20; seed++)
-                Assert.That(pool.Roll(new Random(seed), 5, ItemRarity.Rare).Single().AffixId, Is.EqualTo("str_1"));
+                Assert.That(pool.Roll(new Random(seed), 5, ItemRarity.Rare, new[] { "ring" }).Single().AffixId, Is.EqualTo("str_1"));
         }
 
         [Test]
