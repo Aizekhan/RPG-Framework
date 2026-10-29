@@ -19,12 +19,15 @@ namespace RPGFramework.Tools.AbilityEditor
         [Tooltip("Whether the amount is a share of the caster's maximum (your game decides how) rather than a flat number")]
         public bool isPercentage = false;
 
+        [Tooltip("Taken every second while a toggle is on or a channel lasts (an upkeep), not when used")]
+        public bool perSecond = false;
+
         /// <summary>
         /// The cost as the ability system stores it.
         /// </summary>
         public ResourceCost ToResourceCost()
         {
-            return new ResourceCost(resourceType, amount, isPercentage);
+            return new ResourceCost(resourceType, amount, isPercentage, perSecond);
         }
     }
 }

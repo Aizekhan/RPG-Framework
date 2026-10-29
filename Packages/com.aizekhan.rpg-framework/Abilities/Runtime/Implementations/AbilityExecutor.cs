@@ -49,6 +49,8 @@ namespace RPGFramework.Abilities
         // The cast or channel each entity is busy with
         private readonly Dictionary<int, ActiveCast> _casts = new Dictionary<int, ActiveCast>();
         private readonly Dictionary<int, HashSet<string>> _toggledOn = new Dictionary<int, HashSet<string>>();
+        private readonly Dictionary<(int Entity, string Ability), Upkeep> _upkeeps = new Dictionary<(int, string), Upkeep>();
+        private readonly List<(int Entity, string Ability)> _unpaid = new List<(int, string)>();
         private readonly List<int> _due = new List<int>();
 
         // Latest game time the executor was given; stamps CancelCast calls made without a time
@@ -68,6 +70,16 @@ namespace RPGFramework.Abilities
             public Func<int, string, float, bool> ResourceCheck;
             public Action<int, string, float> ResourceConsume;
             public Action<int, int, string> ApplyEffect;
+            public float UpkeepPaidUntil;
+        }
+
+        // What a toggle that is on keeps paying for
+        private sealed class Upkeep
+        {
+            public IAbility Ability;
+            public Func<int, string, float, bool> ResourceCheck;
+            public Action<int, string, float> ResourceConsume;
+            public float PaidUntil;
         }
 
         /// <param name="distanceCheck">Distance between two entities, for ability range. Optional.</param>
@@ -205,6 +217,8 @@ namespace RPGFramework.Abilities
                     instance.RefreshCharges(currentTime);
             }
 
+            PayUpkeeps(currentTime);
+
             // Channel ticks up to now, the last one at most at the channel's end
             _due.Clear();
             foreach (var pair in _casts)
@@ -288,6 +302,15 @@ namespace RPGFramework.Abilities
             _abilityInstances.Remove(entityId);
             _casts.Remove(entityId);
             _toggledOn.Remove(entityId);
+            _unpaid.Clear();
+            foreach (var key in _upkeeps.Keys)
+            {
+                if (key.Entity == entityId)
+                    _unpaid.Add(key);
+            }
+            foreach (var key in _unpaid)
+                _upkeeps.Remove(key);
+            _unpaid.Clear();
             _cooldownTracker?.ClearAllCooldowns(entityId);
         }
 
@@ -332,6 +355,16 @@ namespace RPGFramework.Abilities
                 if (!_toggledOn.TryGetValue(casterEntityId, out var on))
                     _toggledOn[casterEntityId] = on = new HashSet<string>();
                 on.Add(abilityId);
+                if (HasUpkeep(ability))
+                {
+                    _upkeeps[(casterEntityId, abilityId)] = new Upkeep
+                    {
+                        Ability = ability,
+                        ResourceCheck = cast.ResourceCheck,
+                        ResourceConsume = cast.ResourceConsume,
+                        PaidUntil = currentTime
+                    };
+                }
                 _events?.Publish(new AbilityToggledEvent
                 {
                     AbilityId = abilityId, CasterEntityId = casterEntityId, IsOn = true, Timestamp = currentTime
@@ -345,6 +378,7 @@ namespace RPGFramework.Abilities
                 cast.EndTime = currentTime + ability.CastInfo.ChannelDuration;
                 cast.NextTick = currentTime + ability.CastInfo.ChannelTickInterval;
                 cast.Ticks = 0;
+                cast.UpkeepPaidUntil = currentTime;
                 _casts[casterEntityId] = cast;
             }
 
@@ -354,6 +388,12 @@ namespace RPGFramework.Abilities
         private AbilityExecutionResult SwitchOff(IAbility ability, int casterEntityId, int targetEntityId, float currentTime)
         {
             _toggledOn[casterEntityId].Remove(ability.AbilityId);
+            if (_upkeeps.TryGetValue((casterEntityId, ability.AbilityId), out var upkeep))
+            {
+                // The seconds up to the switch are paid
+                Drain(casterEntityId, upkeep.Ability, upkeep.ResourceCheck, upkeep.ResourceConsume, upkeep.PaidUntil, currentTime, out _);
+                _upkeeps.Remove((casterEntityId, ability.AbilityId));
+            }
             _events?.Publish(new AbilityToggledEvent
             {
                 AbilityId = ability.AbilityId, CasterEntityId = casterEntityId, IsOn = false, Timestamp = currentTime
@@ -455,6 +495,7 @@ namespace RPGFramework.Abilities
 
             foreach (var cost in ability.ResourceCosts)
             {
+                // An upkeep needs one second's worth to start
                 if (!TryPrice(cost, casterEntityId, out float amount))
                     return $"Cannot price the {cost.ResourceType} cost: it is a percentage and no resource maximum was given";
 
@@ -471,8 +512,88 @@ namespace RPGFramework.Abilities
 
             foreach (var cost in ability.ResourceCosts)
             {
-                if (TryPrice(cost, casterEntityId, out float amount))
+                if (!cost.PerSecond && TryPrice(cost, casterEntityId, out float amount))
                     resourceConsume(casterEntityId, cost.ResourceType, amount);
+            }
+        }
+
+        private static bool HasUpkeep(IAbility ability)
+        {
+            foreach (var cost in ability.ResourceCosts)
+            {
+                if (cost.PerSecond)
+                    return true;
+            }
+            return false;
+        }
+
+        // Takes the upkeep of the seconds from paidUntil to now; false (nothing taken) when one of them cannot be paid
+        private bool Drain(int entityId, IAbility ability, Func<int, string, float, bool> resourceCheck,
+            Action<int, string, float> resourceConsume, float paidUntil, float currentTime, out string unpaid)
+        {
+            unpaid = null;
+            float seconds = currentTime - paidUntil;
+            if (seconds <= 0f)
+                return true;
+            foreach (var cost in ability.ResourceCosts)
+            {
+                if (!cost.PerSecond || !TryPrice(cost, entityId, out float perSecond))
+                    continue;
+                if (resourceCheck != null && !resourceCheck(entityId, cost.ResourceType, perSecond * seconds))
+                {
+                    unpaid = $"Insufficient {cost.ResourceType}";
+                    return false;
+                }
+            }
+            if (resourceConsume == null)
+                return true;
+            foreach (var cost in ability.ResourceCosts)
+            {
+                if (cost.PerSecond && TryPrice(cost, entityId, out float perSecond))
+                    resourceConsume(entityId, cost.ResourceType, perSecond * seconds);
+            }
+            return true;
+        }
+
+        // Toggles that are on and channels that last pay for the time since they last paid; unpaid ones stop
+        private void PayUpkeeps(float currentTime)
+        {
+            _unpaid.Clear();
+            foreach (var pair in _upkeeps)
+            {
+                var upkeep = pair.Value;
+                if (Drain(pair.Key.Entity, upkeep.Ability, upkeep.ResourceCheck, upkeep.ResourceConsume, upkeep.PaidUntil, currentTime, out _))
+                    upkeep.PaidUntil = Math.Max(upkeep.PaidUntil, currentTime);
+                else
+                    _unpaid.Add(pair.Key);
+            }
+            foreach (var key in _unpaid)
+            {
+                var upkeep = _upkeeps[key];
+                Drain(key.Entity, upkeep.Ability, upkeep.ResourceCheck, null, upkeep.PaidUntil, currentTime, out string reason);
+                _upkeeps.Remove(key);
+                if (_toggledOn.TryGetValue(key.Entity, out var on))
+                    on.Remove(key.Ability);
+                _events?.Publish(new AbilityToggledEvent
+                {
+                    AbilityId = key.Ability, CasterEntityId = key.Entity, IsOn = false, Timestamp = currentTime, Reason = reason
+                });
+            }
+
+            _due.Clear();
+            foreach (var pair in _casts)
+            {
+                if (pair.Value.Channeling && HasUpkeep(pair.Value.Ability))
+                    _due.Add(pair.Key);
+            }
+            foreach (int entityId in _due)
+            {
+                var cast = _casts[entityId];
+                float until = Math.Min(currentTime, cast.EndTime);
+                if (Drain(entityId, cast.Ability, cast.ResourceCheck, cast.ResourceConsume, cast.UpkeepPaidUntil, until, out string reason))
+                    cast.UpkeepPaidUntil = Math.Max(cast.UpkeepPaidUntil, until);
+                else
+                    EndCast(entityId, cast, currentTime, reason);
             }
         }
 

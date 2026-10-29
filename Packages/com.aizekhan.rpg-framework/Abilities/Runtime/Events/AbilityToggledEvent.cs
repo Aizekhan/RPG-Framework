@@ -18,5 +18,8 @@ namespace RPGFramework.Abilities
 
         /// <summary>Timestamp of the switch</summary>
         public float Timestamp;
+
+        /// <summary>Why it switched off by itself (the upkeep could not be paid, e.g. "Insufficient MP"); null: the caster's choice or on</summary>
+        public string Reason;
     }
 }
