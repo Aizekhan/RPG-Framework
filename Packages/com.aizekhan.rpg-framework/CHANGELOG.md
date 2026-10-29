@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+- **Localization** (`RPGFramework.Localization`, MythRunner FG-24): `ILocalization` / `LocalizationService` over `StringTable`s (one per language code): `Text(key)`, `Text(key, fallback)`, `Format(key, (name, value)...)` with named values (`{damage}`, `{value:0.0}` in the language's numbers, `{{` `}}` literal), `Plural(key, count)` picking `key.one` / `key.few` / `key.many` / `key.other` by `PluralRules` (English, Ukrainian / Russian / Belarusian, Polish, Czech / Slovak, Japanese / Chinese / Korean; `PluralRules.Set` for more). `LocalizedText` (a key and values) for rules made of plain C#; a value that is a `LocalizedText` is translated too. Missing texts come from the default language, then show as the key; `MissingKeys` lists them. The language: `SetLanguage` ("uk-UA" finds "uk"), `Languages`, `DisplayNameOf`, kept by an `ILanguageStore`, the device's language on the first start, `LanguageChanged` and `LanguageChangedEvent` on the bus.
+- `LocalizationCsv` (`key,en,uk` for translators, both ways) and `LocalizationChecks.Problems` (keys missing or extra in a translation, different `{names}`; plural forms count as their key), for a test that keeps translations whole.
+- Unity: `StringTableAsset` (entries, language name, a font for the language), `LocalizationLibrary` (tables, default language, use the device's language), `LocalizationModule` (registers `ILocalization`, language kept in PlayerPrefs `RPGFramework.Localization.Language`), `LocalizationUnity.CodeOf(SystemLanguage)`.
+- The action RPG kit's texts go through it: `ActionRpgHost` 'Localization' (a `LocalizationLibrary`), `ActionRpgHost.Localization`; the HUD and the co-op panel read `kit.hud.*` / `kit.coop.*` keys, in English until a game's tables have them (`ActionRpgHud.Keys`, `CoopPanel.Keys`, `KitTexts.Table()` to start a translation). The event log stays as the game's content writes it.
+
 ## [0.16.1] - 2026-10-29
 
 ### Added

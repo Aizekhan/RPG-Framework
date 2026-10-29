@@ -46,6 +46,8 @@
         "RPGFramework.Networking.UnityTransport",
         "RPGFramework.Audio.Runtime",
         "RPGFramework.Audio.Unity",
+        "RPGFramework.Localization.Runtime",
+        "RPGFramework.Localization.Unity",
         "RPGFramework.Trading.Runtime"
     ],
     "includePlatforms": [],

@@ -12,6 +12,8 @@ using RPGFramework.Diagnostics;
 using RPGFramework.Diagnostics.Unity;
 using RPGFramework.Events;
 using RPGFramework.Interaction;
+using RPGFramework.Localization;
+using RPGFramework.Localization.Unity;
 using RPGFramework.Logging;
 using Cysharp.Threading.Tasks;
 using RPGFramework.Networking;
@@ -67,6 +69,9 @@ namespace RPGFramework.ActionRpg
 
         [Tooltip("The game's sounds; the kit plays the ActionRpgSounds cues it has (kit.hit, kit.killed...). Empty: no audio module")]
         [SerializeField] private AudioLibrary _audio;
+
+        [Tooltip("The game's languages; the kit's HUD and co-op panel read kit.hud.* / kit.coop.* keys from it (English when missing). Empty: no localization module")]
+        [SerializeField] private LocalizationLibrary _localization;
 
         [Tooltip("Keep the player's level, backpack and quests between sessions (saved on level-up, finished quests and quit)")]
         [SerializeField] private bool _saveProgress;
@@ -288,6 +293,13 @@ namespace RPGFramework.ActionRpg
         public CoopClient CoopClient => _coopClient;
 
         /// <summary>
+        /// The player's language and the game's texts (null without a localization library on the host, or before
+        /// the host starts).
+        /// </summary>
+        public ILocalization Localization =>
+            Host != null && Host.Container.IsRegistered<ILocalization>() ? Host.Container.Resolve<ILocalization>() : null;
+
+        /// <summary>
         /// How games are opened and found: the local network by default (<see cref="LanSessionProvider"/>). Set another
         /// provider (a relay service, a platform's lobbies) before hosting or joining; the co-op itself stays the same.
         /// </summary>
@@ -456,6 +468,8 @@ namespace RPGFramework.ActionRpg
             builder.UseModule(new UnityServicesModule(services));
             if (_audio != null)
                 builder.UseModule(new AudioModule(_audio));
+            if (_localization != null)
+                builder.UseModule(new LocalizationModule(_localization));
             if (DiagnosticsEnabled)
                 builder.UseModule(new DiagnosticsModule());
             if (_joinCode != null)
@@ -1173,7 +1187,7 @@ namespace RPGFramework.ActionRpg
             {
                 if (_hud == null)
                     _hud = gameObject.AddComponent<ActionRpgHud>();
-                _hud.Bind(CurrentWorld, _setup.IconOf);
+                _hud.Bind(CurrentWorld, _setup.IconOf, Localization);
             }
 
             if (_coop && GetComponent<CoopPanel>() == null)

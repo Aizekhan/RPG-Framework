@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using RPGFramework.Interaction;
 using RPGFramework.Items;
+using RPGFramework.Localization;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -13,7 +14,8 @@ namespace RPGFramework.ActionRpg
     /// <summary>
     /// Screen HUD of an action RPG: player health and level, quests with progress, wave, the event log and the
     /// controls; I / Tab / gamepad Select opens the character and backpack panel. Builds its own canvas so the scene needs no UI setup; colours and font size are tunable in the
-    /// inspector. Turn it off on the host to use your own UI.
+    /// inspector. Turn it off on the host to use your own UI. Its texts are <c>kit.hud.*</c> keys of the host's
+    /// localization, in English until a game's tables have them (<see cref="Keys"/>).
     /// </summary>
     public sealed class ActionRpgHud : MonoBehaviour
     {
@@ -44,6 +46,31 @@ namespace RPGFramework.ActionRpg
         private readonly List<BackpackRow> _rows = new List<BackpackRow>();
         private Func<string, Sprite> _iconOf;
         private InputAction _toggleSheet;
+        private ILocalization _localization;
+        private Text _help;
+
+        /// <summary>
+        /// The HUD's texts by key, in English, for a game's string tables (or <see cref="LocalizationCsv"/>).
+        /// </summary>
+        public static readonly IReadOnlyDictionary<string, string> Keys = new Dictionary<string, string>
+        {
+            ["kit.hud.status"] = "{name}   Level {level}   {xp} XP\nAttack {attack:F0}   Defense {defense:F0}\nWave {wave}   Kills {kills}\nBackpack {items} items",
+            ["kit.hud.questsDone"] = "Completed: {count}",
+            ["kit.hud.use"] = "E  {action}",
+            ["kit.hud.sheet"] = "<b>{name}</b>\n\nLevel {level}\nExperience {xp} / {nextXp}\nHealth {health:F0} / {maxHealth:F0}\nAttack {attack:F0}\nDefense {defense:F0}\n\nKills {kills}   Wave {wave}\nGold {gold}\nQuests done {quests}",
+            ["kit.hud.backpack"] = "<b>Backpack</b>  {count} / {capacity}",
+            ["kit.hud.backpackEmpty"] = "Empty. Slay enemies for loot.",
+            ["kit.hud.moreKinds"] = "+{count} more kinds",
+            ["kit.hud.round"] = "Round {round}",
+            ["kit.hud.controls"] = "Move  WASD / arrows / left stick\nAttack  Space / left click / A\nCharacter  I / Tab / Select\nUse  E / X\nRespawn  R / Start\nCo-op  F2",
+            ["kit.hud.fell"] = "You fell.  Press R to rise again",
+            ["kit.hud.waiting"] = "Waiting for an opponent...",
+            ["kit.hud.draw"] = "Draw!",
+            ["kit.hud.victory"] = "Victory!",
+            ["kit.hud.wins"] = "{team} wins",
+            ["kit.hud.roundOver"] = "Round {round} is over",
+            ["kit.hud.defeated"] = "Defeated.  Back in a moment"
+        };
 
         /// <summary>
         /// The character and backpack panel is open.
@@ -52,13 +79,33 @@ namespace RPGFramework.ActionRpg
 
         /// <param name="iconOf">The picture of an item by id (e.g. <see cref="GameSetup.IconOf"/>); null or no
         /// picture shows the item's initials.</param>
-        public void Bind(IActorWorld world, Func<string, Sprite> iconOf = null)
+        /// <param name="localization">The texts' language; null: English.</param>
+        public void Bind(IActorWorld world, Func<string, Sprite> iconOf = null, ILocalization localization = null)
         {
             _world = world;
             _iconOf = iconOf;
+            if (_localization != null)
+                _localization.LanguageChanged -= OnLanguageChanged;
+            _localization = localization;
+            if (_localization != null)
+                _localization.LanguageChanged += OnLanguageChanged;
             if (_status == null)
                 Build();
+            OnLanguageChanged(null);
         }
+
+        // The texts set once; the others are made every frame
+        private void OnLanguageChanged(string language)
+        {
+            if (_help == null)
+                return;
+            _help.text = L("kit.hud.controls");
+            _prompted = null;
+            _banner.text = "";
+        }
+
+        private string L(string key, params (string Name, object Value)[] args) =>
+            (_localization ?? KitTexts.English).Text(new LocalizedText(key, args), Keys[key]);
 
         public void ToggleSheet()
         {
@@ -78,7 +125,12 @@ namespace RPGFramework.ActionRpg
 
         private void OnDisable() => _toggleSheet.Disable();
 
-        private void OnDestroy() => _toggleSheet.Dispose();
+        private void OnDestroy()
+        {
+            _toggleSheet.Dispose();
+            if (_localization != null)
+                _localization.LanguageChanged -= OnLanguageChanged;
+        }
 
         private void Update()
         {
@@ -95,11 +147,9 @@ namespace RPGFramework.ActionRpg
             _healthFill.anchorMax = new Vector2(hero.HealthFraction, 1f);
             _healthLabel.text = $"{hero.Health:F0} / {hero.MaxHealth:F0}";
 
-            _text.Clear()
-                .Append(hero.DisplayName).Append("   Level ").Append(_world.Level).Append("   ").Append(_world.TotalExperience).Append(" XP\n")
-                .Append("Attack ").Append(hero.Attack.ToString("F0")).Append("   Defense ").Append(hero.Defense.ToString("F0")).Append('\n')
-                .Append("Wave ").Append(_world.CurrentWave).Append("   Kills ").Append(_world.Kills).Append('\n')
-                .Append("Backpack ").Append(_world.Inventory.Count).Append(" items");
+            _text.Clear().Append(L("kit.hud.status", ("name", hero.DisplayName), ("level", _world.Level), ("xp", _world.TotalExperience),
+                ("attack", hero.Attack), ("defense", hero.Defense), ("wave", _world.CurrentWave), ("kills", _world.Kills),
+                ("items", _world.Inventory.Count)));
             var pvp = _world.PvpStatus;
             if (pvp != null)
                 AppendScore(pvp);
@@ -117,7 +167,7 @@ namespace RPGFramework.ActionRpg
                 }
             }
             if (_world.CompletedQuests.Count > 0)
-                _text.Append("Completed: ").Append(_world.CompletedQuests.Count);
+                _text.Append(L("kit.hud.questsDone", ("count", _world.CompletedQuests.Count)));
             _quests.text = _text.ToString();
 
             if (_showLog)
@@ -137,7 +187,7 @@ namespace RPGFramework.ActionRpg
             var place = hero.IsAlive() ? _world.NearestInteraction : null;
             _prompt.enabled = place != null;
             if (place != null && place != _prompted)
-                _prompt.text = "E  " + place.Prompt;
+                _prompt.text = L("kit.hud.use", ("action", place.Prompt));
             _prompted = place;
 
             if (IsSheetOpen)
@@ -146,17 +196,10 @@ namespace RPGFramework.ActionRpg
 
         private void FillSheet(Actor hero)
         {
-            _text.Clear()
-                .Append("<b>").Append(hero.DisplayName).Append("</b>\n\n")
-                .Append("Level ").Append(_world.Level).Append('\n')
-                .Append("Experience ").Append(_world.TotalExperience).Append(" / ").Append(_world.ExperienceForNextLevel).Append('\n')
-                .Append("Health ").Append(hero.Health.ToString("F0")).Append(" / ").Append(hero.MaxHealth.ToString("F0")).Append('\n')
-                .Append("Attack ").Append(hero.Attack.ToString("F0")).Append('\n')
-                .Append("Defense ").Append(hero.Defense.ToString("F0")).Append("\n\n")
-                .Append("Kills ").Append(_world.Kills).Append("   Wave ").Append(_world.CurrentWave).Append('\n')
-                .Append("Gold ").Append(_world.CurrencyOf()).Append('\n')
-                .Append("Quests done ").Append(_world.CompletedQuests.Count);
-            _character.text = _text.ToString();
+            _character.text = L("kit.hud.sheet", ("name", hero.DisplayName), ("level", _world.Level), ("xp", _world.TotalExperience),
+                ("nextXp", _world.ExperienceForNextLevel), ("health", hero.Health), ("maxHealth", hero.MaxHealth),
+                ("attack", hero.Attack), ("defense", hero.Defense), ("kills", _world.Kills), ("wave", _world.CurrentWave),
+                ("gold", _world.CurrencyOf()), ("quests", _world.CompletedQuests.Count));
 
             var inventory = _world.Inventory;
             var stacks = inventory.GetAllItems().Where(i => i != null).GroupBy(i => i.ItemId)
@@ -164,9 +207,9 @@ namespace RPGFramework.ActionRpg
                 .OrderByDescending(stack => stack.Item.Rarity).ThenBy(stack => stack.Item.Name)
                 .ToList();
 
-            _text.Clear().Append("<b>Backpack</b>  ").Append(inventory.Count).Append(" / ").Append(inventory.Capacity).Append("\n\n");
+            _text.Clear().Append(L("kit.hud.backpack", ("count", inventory.Count), ("capacity", inventory.Capacity))).Append("\n\n");
             if (stacks.Count == 0)
-                _text.Append("Empty. Slay enemies for loot.");
+                _text.Append(L("kit.hud.backpackEmpty"));
             _backpack.text = _text.ToString();
 
             // The last row says how many kinds did not fit
@@ -179,7 +222,7 @@ namespace RPGFramework.ActionRpg
                 if (i < shown)
                     row.Show(stacks[i].Item, stacks[i].Count, RarityColor(stacks[i].Item.Rarity), _iconOf?.Invoke(stacks[i].Item.ItemId));
                 else if (overflow && i == shown)
-                    row.ShowMore(stacks.Count - shown);
+                    row.ShowMore(L("kit.hud.moreKinds", ("count", stacks.Count - shown)));
             }
         }
 
@@ -237,10 +280,10 @@ namespace RPGFramework.ActionRpg
                     : $"<color=#{ColorUtility.ToHtmlStringRGB(rarity)}>{item.Name}</color>";
             }
 
-            public void ShowMore(int kinds)
+            public void ShowMore(string text)
             {
                 _frame.gameObject.SetActive(false);
-                _label.text = $"+{kinds} more kinds";
+                _label.text = text;
             }
 
             private static string Initials(string name)
@@ -303,7 +346,7 @@ namespace RPGFramework.ActionRpg
             // Bottom right: controls
             var help = Label(Box(root, "Controls", new Vector2(1f, 0f), new Vector2(-24f, 24f), new Vector2(560f, 205f), Color.clear),
                 "Lines", TextAnchor.LowerRight, _fontSize - 6);
-            help.text = "Move  WASD / arrows / left stick\nAttack  Space / left click / A\nCharacter  I / Tab / Select\nUse  E / X\nRespawn  R / Start\nCo-op  F2";
+            _help = help;
 
             // Centre: character sheet and backpack (hidden until toggled)
             _sheet = Box(root, "Character Sheet", new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1000f, 560f),
@@ -317,7 +360,6 @@ namespace RPGFramework.ActionRpg
 
             _banner = Label(Box(root, "Banner", new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900f, 120f), Color.clear),
                 "Text", TextAnchor.MiddleCenter, _fontSize * 2);
-            _banner.text = "You fell.  Press R to rise again";
             _banner.enabled = false;
 
             // Below the centre: the nearest place to use
@@ -339,26 +381,26 @@ namespace RPGFramework.ActionRpg
                     .Append(pvp.Mode == PvpMode.Duel ? side.RoundWins : side.Score).Append("</b>");
             }
             if (pvp.Mode == PvpMode.Duel && pvp.Round > 0)
-                _text.Append("   Round ").Append(pvp.Round);
+                _text.Append("   ").Append(L("kit.hud.round", ("round", pvp.Round)));
             if (pvp.SecondsLeft > 0)
                 _text.Append("   ").Append(pvp.SecondsLeft / 60).Append(':').Append((pvp.SecondsLeft % 60).ToString("00"));
         }
 
         // What fills the middle of the screen: the match's state in PvP, a fall otherwise; null for nothing
-        private static string Banner(Actor hero, PvpStatus pvp)
+        private string Banner(Actor hero, PvpStatus pvp)
         {
             if (pvp == null)
-                return hero.IsAlive() ? null : "You fell.  Press R to rise again";
+                return hero.IsAlive() ? null : L("kit.hud.fell");
             switch (pvp.Phase)
             {
                 case PvpPhase.Waiting:
-                    return "Waiting for an opponent...";
+                    return L("kit.hud.waiting");
                 case PvpPhase.Finished:
-                    return pvp.Winner == null ? "Draw!" : pvp.Winner == hero.Team ? "Victory!" : $"{pvp.Winner} wins";
+                    return pvp.Winner == null ? L("kit.hud.draw") : pvp.Winner == hero.Team ? L("kit.hud.victory") : L("kit.hud.wins", ("team", pvp.Winner));
                 case PvpPhase.RoundOver:
-                    return $"Round {pvp.Round} is over";
+                    return L("kit.hud.roundOver", ("round", pvp.Round));
                 default:
-                    return hero.IsAlive() ? null : "Defeated.  Back in a moment";
+                    return hero.IsAlive() ? null : L("kit.hud.defeated");
             }
         }
 
