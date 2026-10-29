@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-10-29
+
 ### Added
 - Items: `RolledItems` keeps an item's rolled rarity and affixes in its id ("sword~2~sturdy=2;str_1=9"): `Compose`, `TryParse`, `BaseOf`, `Roll(baseId, pool, rarities, random, itemLevel, luck, kinds)`, `Create(id, baseItem, pool)` builds the same named item on every machine.
 - Action RPG kit: gear that drops as loot rolls affixes when `ActionRpgContent.Affixes` is set (`Rarities`, `LuckOf(playerId)`): the gear's kind is the affix kind, the player's level the item level. Rolled items are built from the content (`ActionRpgContent.FindItem` / `FindGear`, `ActorWorld.ItemOf`); worn, they add a bonus per affix; backpacks, saves and co-op keep them by id (the co-op content fingerprint includes the affixes).
