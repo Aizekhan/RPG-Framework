@@ -255,6 +255,27 @@ namespace RPGFramework.TurnBased.Tests
         }
 
         [Test]
+        public void ACriticalHit_DealsMore_AndSaysSo()
+        {
+            _game.EnemiesDefend();
+            _game.Settings.Formula = new DefaultBattleFormula { MissChance = 0f, Variance = 0f, CriticalMultiplier = 1.5f };
+            _game.Content.AbilityEffects.First(e => e.AbilityId == Fire).Element = "";
+            var battle = StartBattle();
+            var goblin = Enemy(battle, 0);
+
+            var result = Expect(battle.Perform(BattleAction.Ability(Fire, goblin.Id)));
+            Assert.That(result.Targets.Single().Critical, Is.False, "no chance, no critical");
+            Assert.That(result.Targets.Single().Damage, Is.EqualTo(26));
+
+            battle.Get(battle.Party.First(p => p.CharacterId == Mage).Id).Data.CriticalChance = 1f;
+            DefendUntil(battle, Mage);
+            result = Expect(battle.Perform(BattleAction.Ability(Fire, Enemy(battle, 1).Id)));
+            Assert.That(result.Targets.Single().Critical, Is.True);
+            Assert.That(result.Targets.Single().Damage, Is.EqualTo(39), "26 x 1.5");
+            Assert.That(battle.Log.Any(line => line.Contains("(critical)")), Is.True);
+        }
+
+        [Test]
         public void AbilityOnAllEnemies_HitsEveryoneStanding()
         {
             _game.EnemiesDefend();

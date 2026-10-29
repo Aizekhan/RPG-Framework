@@ -69,6 +69,12 @@ namespace RPGFramework.TurnBased
         public string LootTableId = "";
 
         /// <summary>
+        /// Its own chance (0..1) to land a critical hit, added to the formula's
+        /// (<see cref="DefaultBattleFormula.CriticalChance"/>): a rogue 0.2, a boss 0.
+        /// </summary>
+        public float CriticalChance;
+
+        /// <summary>
         /// The stat at a level, before status effects.
         /// </summary>
         public float StatAt(CombatStat stat, int level) => Growth(stat).CalculateAtLevel(level);

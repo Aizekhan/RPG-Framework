@@ -540,7 +540,7 @@ namespace RPGFramework.TurnBased
                     var hit = _world.Formula.Hit(actor, target, 1f, CombatStat.Attack, _world.Random);
                     done.Outcomes.Add(Damage(target, hit));
                     Write(hit.Missed ? $"{actor.Name} attacks {target.Name} and misses"
-                        : $"{actor.Name} attacks {target.Name} for {done.Outcomes[0].Damage}");
+                        : $"{actor.Name} attacks {target.Name} for {done.Outcomes[0].Damage}" + (hit.Critical ? " (critical)" : ""));
                     break;
 
                 case BattleActionKind.Defend:
@@ -625,7 +625,7 @@ namespace RPGFramework.TurnBased
             int damage = hit.Damage;
             if (!string.IsNullOrEmpty(element))
                 damage = Combatant.Round(_world.Resistances.Apply(target.Id, element, damage));
-            return new TargetOutcome(target.Id, damage: target.TakeDamage(damage));
+            return new TargetOutcome(target.Id, damage: target.TakeDamage(damage), critical: hit.Critical);
         }
 
         private void ResolveAbility(Plan plan, Resolution done)
@@ -754,7 +754,7 @@ namespace RPGFramework.TurnBased
                 else if (outcome.Revived)
                     parts.Add($"{name} gets back up with {outcome.Healing}");
                 else if (outcome.Damage > 0)
-                    parts.Add($"{name} takes {outcome.Damage}");
+                    parts.Add($"{name} takes {outcome.Damage}" + (outcome.Critical ? " (critical)" : ""));
                 else if (outcome.Healing > 0)
                     parts.Add($"{name} recovers {outcome.Healing}");
                 else if (outcome.ManaRestored > 0)

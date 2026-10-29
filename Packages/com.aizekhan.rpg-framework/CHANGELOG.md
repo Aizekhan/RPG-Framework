@@ -14,6 +14,7 @@
 - Action RPG kit: enemy levels. `ActionRpgSettings.EnemyLevels` (`One` or `PlayerLevel`) and `EnemyLevelOffset` (Game Setup > Enemies, with Elite Chance): enemies spawn at that level with their character's per-level growth; `CharacterData.ExperiencePerLevel` (Character asset) adds experience per level; `Actor.Level`.
 - TurnBased: elements. `AbilityEffectData.Element` ("fire") and `CombatantData.Resistances` (resist, weakness, immunity); `TurnBasedWorld.Resistances` (a `DamageResistances`) for a game's own sources (gear, a ward). Plain attacks have no element.
 - Action RPG kit: a status effect with a "resist:<element>" stat modifier (a fire-ward potion) grants that resistance while it lasts, added to the character's and gear's.
+- Turn-based: critical hits - `DefaultBattleFormula.CriticalChance` and `CriticalMultiplier` (1.5), `CombatantData.CriticalChance` per fighter, `HitResult.Critical`, `TargetOutcome.Critical` and "(critical)" in the battle log. No roll is made while the chances are 0, so seeded battles replay as before.
 
 ## [0.18.0] - 2026-10-29
 

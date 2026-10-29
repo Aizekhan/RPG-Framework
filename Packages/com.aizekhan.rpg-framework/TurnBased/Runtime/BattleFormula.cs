@@ -18,14 +18,20 @@ namespace RPGFramework.TurnBased
 
     public readonly struct HitResult
     {
-        public HitResult(bool missed, int damage)
+        public HitResult(bool missed, int damage, bool critical = false)
         {
             Missed = missed;
             Damage = missed ? 0 : damage;
+            Critical = !missed && critical;
         }
 
         public bool Missed { get; }
         public int Damage { get; }
+
+        /// <summary>
+        /// A critical hit: it already deals the extra damage.
+        /// </summary>
+        public bool Critical { get; }
 
         public static HitResult Miss => new HitResult(true, 0);
     }
@@ -35,7 +41,9 @@ namespace RPGFramework.TurnBased
     /// a weapon hit (scales with Attack) first misses with <see cref="MissChance"/>; spells never miss.
     /// Damage = stat x power - target Defense x (<see cref="DefenseWeight"/> for weapons,
     /// <see cref="MagicDefenseWeight"/> for spells), then x (1 ± <see cref="Variance"/>), halved
-    /// (<see cref="DefendMultiplier"/>) when the target defends, rounded, at least 1.
+    /// (<see cref="DefendMultiplier"/>) when the target defends, rounded, at least 1. A hit that lands is critical
+    /// with <see cref="CriticalChance"/> plus the attacker's own (<see cref="CombatantData.CriticalChance"/>) and
+    /// deals <see cref="CriticalMultiplier"/> times as much (no roll is made while both chances are 0).
     /// Healing = stat x power x (1 ± Variance), rounded, at least 1.
     /// </summary>
     public sealed class DefaultBattleFormula : IBattleFormula
@@ -45,6 +53,8 @@ namespace RPGFramework.TurnBased
         public float DefenseWeight { get; set; } = 0.5f;
         public float MagicDefenseWeight { get; set; } = 0.25f;
         public float DefendMultiplier { get; set; } = 0.5f;
+        public float CriticalChance { get; set; }
+        public float CriticalMultiplier { get; set; } = 1.5f;
 
         public HitResult Hit(Combatant attacker, Combatant target, float power, CombatStat scalesWith, Random random)
         {
@@ -54,9 +64,13 @@ namespace RPGFramework.TurnBased
 
             float raw = attacker.Stat(scalesWith) * power - target.Defense * (weapon ? DefenseWeight : MagicDefenseWeight);
             raw *= Spread(random);
+            float chance = CriticalChance + (attacker.Data?.CriticalChance ?? 0f);
+            bool critical = chance > 0f && random.NextDouble() < chance;
+            if (critical)
+                raw *= CriticalMultiplier;
             if (target.IsDefending)
                 raw *= DefendMultiplier;
-            return new HitResult(false, Math.Max(1, Combatant.Round(raw)));
+            return new HitResult(false, Math.Max(1, Combatant.Round(raw)), critical);
         }
 
         public int Heal(Combatant healer, Combatant target, float power, CombatStat scalesWith, Random random)

@@ -96,8 +96,9 @@ namespace RPGFramework.TurnBased
     public readonly struct TargetOutcome
     {
         public TargetOutcome(int targetId, int damage = 0, int healing = 0, int manaRestored = 0, bool missed = false,
-            bool defeated = false, bool revived = false)
+            bool defeated = false, bool revived = false, bool critical = false)
         {
+            Critical = critical;
             TargetId = targetId;
             Damage = damage;
             Healing = healing;
@@ -120,7 +121,12 @@ namespace RPGFramework.TurnBased
 
         public bool Revived { get; }
 
-        internal TargetOutcome WithDefeated() => new TargetOutcome(TargetId, Damage, Healing, ManaRestored, Missed, true, Revived);
+        /// <summary>
+        /// The hit was critical (<see cref="HitResult.Critical"/>).
+        /// </summary>
+        public bool Critical { get; }
+
+        internal TargetOutcome WithDefeated() => new TargetOutcome(TargetId, Damage, Healing, ManaRestored, Missed, true, Revived, Critical);
     }
 
     /// <summary>
