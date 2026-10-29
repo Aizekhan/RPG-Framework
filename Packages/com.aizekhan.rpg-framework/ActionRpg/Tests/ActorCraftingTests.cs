@@ -108,10 +108,10 @@ namespace RPGFramework.ActionRpg.Tests
         {
             StartGame();
             int hero = World.PlayerId;
-            var anvil = new CraftingStation("anvil", "Anvil", CraftingStationType.Forge, 1);
+            var anvil = new CraftingStation("anvil", "Anvil", CraftingStationType.Forge, 1, new[] { ForgeSword });
             World.GiveItem(Bar, 1);
 
-            Assert.That(Crafting.WhyNot(hero, ForgeSword), Is.EqualTo("Needs a better station"));
+            Assert.That(Crafting.WhyNot(hero, ForgeSword), Is.EqualTo("Cannot be made here"));
             Assert.That(Crafting.WhyNot(hero, ForgeSword, anvil), Is.EqualTo("Its requirements are not met"));
             Assert.That(World.Skills.Learn(hero, Smithing), Is.True);
             Assert.That(Crafting.WhyNot(hero, ForgeSword, anvil), Is.EqualTo("Its requirements are not met"), "no hammer");

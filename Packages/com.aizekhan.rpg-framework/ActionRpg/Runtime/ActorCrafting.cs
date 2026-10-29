@@ -10,7 +10,7 @@ namespace RPGFramework.ActionRpg
     /// Crafting for the players of an <see cref="ActorWorld"/> (<see cref="ActionRpgContent.Recipes"/>, Crafting
     /// module): a craft takes its ingredients from the player's backpack when it starts, takes the recipe's time
     /// (while the game is not paused) and puts what it made in the same backpack. A recipe with no station level
-    /// can be made anywhere; others need a station of their kind and level (an anvil in the scene). Requirements:
+    /// can be made anywhere; others need a station of their kind and level that lists them (an anvil in the scene). Requirements:
     /// a skill level (<see cref="ActorWorld.Skills"/>), a finished quest, a tool in the backpack. A save made during a
     /// craft keeps its ingredients, not the craft.
     /// </summary>
@@ -53,7 +53,7 @@ namespace RPGFramework.ActionRpg
                 return "Not a player in the party";
             station ??= Hands(recipe);
             if (!station.CanCraft(recipe))
-                return "Needs a better station";
+                return "Cannot be made here";
             if (!station.IsAvailable())
                 return "The station is busy";
             foreach (var requirement in recipe.Requirements)
@@ -140,7 +140,8 @@ namespace RPGFramework.ActionRpg
         }
 
         private static ICraftingStation Hands(ICraftingRecipe recipe) =>
-            new CraftingStation("hands", "Hands", recipe?.StationType ?? CraftingStationType.Forge, 0);
+            new CraftingStation("hands", "Hands", recipe?.StationType ?? CraftingStationType.Forge, 0,
+                recipe != null ? new[] { recipe.RecipeId } : null);
 
         // ---- The backpack and the requirements, as the crafting manager asks for them ----
 
