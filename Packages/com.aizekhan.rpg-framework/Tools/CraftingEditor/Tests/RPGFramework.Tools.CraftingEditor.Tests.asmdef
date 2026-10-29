@@ -5,6 +5,7 @@
         "RPGFramework.Tools.CraftingEditor.Runtime",
         "RPGFramework.Tools.ItemDatabaseManager.Runtime",
         "RPGFramework.Crafting.Runtime",
+        "RPGFramework.Events.Runtime",
         "RPGFramework.ECS.Runtime",
         "RPGFramework.Items.Runtime",
         "RPGFramework.Core.Runtime",
