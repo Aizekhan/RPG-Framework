@@ -60,6 +60,14 @@ namespace RPGFramework.ActionRpg
         [Tooltip("Loot from kills goes into the backpack (the killer's, with Per Player). Off: drops are only announced (LootDroppedEvent) and the game hands them to whoever picks them up (ActorWorld.GiveItem)")]
         [SerializeField] private bool _lootToBackpack = true;
 
+        [Header("Enemies")]
+        [Tooltip("The level enemies spawn at: 1, or the player's level; their stats grow by their Character's growth per level")]
+        [SerializeField] private EnemyLevelMode _enemyLevels = EnemyLevelMode.One;
+        [Tooltip("Levels added to (negative: taken from) the enemies' level")]
+        [SerializeField] private int _enemyLevelOffset;
+        [Tooltip("The chance (0..1) an enemy spawns elite, when the game gives elite affixes (ActionRpgContent.EliteAffixes)")]
+        [SerializeField, Range(0f, 1f)] private float _eliteChance;
+
         [Header("PvP")]
         [SerializeField] private PvpSetup _pvp = new PvpSetup();
 
@@ -131,6 +139,9 @@ namespace RPGFramework.ActionRpg
                 Seed = _seed,
                 ProgressMode = _progressMode,
                 LootToBackpack = _lootToBackpack,
+                EnemyLevels = _enemyLevels,
+                EnemyLevelOffset = _enemyLevelOffset,
+                EliteChance = _eliteChance,
                 Pvp = Pvp.ToSettings()
             };
             settings.Enemies.AddRange(_enemies.Where(e => e != null).Select(e => e.ToData()));

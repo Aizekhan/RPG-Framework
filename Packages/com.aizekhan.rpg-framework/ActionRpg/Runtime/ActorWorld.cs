@@ -482,7 +482,8 @@ namespace RPGFramework.ActionRpg
             var character = _settings.Enemies.FirstOrDefault(e => e != null && e.Id == characterId)
                             ?? throw new ArgumentException($"No enemy with id '{characterId}' in the settings", nameof(characterId));
             int id = _entities.CreateEntity();
-            var actor = new Actor(id, character, isPlayer: false);
+            int level = Math.Max(1, (_settings.EnemyLevels == EnemyLevelMode.PlayerLevel ? Level : 1) + _settings.EnemyLevelOffset);
+            var actor = new Actor(id, character, isPlayer: false, level: level);
             RollElite(actor);
             Add(actor);
             return id;
@@ -886,8 +887,9 @@ namespace RPGFramework.ActionRpg
 
             Write("kit.log.slain", ("name", victim.DisplayName));
             float reward = victim.IsElite ? Math.Max(0f, _settings.EliteRewardMultiplier) : 1f;
-            if (victim.Character.ExperienceReward > 0)
-                _progression.AddExperience(owner, (long)Math.Round(victim.Character.ExperienceReward * reward));
+            long experience = victim.Character.ExperienceReward + victim.Character.ExperiencePerLevel * Math.Max(0, victim.Level - 1);
+            if (experience > 0)
+                _progression.AddExperience(owner, (long)Math.Round(experience * reward));
 
             if (string.IsNullOrEmpty(victim.Character.LootTableId))
                 return;

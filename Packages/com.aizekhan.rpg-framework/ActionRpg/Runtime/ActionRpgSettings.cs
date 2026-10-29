@@ -78,6 +78,17 @@ namespace RPGFramework.ActionRpg
         public float EliteRewardMultiplier { get; set; } = 2f;
 
         /// <summary>
+        /// The level enemies spawn at: 1 (the default) or the player's level, plus <see cref="EnemyLevelOffset"/>.
+        /// Their stats grow by their character's per-level growth, their experience by <see cref="CharacterData.ExperiencePerLevel"/>.
+        /// </summary>
+        public EnemyLevelMode EnemyLevels { get; set; } = EnemyLevelMode.One;
+
+        /// <summary>
+        /// Levels added to (or, negative, taken from) the enemies' level; they are never below 1.
+        /// </summary>
+        public int EnemyLevelOffset { get; set; }
+
+        /// <summary>
         /// Fixed random seed (loot, wave composition); 0 picks a new one every run.
         /// </summary>
         public int Seed { get; set; }
@@ -201,6 +212,18 @@ namespace RPGFramework.ActionRpg
         /// Each player has their own: brought along when joining and taken home.
         /// </summary>
         PerPlayer = 1
+    }
+
+    /// <summary>
+    /// Which level enemies spawn at (<see cref="ActionRpgSettings.EnemyLevels"/>).
+    /// </summary>
+    public enum EnemyLevelMode
+    {
+        /// <summary>Level 1 (plus the offset).</summary>
+        One = 0,
+
+        /// <summary>The player's level (the host's in co-op), plus the offset.</summary>
+        PlayerLevel = 1
     }
 
     /// <summary>

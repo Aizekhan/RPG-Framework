@@ -361,6 +361,29 @@ namespace RPGFramework.ActionRpg.Tests
         }
 
         [Test]
+        public void Enemies_CanSpawnAtThePlayersLevel_AndGiveExperienceForIt()
+        {
+            _settings.Enemies.Add(new CharacterData
+            {
+                Id = "wolf", DisplayName = "Wolf", MaxHealth = 30f, Attack = 4f, HealthPerLevel = 10f, AttackPerLevel = 2f,
+                ExperienceReward = 10, ExperiencePerLevel = 5
+            });
+            _settings.EnemyLevels = EnemyLevelMode.PlayerLevel;
+            _settings.EnemyLevelOffset = 1;
+            StartGame();
+
+            int wolf = World.SpawnEnemy("wolf");
+            Assert.That(World.Get(wolf).Level, Is.EqualTo(World.Level + 1));
+            int above = World.Get(wolf).Level - 1;
+            Assert.That(World.Get(wolf).MaxHealth, Is.EqualTo(30f + 10f * above));
+            Assert.That(World.Get(wolf).Attack, Is.EqualTo(4f + 2f * above));
+
+            long before = World.TotalExperience;
+            World.DealDamage(World.PlayerId, wolf, 10000f);
+            Assert.That(World.TotalExperience - before, Is.EqualTo(10 + 5 * above));
+        }
+
+        [Test]
         public void SharedProgress_AFriendWhoLeaves_LeavesTheirGearInTheBackpack()
         {
             StartGame();

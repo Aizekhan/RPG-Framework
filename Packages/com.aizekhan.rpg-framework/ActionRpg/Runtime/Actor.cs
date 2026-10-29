@@ -18,6 +18,7 @@ namespace RPGFramework.ActionRpg
             EntityId = entityId;
             Character = character ?? throw new ArgumentNullException(nameof(character));
             IsPlayer = isPlayer;
+            Level = Math.Max(1, level);
             _stats.Initialize();
             foreach (ActorStat stat in Enum.GetValues(typeof(ActorStat)))
                 _stats.SetBaseStat(stat, character.StatAt(stat, level));
@@ -25,6 +26,12 @@ namespace RPGFramework.ActionRpg
         }
 
         public int EntityId { get; }
+
+        /// <summary>
+        /// The level it was made at (an enemy's, from <see cref="ActionRpgSettings.EnemyLevels"/>).
+        /// </summary>
+        public int Level { get; }
+
         public CharacterData Character { get; }
         public bool IsPlayer { get; }
 

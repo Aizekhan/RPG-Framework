@@ -48,6 +48,8 @@ namespace RPGFramework.ActionRpg
 
         [Header("When killed")]
         [SerializeField, Min(0)] private long _experience = 40;
+        [Tooltip("Experience more for each level above 1 (enemies that grow with the player)")]
+        [SerializeField, Min(0)] private long _experiencePerLevel;
 
         [Tooltip("Rolled for the killer; add the dropped items to the Game Setup")]
         [SerializeField] private LootTableAsset _loot;
@@ -72,6 +74,7 @@ namespace RPGFramework.ActionRpg
             AttackPerLevel = _attackPerLevel,
             DefensePerLevel = _defensePerLevel,
             ExperienceReward = _experience,
+            ExperiencePerLevel = _experiencePerLevel,
             LootTableId = _loot != null ? _loot.tableId : "",
             MoveSpeed = _moveSpeed,
             Resistances = new List<ElementResistance>(_resistances ?? new List<ElementResistance>())

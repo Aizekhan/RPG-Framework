@@ -23,7 +23,7 @@ namespace RPGFramework.ActionRpg
         public float Defense = 2f;
 
         /// <summary>
-        /// Stat gained per level above 1 (used for the player).
+        /// Stat gained per level above 1 (the player's levels; an enemy's when <see cref="ActionRpgSettings.EnemyLevels"/> raises them).
         /// </summary>
         public float HealthPerLevel;
 
@@ -34,6 +34,11 @@ namespace RPGFramework.ActionRpg
         /// Experience the killer gets.
         /// </summary>
         public long ExperienceReward;
+
+        /// <summary>
+        /// Experience the killer gets more for each level of this character above 1 (enemies that grow with the player).
+        /// </summary>
+        public long ExperiencePerLevel;
 
         /// <summary>
         /// Loot table rolled for the killer; empty for none.
