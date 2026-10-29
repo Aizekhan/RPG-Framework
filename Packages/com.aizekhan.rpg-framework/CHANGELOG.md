@@ -13,6 +13,7 @@
 - Abilities: charges that come back over time: `AbilityMetadata.ChargeRechargeTime` (one at a time), `IAbilityInstance.RefreshCharges` / `NextChargeIn`. Ability asset: 'Charge Recharge Time'.
 - Dialogue: `IDialogueGameContext` (`CountItem`, `CheckCustom`) and a ready `DialogueContext` made of the game's answers (`QuestDone`, `ItemCount`, `Stat`, `Custom`).
 - Action RPG kit: the event log goes through localization too: `kit.log.*` keys (`KitLog.Keys`, also in `KitTexts.Table()`), `IActorWorld.LogLines` (`LogLine`: the text to translate and its English, `In(localization)`), `ActorWorld.Announce(LocalizedText, english)` for a game's own lines. `Log` keeps the English lines. A joined machine shows the host's English lines.
+- Pathfinding: `DistanceMap` (a Dijkstra map / flow field over any `INavigationGraph`): distances from the nearest of several goals, `NextStep` towards them and `StepAway` to flee for any number of chasers from one search, `PathFrom`, a `maxCost` to keep the search near.
 
 ### Fixed
 - StatusEffects: `ProcessTicks` catches up the ticks missed in a long frame (up to `StatusEffectManager.MaxTicksPerCall`, reported as one total) and keeps the effect's own rhythm; it ran at most one tick per call.
