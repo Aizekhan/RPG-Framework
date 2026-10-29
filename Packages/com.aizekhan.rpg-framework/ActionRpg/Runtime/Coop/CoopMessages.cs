@@ -274,6 +274,13 @@ namespace RPGFramework.ActionRpg.Coop
                     text.Append("fx:").Append(effect.Id).Append('|');
                 foreach (var ability in content.Abilities.Where(e => e != null).OrderBy(e => e.AbilityId, StringComparer.Ordinal))
                     text.Append("ab:").Append(ability.AbilityId).Append('|');
+                // Rolled gear is rebuilt on every machine from the same affixes
+                foreach (var affix in content.Affixes?.All ?? (IReadOnlyList<RPGFramework.Items.AffixDefinition>)new RPGFramework.Items.AffixDefinition[0])
+                {
+                    text.Append("afx:").Append(affix.Id).Append(',').Append(affix.Stat).Append(',')
+                        .Append(affix.Min.ToString("R", System.Globalization.CultureInfo.InvariantCulture)).Append(',')
+                        .Append(affix.Max.ToString("R", System.Globalization.CultureInfo.InvariantCulture)).Append('|');
+                }
             }
 
             // FNV-1a: stable across runs and machines, unlike string.GetHashCode

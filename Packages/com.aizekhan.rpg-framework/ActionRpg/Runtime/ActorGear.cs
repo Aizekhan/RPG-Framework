@@ -70,7 +70,18 @@ namespace RPGFramework.ActionRpg
         /// <summary>
         /// The gear an item is, or null when it cannot be worn.
         /// </summary>
-        public GearData Of(string itemId) => itemId != null && _gear.TryGetValue(itemId, out var gear) ? gear : null;
+        public GearData Of(string itemId)
+        {
+            if (itemId == null)
+                return null;
+            if (_gear.TryGetValue(itemId, out var gear))
+                return gear;
+            // Rolled gear (affixes in the id) is built from the content the first time
+            gear = RolledItems.IsRolled(itemId) ? _world.Content?.FindGear(itemId) : null;
+            if (gear != null)
+                _gear[itemId] = gear;
+            return gear;
+        }
 
         /// <summary>
         /// The set a player wears now.
@@ -235,7 +246,7 @@ namespace RPGFramework.ActionRpg
             {
                 var gear = Of(record?.ItemId);
                 var slot = Slot(record?.SlotId);
-                var item = gear != null ? _world.ItemRegistry.GetItem(gear.ItemId) : null;
+                var item = gear != null ? _world.ItemOf(gear.ItemId) : null;
                 if (item == null || slot == null || !slot.Takes(gear))
                     continue;
                 wardrobe.Set(record.Loadout ?? DefaultLoadout)[slot.Id] = item;

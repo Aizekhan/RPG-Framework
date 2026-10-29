@@ -95,6 +95,32 @@ namespace RPGFramework.Items.Tests
         }
 
         [Test]
+        public void RolledItems_KeepTheAffixesInTheId_AndBuildTheSameItemFromIt()
+        {
+            var pool = Pool();
+            var affixes = new[] { new RolledAffix("sturdy", 2f), new RolledAffix("str_1", 9f) };
+            string id = RolledItems.Compose("sword", ItemRarity.Epic, affixes);
+            Assert.That(id, Is.EqualTo("sword~3~sturdy=2;str_1=9"));
+            Assert.That(RolledItems.BaseOf(id), Is.EqualTo("sword"));
+            Assert.That(RolledItems.BaseOf("sword"), Is.EqualTo("sword"));
+            Assert.That(RolledItems.TryParse(id, out string baseId, out var rarity, out var parsed), Is.True);
+            Assert.That((baseId, rarity), Is.EqualTo(("sword", ItemRarity.Epic)));
+            Assert.That(parsed, Is.EqualTo(affixes));
+            Assert.That(RolledItems.TryParse("sword", out _, out _, out _), Is.False);
+
+            var item = RolledItems.Create(id, new Item("sword", "Sword", "", ItemType.Equipment, iconId: "icon.sword"), pool);
+            Assert.That(item.Name, Is.EqualTo("Sturdy Sword of the Bear"));
+            Assert.That(item.Rarity, Is.EqualTo(ItemRarity.Epic));
+            Assert.That(item.IconId, Is.EqualTo("icon.sword"));
+            Assert.That(RolledItems.Create(id, new Item("axe", "Axe", "", ItemType.Equipment), pool), Is.Null, "another base");
+
+            Assert.That(RolledItems.Roll("sword", pool, new RarityTable().Set(ItemRarity.Common, 1), new Random(1), 30), Is.EqualTo("sword"),
+                "a Common rolls nothing");
+            Assert.That(RolledItems.IsRolled(RolledItems.Roll("sword", pool, new RarityTable().Set(ItemRarity.Rare, 1), new Random(1), 30)), Is.True);
+            Assert.That(() => RolledItems.Compose("a~b", ItemRarity.Rare, affixes), Throws.ArgumentException);
+        }
+
+        [Test]
         public void RarityTable_RollsByWeight_AndLuckFavoursTheRareTiers()
         {
             var table = new RarityTable().Set(ItemRarity.Common, 3).Set(ItemRarity.Rare, 1);

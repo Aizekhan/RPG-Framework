@@ -123,6 +123,7 @@ namespace RPGFramework.ActionRpg
             }
 
             World = Container.Resolve<ActorWorld>();
+            World.Content = _content;
             World.Trading = Container.Resolve<ITradingManager>();
             World.Interactions = Container.Resolve<IInteractionService>();
             World.GamePause = Container.Resolve<IGamePause>();

@@ -5,6 +5,7 @@ using RPGFramework.Bootstrap;
 using RPGFramework.Events;
 using RPGFramework.Items;
 using RPGFramework.Logging;
+using RPGFramework.Loot;
 using RPGFramework.Stats;
 
 namespace RPGFramework.ActionRpg.Tests
@@ -230,6 +231,38 @@ namespace RPGFramework.ActionRpg.Tests
             Assert.That(World.Player.Attack, Is.EqualTo(51f));
             Assert.That(World.Player.Defense, Is.EqualTo(5f));
             Assert.That(World.Inventory.Count, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void DroppedGear_RollsAffixes_ThatAreWornSavedAndNamed()
+        {
+            _content.Affixes = new AffixPool()
+                .Add(new AffixDefinition("brutal", AffixSlot.Prefix, "Brutal", "Attack", 10f, 10f).OnlyOn("weapon"))
+                .Add(new AffixDefinition("warded", AffixSlot.Suffix, "of Warding", "Defense", 3f, 3f).OnlyOn("head"));
+            _content.Rarities = new RarityTable().Set(ItemRarity.Rare, 1);
+            _content.LootTables.Add(LootTableBuilder.Create("chest", "Chest").AddGuaranteedDrop(Sword).AddGuaranteedDrop(Tome)
+                .WithDrops(0, 0).Build());
+            StartGame();
+
+            Assert.That(World.GiveLoot(World.PlayerId, "chest"), Is.True);
+            var ids = World.Inventory.GetAllItems().Where(i => i != null).Select(i => i.ItemId).ToList();
+            Assert.That(ids, Is.EquivalentTo(new[] { "sword~2~brutal=10", Tome }), "only a weapon affix fits a sword; the tome is not gear");
+            var rolled = World.Inventory.GetAllItems().First(i => i != null && i.ItemId != Tome);
+            Assert.That(rolled.Name, Is.EqualTo("Brutal sword"));
+            Assert.That(rolled.Rarity, Is.EqualTo(ItemRarity.Rare));
+
+            Assert.That(World.Equip(rolled.ItemId), Is.True);
+            Assert.That(World.Player.Attack, Is.EqualTo(65f), "50 + the sword's 5 + Brutal's 10");
+
+            var saved = World.CaptureProgress();
+            _host.Dispose();
+            StartGame();
+            World.RestoreProgress(saved);
+            Assert.That(World.WornIn("weapon")?.ItemId, Is.EqualTo("sword~2~brutal=10"));
+            Assert.That(World.Player.Attack, Is.EqualTo(65f), "the affix comes back from the id");
+            Assert.That(World.Unequip("weapon"), Is.True);
+            Assert.That(World.Player.Attack, Is.EqualTo(50f));
+            Assert.That(World.Inventory.GetAllItems().Count(i => i != null && i.Name == "Brutal sword"), Is.EqualTo(1));
         }
 
         [Test]

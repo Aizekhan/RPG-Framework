@@ -173,7 +173,7 @@ namespace RPGFramework.ActionRpg.Coop
         {
             string loadout = Loadout;
             var record = _party.Gear.FirstOrDefault(g => g.SlotId == slotId && (g.Loadout ?? "") == loadout);
-            return record != null ? _content.Items.FirstOrDefault(i => i != null && i.ItemId == record.ItemId) : null;
+            return record != null ? _content.FindItem(record.ItemId) : null;
         }
 
         /// <summary>
@@ -352,7 +352,7 @@ namespace RPGFramework.ActionRpg.Coop
             _inventory.Clear();
             foreach (var itemId in party.Items)
             {
-                var item = _content.Items.FirstOrDefault(i => i != null && i.ItemId == itemId);
+                var item = _content.FindItem(itemId);
                 if (item != null && !_inventory.Add(item))
                     break;
             }

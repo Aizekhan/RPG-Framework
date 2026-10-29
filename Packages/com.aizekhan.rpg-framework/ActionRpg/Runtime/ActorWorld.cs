@@ -142,6 +142,28 @@ namespace RPGFramework.ActionRpg
         /// The items the game knows (what loot, rewards and trades hand out).
         /// </summary>
         public IItemRegistry ItemRegistry => _items;
+
+        /// <summary>
+        /// The game's content (set by the module): rolled gear is built from it.
+        /// </summary>
+        public ActionRpgContent Content { get; internal set; }
+
+        /// <summary>
+        /// An item by id from the registry; a rolled one (<see cref="RolledItems"/>) is built from the content and
+        /// registered the first time it is asked for.
+        /// </summary>
+        public IItem ItemOf(string itemId)
+        {
+            if (string.IsNullOrEmpty(itemId))
+                return null;
+            var item = _items.GetItem(itemId);
+            if (item != null || Content == null || !RolledItems.IsRolled(itemId))
+                return item;
+            item = Content.FindItem(itemId);
+            if (item != null)
+                _items.RegisterItem(item);
+            return item;
+        }
         public int Kills => KillsOf(PlayerId);
         public int Level => LevelOf(PlayerId);
         public long TotalExperience => ExperienceOf(PlayerId);
@@ -653,7 +675,7 @@ namespace RPGFramework.ActionRpg
                 inventory.Clear();
                 foreach (var itemId in progress.Items ?? new List<string>())
                 {
-                    var item = _items.GetItem(itemId);
+                    var item = ItemOf(itemId);
                     if (item == null)
                         _logger?.LogWarning($"Saved item '{itemId}' is no longer in the game; skipped", Category);
                     else if (!inventory.Add(item))
@@ -804,23 +826,42 @@ namespace RPGFramework.ActionRpg
             {
                 TableId = loot.TableId, TriggerEntityId = playerId, SourceEntityId = sourceId, ItemCount = loot.TotalCount
             });
-            foreach (var drop in loot.Drops)
+            foreach (var raw in loot.Drops)
             {
-                if (_settings.Currencies.Contains(drop.ItemId))
+                foreach (var (itemId, quantity) in Rolled(raw.ItemId, raw.Quantity, owner))
                 {
-                    if (toBackpack)
-                        Wallet.Add(owner, drop.Quantity, drop.ItemId, "loot:" + loot.TableId);
+                    if (_settings.Currencies.Contains(itemId))
+                    {
+                        if (toBackpack)
+                            Wallet.Add(owner, quantity, itemId, "loot:" + loot.TableId);
+                    }
+                    else if (toBackpack && !GiveItem(playerId, itemId, quantity))
+                    {
+                        continue;
+                    }
+                    _bus.Publish(new LootDroppedEvent
+                    {
+                        ItemId = itemId, Quantity = quantity, ItemEntityId = -1, SourceEntityId = sourceId
+                    });
                 }
-                else if (toBackpack && !GiveItem(playerId, drop.ItemId, drop.Quantity))
-                {
-                    continue;
-                }
-                _bus.Publish(new LootDroppedEvent
-                {
-                    ItemId = drop.ItemId, Quantity = drop.Quantity, ItemEntityId = -1, SourceEntityId = sourceId
-                });
             }
             return true;
+        }
+
+        // Gear rolls its affixes one piece at a time (ActionRpgContent.Affixes); anything else drops as it is
+        private IEnumerable<(string ItemId, int Quantity)> Rolled(string itemId, int quantity, int owner)
+        {
+            var pool = Content?.Affixes;
+            var gear = pool != null && !RolledItems.IsRolled(itemId) ? Content.FindGear(itemId) : null;
+            if (gear == null)
+            {
+                yield return (itemId, quantity);
+                yield break;
+            }
+            float luck = Content.LuckOf?.Invoke(owner) ?? 0f;
+            var kinds = new[] { gear.Kind };
+            for (int i = 0; i < quantity; i++)
+                yield return (RolledItems.Roll(itemId, pool, Content.Rarities, _random, _progression.GetLevel(owner), luck, kinds), 1);
         }
 
         private void OnObjectiveProgressed(ObjectiveProgressedEvent progress)
@@ -1066,7 +1107,7 @@ namespace RPGFramework.ActionRpg
             var inventory = InventoryOf(playerId);
             if (inventory == null)
                 return false;
-            var item = _items.GetItem(itemId);
+            var item = ItemOf(itemId);
             if (item == null)
             {
                 _logger?.LogError($"Unknown item '{itemId}'", Category);

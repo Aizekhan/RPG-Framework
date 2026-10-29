@@ -205,5 +205,68 @@ namespace RPGFramework.ActionRpg
         /// (<see cref="ActionRpgSettings.GearSlots"/>).
         /// </summary>
         public List<GearData> Gear { get; } = new List<GearData>();
+
+        /// <summary>
+        /// Random affixes for gear that drops as loot ("Sturdy Sword of the Bear"): each piece of gear from a loot
+        /// table rolls a rarity (<see cref="Rarities"/>) and that rarity's affixes, with the gear's kind as the item's
+        /// kind for <see cref="AffixDefinition.OnlyOn"/> and the player's level as the item level. The rolled item's id
+        /// carries them (<see cref="RolledItems"/>), so backpacks, saves and co-op keep them. Null: gear drops as written.
+        /// </summary>
+        public AffixPool Affixes { get; set; }
+
+        /// <summary>
+        /// How often dropped gear is of each rarity; null: <see cref="RarityTable.Default"/>.
+        /// </summary>
+        public RarityTable Rarities { get; set; }
+
+        /// <summary>
+        /// A player's luck (magic find) for <see cref="RarityTable.Roll"/>, by player id; null: no luck.
+        /// </summary>
+        public Func<int, float> LuckOf { get; set; }
+
+        private readonly Dictionary<string, IItem> _rolledItems = new Dictionary<string, IItem>(StringComparer.Ordinal);
+        private readonly Dictionary<string, GearData> _rolledGear = new Dictionary<string, GearData>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// An item of the content by id, rolled ones included (built from their base item and <see cref="Affixes"/>).
+        /// </summary>
+        public IItem FindItem(string itemId)
+        {
+            if (string.IsNullOrEmpty(itemId))
+                return null;
+            if (!RolledItems.IsRolled(itemId))
+                return Items.FirstOrDefault(i => i != null && i.ItemId == itemId);
+            if (_rolledItems.TryGetValue(itemId, out var rolled))
+                return rolled;
+            rolled = RolledItems.Create(itemId, FindItem(RolledItems.BaseOf(itemId)), Affixes);
+            if (rolled != null)
+                _rolledItems[itemId] = rolled;
+            return rolled;
+        }
+
+        /// <summary>
+        /// The gear an item is, rolled ones included: the base gear's kind, level and bonuses plus a bonus per affix.
+        /// </summary>
+        public GearData FindGear(string itemId)
+        {
+            if (string.IsNullOrEmpty(itemId))
+                return null;
+            if (!RolledItems.IsRolled(itemId))
+                return Gear.FirstOrDefault(g => g != null && g.ItemId == itemId);
+            if (_rolledGear.TryGetValue(itemId, out var rolled))
+                return rolled;
+            var baseGear = FindGear(RolledItems.BaseOf(itemId));
+            if (baseGear == null || !RolledItems.TryParse(itemId, out _, out _, out var affixes))
+                return null;
+            rolled = new GearData(itemId, baseGear.Kind, baseGear.Bonuses.ToArray()) { MinimumLevel = baseGear.MinimumLevel };
+            foreach (var affix in affixes)
+            {
+                var definition = Affixes?.Find(affix.AffixId);
+                if (definition != null)
+                    rolled.Bonuses.Add(new GearBonus(definition.Stat, affix.Value, definition.ModifierType));
+            }
+            _rolledGear[itemId] = rolled;
+            return rolled;
+        }
     }
 }

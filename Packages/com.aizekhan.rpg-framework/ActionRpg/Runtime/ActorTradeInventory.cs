@@ -66,7 +66,7 @@ namespace RPGFramework.ActionRpg
             if (inventory == null)
                 return false;
             var added = new List<IItem>();
-            var item = world.ItemRegistry.GetItem(itemId);
+            var item = world.ItemOf(itemId);
             if (item == null)
                 return false;
             for (int i = 0; i < quantity; i++)
