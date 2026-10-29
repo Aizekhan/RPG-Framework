@@ -78,6 +78,11 @@ namespace RPGFramework.ActionRpg
         public float MaxHealth => _stats.GetFinalStat(ActorStat.MaxHealth);
         public float Attack => _stats.GetFinalStat(ActorStat.Attack);
         public float Defense => _stats.GetFinalStat(ActorStat.Defense);
+
+        /// <summary>
+        /// A stat with every modifier on it (gear, skills, effects).
+        /// </summary>
+        public float Stat(ActorStat stat) => _stats.GetFinalStat(stat);
         public float CriticalChance => _stats.GetFinalStat(ActorStat.CriticalChance);
         public float CriticalDamage => _stats.GetFinalStat(ActorStat.CriticalDamage);
         public float Evasion => _stats.GetFinalStat(ActorStat.Evasion);

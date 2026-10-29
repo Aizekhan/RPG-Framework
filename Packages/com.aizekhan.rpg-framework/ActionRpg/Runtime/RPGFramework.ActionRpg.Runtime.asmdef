@@ -21,6 +21,7 @@
         "RPGFramework.Skills.Runtime",
         "RPGFramework.Crafting.Runtime",
         "RPGFramework.Achievements.Runtime",
+        "RPGFramework.Dialogue.Runtime",
         "RPGFramework.Integration.CombatQuests.Runtime",
         "UniTask",
         "RPGFramework.Persistence.Runtime",

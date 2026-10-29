@@ -44,6 +44,11 @@ namespace RPGFramework.ActionRpg
         /// Skill points granted beyond the levels (<see cref="ActorSkills.GrantPoints"/>).
         /// </summary>
         public int BonusSkillPoints { get; set; }
+
+        /// <summary>
+        /// The player's dialogue variables (<see cref="ActorDialogue.VariableOf"/>).
+        /// </summary>
+        public List<VariableRecord> DialogueVariables { get; set; } = new List<VariableRecord>();
     }
 
     public sealed class CurrencyRecord

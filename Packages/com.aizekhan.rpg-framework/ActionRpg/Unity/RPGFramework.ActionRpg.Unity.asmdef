@@ -25,6 +25,7 @@
         "RPGFramework.Skills.Runtime",
         "RPGFramework.Crafting.Runtime",
         "RPGFramework.Achievements.Runtime",
+        "RPGFramework.Dialogue.Runtime",
         "RPGFramework.Presentation.Unity",
         "RPGFramework.Spawning.Unity",
         "RPGFramework.AssetManagement.Runtime",

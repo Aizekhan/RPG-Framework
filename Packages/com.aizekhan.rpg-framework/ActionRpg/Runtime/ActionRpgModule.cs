@@ -135,6 +135,10 @@ namespace RPGFramework.ActionRpg
                 World.Gear.Register(gear);
             foreach (var recipe in _content.Recipes)
                 World.Crafting.Register(recipe);
+            foreach (var dialogue in _content.Dialogues)
+                World.Dialogue.Register(dialogue);
+            foreach (var effect in _content.DialogueEffects)
+                World.Dialogue.Register(effect);
             if (_content.Achievements.Count > 0)
             {
                 var achievements = new RPGFramework.Achievements.AchievementRegistry();

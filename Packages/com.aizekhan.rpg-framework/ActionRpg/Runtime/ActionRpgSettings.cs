@@ -305,6 +305,16 @@ namespace RPGFramework.ActionRpg
             new List<RPGFramework.Achievements.Runtime.Contracts.IAchievement>();
 
         /// <summary>
+        /// The game's conversations (<see cref="ActorWorld.Dialogue"/>).
+        /// </summary>
+        public List<RPGFramework.Dialogue.IDialogue> Dialogues { get; } = new List<RPGFramework.Dialogue.IDialogue>();
+
+        /// <summary>
+        /// What dialogue lines and choices do: items, currency, quests, variables, skill points.
+        /// </summary>
+        public List<DialogueEffect> DialogueEffects { get; } = new List<DialogueEffect>();
+
+        /// <summary>
         /// Affixes an elite enemy can roll ("Frenzied": +50% Attack, "of Stone": +10 Defense): stats are
         /// <see cref="ActorStat"/> names (or "resist:fire"); an enemy spawns elite with
         /// <see cref="ActionRpgSettings.EliteChance"/> and rolls them at the player's level and

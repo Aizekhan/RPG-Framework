@@ -79,6 +79,7 @@ namespace RPGFramework.ActionRpg
             Gear = new ActorGear(this, settings.GearSlots, bus);
             Skills = new ActorSkills(this, bus);
             Crafting = new ActorCrafting(this, bus);
+            Dialogue = new ActorDialogue(this, entities, bus);
             _random = settings.Seed != 0 ? new Random(settings.Seed) : new Random();
             Hostility = HostilityRules.For(settings);
         }
@@ -97,6 +98,11 @@ namespace RPGFramework.ActionRpg
         /// The players' crafts from their backpacks (<see cref="ActionRpgContent.Recipes"/>).
         /// </summary>
         public ActorCrafting Crafting { get; }
+
+        /// <summary>
+        /// Conversations with conditions and effects (<see cref="ActionRpgContent.Dialogues"/>).
+        /// </summary>
+        public ActorDialogue Dialogue { get; }
 
         /// <summary>
         /// The players' achievements (<see cref="ActionRpgContent.Achievements"/>): their deeds counted by kind, what
@@ -343,6 +349,39 @@ namespace RPGFramework.ActionRpg
                 : Enumerable.Empty<(IQuest, IQuestProgress)>();
         }
 
+        /// <summary>
+        /// A party member takes a quest (their own, or the party's when progress is shared); false when it is
+        /// unknown, taken already or done.
+        /// </summary>
+        public bool AcceptQuest(int playerId, string questId)
+        {
+            int owner = ProgressOwnerOf(playerId);
+            if (owner < 0 || string.IsNullOrEmpty(questId) || !_quests.AcceptQuest(owner, questId))
+                return false;
+            Write("kit.log.newQuest", ("quest", _questRegistry.GetQuest(questId)?.Title ?? questId));
+            return true;
+        }
+
+        /// <summary>
+        /// Hands in a quest whose objectives are done (with <see cref="ActionRpgSettings.CompleteQuestsAutomatically"/>
+        /// off: a quest giver); false while something is open.
+        /// </summary>
+        public bool CompleteQuest(int playerId, string questId)
+        {
+            int owner = ProgressOwnerOf(playerId);
+            return owner >= 0 && !string.IsNullOrEmpty(questId) && _quests.CompleteQuest(owner, questId);
+        }
+
+        /// <summary>
+        /// Advances a party member's quests by something the game counts (a talk: Interact, a place: Explore).
+        /// </summary>
+        /// <returns>How many objectives advanced.</returns>
+        public int ReportQuestProgress(int playerId, ObjectiveType type, string targetId, int amount = 1)
+        {
+            int owner = ProgressOwnerOf(playerId);
+            return owner >= 0 && amount > 0 ? _quests.ReportProgress(owner, type, targetId, amount) : 0;
+        }
+
         public IReadOnlyList<string> CompletedQuestsOf(int playerId)
         {
             int owner = ProgressOwnerOf(playerId);
@@ -484,6 +523,7 @@ namespace RPGFramework.ActionRpg
                 return false;
             // Worn items go back into the backpack the party shares, or leave with the player
             Crafting.CancelAll(playerId);
+            Dialogue.Forget(playerId);
             Gear.Forget(playerId, backToBackpack: _settings.ProgressMode != ProgressMode.PerPlayer);
             Skills.Forget(playerId);
             _party.Remove(playerId);
@@ -738,6 +778,7 @@ namespace RPGFramework.ActionRpg
             progress.Gear.AddRange(Gear.RecordsOf(playerId));
             progress.Loadout = Gear.LoadoutOf(playerId);
             progress.Skills.AddRange(Skills.RecordsOf(playerId));
+            progress.DialogueVariables.AddRange(Dialogue.RecordsOf(playerId));
             progress.BonusSkillPoints = Skills.BonusPointsOf(playerId);
             return progress;
         }
@@ -800,6 +841,7 @@ namespace RPGFramework.ActionRpg
                 }
                 Gear.Restore(playerId, progress.Gear, progress.Loadout);
                 Skills.Restore(playerId, progress.Skills, progress.BonusSkillPoints);
+                Dialogue.Restore(playerId, progress.DialogueVariables);
 
                 var completed = _quests.GetCompletedQuests(owner);
                 foreach (var questId in progress.CompletedQuests ?? new List<string>())
@@ -874,6 +916,7 @@ namespace RPGFramework.ActionRpg
         public void Dispose()
         {
             _subscriptions.Dispose();
+            Dialogue.Dispose();
             foreach (int id in new List<int>(_actors.Keys))
                 Remove(id);
         }
@@ -1229,6 +1272,23 @@ namespace RPGFramework.ActionRpg
         /// Puts items into the backpack a party member fills (their own, or the party's): loot they picked up.
         /// </summary>
         /// <returns>False for someone not in the party, an unknown item, or a full backpack.</returns>
+        /// <summary>
+        /// Takes items out of a party member's backpack, all or none.
+        /// </summary>
+        /// <returns>False when there are not that many.</returns>
+        public bool TakeItem(int playerId, string itemId, int quantity = 1)
+        {
+            var inventory = InventoryOf(playerId);
+            if (inventory == null || quantity <= 0)
+                return false;
+            var matching = inventory.GetAllItems().Where(i => i != null && i.ItemId == itemId).Take(quantity).ToList();
+            if (matching.Count < quantity)
+                return false;
+            foreach (var item in matching)
+                inventory.Remove(item);
+            return true;
+        }
+
         public bool GiveItem(int playerId, string itemId, int quantity)
         {
             ThrowIfNotStarted();
