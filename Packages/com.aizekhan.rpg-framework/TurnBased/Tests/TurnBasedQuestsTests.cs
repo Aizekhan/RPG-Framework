@@ -191,7 +191,7 @@ namespace RPGFramework.TurnBased.Tests
 
             PlayToTheEnd(world.StartBattle());
 
-            Assert.That(world.Reputation.Of("goblins"), Is.EqualTo(-20), "two goblins");
+            Assert.That(world.Reputation.Of("goblins"), Is.EqualTo(-20 - 12), "two goblins, and the village's thanks spreads to its enemy");
             Assert.That(world.Reputation.Of("village"), Is.EqualTo(10 + 25), "their enemy, and the quest");
             Assert.That(world.Reputation.StandingOf("village"), Is.EqualTo(RPGFramework.Factions.FactionStanding.Friendly));
             var progress = world.CaptureProgress();
