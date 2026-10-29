@@ -50,6 +50,8 @@ namespace RPGFramework.ActionRpg
         /// </summary>
         public ActorWorld World { get; private set; }
 
+        private ActorAchievements _achievementFeed;
+
         /// <summary>
         /// The PvP match (null before initialization; idle when <see cref="ActionRpgSettings.Pvp"/> is not set).
         /// </summary>
@@ -133,6 +135,18 @@ namespace RPGFramework.ActionRpg
                 World.Gear.Register(gear);
             foreach (var recipe in _content.Recipes)
                 World.Crafting.Register(recipe);
+            if (_content.Achievements.Count > 0)
+            {
+                var achievements = new RPGFramework.Achievements.AchievementRegistry();
+                foreach (var achievement in _content.Achievements)
+                {
+                    if (achievement != null)
+                        achievements.RegisterAchievement(achievement);
+                }
+                var bus = Container.Resolve<IEventBus>();
+                World.Achievements = new RPGFramework.Achievements.AchievementTracker(achievements, Container.Resolve<IEntityManager>(), bus);
+                _achievementFeed = new ActorAchievements(World, World.Achievements, bus);
+            }
             if (Container.IsRegistered<ITradePricing>())
                 World.TradePricing = Container.Resolve<ITradePricing>();
             if (InteractionDistance != null)
@@ -157,6 +171,8 @@ namespace RPGFramework.ActionRpg
 
         protected override void OnShutdown()
         {
+            _achievementFeed?.Dispose();
+            _achievementFeed = null;
             World?.Dispose();
             World = null;
             Pvp = null;

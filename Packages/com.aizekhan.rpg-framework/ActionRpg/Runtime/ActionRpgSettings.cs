@@ -297,6 +297,14 @@ namespace RPGFramework.ActionRpg
         public List<RPGFramework.Crafting.ICraftingRecipe> Recipes { get; } = new List<RPGFramework.Crafting.ICraftingRecipe>();
 
         /// <summary>
+        /// The game's achievements: kills by character id (KillCount), items by base item id (ItemCollected),
+        /// completed quests (QuestCompleted), the level (LevelReached) and strike damage (DamageDealt) move them;
+        /// a criterion with no target counts every one (<see cref="ActorWorld.Achievements"/>).
+        /// </summary>
+        public List<RPGFramework.Achievements.Runtime.Contracts.IAchievement> Achievements { get; } =
+            new List<RPGFramework.Achievements.Runtime.Contracts.IAchievement>();
+
+        /// <summary>
         /// Affixes an elite enemy can roll ("Frenzied": +50% Attack, "of Stone": +10 Defense): stats are
         /// <see cref="ActorStat"/> names (or "resist:fire"); an enemy spawns elite with
         /// <see cref="ActionRpgSettings.EliteChance"/> and rolls them at the player's level and

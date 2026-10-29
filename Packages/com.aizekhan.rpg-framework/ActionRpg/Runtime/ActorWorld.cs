@@ -98,6 +98,13 @@ namespace RPGFramework.ActionRpg
         /// </summary>
         public ActorCrafting Crafting { get; }
 
+        /// <summary>
+        /// The players' achievements (<see cref="ActionRpgContent.Achievements"/>): their deeds counted by kind, what
+        /// they unlocked. A profile apart from the saves: keep <c>Achievements.Capture(playerId)</c> where the game
+        /// keeps its profile and give it back with <c>Restore</c>. Null when the game has no achievements.
+        /// </summary>
+        public RPGFramework.Achievements.AchievementTracker Achievements { get; internal set; }
+
         internal IEntityManager Entities => _entities;
 
         public string Loadout => Gear.LoadoutOf(PlayerId);

@@ -70,6 +70,44 @@ namespace RPGFramework.ActionRpg.Tests
         }
 
         [Test]
+        public void Achievements_CountKillsItemsQuestsAndDamage_ForThePlayer()
+        {
+            RPGFramework.Achievements.Achievement Make(string id, RPGFramework.Achievements.CriterionType type, string target, int count) =>
+                new RPGFramework.Achievements.Achievement(id, id, "", "", 10, RPGFramework.Achievements.AchievementTier.Common,
+                    new List<RPGFramework.Achievements.Runtime.Contracts.IAchievementCriterion>
+                    {
+                        new RPGFramework.Achievements.AchievementCriterion("c", type, target, count)
+                    },
+                    new List<RPGFramework.Achievements.Runtime.IAchievementReward>(), new List<string>());
+            _content.Achievements.Add(Make("first_blood", RPGFramework.Achievements.CriterionType.KillCount, Goblin, 1));
+            _content.Achievements.Add(Make("earful", RPGFramework.Achievements.CriterionType.ItemCollected, Ear, 5));
+            _content.Achievements.Add(Make("hunter", RPGFramework.Achievements.CriterionType.QuestCompleted, HuntQuest, 1));
+            _content.Achievements.Add(Make("bruiser", RPGFramework.Achievements.CriterionType.DamageDealt, "", 50));
+            StartGame();
+            var unlocked = new List<RPGFramework.Achievements.AchievementUnlockedEvent>();
+            _host.Container.Resolve<IEventBus>().Subscribe<RPGFramework.Achievements.AchievementUnlockedEvent>(unlocked.Add);
+            var achievements = World.Achievements;
+            int hero = World.PlayerId;
+
+            World.DealDamage(hero, World.SpawnEnemy(Goblin), 1000f);
+            Assert.That(achievements.IsUnlocked(hero, "first_blood"), Is.True);
+            Assert.That(achievements.IsUnlocked(hero, "bruiser"), Is.False, "the goblin had 30 health to lose");
+            World.DealDamage(hero, World.SpawnEnemy(Goblin), 1000f);
+            Assert.That(achievements.IsUnlocked(hero, "bruiser"), Is.True, "60 dealt");
+            Assert.That(achievements.IsUnlocked(hero, "hunter"), Is.True, "two goblins finish the hunt");
+            long ears = achievements.CountOf(hero, RPGFramework.Achievements.CriterionType.ItemCollected, Ear);
+            World.GiveItem(Ear, 5);
+            Assert.That(achievements.IsUnlocked(hero, "earful"), Is.True);
+            Assert.That(achievements.CountOf(hero, RPGFramework.Achievements.CriterionType.ItemCollected, Ear), Is.EqualTo(ears + 5));
+            Assert.That(unlocked.Select(u => u.AchievementId), Is.SupersetOf(new[] { "first_blood", "bruiser", "hunter", "earful" }));
+
+            long before = achievements.CountOf(hero, RPGFramework.Achievements.CriterionType.ItemCollected, Ear);
+            World.RestoreProgress(World.CaptureProgress());
+            Assert.That(achievements.CountOf(hero, RPGFramework.Achievements.CriterionType.ItemCollected, Ear), Is.EqualTo(before),
+                "a load does not count its items again");
+        }
+
+        [Test]
         public void CriticalChance_FromAStatusEffect_MakesStrikesCritical()
         {
             _settings.Enemies[0].MaxHealth = 1000f;
