@@ -48,6 +48,8 @@
         "RPGFramework.Audio.Unity",
         "RPGFramework.Localization.Runtime",
         "RPGFramework.Localization.Unity",
+        "RPGFramework.Settings.Runtime",
+        "RPGFramework.Settings.Unity",
         "RPGFramework.Trading.Runtime"
     ],
     "includePlatforms": [],

@@ -1,0 +1,26 @@
+{
+    "name": "RPGFramework.Settings.Unity",
+    "rootNamespace": "RPGFramework.Settings.Unity",
+    "references": [
+        "RPGFramework.Settings.Runtime",
+        "RPGFramework.Audio.Runtime",
+        "RPGFramework.Localization.Runtime",
+        "RPGFramework.UI.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "RPGFramework.Bootstrap.Runtime",
+        "RPGFramework.Core.Runtime",
+        "RPGFramework.DI.Runtime",
+        "RPGFramework.Systems.Runtime",
+        "UniTask"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

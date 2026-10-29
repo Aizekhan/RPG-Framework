@@ -14,6 +14,8 @@ using RPGFramework.Events;
 using RPGFramework.Interaction;
 using RPGFramework.Localization;
 using RPGFramework.Localization.Unity;
+using RPGFramework.Settings;
+using RPGFramework.Settings.Unity;
 using RPGFramework.Logging;
 using Cysharp.Threading.Tasks;
 using RPGFramework.Networking;
@@ -72,6 +74,9 @@ namespace RPGFramework.ActionRpg
 
         [Tooltip("The game's languages; the kit's HUD and co-op panel read kit.hud.* / kit.coop.* keys from it (English when missing). Empty: no localization module")]
         [SerializeField] private LocalizationLibrary _localization;
+
+        [Tooltip("Register the settings service (kept in PlayerPrefs): display options, the volumes and the language; the game adds its own. A first start changes nothing on the screen")]
+        [SerializeField] private bool _useSettings = true;
 
         [Tooltip("Keep the player's level, backpack and quests between sessions (saved on level-up, finished quests and quit)")]
         [SerializeField] private bool _saveProgress;
@@ -300,6 +305,13 @@ namespace RPGFramework.ActionRpg
             Host != null && Host.Container.IsRegistered<ILocalization>() ? Host.Container.Resolve<ILocalization>() : null;
 
         /// <summary>
+        /// The settings page's options (null with 'Settings' off, or before the host starts). Show them with
+        /// <c>SettingsRows.For(Settings, Localization)</c> on an <c>ActionListPanel</c>.
+        /// </summary>
+        public ISettingsService Settings =>
+            Host != null && Host.Container.IsRegistered<ISettingsService>() ? Host.Container.Resolve<ISettingsService>() : null;
+
+        /// <summary>
         /// How games are opened and found: the local network by default (<see cref="LanSessionProvider"/>). Set another
         /// provider (a relay service, a platform's lobbies) before hosting or joining; the co-op itself stays the same.
         /// </summary>
@@ -470,6 +482,8 @@ namespace RPGFramework.ActionRpg
                 builder.UseModule(new AudioModule(_audio));
             if (_localization != null)
                 builder.UseModule(new LocalizationModule(_localization));
+            if (_useSettings)
+                builder.UseModule(new SettingsModule());
             if (DiagnosticsEnabled)
                 builder.UseModule(new DiagnosticsModule());
             if (_joinCode != null)
@@ -1143,6 +1157,8 @@ namespace RPGFramework.ActionRpg
         {
             if (_saveProgress && World != null)
                 StartSaving();
+            // Made now, so the kept screen size and quality are applied when the game starts, not when a page opens
+            _ = Settings;
 
             if (_charactersRoot == null)
             {

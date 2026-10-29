@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+- **Settings** (`RPGFramework.Settings`, MythRunner FG-25): `ISettingsService` / `SettingsService` with typed options (`ToggleSetting`, `ChoiceSetting`, `SliderSetting`: steps, ends, wrap-around choices, `Fraction` for a slider control), groups, `Find` / `Toggle` / `Slider` / `Choice`, `ResetToDefaults(group)`, kept through `ISettingsStore` (a default is not kept, a bad kept value is ignored), `Changed` and `SettingChangedEvent`. Options made with a getter and a setter are bound to a service that keeps the value itself.
+- `DisplaySettings` (group "Display"): screen size, window mode (full screen / borderless / windowed), quality, vertical sync, frame-rate cap, applied at once through `IDisplayOutput`; the defaults are the screen as it is, so a first start changes nothing. Phones and consoles get quality and the cap only.
+- Unity: `SettingsModule` (PlayerPrefs `RPGFramework.Settings.<id>`, `UnityDisplayOutput`, and the volumes and the language when those modules are there: `SettingsBridges.AddVolumes`, `AddLanguage`), `SettingsRows.For(settings, localization)` builds a settings page on `ActionListPanel` (headings, `<` / `>`, Defaults; `settings.*` keys).
+- `ActionRpgHost` 'Settings' (on by default) registers the module and applies the kept display options at start; `ActionRpgHost.Settings`.
+
 ## [0.17.0] - 2026-10-29
 
 ### Added
