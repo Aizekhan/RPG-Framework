@@ -12,6 +12,7 @@
 - Abilities: channel ticks: `CastInfo.ChannelTickInterval` calls the ability's effect again on every tick of a channel up to its end (driven by `IAbilityExecutor.Update`; ticks due before a cancel or interrupt still land), `AbilityChannelTickEvent`, `AbilityChannelEndedEvent` (completed or stopped, with the reason and the tick count). Ability asset: 'Channel Tick Interval'.
 - Abilities: charges that come back over time: `AbilityMetadata.ChargeRechargeTime` (one at a time), `IAbilityInstance.RefreshCharges` / `NextChargeIn`. Ability asset: 'Charge Recharge Time'.
 - Dialogue: `IDialogueGameContext` (`CountItem`, `CheckCustom`) and a ready `DialogueContext` made of the game's answers (`QuestDone`, `ItemCount`, `Stat`, `Custom`).
+- Action RPG kit: the event log goes through localization too: `kit.log.*` keys (`KitLog.Keys`, also in `KitTexts.Table()`), `IActorWorld.LogLines` (`LogLine`: the text to translate and its English, `In(localization)`), `ActorWorld.Announce(LocalizedText, english)` for a game's own lines. `Log` keeps the English lines. A joined machine shows the host's English lines.
 
 ### Fixed
 - StatusEffects: `ProcessTicks` catches up the ticks missed in a long frame (up to `StatusEffectManager.MaxTicksPerCall`, reported as one total) and keeps the effect's own rhythm; it ran at most one tick per call.

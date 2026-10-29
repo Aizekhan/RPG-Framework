@@ -173,8 +173,17 @@ namespace RPGFramework.ActionRpg
             if (_showLog)
             {
                 _text.Clear();
-                foreach (var line in _world.Log)
-                    _text.AppendLine(line);
+                var lines = _world.LogLines;
+                if (lines.Count > 0)
+                {
+                    foreach (var line in lines)
+                        _text.AppendLine(line.In(_localization));
+                }
+                else
+                {
+                    foreach (var line in _world.Log)
+                        _text.AppendLine(line);
+                }
                 _log.text = _text.ToString();
             }
 

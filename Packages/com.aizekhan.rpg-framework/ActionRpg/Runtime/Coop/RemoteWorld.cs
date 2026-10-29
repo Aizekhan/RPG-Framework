@@ -66,6 +66,9 @@ namespace RPGFramework.ActionRpg.Coop
         public long ExperienceForNextLevel => _party.ExperienceForNextLevel;
         public int CurrentWave => _party.Wave;
         public IReadOnlyList<string> Log => _party.Log;
+
+        // The host sends English lines only
+        public IReadOnlyList<LogLine> LogLines => Array.Empty<LogLine>();
         public IEnumerable<(IQuest Quest, IQuestProgress Progress)> ActiveQuests => _activeQuests;
         public IReadOnlyList<string> CompletedQuests => _party.CompletedQuests;
         public IInventoryContainer<IItem> Inventory => _inventory;

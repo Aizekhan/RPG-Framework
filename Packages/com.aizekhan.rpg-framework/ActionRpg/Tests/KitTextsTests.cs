@@ -30,5 +30,21 @@ namespace RPGFramework.ActionRpg.Tests
             Assert.That(problems, Has.Member("uk: kit.hud.fell is missing"));
             Assert.That(problems.Any(p => p.Contains("kit.hud.wins")), Is.False, "the same {team}");
         }
+
+        [Test]
+        public void LogLines_AreShownInTheLanguage_AndPlainLinesStayAsWritten()
+        {
+            var ukrainian = new StringTable("uk").Set("kit.log.slain", "{name} повалено");
+            var localization = new LocalizationService(new[] { KitTexts.Table(), ukrainian }, "en");
+            localization.SetLanguage("uk");
+
+            var slain = new LogLine(LocalizedText.Of("kit.log.slain", ("name", "Вовк")), "Вовк slain");
+            Assert.That(slain.In(localization), Is.EqualTo("Вовк повалено"));
+            Assert.That(slain.In(null), Is.EqualTo("Вовк slain"));
+            Assert.That(new LogLine(LocalizedText.Of("kit.log.levelUp", ("level", 3)), "Level up! Level 3").In(localization),
+                Is.EqualTo("Level up! Level 3"), "not translated: English");
+            Assert.That(new LogLine(default, "Bounty paid {x}").In(localization), Is.EqualTo("Bounty paid {x}"), "a plain line");
+            Assert.That(KitTexts.All.Any(t => t.Key == "kit.log.wave"), Is.True);
+        }
     }
 }

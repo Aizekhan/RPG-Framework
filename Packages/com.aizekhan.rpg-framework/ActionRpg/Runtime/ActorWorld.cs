@@ -7,6 +7,7 @@ using RPGFramework.Events;
 using RPGFramework.Interaction;
 using RPGFramework.Inventory.Runtime;
 using RPGFramework.Items;
+using RPGFramework.Localization;
 using RPGFramework.Logging;
 using RPGFramework.Loot;
 using RPGFramework.Progression;
@@ -53,6 +54,7 @@ namespace RPGFramework.ActionRpg
         private readonly Dictionary<int, IInventoryContainer<IItem>> _inventories = new Dictionary<int, IInventoryContainer<IItem>>();
         private readonly Dictionary<int, int> _kills = new Dictionary<int, int>();
         private readonly List<string> _log = new List<string>();
+        private readonly List<LogLine> _logLines = new List<LogLine>();
         // The hit that brought a character to 0, until its death is handled
         private readonly Dictionary<int, AttackContext> _killingHits = new Dictionary<int, AttackContext>();
         private readonly SubscriptionBag _subscriptions = new SubscriptionBag();
@@ -217,6 +219,7 @@ namespace RPGFramework.ActionRpg
         /// Recent happenings, newest last (for a HUD log).
         /// </summary>
         public IReadOnlyList<string> Log => _log;
+        public IReadOnlyList<LogLine> LogLines => _logLines;
 
         /// <summary>
         /// Everyone in the world, the player included.
@@ -318,7 +321,7 @@ namespace RPGFramework.ActionRpg
             _party.Add(PlayerId);
             Add(new Actor(PlayerId, _settings.Player, isPlayer: true) { Seat = 0 });
             BeginProgress(PlayerId);
-            Write($"{_settings.Player.DisplayName} enters the world");
+            Write("kit.log.enters", ("name", _settings.Player.DisplayName));
         }
 
         // A fresh progress: level 1, an empty backpack, the starting quests
@@ -330,7 +333,7 @@ namespace RPGFramework.ActionRpg
             foreach (var questId in _settings.StartingQuests)
             {
                 if (_quests.AcceptQuest(owner, questId))
-                    Write($"New quest: {_questRegistry.GetQuest(questId)?.Title ?? questId}");
+                    Write("kit.log.newQuest", ("quest", _questRegistry.GetQuest(questId)?.Title ?? questId));
                 else
                     _logger?.LogWarning($"Starting quest '{questId}' could not be accepted", Category);
             }
@@ -366,7 +369,7 @@ namespace RPGFramework.ActionRpg
                 if (progress != null)
                     RestoreProgress(id, progress);
             }
-            Write($"{player.DisplayName} joins the party");
+            Write("kit.log.joins", ("name", player.DisplayName));
             return id;
         }
 
@@ -438,7 +441,7 @@ namespace RPGFramework.ActionRpg
             if (_settings.ProgressMode == ProgressMode.PerPlayer)
                 Wallet.Forget(playerId);
             Remove(playerId);
-            Write($"{player.DisplayName} leaves the party");
+            Write("kit.log.leaves", ("name", player.DisplayName));
             return true;
         }
 
@@ -468,7 +471,7 @@ namespace RPGFramework.ActionRpg
                 throw new InvalidOperationException("No enemies in the settings");
 
             CurrentWave++;
-            Write($"Wave {CurrentWave}: {enemies} enemies");
+            Write("kit.log.wave", ("wave", CurrentWave), ("count", enemies));
             for (int i = 0; i < enemies; i++)
                 SpawnEnemy(pool[_random.Next(pool.Count)].Id);
             _bus.Publish(new WaveStartedEvent(CurrentWave, enemies));
@@ -688,9 +691,10 @@ namespace RPGFramework.ActionRpg
             {
                 IsRestoring = false;
             }
-            Write(owner == PlayerId
-                ? $"Welcome back: level {Level}, {inventory.Count} items"
-                : $"{Get(owner)?.DisplayName} brings level {_progression.GetLevel(owner)}, {inventory.Count} items");
+            if (owner == PlayerId)
+                Write("kit.log.welcomeBack", ("level", Level), ("count", inventory.Count));
+            else
+                Write("kit.log.brings", ("name", Get(owner)?.DisplayName), ("level", _progression.GetLevel(owner)), ("count", inventory.Count));
         }
 
         private void SetObjective(int owner, string questId, string objectiveId, int target)
@@ -723,7 +727,7 @@ namespace RPGFramework.ActionRpg
             if (player != null && healthFraction < 1f)
                 player.SetHealth(Math.Max(1f, player.MaxHealth * Math.Max(0f, healthFraction)));
             if (reviverId >= 0 && reviverId != playerId)
-                Write($"{Get(reviverId)?.DisplayName ?? "Someone"} brings {player?.DisplayName} back");
+                Write("kit.log.revives", ("reviver", Get(reviverId)?.DisplayName ?? "Someone"), ("name", player?.DisplayName));
             return true;
         }
 
@@ -765,7 +769,7 @@ namespace RPGFramework.ActionRpg
                 var killer = Get(death.KillerEntityId);
                 bool byPlayer = killer != null && killer.IsPlayer && killer != victim;
                 if (!byPlayer)
-                    Write($"{victim.DisplayName} falls");
+                    Write("kit.log.falls", ("name", victim.DisplayName));
                 _bus.Publish(new PlayerDefeatedEvent(victim.EntityId, death.KillerEntityId, byPlayer, killingHit));
                 return;
             }
@@ -780,7 +784,7 @@ namespace RPGFramework.ActionRpg
             if (!byParty)
                 return;
 
-            Write($"{victim.DisplayName} slain");
+            Write("kit.log.slain", ("name", victim.DisplayName));
             if (victim.Character.ExperienceReward > 0)
                 _progression.AddExperience(owner, victim.Character.ExperienceReward);
 
@@ -824,7 +828,7 @@ namespace RPGFramework.ActionRpg
             if (!OwnsProgress(progress.EntityId) || IsRestoring)
                 return;
             string title = _questRegistry.GetQuest(progress.QuestId)?.Title ?? progress.QuestId;
-            Write($"{title}: {progress.CurrentProgress}/{progress.RequiredProgress}");
+            Write("kit.log.progress", ("quest", title), ("done", progress.CurrentProgress), ("required", progress.RequiredProgress));
             // CompleteQuest refuses while any objective is still open
             if (progress.IsCompleted && _settings.CompleteQuestsAutomatically)
                 _quests.CompleteQuest(progress.EntityId, progress.QuestId);
@@ -834,7 +838,7 @@ namespace RPGFramework.ActionRpg
         {
             if (!OwnsProgress(completed.EntityId) || IsRestoring)
                 return;
-            Write($"Quest complete: {_questRegistry.GetQuest(completed.QuestId)?.Title ?? completed.QuestId}");
+            Write("kit.log.questDone", ("quest", _questRegistry.GetQuest(completed.QuestId)?.Title ?? completed.QuestId));
             if (completed.Rewards == null)
                 return;
 
@@ -873,7 +877,7 @@ namespace RPGFramework.ActionRpg
                 foreach (ActorStat stat in Enum.GetValues(typeof(ActorStat)))
                     member.SetBaseStat(stat, member.Character.StatAt(stat, levelUp.NewLevel));
                 member.RestoreFullHealth();
-                Write($"{member.DisplayName} reaches level {levelUp.NewLevel}");
+                Write("kit.log.memberLevel", ("name", member.DisplayName), ("level", levelUp.NewLevel));
                 return;
             }
             if (levelUp.EntityId != PlayerId)
@@ -890,7 +894,7 @@ namespace RPGFramework.ActionRpg
                     actor.SetBaseStat(stat, actor.Character.StatAt(stat, levelUp.NewLevel));
                 actor.RestoreFullHealth();
             }
-            Write($"Level up! Level {levelUp.NewLevel}");
+            Write("kit.log.levelUp", ("level", levelUp.NewLevel));
         }
 
         private void OnStatIncreased(StatIncreasedEvent increased)
@@ -904,7 +908,7 @@ namespace RPGFramework.ActionRpg
         private void OnItemAdded(ItemAddedEvent<IItem> added)
         {
             if (added.EntityId == PlayerId && !IsRestoring)
-                Write($"+{added.Quantity} {added.Item.Name}");
+                Write("kit.log.item", ("count", added.Quantity), ("item", added.Item.Name));
         }
 
         /// <summary>
@@ -1073,7 +1077,7 @@ namespace RPGFramework.ActionRpg
             {
                 if (!inventory.Add(item))
                 {
-                    Write("Backpack is full");
+                    Write("kit.log.backpackFull");
                     return false;
                 }
             }
@@ -1083,14 +1087,25 @@ namespace RPGFramework.ActionRpg
         /// <summary>
         /// Adds a line to the log the HUD shows (for game rules: "Bounty paid", "Boss enraged").
         /// </summary>
-        public void Announce(string line) => Write(line);
+        public void Announce(string line) => Write(new LogLine(default, line));
 
-        private void Write(string line)
+        /// <summary>
+        /// Adds a line to translate (the game's key in its string tables) with its English.
+        /// </summary>
+        public void Announce(LocalizedText text, string english) => Write(new LogLine(text, english ?? text.Key));
+
+        private void Write(string key, params (string Name, object Value)[] args) => Write(KitLog.Line(key, args));
+
+        private void Write(LogLine line)
         {
-            _log.Add(line);
+            _log.Add(line.English);
+            _logLines.Add(line);
             if (_log.Count > MaxLogLines)
+            {
                 _log.RemoveAt(0);
-            _logger?.LogInfo(line, Category);
+                _logLines.RemoveAt(0);
+            }
+            _logger?.LogInfo(line.English, Category);
         }
 
         private void ThrowIfNotStarted()

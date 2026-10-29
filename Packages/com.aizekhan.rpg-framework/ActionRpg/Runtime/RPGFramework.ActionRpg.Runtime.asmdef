@@ -8,6 +8,7 @@
         "RPGFramework.DI.Runtime",
         "RPGFramework.ECS.Runtime",
         "RPGFramework.Events.Runtime",
+        "RPGFramework.Localization.Runtime",
         "RPGFramework.Logging.Runtime",
         "RPGFramework.Systems.Runtime",
         "RPGFramework.Combat.Runtime",

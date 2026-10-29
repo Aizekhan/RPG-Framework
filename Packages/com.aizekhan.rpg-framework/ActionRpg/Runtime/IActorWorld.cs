@@ -49,6 +49,12 @@ namespace RPGFramework.ActionRpg
         long ExperienceForNextLevel { get; }
         int CurrentWave { get; }
         IReadOnlyList<string> Log { get; }
+
+        /// <summary>
+        /// <see cref="Log"/> as lines to translate (<see cref="LogLine.In"/>); empty where only the English lines are
+        /// known (a friend's game seen from a joined machine).
+        /// </summary>
+        IReadOnlyList<LogLine> LogLines { get; }
         IEnumerable<(IQuest Quest, IQuestProgress Progress)> ActiveQuests { get; }
         IReadOnlyList<string> CompletedQuests { get; }
         IInventoryContainer<IItem> Inventory { get; }
