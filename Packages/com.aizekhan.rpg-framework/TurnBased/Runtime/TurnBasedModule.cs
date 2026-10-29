@@ -104,6 +104,17 @@ namespace RPGFramework.TurnBased
 
             World = Container.Resolve<TurnBasedWorld>();
             World.Start();
+            if (_content.Achievements.Count > 0)
+            {
+                var achievements = new RPGFramework.Achievements.AchievementRegistry();
+                foreach (var achievement in _content.Achievements)
+                {
+                    if (achievement != null)
+                        achievements.RegisterAchievement(achievement);
+                }
+                World.UseAchievements(new RPGFramework.Achievements.AchievementTracker(achievements,
+                    Container.Resolve<IEntityManager>(), Container.Resolve<IEventBus>()));
+            }
         }
 
         protected override void OnShutdown()

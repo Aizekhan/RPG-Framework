@@ -200,6 +200,14 @@ namespace RPGFramework.TurnBased
         /// Collect ones (by item id) and won encounters advance Explore ones (by encounter id).
         /// </summary>
         public List<RPGFramework.Quests.IQuest> Quests { get; } = new List<RPGFramework.Quests.IQuest>();
+
+        /// <summary>
+        /// The game's achievements, for the whole party (<see cref="TurnBasedWorld.Achievements"/>): beaten enemies by
+        /// character id (KillCount), items got (ItemCollected), completed quests (QuestCompleted), the highest level a
+        /// member reached (LevelReached) and the damage the party deals (DamageDealt).
+        /// </summary>
+        public List<RPGFramework.Achievements.Runtime.Contracts.IAchievement> Achievements { get; } =
+            new List<RPGFramework.Achievements.Runtime.Contracts.IAchievement>();
     }
 
     /// <summary>

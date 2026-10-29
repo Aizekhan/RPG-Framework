@@ -122,6 +122,38 @@ namespace RPGFramework.TurnBased.Tests
         }
 
         [Test]
+        public void Achievements_CountThePartysDeeds_AcrossRuns()
+        {
+            RPGFramework.Achievements.Achievement Make(string id, RPGFramework.Achievements.CriterionType type, string target, int count) =>
+                new RPGFramework.Achievements.Achievement(id, id, "", "", 10, RPGFramework.Achievements.AchievementTier.Common,
+                    new List<RPGFramework.Achievements.Runtime.Contracts.IAchievementCriterion>
+                    {
+                        new RPGFramework.Achievements.AchievementCriterion("c", type, target, count)
+                    },
+                    new List<RPGFramework.Achievements.Runtime.IAchievementReward>(), new List<string>());
+            var game = NewGame();
+            game.Content.Achievements.Add(Make("pack_hunter", RPGFramework.Achievements.CriterionType.KillCount, Goblin, 3));
+            game.Content.Achievements.Add(Make("hunted", RPGFramework.Achievements.CriterionType.QuestCompleted, Hunt, 1));
+            game.Content.Achievements.Add(Make("ears", RPGFramework.Achievements.CriterionType.ItemCollected, Ear, 2));
+            game.Content.Achievements.Add(Make("hard_hitter", RPGFramework.Achievements.CriterionType.DamageDealt, "", 80));
+            var world = game.Start();
+            int holder = world.AchievementHolderId;
+            Assert.That(world.Achievements.CountOf(holder, RPGFramework.Achievements.CriterionType.ItemCollected), Is.EqualTo(0),
+                "the starting items are not got");
+
+            PlayToTheEnd(world.StartBattle());
+
+            var tracker = world.Achievements;
+            Assert.That(tracker.CountOf(holder, RPGFramework.Achievements.CriterionType.KillCount, Goblin), Is.EqualTo(2));
+            Assert.That(tracker.IsUnlocked(holder, "pack_hunter"), Is.False);
+            Assert.That(tracker.UnlockedBy(holder), Is.EquivalentTo(new[] { "hunted", "ears", "hard_hitter" }));
+
+            world.Restart();
+            PlayToTheEnd(world.StartBattle());
+            Assert.That(tracker.IsUnlocked(holder, "pack_hunter"), Is.True, "the count goes on in a new run");
+        }
+
+        [Test]
         public void ASave_KeepsTheQuests_WithoutPayingAgain()
         {
             var first = NewGame();

@@ -280,10 +280,12 @@ namespace RPGFramework.TurnBased
                 {
                     Write("The inventory is full");
                     ReportQuestProgress(ObjectiveType.Collect, itemId, i);
+                    Count(RPGFramework.Achievements.CriterionType.ItemCollected, itemId, i);
                     return false;
                 }
             }
             ReportQuestProgress(ObjectiveType.Collect, itemId, quantity);
+            Count(RPGFramework.Achievements.CriterionType.ItemCollected, itemId, quantity);
             return true;
         }
 
@@ -293,6 +295,52 @@ namespace RPGFramework.TurnBased
         /// The entity the party's quests are kept on; -1 without quests (no QuestsModule) or before the start.
         /// </summary>
         public int QuestHolderId { get; private set; } = -1;
+
+        /// <summary>
+        /// The party's achievements (<see cref="TurnBasedContent.Achievements"/>), a profile apart from the saves:
+        /// keep <c>Achievements.Capture(AchievementHolderId)</c> with the game's profile and give it back with
+        /// <c>Restore</c>. Null when the game has none.
+        /// </summary>
+        public RPGFramework.Achievements.AchievementTracker Achievements { get; private set; }
+
+        /// <summary>
+        /// The entity the party's achievements are counted on; -1 without achievements.
+        /// </summary>
+        public int AchievementHolderId { get; private set; } = -1;
+
+        internal void UseAchievements(RPGFramework.Achievements.AchievementTracker tracker)
+        {
+            if (tracker == null || Achievements != null)
+                return;
+            Achievements = tracker;
+            AchievementHolderId = _entities.CreateEntity();
+            Bus.Subscribe<CombatantDefeatedEvent>(e =>
+            {
+                if (!e.IsParty)
+                    Count(RPGFramework.Achievements.CriterionType.KillCount, e.CharacterId, 1);
+            }).AddTo(_subscriptions);
+            Bus.Subscribe<ActionPerformedEvent>(e =>
+            {
+                if (GetMember(e.ActorId) != null)
+                    Count(RPGFramework.Achievements.CriterionType.DamageDealt, "", e.Targets.Sum(t => (long)Math.Max(0, t.Damage)));
+            }).AddTo(_subscriptions);
+            Bus.Subscribe<QuestCompletedEvent>(e =>
+            {
+                if (e.EntityId == QuestHolderId)
+                    Count(RPGFramework.Achievements.CriterionType.QuestCompleted, e.QuestId, 1);
+            }).AddTo(_subscriptions);
+            if (_party.Count > 0)
+                Tracker(t => t.Reach(AchievementHolderId, RPGFramework.Achievements.CriterionType.LevelReached, "", _party.Max(m => m.Level)));
+        }
+
+        private void Count(RPGFramework.Achievements.CriterionType type, string targetId, long amount) =>
+            Tracker(t => t.Add(AchievementHolderId, type, targetId ?? "", amount));
+
+        private void Tracker(Action<RPGFramework.Achievements.AchievementTracker> use)
+        {
+            if (Achievements != null && !_restoring)
+                use(Achievements);
+        }
 
         public bool HasQuests => _quests != null && QuestHolderId >= 0;
 
@@ -548,6 +596,9 @@ namespace RPGFramework.TurnBased
             if (QuestHolderId >= 0 && _entities.Exists(QuestHolderId))
                 _entities.DestroyEntity(QuestHolderId);
             QuestHolderId = -1;
+            if (AchievementHolderId >= 0 && _entities.Exists(AchievementHolderId))
+                _entities.DestroyEntity(AchievementHolderId);
+            AchievementHolderId = -1;
         }
 
         // ---- Called by the battle ----
@@ -674,6 +725,7 @@ namespace RPGFramework.TurnBased
                 return;
             member.SetLevel(levelUp.NewLevel);
             _collecting?.AddLevelUp(member.Id);
+            Tracker(t => t.Reach(AchievementHolderId, RPGFramework.Achievements.CriterionType.LevelReached, "", levelUp.NewLevel));
             Write($"{member.Name} reaches level {levelUp.NewLevel}!");
             Bus.Publish(new MemberLevelUpEvent(member.Id, member.CharacterId, levelUp.OldLevel, levelUp.NewLevel));
         }
