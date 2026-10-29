@@ -27,6 +27,12 @@ namespace RPGFramework.TurnBased
     /// </summary>
     public sealed class TurnBasedWorld : ITurnBasedWorld, IDisposable
     {
+        /// <summary>
+        /// Every combatant's resistances to damage elements: their own (<see cref="CombatantData.Resistances"/>);
+        /// a game adds its own sources (gear, a buff) with a source id.
+        /// </summary>
+        public RPGFramework.Combat.DamageResistances Resistances { get; } = new RPGFramework.Combat.DamageResistances();
+
         private const string Category = "TurnBased";
         private const int MaxLogLines = 20;
 
@@ -149,6 +155,7 @@ namespace RPGFramework.TurnBased
                 _progression.SetLevel(id, 1);
                 RegisterGrowth(id, data);
                 _party.Add(new Combatant(id, data, BattleSide.Party, slot++, data.DisplayName, 1));
+                Resistances.SetBase(id, data.Resistances);
             }
             Inventory = new InventoryContainer<IItem>(_settings.InventoryCapacity, Bus, -1, "Party");
             IsStarted = true;
@@ -196,7 +203,9 @@ namespace RPGFramework.TurnBased
                     seen[enemyId] = count + 1;
                     name = $"{data.DisplayName} {(char)('A' + count % 26)}";
                 }
-                enemies.Add(new Combatant(_entities.CreateEntity(), data, BattleSide.Enemies, slot, name, encounter.EnemyLevel));
+                var enemy = new Combatant(_entities.CreateEntity(), data, BattleSide.Enemies, slot, name, encounter.EnemyLevel);
+                Resistances.SetBase(enemy.Id, data.Resistances);
+                enemies.Add(enemy);
             }
 
             foreach (var member in _party)
@@ -515,6 +524,7 @@ namespace RPGFramework.TurnBased
             {
                 // Entity ids come back for new entities; a new enemy must not inherit this one's ability state
                 Executor.UnregisterEntity(enemy.Id);
+                Resistances.Forget(enemy.Id);
                 if (_entities.Exists(enemy.Id))
                     _entities.DestroyEntity(enemy.Id);
             }

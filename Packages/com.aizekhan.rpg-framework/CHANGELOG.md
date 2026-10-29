@@ -12,6 +12,7 @@
 - Items: item sets (`ItemSet` with `WithBonus(pieces, stat, value)`, `ItemSets.BonusesFor(wornIds)`; distinct pieces count, rolled items count as their base). Action RPG kit: `ActionRpgContent.ItemSets`; the set a player wears earns the bonuses of as many pieces (stats or "resist:<element>"), refreshed on every change; `ActorGear.SetBonusesOf`, also in `BonusesOf`.
 - Action RPG kit: elite enemies. `ActionRpgContent.EliteAffixes` (an `AffixPool` of `ActorStat` or "resist:<element>" bonuses, the character id as the kind) and `ActionRpgSettings.EliteChance` / `EliteRarity` / `EliteRewardMultiplier`: a spawned enemy may roll affixes at the player's level, takes the affixes' name ("Frenzied Goblin of Stone"), modifiers and resistances, and gives that many times the experience and loot rolls. `Actor.IsElite` / `EliteName` / `EliteAffixes`, `ActorWorld.MakeElite(entity, affixes)`, `EliteSpawnedEvent`. A friend's machine in co-op shows the base name.
 - Action RPG kit: enemy levels. `ActionRpgSettings.EnemyLevels` (`One` or `PlayerLevel`) and `EnemyLevelOffset` (Game Setup > Enemies, with Elite Chance): enemies spawn at that level with their character's per-level growth; `CharacterData.ExperiencePerLevel` (Character asset) adds experience per level; `Actor.Level`.
+- TurnBased: elements. `AbilityEffectData.Element` ("fire") and `CombatantData.Resistances` (resist, weakness, immunity); `TurnBasedWorld.Resistances` (a `DamageResistances`) for a game's own sources (gear, a ward). Plain attacks have no element.
 
 ## [0.18.0] - 2026-10-29
 

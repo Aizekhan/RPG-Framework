@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using RPGFramework.Combat;
 using RPGFramework.Progression;
 
 namespace RPGFramework.TurnBased
@@ -18,6 +19,12 @@ namespace RPGFramework.TurnBased
         public string Id = "combatant";
 
         public string DisplayName = "Combatant";
+
+        /// <summary>
+        /// Elements it resists (0.5: half damage), is weak to (-0.5) or is immune to, against abilities with an
+        /// <see cref="AbilityEffectData.Element"/>.
+        /// </summary>
+        public List<ElementResistance> Resistances = new List<ElementResistance>();
 
         public float MaxHealth = 100f;
         public float MaxMana = 20f;

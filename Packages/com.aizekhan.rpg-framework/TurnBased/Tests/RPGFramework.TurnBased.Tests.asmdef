@@ -18,6 +18,7 @@
         "RPGFramework.Inventory.Runtime",
         "RPGFramework.Loot.Runtime",
         "RPGFramework.Stats.Runtime",
+        "RPGFramework.Combat.Runtime",
         "RPGFramework.Persistence.Runtime",
         "RPGFramework.TurnBased.Unity",
         "RPGFramework.UI.Runtime",

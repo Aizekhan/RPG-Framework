@@ -237,6 +237,24 @@ namespace RPGFramework.TurnBased.Tests
         }
 
         [Test]
+        public void AnElementalAbility_IsResisted_OrStoppedByAnImmunity()
+        {
+            _game.EnemiesDefend();
+            _game.GoblinData.Resistances.Add(new RPGFramework.Combat.ElementResistance("fire", 0.5f));
+            _game.Content.AbilityEffects.First(e => e.AbilityId == Fire).Element = "fire";
+            var battle = StartBattle();
+            var goblin = Enemy(battle, 0);
+
+            var result = Expect(battle.Perform(BattleAction.Ability(Fire, goblin.Id)));
+            Assert.That(result.Targets.Single().Damage, Is.EqualTo(13), "26 halved");
+
+            _game.World.Resistances.SetImmune(goblin.Id, "fire", true, "ward");
+            DefendUntil(battle, Mage);
+            result = Expect(battle.Perform(BattleAction.Ability(Fire, goblin.Id)));
+            Assert.That(result.Targets.Single().Damage, Is.EqualTo(0));
+        }
+
+        [Test]
         public void AbilityOnAllEnemies_HitsEveryoneStanding()
         {
             _game.EnemiesDefend();

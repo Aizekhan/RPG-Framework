@@ -24,6 +24,7 @@
         "RPGFramework.Progression.Runtime",
         "RPGFramework.Loot.Runtime",
         "RPGFramework.Stats.Runtime",
+        "RPGFramework.Combat.Runtime",
         "UniTask",
         "Unity.InputSystem",
         "UnityEngine.UI"

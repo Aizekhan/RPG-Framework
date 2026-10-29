@@ -618,11 +618,14 @@ namespace RPGFramework.TurnBased
             return scope == TargetScope.Self ? plan.Actor.Id : plan.Targets[0].Id;
         }
 
-        private TargetOutcome Damage(Combatant target, HitResult hit)
+        private TargetOutcome Damage(Combatant target, HitResult hit, string element = null)
         {
             if (hit.Missed)
                 return new TargetOutcome(target.Id, missed: true);
-            return new TargetOutcome(target.Id, damage: target.TakeDamage(hit.Damage));
+            int damage = hit.Damage;
+            if (!string.IsNullOrEmpty(element))
+                damage = Combatant.Round(_world.Resistances.Apply(target.Id, element, damage));
+            return new TargetOutcome(target.Id, damage: target.TakeDamage(damage));
         }
 
         private void ResolveAbility(Plan plan, Resolution done)
@@ -642,7 +645,7 @@ namespace RPGFramework.TurnBased
                 switch (effect.Kind)
                 {
                     case AbilityKind.Damage:
-                        outcome = Damage(target, _world.Formula.Hit(actor, target, effect.Power, effect.ScalesWith, _world.Random));
+                        outcome = Damage(target, _world.Formula.Hit(actor, target, effect.Power, effect.ScalesWith, _world.Random), effect.Element);
                         break;
                     case AbilityKind.Heal:
                         int amount = _world.Formula.Heal(actor, target, effect.Power, effect.ScalesWith, _world.Random);

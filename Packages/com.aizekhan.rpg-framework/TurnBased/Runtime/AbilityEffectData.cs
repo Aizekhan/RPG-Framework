@@ -55,6 +55,12 @@ namespace RPGFramework.TurnBased
         /// </summary>
         public bool Revives;
 
+        /// <summary>
+        /// The damage's element ("fire"): the target's resistances change it (<see cref="CombatantData.Resistances"/>,
+        /// <see cref="TurnBasedWorld.Resistances"/>); empty for none.
+        /// </summary>
+        public string Element = "";
+
         public bool TargetsAllies => Scope == TargetScope.SingleAlly || Scope == TargetScope.AllAllies || Scope == TargetScope.Self;
     }
 
