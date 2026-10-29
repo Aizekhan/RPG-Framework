@@ -19,13 +19,14 @@ namespace RPGFramework.ActionRpg
         AcceptQuest,
         CompleteQuest,
         SetVariable,
-        GrantSkillPoints
+        GrantSkillPoints,
+        ChangeReputation
     }
 
     /// <summary>
     /// A dialogue effect: when the player reaches the node (<see cref="NodeId"/>) or picks the choice
     /// (<see cref="ChoiceId"/>) in the dialogue, it happens to them. Target: the item, currency ("" is gold), quest
-    /// or variable id; Amount: how many, or the variable's value.
+    /// variable or faction id; Amount: how many, the variable's value or the reputation change.
     /// </summary>
     public sealed class DialogueEffect
     {
@@ -188,6 +189,8 @@ namespace RPGFramework.ActionRpg
                 return 0;
             if (stat == "Level")
                 return _world.LevelOf(playerId);
+            if (stat.StartsWith(ActorReputation.Prefix, StringComparison.Ordinal))
+                return _world.Reputation.Of(playerId, stat.Substring(ActorReputation.Prefix.Length));
             var actor = _world.Get(playerId);
             if (actor != null && Enum.TryParse(stat, false, out ActorStat parsed) && Enum.IsDefined(typeof(ActorStat), parsed))
             {
@@ -248,6 +251,9 @@ namespace RPGFramework.ActionRpg
                     break;
                 case DialogueEffectKind.GrantSkillPoints:
                     _world.Skills.GrantPoints(playerId, effect.Amount);
+                    break;
+                case DialogueEffectKind.ChangeReputation:
+                    _world.Reputation.Change(playerId, effect.TargetId, effect.Amount);
                     break;
             }
         }

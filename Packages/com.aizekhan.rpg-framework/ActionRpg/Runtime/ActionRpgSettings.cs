@@ -315,6 +315,17 @@ namespace RPGFramework.ActionRpg
         public List<DialogueEffect> DialogueEffects { get; } = new List<DialogueEffect>();
 
         /// <summary>
+        /// The game's factions: the players' reputation with them (<see cref="ActorWorld.Reputation"/>).
+        /// </summary>
+        public List<RPGFramework.Factions.IFaction> Factions { get; } = new List<RPGFramework.Factions.IFaction>();
+
+        /// <summary>
+        /// How the factions stand with each other: reputation with one spreads to its allies and enemies.
+        /// </summary>
+        public List<RPGFramework.Factions.IFactionRelationship> FactionRelations { get; } =
+            new List<RPGFramework.Factions.IFactionRelationship>();
+
+        /// <summary>
         /// Affixes an elite enemy can roll ("Frenzied": +50% Attack, "of Stone": +10 Defense): stats are
         /// <see cref="ActorStat"/> names (or "resist:fire"); an enemy spawns elite with
         /// <see cref="ActionRpgSettings.EliteChance"/> and rolls them at the player's level and

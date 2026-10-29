@@ -48,6 +48,8 @@ namespace RPGFramework.ActionRpg
         [SerializeField, Range(0f, 1f)] private float _evasion;
         [Tooltip("Share of its strikes' damage it heals back")]
         [SerializeField, Range(0f, 1f)] private float _lifeSteal;
+        [SerializeField, Tooltip("The faction it belongs to; empty for none")] private string _faction = "";
+        [SerializeField, Tooltip("How the killer's reputation with its faction changes")] private int _reputationOnKill;
 
         [Header("When hit")]
         [Tooltip("Elements it resists (0.5: half damage), is weak to (-0.5: half again) or is immune to; the hits that " +
@@ -89,6 +91,8 @@ namespace RPGFramework.ActionRpg
             CriticalDamage = _criticalDamage,
             Evasion = _evasion,
             LifeSteal = _lifeSteal,
+            Faction = _faction ?? "",
+            ReputationOnKill = _reputationOnKill,
             Resistances = new List<ElementResistance>(_resistances ?? new List<ElementResistance>())
         };
 

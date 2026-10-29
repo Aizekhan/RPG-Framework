@@ -141,6 +141,10 @@ namespace RPGFramework.ActionRpg
                 World.Dialogue.Register(dialogue);
             foreach (var effect in _content.DialogueEffects)
                 World.Dialogue.Register(effect);
+            foreach (var faction in _content.Factions)
+                World.Reputation.Register(faction);
+            foreach (var relation in _content.FactionRelations)
+                World.Reputation.Register(relation);
             if (_content.Achievements.Count > 0)
             {
                 var achievements = new RPGFramework.Achievements.AchievementRegistry();

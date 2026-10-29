@@ -81,6 +81,7 @@ namespace RPGFramework.ActionRpg
             Crafting = new ActorCrafting(this, bus);
             Dialogue = new ActorDialogue(this, entities, bus);
             Consumables = new ActorConsumables(this, bus);
+            Reputation = new ActorReputation(this, entities, bus);
             _random = settings.Seed != 0 ? new Random(settings.Seed) : new Random();
             Hostility = HostilityRules.For(settings);
         }
@@ -109,6 +110,11 @@ namespace RPGFramework.ActionRpg
         /// Potions, food and scrolls the players use from their backpacks, with their cooldowns.
         /// </summary>
         public ActorConsumables Consumables { get; }
+
+        /// <summary>
+        /// The players' standing with the game's factions (<see cref="ActionRpgContent.Factions"/>).
+        /// </summary>
+        public ActorReputation Reputation { get; }
 
         /// <summary>
         /// The players' achievements (<see cref="ActionRpgContent.Achievements"/>): their deeds counted by kind, what
@@ -786,6 +792,7 @@ namespace RPGFramework.ActionRpg
             progress.Loadout = Gear.LoadoutOf(playerId);
             progress.Skills.AddRange(Skills.RecordsOf(playerId));
             progress.DialogueVariables.AddRange(Dialogue.RecordsOf(playerId));
+            progress.Reputations.AddRange(Reputation.RecordsOf(playerId));
             progress.BonusSkillPoints = Skills.BonusPointsOf(playerId);
             return progress;
         }
@@ -849,6 +856,7 @@ namespace RPGFramework.ActionRpg
                 Gear.Restore(playerId, progress.Gear, progress.Loadout);
                 Skills.Restore(playerId, progress.Skills, progress.BonusSkillPoints);
                 Dialogue.Restore(playerId, progress.DialogueVariables);
+                Reputation.Restore(playerId, progress.Reputations);
 
                 var completed = _quests.GetCompletedQuests(owner);
                 foreach (var questId in progress.CompletedQuests ?? new List<string>())
@@ -981,6 +989,8 @@ namespace RPGFramework.ActionRpg
                 return;
 
             Write("kit.log.slain", ("name", victim.DisplayName));
+            if (!string.IsNullOrEmpty(victim.Character.Faction) && victim.Character.ReputationOnKill != 0)
+                Reputation.Change(death.KillerEntityId, victim.Character.Faction, victim.Character.ReputationOnKill);
             float reward = victim.IsElite ? Math.Max(0f, _settings.EliteRewardMultiplier) : 1f;
             long experience = victim.Character.ExperienceReward + victim.Character.ExperiencePerLevel * Math.Max(0, victim.Level - 1);
             if (experience > 0)
@@ -1074,6 +1084,9 @@ namespace RPGFramework.ActionRpg
                     case RewardType.Currency:
                         GiveCurrency(completed.EntityId, reward.Amount,
                             string.IsNullOrEmpty(reward.RewardId) ? RPGFramework.Trading.Currencies.Gold : reward.RewardId, "quest:" + completed.QuestId);
+                        break;
+                    case RewardType.Custom when reward.RewardId != null && reward.RewardId.StartsWith(ActorReputation.Prefix, StringComparison.Ordinal):
+                        Reputation.Change(completed.EntityId, reward.RewardId.Substring(ActorReputation.Prefix.Length), reward.Amount);
                         break;
                     default:
                         _logger?.LogWarning($"Reward type {reward.Type} is not handled by ActorWorld; subscribe to " +

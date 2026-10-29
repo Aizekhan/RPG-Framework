@@ -46,6 +46,16 @@ namespace RPGFramework.ActionRpg
         public string LootTableId = "";
 
         /// <summary>
+        /// The faction it belongs to (<see cref="ActionRpgContent.Factions"/>); empty for none.
+        /// </summary>
+        public string Faction = "";
+
+        /// <summary>
+        /// How the killer's reputation with its <see cref="Faction"/> changes when it is killed (-10: they hate it).
+        /// </summary>
+        public int ReputationOnKill;
+
+        /// <summary>
         /// Units per second it moves; a co-op host corrects joined players who move faster. 0 = not checked.
         /// </summary>
         public float MoveSpeed;

@@ -198,6 +198,24 @@ namespace RPGFramework.Factions.Tests
         }
 
         [Test]
+        public void FactionManager_ModifyReputation_StartsFromTheDefault_AlsoForRelatedFactions()
+        {
+            var entityManager = new EntityManager();
+            var registry = new FactionRegistry();
+            registry.RegisterFaction(new Faction("guards", "Guards", "", FactionType.Military, defaultReputation: 20));
+            registry.RegisterFaction(new Faction("bandits", "Bandits", "", FactionType.Criminal, defaultReputation: -30));
+            registry.RegisterRelationship(new FactionRelationship("guards", "bandits", FactionRelationType.Enemy, -0.5f));
+
+            var manager = new FactionManager(entityManager, registry);
+            int entityId = entityManager.CreateEntity();
+
+            manager.ModifyReputation(entityId, "guards", 10);
+
+            Assert.That(manager.GetReputation(entityId, "guards"), Is.EqualTo(30));
+            Assert.That(manager.GetReputation(entityId, "bandits"), Is.EqualTo(-35));
+        }
+
+        [Test]
         public void FactionManager_GetStanding_CalculatesCorrectly()
         {
             var entityManager = new EntityManager();

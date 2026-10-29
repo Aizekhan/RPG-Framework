@@ -26,7 +26,7 @@ namespace RPGFramework.Factions
             if (faction == null)
                 return 0;
 
-            if (!_entityManager.TryGetComponent<FactionReputationData>(entityId, out var data))
+            if (!_entityManager.TryGetComponent<FactionReputationData>(entityId, out var data) || !data.HasReputation(factionId))
                 return faction.DefaultReputation;
 
             return data.GetReputation(factionId);
@@ -56,8 +56,8 @@ namespace RPGFramework.Factions
                 _entityManager.AddComponent(entityId, data);
             }
 
-            // Modify reputation for target faction
-            data.ModifyReputation(factionId, delta);
+            // Modify reputation for target faction, from its default when the entity never dealt with it
+            data.SetReputation(factionId, CurrentOf(data, faction) + delta);
 
             // Apply relationship cascades
             ApplyRelationshipCascades(entityId, factionId, delta, data);
@@ -113,6 +113,9 @@ namespace RPGFramework.Factions
             _entityManager.AddComponent(entityId, data);
         }
 
+        private static int CurrentOf(FactionReputationData data, IFaction faction) =>
+            data.HasReputation(faction.FactionId) ? data.GetReputation(faction.FactionId) : faction.DefaultReputation;
+
         /// <summary>
         /// Apply reputation changes to related factions based on relationships.
         /// </summary>
@@ -138,7 +141,7 @@ namespace RPGFramework.Factions
                 int cascadeDelta = (int)(delta * relationship.ReputationModifier);
                 if (cascadeDelta != 0)
                 {
-                    data.ModifyReputation(otherFactionId, cascadeDelta);
+                    data.SetReputation(otherFactionId, CurrentOf(data, otherFaction) + cascadeDelta);
                 }
             }
         }

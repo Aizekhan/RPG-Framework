@@ -49,6 +49,11 @@ namespace RPGFramework.ActionRpg
         /// The player's dialogue variables (<see cref="ActorDialogue.VariableOf"/>).
         /// </summary>
         public List<VariableRecord> DialogueVariables { get; set; } = new List<VariableRecord>();
+
+        /// <summary>
+        /// The player's reputation with the factions (<see cref="ActorReputation.Of"/>).
+        /// </summary>
+        public List<ReputationRecord> Reputations { get; set; } = new List<ReputationRecord>();
     }
 
     public sealed class CurrencyRecord
