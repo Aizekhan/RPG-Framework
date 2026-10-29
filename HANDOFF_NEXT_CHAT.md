@@ -1,6 +1,6 @@
 # Handoff for Next Session
 
-**Date:** 2026-10-28
+**Date:** 2026-10-29
 **Project:** RPG Framework (`D:\RPG-Framework`, https://github.com/Aizekhan/RPG-Framework)
 **Read first:** `STATUS.md` (verified gates, migration table, open issues), then `Docs/archive/ARCHITECTURE-GAP-ANALYSIS.md` §6 (migration plan)
 
@@ -8,7 +8,8 @@
 
 ## Where things stand
 
-- **2026-10-29 (latest): released `v0.16.0`** (tag on `5a12b32`, CI run `40800169540` green): start on request + `GameStart` + `Launch` + `SaveSummary`, co-op lobby (protocol 15), LAN discovery. `huntersrunner-1e` was told. Not done: the menu screen kit (owner: only if asked again), a short-code layer over Relay (Relay's own codes are used). Local Unity verification kept getting killed for low memory; CI was the proof. Next: whatever the games record in FRAMEWORK-GAPS.md.
+- **2026-10-29 (latest): released `v0.16.1`** (tag on `4052137`, `EndGame`, FG-23); MythRunner moved to it (ExitToMenu calls EndGame). **FG-24 localization done and pushed, not released** (`980caef` + fix `7979ff4`, CI run `40804058159` green). Next: release 0.17.0 when the owner says, then tell `huntersrunner-1e` (tag; `ActionRpgHost` 'Localization' field, `kit.hud.*` / `kit.coop.*` keys, `KitTexts.Table()`; the event log stays the game's text). Nothing breaks.
+- **2026-10-29: released `v0.16.0`** (tag on `5a12b32`, CI run `40800169540` green): start on request + `GameStart` + `Launch` + `SaveSummary`, co-op lobby (protocol 15), LAN discovery. `huntersrunner-1e` was told. Not done: the menu screen kit (owner: only if asked again), a short-code layer over Relay (Relay's own codes are used). Local Unity verification kept getting killed for low memory; CI was the proof. Next: whatever the games record in FRAMEWORK-GAPS.md.
 - **2026-10-29: MythRunner start flow, step 1 done and pushed** (`9141063`, CI run `40794942648` green; the local verify was stopped for low memory). The owner chose two steps: 0.16 = start on request + `GameStart` + `Launch` + `SaveSummary` (this); 0.17 = co-op lobby before play (names, heroes, ready, kick, max players, countdown) + LAN discovery. A menu screen kit only if asked again. Next: release 0.16.0 when the owner says, tell `huntersrunner-1e`; then step 2.
 - **2026-10-28: released `v0.15.0`** (tag on `d3b5868`, CI run `40764732268` green): `TurnPrompt.Title`, `TurnVisibility.Others`, turn protocol 2; The Bloodline Hunt was told. Nothing open that needs the framework. Next: whatever the games record in FRAMEWORK-GAPS.md.
 - **2026-10-28: released `v0.14.1`** (tag on `fcb207e`; CI green on `9305cdd`). MythRunner moved to it and dropped its panel workaround. CLAUDE.md now says to read every game's FRAMEWORK-GAPS.md at session start (none open that need the framework). Pending, not released: `fc11512` (`TurnPrompt.Title`, `TurnVisibility.Others`, turn protocol 2) for 0.15.0 when the owner says; then tell `the-bloodline-hunt-5d`.

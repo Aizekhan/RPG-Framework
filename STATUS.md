@@ -1,6 +1,6 @@
 # RPG Framework - Project Status
 
-**Last Updated:** 2026-10-28
+**Last Updated:** 2026-10-29
 **Repository:** https://github.com/Aizekhan/RPG-Framework (public, MIT)
 **Branch:** main (force-push and deletion blocked)
 **Unity:** 6000.0.45f1 · Unity CLI 1.0.0-beta.14
@@ -11,6 +11,8 @@
 
 | Gate | Result | SHA |
 |---|---|---|
+| **MythRunner FG-24 localization** (not released; for 0.17.0 when the owner says): `RPGFramework.Localization` (`ILocalization`, `LocalizationService`, `StringTable`, `LocalizedText`, `PluralRules` incl. Ukrainian, `LocalizationCsv`, `LocalizationChecks`), `Localization.Unity` (`StringTableAsset`, `LocalizationLibrary`, `LocalizationModule`, PlayerPrefs `RPGFramework.Localization.Language`, device language), the kit's HUD / co-op panel on `kit.hud.*` / `kit.coop.*` keys, `ActionRpgHost` 'Localization' (`980caef` + fix `7979ff4`). CI green on `7979ff4` (run `40804058159`); `980caef` alone failed 2 EditMode tests (`{{ }}` in `Text(key)`, StringTableAsset file name) | ✅ CI | `7979ff4` |
+| **Release `v0.16.1`** (tag on `4052137`; `ActionRpgHost.EndGame(scene)`, `IsEnding`, MythRunner FG-23): CI green on `67ba191` (run `40802157290`, PlayMode green on the 2nd rerun; the first two attempts were Unity segfaults, exit 139, at the domain reload before any test). MythRunner on v0.16.1 | ✅ CI | `4052137` |
 | **Release `v0.14.1`** (tag on `fcb207e`; code-made panels stay shown, `MusicTrack.Loop`, volume storage in README): verified at `d0e7a0b` EditMode **1905 / 1905**, PlayMode **15 / 15**; CI green on `9305cdd` (run `40763957840`, same code + CLAUDE.md; the tag's own run was cancelled by that push). MythRunner on v0.14.1 (its `9524892`) | ✅ | `fcb207e` |
 | **Release `v0.16.0`** (tag on `5a12b32`; MythRunner start flow): start on request (`StartGame(GameStart)`, `Launch`), `SaveSummary`, co-op lobby (`CoopHost.UseLobby`, `StartMatch`, `Kick`; co-op protocol 15), LAN discovery (`LanDiscovery`, `LanDiscoveryResponder`, UDP 47777). Local Unity runs were stopped for low memory: proof is CI, green on `862575f` (run `40799788439`) and on the release commit (run `40800169540`). `9582052` alone did not compile (CS1628, fixed in `862575f`) | ✅ CI | `5a12b32` |
 | **Release `v0.15.0`** (tag on `d3b5868`): `TurnPrompt.Title`, `TurnVisibility.Others`, turn protocol 2 (The Bloodline Hunt wishes; `fc11512`, EditMode 1905/1905). CI green (run `40764732268`) | ✅ | `d3b5868` |
