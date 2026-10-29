@@ -294,6 +294,38 @@ namespace RPGFramework.ActionRpg.Tests
         }
 
         [Test]
+        public void ItemSets_GiveTheirBonusesForThePiecesWorn()
+        {
+            _content.ItemSets.Add(new ItemSet("knight", "Knight's Panoply", Helm, Sword, Ring)
+                .WithBonus(2, "Defense", 10f)
+                .WithBonus(3, "resist:fire", 0.5f));
+            _settings.ElementTags["fire"] = 1;
+            _settings.Player.MaxHealth = 1000f;
+            StartGame();
+            World.GiveItem(Helm);
+            World.GiveItem(Sword);
+            World.GiveItem(Ring);
+            World.GiveItem(Ring);
+
+            World.Equip(Helm);
+            Assert.That(World.Player.Defense, Is.EqualTo(15f), "one piece: the helm's own 10 only");
+            World.Equip(Sword);
+            Assert.That(World.Player.Defense, Is.EqualTo(25f), "two pieces: +10");
+            Assert.That(World.Gear.SetBonusesOf(World.PlayerId).Count, Is.EqualTo(1));
+            World.Equip(Ring);
+            World.Equip(Ring);
+            Assert.That(World.Gear.SetBonusesOf(World.PlayerId).Count, Is.EqualTo(2), "two rings are one piece: three in all");
+            Assert.That(World.DealDamage(-1, World.PlayerId, 20f, AttackContext.Effect(0, 1)), Is.EqualTo(10f).Within(1e-4f));
+            Assert.That(World.Gear.BonusesOf(World.PlayerId).Any(b => b.Stat == "resist:fire"), Is.True);
+
+            World.Unequip("weapon");
+            Assert.That(World.Player.Defense, Is.EqualTo(25f), "helm and ring are still two");
+            Assert.That(World.DealDamage(-1, World.PlayerId, 20f, AttackContext.Effect(0, 1)), Is.EqualTo(20f), "not three any more");
+            World.Unequip("head");
+            Assert.That(World.Player.Defense, Is.EqualTo(5f));
+        }
+
+        [Test]
         public void SharedProgress_AFriendWhoLeaves_LeavesTheirGearInTheBackpack()
         {
             StartGame();

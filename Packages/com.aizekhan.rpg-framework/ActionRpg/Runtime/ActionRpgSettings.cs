@@ -231,6 +231,12 @@ namespace RPGFramework.ActionRpg
         /// </summary>
         public Func<int, float> LuckOf { get; set; }
 
+        /// <summary>
+        /// Items that belong together: wearing several pieces of a set gives its bonuses for that many pieces
+        /// (stats, or "resist:fire"). Rolled gear counts as its base item.
+        /// </summary>
+        public ItemSets ItemSets { get; } = new ItemSets();
+
         private readonly Dictionary<string, IItem> _rolledItems = new Dictionary<string, IItem>(StringComparer.Ordinal);
         private readonly Dictionary<string, GearData> _rolledGear = new Dictionary<string, GearData>(StringComparer.Ordinal);
 

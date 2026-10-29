@@ -62,7 +62,8 @@ namespace RPGFramework.TurnBased.Tests
             var world = _game.Start();
             var battle = world.StartBattle();
             for (int turn = 0; turn < 200 && !battle.IsOver; turn++)
-                battle.Perform(battle.SuggestAction());
+                battle.Perform(BattleAction.Attack(battle.LivingOpponents(battle.Current)[0].Id));
+            Assert.That(battle.IsOver, Is.True);
             Assert.That(BattleMenu.For(battle, world.Inventory.GetAllItems()), Is.Empty);
         }
     }

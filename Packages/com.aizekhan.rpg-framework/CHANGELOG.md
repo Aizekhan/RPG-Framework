@@ -9,6 +9,7 @@
 - TurnBased Unity layer (`RPGFramework.TurnBased.Unity`): `TurnBasedHost` (a `GameHostBehaviour`: the game fills `ConfigureGame(settings, content)`; enemies act one by one with `Enemy Turn Seconds` between them, the run is saved after every battle under the player's data folder and continued on start, `StartBattle`, `Act`, `NewRun`) and `BattleScreen` (built from code on the framework's panels: enemies, party, log, the turn's menu, a command then its target; between battles the next encounter or a new run; `Bind(world)` without a host).
 - Combat: damage elements. `DamageResistances` (per entity, from several sources that add up: the character, each piece of gear, a buff; held between `MaxWeakness` -1 and `MaxResistance` 0.75; immunities; `Apply(entity, element(s), damage)` splits mixed damage) and `ElementResistance` for content.
 - Action RPG kit: elemental hits. `ActionRpgSettings.ElementTags` maps attack tag bits to elements; `CharacterData.Resistances` (and the Character asset's "When hit" list) and gear bonuses "resist:<element>" set what a character resists; `ActorWorld.Resistances` for a game's own sources.
+- Items: item sets (`ItemSet` with `WithBonus(pieces, stat, value)`, `ItemSets.BonusesFor(wornIds)`; distinct pieces count, rolled items count as their base). Action RPG kit: `ActionRpgContent.ItemSets`; the set a player wears earns the bonuses of as many pieces (stats or "resist:<element>"), refreshed on every change; `ActorGear.SetBonusesOf`, also in `BonusesOf`.
 
 ## [0.18.0] - 2026-10-29
 

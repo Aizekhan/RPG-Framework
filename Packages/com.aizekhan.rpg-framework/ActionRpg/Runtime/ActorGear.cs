@@ -130,7 +130,20 @@ namespace RPGFramework.ActionRpg
         /// The bonuses of everything in the set a player wears now: what the game adds to its own stats.
         /// </summary>
         public IReadOnlyList<GearBonus> BonusesOf(int playerId) =>
-            WornBy(playerId).SelectMany(w => Of(w.Item.ItemId)?.Bonuses ?? new List<GearBonus>()).Where(b => b != null).ToList();
+            WornBy(playerId).SelectMany(w => Of(w.Item.ItemId)?.Bonuses ?? new List<GearBonus>()).Where(b => b != null)
+                .Concat(SetBonusesOf(playerId).Select(s => new GearBonus(s.Bonus.Stat, s.Bonus.Value, s.Bonus.ModifierType)))
+                .ToList();
+
+        /// <summary>
+        /// The item set bonuses the set a player wears now earns (<see cref="ActionRpgContent.ItemSets"/>).
+        /// </summary>
+        public IReadOnlyList<(ItemSet Set, ItemSetBonus Bonus)> SetBonusesOf(int playerId)
+        {
+            var sets = _world.Content?.ItemSets;
+            if (sets == null || sets.All.Count == 0)
+                return Array.Empty<(ItemSet, ItemSetBonus)>();
+            return sets.BonusesFor(WornBy(playerId).Select(w => w.Item.ItemId));
+        }
 
         /// <summary>
         /// A player puts an item from their backpack on: in <paramref name="slotId"/>, or the first free slot that
@@ -169,7 +182,10 @@ namespace RPGFramework.ActionRpg
                 TakeOff(playerId, slot.Id, Of(previous.ItemId));
             set[slot.Id] = item;
             if (inUse)
+            {
                 PutOn(playerId, slot.Id, gear);
+                RefreshSets(playerId);
+            }
             _bus.Publish(new GearChangedEvent(playerId, setId, slot.Id, item.ItemId, previous?.ItemId ?? ""));
             return true;
         }
@@ -188,7 +204,10 @@ namespace RPGFramework.ActionRpg
                 return false;
             set.Remove(slotId);
             if (setId == wardrobe.Active)
+            {
                 TakeOff(playerId, slotId, Of(item.ItemId));
+                RefreshSets(playerId);
+            }
             _bus.Publish(new GearChangedEvent(playerId, setId, slotId, "", item.ItemId));
             return true;
         }
@@ -209,6 +228,7 @@ namespace RPGFramework.ActionRpg
             wardrobe.Active = loadout;
             wardrobe.Set(loadout);
             SetBonuses(playerId, wardrobe, on: true);
+            RefreshSets(playerId);
             _bus.Publish(new LoadoutChangedEvent(playerId, loadout, previous));
             return true;
         }
@@ -252,6 +272,7 @@ namespace RPGFramework.ActionRpg
                 wardrobe.Set(record.Loadout ?? DefaultLoadout)[slot.Id] = item;
             }
             SetBonuses(playerId, wardrobe, on: true);
+            RefreshSets(playerId);
         }
 
         /// <summary>
@@ -262,6 +283,7 @@ namespace RPGFramework.ActionRpg
             if (!_worn.TryGetValue(playerId, out var wardrobe))
                 return;
             _worn.Remove(playerId);
+            _setBonuses.Remove(playerId);
             if (!backToBackpack)
                 return;
             var backpack = _world.InventoryOf(_world.PlayerId);
@@ -304,12 +326,44 @@ namespace RPGFramework.ActionRpg
             for (int i = 0; i < gear.Bonuses.Count; i++)
             {
                 var bonus = gear.Bonuses[i];
-                if (bonus != null && bonus.Stat != null && bonus.Stat.StartsWith(ResistancePrefix, StringComparison.Ordinal) &&
-                    bonus.Stat.Length > ResistancePrefix.Length)
-                    _world.Resistances.Set(playerId, bonus.Stat.Substring(ResistancePrefix.Length), bonus.Value, ModifierId(slotId, i));
-                else if (bonus != null && Enum.TryParse(bonus.Stat, false, out ActorStat stat) && Enum.IsDefined(typeof(ActorStat), stat))
-                    actor.AddModifier(new StatModifier<ActorStat, float>(ModifierId(slotId, i), stat, bonus.Value, bonus.Type));
+                if (bonus != null)
+                    Apply(actor, playerId, ModifierId(slotId, i), bonus.Stat, bonus.Value, bonus.Type);
             }
+        }
+
+        // A stat bonus becomes a modifier, a "resist:" bonus a resistance; both under one id to take them off by
+        private void Apply(Actor actor, int playerId, string id, string stat, float value, StatModifierType type)
+        {
+            if (stat != null && stat.StartsWith(ResistancePrefix, StringComparison.Ordinal) && stat.Length > ResistancePrefix.Length)
+                _world.Resistances.Set(playerId, stat.Substring(ResistancePrefix.Length), value, id);
+            else if (Enum.TryParse(stat, false, out ActorStat parsed) && Enum.IsDefined(typeof(ActorStat), parsed))
+                actor.AddModifier(new StatModifier<ActorStat, float>(id, parsed, value, type));
+        }
+
+        private readonly Dictionary<int, int> _setBonuses = new Dictionary<int, int>();
+
+        private static string SetModifierId(int index) => "gearset:" + index;
+
+        // The set bonuses come off and the ones the worn items earn now go on
+        private void RefreshSets(int playerId)
+        {
+            var actor = _world.Get(playerId);
+            if (_setBonuses.TryGetValue(playerId, out int count))
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    actor?.RemoveModifier(SetModifierId(i));
+                    _world.Resistances.RemoveSource(playerId, SetModifierId(i));
+                }
+                _setBonuses.Remove(playerId);
+            }
+            if (actor == null)
+                return;
+            var earned = SetBonusesOf(playerId);
+            for (int i = 0; i < earned.Count; i++)
+                Apply(actor, playerId, SetModifierId(i), earned[i].Bonus.Stat, earned[i].Bonus.Value, earned[i].Bonus.ModifierType);
+            if (earned.Count > 0)
+                _setBonuses[playerId] = earned.Count;
         }
 
         private void TakeOff(int playerId, string slotId, GearData gear)
