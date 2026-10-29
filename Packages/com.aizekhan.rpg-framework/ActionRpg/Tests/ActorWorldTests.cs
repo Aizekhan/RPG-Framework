@@ -69,6 +69,30 @@ namespace RPGFramework.ActionRpg.Tests
             _waves.Clear();
         }
 
+        [Test]
+        public void CriticalChance_FromAStatusEffect_MakesStrikesCritical()
+        {
+            _settings.Enemies[0].MaxHealth = 1000f;
+            _content.StatusEffects.Add(RPGFramework.StatusEffects.StatusEffectData.CreateStatModifier("keen", "Keen",
+                RPGFramework.StatusEffects.EffectType.Buff, 10f, "CriticalChance", 1f));
+            StartGame();
+            var hits = new List<ActorDamagedEvent>();
+            _host.Container.Resolve<IEventBus>().Subscribe<ActorDamagedEvent>(hits.Add);
+            int goblin = World.SpawnEnemy(Goblin);
+
+            World.Attack(World.PlayerId, goblin);
+            Assert.That(hits.Last().Context.IsCritical, Is.False, "no chance, no critical");
+            float normal = hits.Last().Amount;
+
+            Assert.That(World.Effects.Apply(World.PlayerId, "keen", World.PlayerId), Is.True);
+            Assert.That(World.Player.CriticalChance, Is.EqualTo(1f));
+            World.Attack(World.PlayerId, goblin);
+
+            Assert.That(hits.Last().Context.IsCritical, Is.True);
+            Assert.That(hits.Last().Context.Multiplier, Is.EqualTo(1.5f), "the character's critical damage");
+            Assert.That(hits.Last().Amount, Is.GreaterThan(normal));
+        }
+
         [TearDown]
         public void TearDown()
         {

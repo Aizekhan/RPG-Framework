@@ -40,6 +40,10 @@ namespace RPGFramework.ActionRpg
         [SerializeField, Min(0.1f)] private float _attackRange = 1.6f;
         [Tooltip("Seconds between attacks")]
         [SerializeField, Min(0.05f)] private float _attackCooldown = 1.2f;
+        [Tooltip("Chance (0..1) its strikes are critical; gear, affixes and effects with CriticalChance add to it")]
+        [SerializeField, Range(0f, 1f)] private float _criticalChance;
+        [Tooltip("A critical strike's damage multiplier")]
+        [SerializeField, Min(1f)] private float _criticalDamage = 1.5f;
 
         [Header("When hit")]
         [Tooltip("Elements it resists (0.5: half damage), is weak to (-0.5: half again) or is immune to; the hits that " +
@@ -77,6 +81,8 @@ namespace RPGFramework.ActionRpg
             ExperiencePerLevel = _experiencePerLevel,
             LootTableId = _loot != null ? _loot.tableId : "",
             MoveSpeed = _moveSpeed,
+            CriticalChance = _criticalChance,
+            CriticalDamage = _criticalDamage,
             Resistances = new List<ElementResistance>(_resistances ?? new List<ElementResistance>())
         };
 

@@ -588,7 +588,11 @@ namespace RPGFramework.ActionRpg
         {
             if (!CanStrike(attackerId, targetId))
                 return 0f;
-            return Hit(Get(targetId), Get(attackerId).Attack, context.Between(attackerId, targetId), share);
+            var attacker = Get(attackerId);
+            // The attacker's own chance; a hit the game already made critical is not rolled again
+            if (!context.IsCritical && attacker.CriticalChance > 0f && _random.NextDouble() < attacker.CriticalChance)
+                context = context.AsCritical(Math.Max(1f, attacker.CriticalDamage));
+            return Hit(Get(targetId), attacker.Attack, context.Between(attackerId, targetId), share);
         }
 
         /// <summary>

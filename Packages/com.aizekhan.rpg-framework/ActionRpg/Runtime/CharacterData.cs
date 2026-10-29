@@ -51,6 +51,17 @@ namespace RPGFramework.ActionRpg
         public float MoveSpeed;
 
         /// <summary>
+        /// Chance (0..1) its strikes are critical (<see cref="ActorStat.CriticalChance"/>: gear, affixes and effects add
+        /// to it). 0: it never crits and no roll is made.
+        /// </summary>
+        public float CriticalChance;
+
+        /// <summary>
+        /// What a critical strike's damage is multiplied by (<see cref="ActorStat.CriticalDamage"/>).
+        /// </summary>
+        public float CriticalDamage = 1.5f;
+
+        /// <summary>
         /// What it resists, is weak to or is immune to ("fire" 0.5, "ice" -0.5); which hits carry an element is
         /// <see cref="ActionRpgSettings.ElementTags"/>.
         /// </summary>
@@ -64,6 +75,8 @@ namespace RPGFramework.ActionRpg
                 case ActorStat.MaxHealth: return MaxHealth + HealthPerLevel * above;
                 case ActorStat.Attack: return Attack + AttackPerLevel * above;
                 case ActorStat.Defense: return Defense + DefensePerLevel * above;
+                case ActorStat.CriticalChance: return CriticalChance;
+                case ActorStat.CriticalDamage: return CriticalDamage;
                 default: throw new ArgumentOutOfRangeException(nameof(stat), stat, null);
             }
         }
@@ -73,6 +86,16 @@ namespace RPGFramework.ActionRpg
     {
         MaxHealth,
         Attack,
-        Defense
+        Defense,
+
+        /// <summary>
+        /// Chance (0..1) a strike is critical; "CriticalChance" in gear bonuses, affixes and status effects.
+        /// </summary>
+        CriticalChance,
+
+        /// <summary>
+        /// A critical strike's damage multiplier (1.5 = +50%).
+        /// </summary>
+        CriticalDamage
     }
 }
