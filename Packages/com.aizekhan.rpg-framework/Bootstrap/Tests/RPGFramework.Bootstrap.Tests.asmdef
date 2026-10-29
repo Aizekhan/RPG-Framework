@@ -14,6 +14,7 @@
         "RPGFramework.Abilities.Runtime",
         "RPGFramework.StatusEffects.Runtime",
         "RPGFramework.Stats.Runtime",
+        "RPGFramework.Serialization.Runtime",
         "RPGFramework.Trading.Runtime",
         "RPGFramework.Interaction.Runtime",
         "UniTask",
