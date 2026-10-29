@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-10-29
+
 ### Added
 - `ActionRpgHost.EndGame(sceneName)`: ends the game and goes back to a menu scene: saves, stops hosting (friends are told) or leaves the friend's game, loads the scene through `ISceneDispatcher` and closes the host, also one carried between scenes; `IsEnding` (MythRunner FG-23).
 
