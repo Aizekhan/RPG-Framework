@@ -15,7 +15,7 @@ namespace RPGFramework.ActionRpg
         /// </summary>
         internal static readonly ILocalization English = new LocalizationService(new[] { new StringTable("en", "English") });
 
-        public static IEnumerable<KeyValuePair<string, string>> All => ActionRpgHud.Keys.Concat(CoopPanel.Keys).Concat(KitLog.Keys);
+        public static IEnumerable<KeyValuePair<string, string>> All => ActionRpgHud.Keys.Concat(CoopPanel.Keys).Concat(KitLog.Keys).Concat(KitRows.Keys);
 
         /// <summary>
         /// The kit's texts as an English table, to add to the game's or to write out for translators.

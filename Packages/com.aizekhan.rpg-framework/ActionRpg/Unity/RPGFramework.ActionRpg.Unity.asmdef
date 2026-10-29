@@ -54,7 +54,8 @@
         "RPGFramework.Localization.Unity",
         "RPGFramework.Settings.Runtime",
         "RPGFramework.Settings.Unity",
-        "RPGFramework.Trading.Runtime"
+        "RPGFramework.Trading.Runtime",
+        "RPGFramework.Factions.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

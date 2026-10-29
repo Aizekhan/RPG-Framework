@@ -15,7 +15,7 @@ namespace RPGFramework.ActionRpg.Tests
         {
             var english = KitTexts.Table();
             Assert.That(english.Count, Is.EqualTo(KitTexts.All.Count()), "no key twice");
-            Assert.That(english.Keys.All(k => k.StartsWith("kit.hud.") || k.StartsWith("kit.coop.") || k.StartsWith("kit.log.")), Is.True);
+            Assert.That(english.Keys.All(k => k.StartsWith("kit.hud.") || k.StartsWith("kit.coop.") || k.StartsWith("kit.log.") || k.StartsWith("kit.menu.")), Is.True);
 
             var ukrainian = new StringTable("uk", "Українська").Set("kit.hud.wins", "{team} перемагає");
             var localization = new LocalizationService(new[] { english, ukrainian }, "en");
