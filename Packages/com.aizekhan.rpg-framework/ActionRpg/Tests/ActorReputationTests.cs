@@ -5,8 +5,10 @@ using RPGFramework.Bootstrap;
 using RPGFramework.Dialogue;
 using RPGFramework.Events;
 using RPGFramework.Factions;
+using RPGFramework.Items;
 using RPGFramework.Logging;
 using RPGFramework.Quests;
+using RPGFramework.Trading;
 
 namespace RPGFramework.ActionRpg.Tests
 {
@@ -59,6 +61,8 @@ namespace RPGFramework.ActionRpg.Tests
             };
             _content.Dialogues.Add(new RPGFramework.Dialogue.Dialogue(Captain, "The Captain", "", "hail", nodes));
             _content.DialogueEffects.Add(DialogueEffect.OnChoice(Captain, "bribe", DialogueEffectKind.ChangeReputation, Guards, 5));
+            _content.Items.Add(new Item("sword", "Sword", "", ItemType.Equipment));
+            _content.TraderFactions.Add(new TraderFaction("armory", Guards));
         }
 
         [TearDown]
@@ -85,7 +89,7 @@ namespace RPGFramework.ActionRpg.Tests
             World.DealDamage(hero, bandit, 1000f);
             Assert.That(World.Get(bandit), Is.Null, "slain");
 
-            Assert.That(World.Reputation.Of(hero, Bandits), Is.EqualTo(-50), "the kill");
+            Assert.That(World.Reputation.Of(hero, Bandits), Is.EqualTo(-30 - 20 - 15), "the kill, and the guards' bounty spreads to their enemy");
             Assert.That(World.Reputation.Of(hero, Guards), Is.EqualTo(40), "10 from the bandits' enemy, 30 from the bounty");
             Assert.That(changes.Select(c => c.FactionId), Does.Contain(Bandits).And.Contain(Guards));
 
@@ -94,6 +98,37 @@ namespace RPGFramework.ActionRpg.Tests
             World.Dialogue.Advance(hero, "bribe");
             Assert.That(World.Reputation.Of(hero, Guards), Is.EqualTo(45));
             Assert.That(World.Reputation.Change(hero, "nobody", 5), Is.False);
+        }
+
+        [Test]
+        public void AFactionsTrader_PricesByStanding_AndRefusesThoseItHates()
+        {
+            StartGame();
+            int hero = World.PlayerId;
+            var armory = Trader.Create("armory", "Armory", TraderType.Merchant);
+            var buy = TradeOffer.Create("buy_sword", "armory");
+            buy.AddOfferedItem(TradeItem.Create("sword", 1));
+            buy.SetGoldAmount(-100);
+            armory.AddOffer(buy);
+            var sell = TradeOffer.Create("sell_sword", "armory");
+            sell.AddRequestedItem(TradeItem.Create("sword", 1));
+            sell.SetGoldAmount(50);
+            armory.AddOffer(sell);
+            _host.Container.Resolve<ITraderRegistry>().RegisterTrader(armory);
+            World.GiveCurrency(hero, 500);
+
+            Assert.That(World.GoldFor(hero, "buy_sword"), Is.EqualTo(-100), "Neutral");
+            World.Reputation.Set(hero, Guards, 60);
+            Assert.That(World.GoldFor(hero, "buy_sword"), Is.EqualTo(-90), "Honored: two standings, 10% off");
+            Assert.That(World.GoldFor(hero, "sell_sword"), Is.EqualTo(55));
+            Assert.That(World.Trade(hero, "buy_sword").Success, Is.True);
+            Assert.That(World.CurrencyOf(hero), Is.EqualTo(410));
+
+            World.Reputation.Set(hero, Guards, -80);
+            var refused = World.Trade(hero, "buy_sword");
+            Assert.That(refused.Success, Is.False);
+            Assert.That(refused.ErrorMessage, Is.EqualTo("They will not trade with you"));
+            Assert.That(World.CurrencyOf(hero), Is.EqualTo(410));
         }
 
         [Test]

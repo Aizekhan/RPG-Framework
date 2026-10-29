@@ -20,16 +20,17 @@ namespace RPGFramework.ActionRpg
 
         /// <summary>
         /// The world's <see cref="ActorWorld.TradePricing"/> for the party member trading (the wallet's owner when the
-        /// trade did not come through the world), or the offer's own gold.
+        /// trade did not come through the world), or the offer's own gold; a faction's trader then moves it with the
+        /// player's standing (<see cref="ActorReputation.PriceFor"/>).
         /// </summary>
         public long GoldFor(int playerEntityId, ITrader trader, ITradeOffer offer)
         {
             var world = _world();
-            var pricing = world?.TradePricing;
-            if (pricing == null)
+            if (world == null)
                 return offer.GoldAmount;
             int player = world.TradingPlayer >= 0 ? world.TradingPlayer : playerEntityId;
-            return pricing.GoldFor(player, trader, offer);
+            long gold = world.TradePricing?.GoldFor(player, trader, offer) ?? offer.GoldAmount;
+            return world.Reputation.PriceFor(player, trader?.TraderId, gold);
         }
     }
 

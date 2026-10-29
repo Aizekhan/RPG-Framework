@@ -15,7 +15,7 @@ namespace RPGFramework.ActionRpg.Tests
     /// </summary>
     public sealed class ActorConsumablesTests
     {
-        private const string Potion = "potion", BigPotion = "big_potion", Elixir = "elixir", Scroll = "scroll", Rage = "rage";
+        private const string Potion = "potion", BigPotion = "big_potion", Elixir = "elixir", Scroll = "scroll", Rage = "rage", Antidote = "antidote", Poison = "poison";
 
         private Logger _logger;
         private GameHost _host;
@@ -43,6 +43,8 @@ namespace RPGFramework.ActionRpg.Tests
             _content.Items.Add(new Consumable(Elixir, "Elixir of Rage", "", Rage, 0f));
             _content.Items.Add(new Consumable(Scroll, "Scroll of Return", "", "town_portal", 0f, isConsumedOnUse: false));
             _content.StatusEffects.Add(StatusEffectData.CreateStatModifier(Rage, "Rage", EffectType.Buff, 10f, "Attack", 10f));
+            _content.StatusEffects.Add(StatusEffectData.CreateStatModifier(Poison, "Weakness", EffectType.Debuff, 10f, "Attack", -10f));
+            _content.Items.Add(new Consumable(Antidote, "Antidote", "", ConsumableEffects.Cure, 0f));
         }
 
         [TearDown]
@@ -104,6 +106,25 @@ namespace RPGFramework.ActionRpg.Tests
             Assert.That(World.Consumables.Use(hero, Scroll), Is.True);
             Assert.That(CountOf(Scroll), Is.EqualTo(1), "not consumed on use");
             Assert.That(used.Select(u => u.EffectId), Is.EqualTo(new[] { Rage, "town_portal" }));
+        }
+
+        [Test]
+        public void AnAntidote_TakesTheDebuffsOff_AndLeavesTheBuffs()
+        {
+            StartGame();
+            int hero = World.PlayerId;
+            World.GiveItem(Antidote, 1);
+            World.GiveItem(Elixir, 1);
+            Assert.That(World.Consumables.WhyNot(hero, Antidote), Is.EqualTo("Nothing to cure"));
+
+            World.Consumables.Use(hero, Elixir);
+            World.Effects.Apply(hero, Poison);
+            Assert.That(World.Player.Attack, Is.EqualTo(50f), "rage and weakness");
+
+            Assert.That(World.Consumables.Use(hero, Antidote), Is.True);
+            Assert.That(World.Effects.Has(hero, Poison), Is.False);
+            Assert.That(World.Effects.Has(hero, Rage), Is.True);
+            Assert.That(World.Player.Attack, Is.EqualTo(60f));
         }
     }
 }

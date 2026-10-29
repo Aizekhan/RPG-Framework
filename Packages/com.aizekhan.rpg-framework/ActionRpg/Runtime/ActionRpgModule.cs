@@ -145,6 +145,10 @@ namespace RPGFramework.ActionRpg
                 World.Reputation.Register(faction);
             foreach (var relation in _content.FactionRelations)
                 World.Reputation.Register(relation);
+            foreach (var trader in _content.TraderFactions)
+                World.Reputation.Register(trader);
+            if (Container.IsRegistered<ITraderRegistry>())
+                World.Traders = Container.Resolve<ITraderRegistry>();
             if (_content.Achievements.Count > 0)
             {
                 var achievements = new RPGFramework.Achievements.AchievementRegistry();

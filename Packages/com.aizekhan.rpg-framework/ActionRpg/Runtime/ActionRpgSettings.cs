@@ -326,6 +326,11 @@ namespace RPGFramework.ActionRpg
             new List<RPGFramework.Factions.IFactionRelationship>();
 
         /// <summary>
+        /// Traders who belong to a faction: they refuse players it hates, and their prices follow the standing.
+        /// </summary>
+        public List<TraderFaction> TraderFactions { get; } = new List<TraderFaction>();
+
+        /// <summary>
         /// Affixes an elite enemy can roll ("Frenzied": +50% Attack, "of Stone": +10 Defense): stats are
         /// <see cref="ActorStat"/> names (or "resist:fire"); an enemy spawns elite with
         /// <see cref="ActionRpgSettings.EliteChance"/> and rolls them at the player's level and

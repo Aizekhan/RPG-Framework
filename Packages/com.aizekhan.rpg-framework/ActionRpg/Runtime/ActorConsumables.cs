@@ -10,13 +10,19 @@ namespace RPGFramework.ActionRpg
     /// <summary>
     /// What a consumable does when a player uses it (<see cref="IConsumable.EffectId"/>, its magnitude): "RestoreHealth"
     /// heals that much, "RestoreHealthPercent" that share (0..1) of maximum health; an effect id of the game's status
-    /// effects (<see cref="ActionRpgContent.StatusEffects"/>) puts it on the player (a magnitude above 0 is its power).
+    /// effects (<see cref="ActionRpgContent.StatusEffects"/>) puts it on the player (a magnitude above 0 is its power);
+    /// "Cure" takes their debuffs off.
     /// Any other id is the game's own: <see cref="ConsumableUsedEvent"/> says it was used.
     /// </summary>
     public static class ConsumableEffects
     {
         public const string RestoreHealth = "RestoreHealth";
         public const string RestoreHealthPercent = "RestoreHealthPercent";
+
+        /// <summary>
+        /// Takes every debuff off the player (poison, slow, curses): the game's status effects of type Debuff.
+        /// </summary>
+        public const string Cure = "Cure";
     }
 
     /// <summary>
@@ -93,8 +99,10 @@ namespace RPGFramework.ActionRpg
                 case ConsumableEffects.RestoreHealthPercent:
                     return player.Health >= player.MaxHealth ? "Already at full health" : null;
             }
-            if (IsStatusEffect(consumable.EffectId) && _world.Effects == null)
+            if ((IsStatusEffect(consumable.EffectId) || consumable.EffectId == ConsumableEffects.Cure) && _world.Effects == null)
                 return "Effects are off in this game";
+            if (consumable.EffectId == ConsumableEffects.Cure && !DebuffsOn(playerId).Any())
+                return "Nothing to cure";
             return null;
         }
 
@@ -114,6 +122,10 @@ namespace RPGFramework.ActionRpg
                     break;
                 case ConsumableEffects.RestoreHealthPercent:
                     _world.Heal(playerId, player.MaxHealth * consumable.EffectMagnitude);
+                    break;
+                case ConsumableEffects.Cure:
+                    foreach (string debuff in DebuffsOn(playerId).ToList())
+                        _world.Effects.Remove(playerId, debuff);
                     break;
                 default:
                     if (IsStatusEffect(consumable.EffectId))
@@ -156,6 +168,11 @@ namespace RPGFramework.ActionRpg
 
         private static string CooldownKey(IConsumable consumable) =>
             string.IsNullOrEmpty(consumable.CooldownCategory) ? "item:" + consumable.ItemId : "category:" + consumable.CooldownCategory;
+
+        private IEnumerable<string> DebuffsOn(int playerId) =>
+            _world.Effects?.On(playerId).Select(e => e.EffectId).Distinct()
+                .Where(id => _world.Content?.StatusEffects.Any(e => e != null && e.Id == id && e.Type == RPGFramework.StatusEffects.EffectType.Debuff) ?? false)
+            ?? Enumerable.Empty<string>();
 
         private bool IsStatusEffect(string effectId) =>
             !string.IsNullOrEmpty(effectId) && (_world.Content?.StatusEffects.Any(e => e != null && e.Id == effectId) ?? false);

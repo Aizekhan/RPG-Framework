@@ -47,6 +47,7 @@ namespace RPGFramework.ActionRpg
         private readonly IEventPublisher _events;
         private readonly FactionRegistry _registry = new FactionRegistry();
         private readonly FactionManager _manager;
+        private readonly Dictionary<string, TraderFaction> _traders = new Dictionary<string, TraderFaction>();
 
         internal ActorReputation(ActorWorld world, IEntityManager entities, IEventPublisher events)
         {
@@ -147,6 +148,44 @@ namespace RPGFramework.ActionRpg
             }
         }
 
+        internal void Register(TraderFaction trader)
+        {
+            if (trader != null)
+                _traders[trader.TraderId] = trader;
+        }
+
+        /// <summary>
+        /// The faction a trader belongs to (<see cref="ActionRpgContent.TraderFactions"/>); null for none.
+        /// </summary>
+        public TraderFaction TraderFactionOf(string traderId) =>
+            !string.IsNullOrEmpty(traderId) && _traders.TryGetValue(traderId, out var trader) ? trader : null;
+
+        /// <summary>
+        /// Why a faction's trader will not deal with the player (their standing is below the trader's minimum), or null.
+        /// </summary>
+        public string WhyNotTrade(int playerId, string traderId)
+        {
+            var trader = TraderFactionOf(traderId);
+            if (trader == null)
+                return null;
+            return StandingOf(playerId, trader.FactionId) < trader.MinimumStanding ? "They will not trade with you" : null;
+        }
+
+        /// <summary>
+        /// A faction's trader's price for the player: each standing above Neutral takes
+        /// <see cref="TraderFaction.PriceStep"/> off what they pay and adds it to what they get, each below adds it to
+        /// what they pay and takes it off what they get. Gold as in an offer: negative is paid, positive is received.
+        /// </summary>
+        public long PriceFor(int playerId, string traderId, long gold)
+        {
+            var trader = TraderFactionOf(traderId);
+            if (trader == null || gold == 0)
+                return gold;
+            int steps = (int)StandingOf(playerId, trader.FactionId) - (int)FactionStanding.Neutral;
+            double factor = gold < 0 ? 1.0 - trader.PriceStep * steps : 1.0 + trader.PriceStep * steps;
+            return (long)Math.Round(gold * Math.Max(0.0, factor), MidpointRounding.AwayFromZero);
+        }
+
         private Dictionary<string, int> Snapshot(int owner) =>
             _registry.GetAllFactions().ToDictionary(f => f.FactionId, f => _manager.GetReputation(owner, f.FactionId));
 
@@ -161,6 +200,35 @@ namespace RPGFramework.ActionRpg
                     _events.Publish(new ReputationChangedEvent(owner, faction, before[faction], now, _manager.GetStanding(owner, faction)));
             }
         }
+    }
+
+    /// <summary>
+    /// A trader who belongs to a faction (<see cref="ActionRpgContent.TraderFactions"/>): they refuse players whose
+    /// standing is below <see cref="MinimumStanding"/>, and their prices move with the player's standing
+    /// (<see cref="ActorReputation.PriceFor"/>).
+    /// </summary>
+    public sealed class TraderFaction
+    {
+        public TraderFaction(string traderId, string factionId, FactionStanding minimumStanding = FactionStanding.Unfriendly, float priceStep = 0.05f)
+        {
+            if (string.IsNullOrEmpty(traderId))
+                throw new ArgumentException("A trader faction needs the trader's id.", nameof(traderId));
+            if (string.IsNullOrEmpty(factionId))
+                throw new ArgumentException("A trader faction needs the faction's id.", nameof(factionId));
+            TraderId = traderId;
+            FactionId = factionId;
+            MinimumStanding = minimumStanding;
+            PriceStep = Math.Max(0f, priceStep);
+        }
+
+        public string TraderId { get; }
+        public string FactionId { get; }
+        public FactionStanding MinimumStanding { get; }
+
+        /// <summary>
+        /// The share of the price each standing away from Neutral moves it (0.05: Honored pays 10% less).
+        /// </summary>
+        public float PriceStep { get; }
     }
 
     /// <summary>

@@ -1207,6 +1207,9 @@ namespace RPGFramework.ActionRpg
                 return TradeResultData.CreateFailure("Not in the party");
             if (Trading == null)
                 return TradeResultData.CreateFailure("The game has no traders");
+            string refused = Reputation.WhyNotTrade(playerId, TraderOf(offerId));
+            if (refused != null)
+                return TradeResultData.CreateFailure(refused);
             TradingPlayer = playerId;
             try
             {
@@ -1244,6 +1247,15 @@ namespace RPGFramework.ActionRpg
         /// container; null uses the offers' own gold amounts.
         /// </summary>
         public ITradePricing TradePricing { get; set; }
+
+        /// <summary>
+        /// The game's traders (set by the module): a faction's trader refuses players it hates.
+        /// </summary>
+        public ITraderRegistry Traders { get; internal set; }
+
+        // The trader who makes an offer; null when unknown
+        private string TraderOf(string offerId) =>
+            Traders?.GetAllTraders().FirstOrDefault(t => t.GetOffer(offerId) != null)?.TraderId;
 
         // The party member whose trade is running (-1 otherwise): prices are theirs even when the party pays
         internal int TradingPlayer { get; private set; } = -1;
