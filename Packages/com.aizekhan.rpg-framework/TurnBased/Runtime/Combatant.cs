@@ -29,6 +29,7 @@ namespace RPGFramework.TurnBased
         public const string Silence = "Silence";
 
         private readonly Dictionary<string, StatModifier> _modifiers = new Dictionary<string, StatModifier>();
+        private readonly Dictionary<string, StatModifier> _lasting = new Dictionary<string, StatModifier>();
         private readonly HashSet<string> _controls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         internal Combatant(int id, CombatantData data, BattleSide side, int slot, string name, int level)
@@ -114,7 +115,7 @@ namespace RPGFramework.TurnBased
             float added = 0f;
             float multiplied = 1f;
             float? overridden = null;
-            foreach (var modifier in _modifiers.Values)
+            foreach (var modifier in _lasting.Values.Concat(_modifiers.Values))
             {
                 if (modifier.Stat != stat)
                     continue;
@@ -215,6 +216,19 @@ namespace RPGFramework.TurnBased
         internal void RemoveModifier(string modifierId)
         {
             if (_modifiers.Remove(modifierId))
+                ClampVitals();
+        }
+
+        // Modifiers that outlast battles and effects (learned skills); ClearEffects leaves them
+        internal void SetLastingModifier(string modifierId, CombatStat stat, ModifierOperation operation, float value)
+        {
+            _lasting[modifierId] = new StatModifier(stat, operation, value);
+            ClampVitals();
+        }
+
+        internal void RemoveLastingModifier(string modifierId)
+        {
+            if (_lasting.Remove(modifierId))
                 ClampVitals();
         }
 

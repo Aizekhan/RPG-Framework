@@ -21,6 +21,7 @@
         "RPGFramework.Persistence.Runtime",
         "RPGFramework.Quests.Runtime",
         "RPGFramework.Achievements.Runtime",
+        "RPGFramework.Skills.Runtime",
         "UniTask"
     ],
     "includePlatforms": [],

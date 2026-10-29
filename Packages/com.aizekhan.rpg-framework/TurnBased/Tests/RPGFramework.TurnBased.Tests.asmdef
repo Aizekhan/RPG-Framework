@@ -22,6 +22,7 @@
         "RPGFramework.Persistence.Runtime",
         "RPGFramework.Quests.Runtime",
         "RPGFramework.Achievements.Runtime",
+        "RPGFramework.Skills.Runtime",
         "RPGFramework.TurnBased.Unity",
         "RPGFramework.UI.Runtime",
         "RPGFramework.UINavigation.Runtime",

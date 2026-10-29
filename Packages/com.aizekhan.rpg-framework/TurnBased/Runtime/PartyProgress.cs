@@ -49,5 +49,18 @@ namespace RPGFramework.TurnBased
         public long TotalExperience { get; set; }
         public int Health { get; set; }
         public int Mana { get; set; }
+
+        /// <summary>
+        /// What the member learned in the skill tree (<see cref="PartySkills"/>).
+        /// </summary>
+        public List<MemberSkillRecord> Skills { get; set; } = new List<MemberSkillRecord>();
+
+        public int BonusSkillPoints { get; set; }
+    }
+
+    public sealed class MemberSkillRecord
+    {
+        public string SkillId { get; set; }
+        public int Level { get; set; }
     }
 }

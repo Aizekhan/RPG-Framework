@@ -48,6 +48,16 @@ namespace RPGFramework.TurnBased
         /// </summary>
         public bool CompleteQuestsAutomatically { get; set; } = true;
 
+        /// <summary>
+        /// Skill points every party member has at level 1 (<see cref="TurnBasedWorld.Skills"/>).
+        /// </summary>
+        public int StartingSkillPoints { get; set; }
+
+        /// <summary>
+        /// Skill points every level above 1 gives a member.
+        /// </summary>
+        public int SkillPointsPerLevel { get; set; } = 1;
+
         public int InventoryCapacity { get; set; } = 60;
 
         /// <summary>
@@ -208,6 +218,12 @@ namespace RPGFramework.TurnBased
         /// </summary>
         public List<RPGFramework.Achievements.Runtime.Contracts.IAchievement> Achievements { get; } =
             new List<RPGFramework.Achievements.Runtime.Contracts.IAchievement>();
+
+        /// <summary>
+        /// The skills party members learn with the points their levels give (<see cref="TurnBasedWorld.Skills"/>);
+        /// bonuses are <see cref="CombatStat"/> names (or aliases) or "resist:fire". Null: no skill tree.
+        /// </summary>
+        public RPGFramework.Skills.ISkillTree SkillTree { get; set; }
     }
 
     /// <summary>

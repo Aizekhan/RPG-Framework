@@ -80,6 +80,7 @@ namespace RPGFramework.TurnBased
             content = content ?? new TurnBasedContent();
 
             Random = settings.Seed != 0 ? new Random(settings.Seed) : new Random();
+            Skills = new PartySkills(this, content.SkillTree, entities, bus);
             Formula = settings.Formula ?? new DefaultBattleFormula();
             StatusEffects = new StatusEffectManager(entities, bus, new EffectTarget(this));
             // Battles have no distances: every target is in range
@@ -244,6 +245,7 @@ namespace RPGFramework.TurnBased
             {
                 _progression.SetLevel(member.Id, 1);
                 member.ClearEffects();
+                Skills.Restore(member.Id, null, 0);
                 member.SetLevel(1);
                 member.RestoreFully();
             }
@@ -295,6 +297,11 @@ namespace RPGFramework.TurnBased
         /// The entity the party's quests are kept on; -1 without quests (no QuestsModule) or before the start.
         /// </summary>
         public int QuestHolderId { get; private set; } = -1;
+
+        /// <summary>
+        /// What each party member learned in the skill tree (<see cref="TurnBasedContent.SkillTree"/>), and their points.
+        /// </summary>
+        public PartySkills Skills { get; }
 
         /// <summary>
         /// The party's achievements (<see cref="TurnBasedContent.Achievements"/>), a profile apart from the saves:
@@ -472,7 +479,8 @@ namespace RPGFramework.TurnBased
                 progress.Members.Add(new MemberRecord
                 {
                     CharacterId = member.CharacterId, Level = member.Level, TotalExperience = ExperienceOf(member.Id),
-                    Health = member.Health, Mana = member.Mana
+                    Health = member.Health, Mana = member.Mana, Skills = Skills.RecordsOf(member.Id),
+                    BonusSkillPoints = Skills.BonusPointsOf(member.Id)
                 });
             }
             if (HasQuests)
@@ -518,6 +526,7 @@ namespace RPGFramework.TurnBased
                         _progression.AddExperience(member.Id, missing);
                     member.ClearEffects();
                     member.SetLevel(_progression.GetLevel(member.Id));
+                    Skills.Restore(member.Id, record.Skills, record.BonusSkillPoints);
                     member.SetVitals(record.Health, record.Mana);
                 }
 
