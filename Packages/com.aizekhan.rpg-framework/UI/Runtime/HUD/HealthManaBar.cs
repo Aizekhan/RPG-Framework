@@ -15,6 +15,10 @@ namespace RPGFramework.UI.HUD
         [SerializeField] protected Image healthFillImage;
         [SerializeField] protected TextMeshProUGUI healthText;
         [SerializeField] protected Gradient healthGradient;
+        [Tooltip("A filled image under the health: the chunk a blow took stays, then drains (HealthTrail); empty for none")]
+        [SerializeField] protected Image healthTrailImage;
+        [SerializeField, Min(0f)] protected float trailHold = 0.45f;
+        [SerializeField, Min(0.01f)] protected float trailDrainPerSecond = 0.8f;
 
         [Header("Mana Bar")]
         [SerializeField] protected Slider manaSlider;
@@ -33,6 +37,7 @@ namespace RPGFramework.UI.HUD
 
         protected float maxHealth;
         protected float maxMana;
+        private HealthTrail _trail;
 
         protected virtual void Update()
         {
@@ -41,6 +46,19 @@ namespace RPGFramework.UI.HUD
                 UpdateHealthSmooth();
                 UpdateManaSmooth();
             }
+            UpdateHealthTrail();
+        }
+
+        /// <summary>
+        /// Moves the health's trail (<see cref="healthTrailImage"/>) towards the health shown.
+        /// </summary>
+        protected virtual void UpdateHealthTrail()
+        {
+            if (healthTrailImage == null)
+                return;
+            _trail ??= new HealthTrail(trailHold, trailDrainPerSecond);
+            float health = maxHealth > 0f ? targetHealthValue / maxHealth : 0f;
+            healthTrailImage.fillAmount = _trail.Update(0, health, Time.unscaledTime);
         }
 
         /// <summary>

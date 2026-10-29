@@ -1,10 +1,12 @@
 using UnityEngine;
 using UnityEngine.UI;
+using RPGFramework.UI.HUD;
 
 namespace RPGFramework.ActionRpg
 {
     /// <summary>
-    /// Health bar above a character (always facing the camera) and a short flash of the body when it is hit.
+    /// Health bar above a character (always facing the camera) and a short flash of the body when it is hit. The
+    /// chunk a blow took stays on the bar a moment in a light colour, then drains (<see cref="HealthTrail"/>).
     /// Without a bar of its own the prefab gets a small world-space one, placed above its renderers.
     /// </summary>
     public sealed class HealthBarView : ActorView
@@ -18,6 +20,13 @@ namespace RPGFramework.ActionRpg
         [Tooltip("Shrinks with health: a RectTransform by its right anchor, any other Transform by its X scale")]
         [SerializeField] private Transform _fill;
 
+        [Tooltip("Behind the fill, shrinks like it but late: the chunk a blow took; empty for none (the default bar has one)")]
+        [SerializeField] private Transform _trail;
+
+        [SerializeField] private Color _trailColor = new Color(1f, 0.9f, 0.7f, 0.9f);
+        [SerializeField, Min(0f)] private float _trailHold = 0.45f;
+        [SerializeField, Min(0.01f)] private float _trailDrainPerSecond = 0.8f;
+
         [Tooltip("Flash these when hit; leave empty for every renderer of the prefab")]
         [SerializeField] private Renderer[] _body = new Renderer[0];
 
@@ -30,6 +39,8 @@ namespace RPGFramework.ActionRpg
         private float _width = 1f;
         private float _lastHealth;
         private float _flash;
+        private float _trailWidth = 1f;
+        private HealthTrail _health;
 
         private void Awake()
         {
@@ -40,6 +51,9 @@ namespace RPGFramework.ActionRpg
                 BuildDefaultBar();
             if (_fill != null)
                 _width = _fill.localScale.x;
+            if (_trail != null)
+                _trailWidth = _trail.localScale.x;
+            _health = new HealthTrail(_trailHold, _trailDrainPerSecond);
         }
 
         protected override void OnBound()
@@ -48,6 +62,9 @@ namespace RPGFramework.ActionRpg
             _lastHealth = actor?.Health ?? 0f;
             _flash = 0f;
             ApplyFlash(false);
+            _health?.Clear();
+            if (_trail != null && _trail.TryGetComponent<Image>(out var trailImage))
+                trailImage.color = _trailColor;
             if (_fill == null || actor == null)
                 return;
             var color = actor.IsPlayer ? _playerColor : _enemyColor;
@@ -74,15 +91,9 @@ namespace RPGFramework.ActionRpg
                 return;
 
             float fraction = actor.HealthFraction;
-            if (_fill is RectTransform rect)
-            {
-                rect.anchorMax = new Vector2(fraction, 1f);
-            }
-            else if (_fill != null)
-            {
-                _fill.localScale = new Vector3(_width * fraction, _fill.localScale.y, _fill.localScale.z);
-                _fill.localPosition = new Vector3(-_width * (1f - fraction) * 0.5f, _fill.localPosition.y, _fill.localPosition.z);
-            }
+            Shrink(_fill, fraction, _width);
+            if (_trail != null && _health != null)
+                Shrink(_trail, _health.Update(0, fraction, Time.unscaledTime), _trailWidth);
 
             var view = Camera.main;
             if (_bar != null && view != null)
@@ -100,6 +111,19 @@ namespace RPGFramework.ActionRpg
                 _flash -= Time.deltaTime;
                 if (_flash <= 0f)
                     ApplyFlash(false);
+            }
+        }
+
+        private static void Shrink(Transform bar, float fraction, float width)
+        {
+            if (bar is RectTransform rect)
+            {
+                rect.anchorMax = new Vector2(fraction, 1f);
+            }
+            else if (bar != null)
+            {
+                bar.localScale = new Vector3(width * fraction, bar.localScale.y, bar.localScale.z);
+                bar.localPosition = new Vector3(-width * (1f - fraction) * 0.5f, bar.localPosition.y, bar.localPosition.z);
             }
         }
 
@@ -124,6 +148,7 @@ namespace RPGFramework.ActionRpg
             canvasObject.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
 
             var background = Panel(canvasRect, "Background", new Color(0f, 0f, 0f, 0.75f));
+            _trail = Panel(background, "Trail", _trailColor);
             _fill = Panel(background, "Fill", _enemyColor);
             _bar = canvasRect;
         }
