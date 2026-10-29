@@ -291,6 +291,11 @@ namespace RPGFramework.ActionRpg
 
         private static string ModifierId(string slotId, int index) => "gear:" + slotId + ":" + index;
 
+        /// <summary>
+        /// A gear bonus with this prefix ("resist:fire" 0.2) is a resistance to that element, not a stat.
+        /// </summary>
+        public const string ResistancePrefix = "resist:";
+
         private void PutOn(int playerId, string slotId, GearData gear)
         {
             var actor = _world.Get(playerId);
@@ -299,7 +304,10 @@ namespace RPGFramework.ActionRpg
             for (int i = 0; i < gear.Bonuses.Count; i++)
             {
                 var bonus = gear.Bonuses[i];
-                if (bonus != null && Enum.TryParse(bonus.Stat, false, out ActorStat stat) && Enum.IsDefined(typeof(ActorStat), stat))
+                if (bonus != null && bonus.Stat != null && bonus.Stat.StartsWith(ResistancePrefix, StringComparison.Ordinal) &&
+                    bonus.Stat.Length > ResistancePrefix.Length)
+                    _world.Resistances.Set(playerId, bonus.Stat.Substring(ResistancePrefix.Length), bonus.Value, ModifierId(slotId, i));
+                else if (bonus != null && Enum.TryParse(bonus.Stat, false, out ActorStat stat) && Enum.IsDefined(typeof(ActorStat), stat))
                     actor.AddModifier(new StatModifier<ActorStat, float>(ModifierId(slotId, i), stat, bonus.Value, bonus.Type));
             }
         }
@@ -310,7 +318,10 @@ namespace RPGFramework.ActionRpg
             if (actor == null || gear == null)
                 return;
             for (int i = 0; i < gear.Bonuses.Count; i++)
+            {
                 actor.RemoveModifier(ModifierId(slotId, i));
+                _world.Resistances.RemoveSource(playerId, ModifierId(slotId, i));
+            }
         }
     }
 }

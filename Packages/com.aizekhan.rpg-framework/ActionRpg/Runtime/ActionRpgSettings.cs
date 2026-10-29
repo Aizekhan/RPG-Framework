@@ -56,6 +56,13 @@ namespace RPGFramework.ActionRpg
         public List<GearSlot> GearSlots { get; } = new List<GearSlot>();
 
         /// <summary>
+        /// Damage elements by attack tag bit ("fire" = 1 &lt;&lt; 3): a hit whose <see cref="RPGFramework.Combat.AttackContext.Tags"/>
+        /// has the bit is of that element, and the target's resistances (<see cref="CharacterData.Resistances"/>, gear
+        /// bonuses "resist:fire") change it (<see cref="ActorWorld.Resistances"/>). Several elements share the damage.
+        /// </summary>
+        public Dictionary<string, int> ElementTags { get; } = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        /// <summary>
         /// Fixed random seed (loot, wave composition); 0 picks a new one every run.
         /// </summary>
         public int Seed { get; set; }

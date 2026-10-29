@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using RPGFramework.Bootstrap;
+using RPGFramework.Combat;
 using RPGFramework.Events;
 using RPGFramework.Items;
 using RPGFramework.Logging;
@@ -263,6 +264,33 @@ namespace RPGFramework.ActionRpg.Tests
             Assert.That(World.Unequip("weapon"), Is.True);
             Assert.That(World.Player.Attack, Is.EqualTo(50f));
             Assert.That(World.Inventory.GetAllItems().Count(i => i != null && i.Name == "Brutal sword"), Is.EqualTo(1));
+        }
+
+        [Test]
+        public void Resistances_FromTheCharacterAndGear_ChangeElementalHits()
+        {
+            const int Fire = 1 << 3, Ice = 1 << 4;
+            _settings.ElementTags["fire"] = Fire;
+            _settings.ElementTags["ice"] = Ice;
+            _settings.Player.MaxHealth = 1000f;
+            _settings.Player.Resistances.Add(new ElementResistance("ice", -0.5f));
+            _content.Items.Add(new Item("cloak", "cloak", "cloak", ItemType.Equipment));
+            _content.Gear.Add(new GearData("cloak", "head", new GearBonus("resist:fire", 0.5f)));
+            StartGame();
+            float Hit(int tags) => World.DealDamage(-1, World.PlayerId, 20f, AttackContext.Effect(0, tags));
+
+            Assert.That(Hit(Fire), Is.EqualTo(20f));
+            Assert.That(Hit(Ice), Is.EqualTo(30f).Within(1e-4f), "a weakness");
+            World.GiveItem("cloak");
+            Assert.That(World.Equip("cloak"), Is.True);
+            Assert.That(Hit(Fire), Is.EqualTo(10f).Within(1e-4f), "the cloak's resistance");
+            Assert.That(Hit(Fire | Ice), Is.EqualTo(20f).Within(1e-4f), "10 of fire to 5, 10 of ice to 15");
+            Assert.That(Hit(0), Is.EqualTo(20f), "no element");
+            Assert.That(World.Resistances.ElementsOf(World.PlayerId), Is.EqualTo(new[] { "fire", "ice" }));
+
+            Assert.That(World.Unequip("head"), Is.True);
+            Assert.That(Hit(Fire), Is.EqualTo(20f), "the cloak is off");
+            Assert.That(World.Player.Attack, Is.EqualTo(50f), "a resistance is not a stat");
         }
 
         [Test]

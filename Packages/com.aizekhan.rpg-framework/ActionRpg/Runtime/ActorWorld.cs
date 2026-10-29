@@ -144,6 +144,12 @@ namespace RPGFramework.ActionRpg
         public IItemRegistry ItemRegistry => _items;
 
         /// <summary>
+        /// Every character's resistances to damage elements: their own (<see cref="CharacterData.Resistances"/>) and
+        /// their gear's ("resist:fire" bonuses); a game adds its own sources (a buff) with a source id.
+        /// </summary>
+        public DamageResistances Resistances { get; } = new DamageResistances();
+
+        /// <summary>
         /// The game's content (set by the module): rolled gear is built from it.
         /// </summary>
         public ActionRpgContent Content { get; internal set; }
@@ -566,6 +572,22 @@ namespace RPGFramework.ActionRpg
             return restored;
         }
 
+        private readonly List<string> _hitElements = new List<string>();
+
+        // The elements the hit's tags carry, against the target's resistances
+        private float Resisted(int targetId, AttackContext context, float damage)
+        {
+            if (context.Tags == 0 || _settings.ElementTags.Count == 0)
+                return damage;
+            _hitElements.Clear();
+            foreach (var pair in _settings.ElementTags)
+            {
+                if (pair.Value != 0 && context.HasAny(pair.Value))
+                    _hitElements.Add(pair.Key);
+            }
+            return _hitElements.Count == 0 ? damage : Resistances.Apply(targetId, _hitElements, damage);
+        }
+
         private float Hit(Actor target, float baseDamage, AttackContext context, float share)
         {
             // A crit or a power strike multiplies the strike; the calculator still sees the context (IsCritical)
@@ -573,6 +595,7 @@ namespace RPGFramework.ActionRpg
             float damage = _damage is IContextualDamageCalculator contextual
                 ? contextual.CalculateDamage(baseDamage, target.Defense, context)
                 : _damage.CalculateDamage(baseDamage, target.Defense);
+            damage = Resisted(target.EntityId, context, damage);
             float dealt = target.ApplyDamage(damage * share);
             _bus.Publish(new ActorDamagedEvent(target.EntityId, context.AttackerId, dealt, target.Health, context));
             if (target.Health <= 0f)
@@ -764,6 +787,7 @@ namespace RPGFramework.ActionRpg
         {
             _actors.Add(actor.EntityId, actor);
             _lifeStates.RegisterEntity(actor.EntityId, actor);
+            Resistances.SetBase(actor.EntityId, actor.Character?.Resistances);
             _bus.Publish(new ActorSpawnedEvent(actor.EntityId, actor.CharacterId, actor.IsPlayer));
         }
 
@@ -773,6 +797,7 @@ namespace RPGFramework.ActionRpg
                 return;
             _actors.Remove(entityId);
             _lifeStates.UnregisterEntity(entityId);
+            Resistances.Forget(entityId);
             if (_entities.Exists(entityId))
                 _entities.DestroyEntity(entityId);
             _bus.Publish(new ActorDespawnedEvent(entityId, actor.CharacterId, actor.IsPlayer));

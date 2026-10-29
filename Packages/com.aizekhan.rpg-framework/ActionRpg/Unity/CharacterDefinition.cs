@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using RPGFramework.Combat;
 using RPGFramework.Tools.LootTableDesigner;
 using UnityEngine;
 
@@ -39,6 +41,11 @@ namespace RPGFramework.ActionRpg
         [Tooltip("Seconds between attacks")]
         [SerializeField, Min(0.05f)] private float _attackCooldown = 1.2f;
 
+        [Header("When hit")]
+        [Tooltip("Elements it resists (0.5: half damage), is weak to (-0.5: half again) or is immune to; the hits that " +
+                 "carry an element are the game's (ActionRpgSettings.ElementTags)")]
+        [SerializeField] private List<ElementResistance> _resistances = new List<ElementResistance>();
+
         [Header("When killed")]
         [SerializeField, Min(0)] private long _experience = 40;
 
@@ -66,7 +73,8 @@ namespace RPGFramework.ActionRpg
             DefensePerLevel = _defensePerLevel,
             ExperienceReward = _experience,
             LootTableId = _loot != null ? _loot.tableId : "",
-            MoveSpeed = _moveSpeed
+            MoveSpeed = _moveSpeed,
+            Resistances = new List<ElementResistance>(_resistances ?? new List<ElementResistance>())
         };
 
         /// <summary>

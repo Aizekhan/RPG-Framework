@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using RPGFramework.Combat;
 
 namespace RPGFramework.ActionRpg
 {
@@ -42,6 +44,12 @@ namespace RPGFramework.ActionRpg
         /// Units per second it moves; a co-op host corrects joined players who move faster. 0 = not checked.
         /// </summary>
         public float MoveSpeed;
+
+        /// <summary>
+        /// What it resists, is weak to or is immune to ("fire" 0.5, "ice" -0.5); which hits carry an element is
+        /// <see cref="ActionRpgSettings.ElementTags"/>.
+        /// </summary>
+        public List<ElementResistance> Resistances = new List<ElementResistance>();
 
         public float StatAt(ActorStat stat, int level)
         {
