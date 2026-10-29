@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using RPGFramework.Localization;
 
 namespace RPGFramework.Turns
 {
@@ -75,6 +77,19 @@ namespace RPGFramework.Turns
         public static TurnOutcome Ok => new TurnOutcome(true, "");
 
         public static TurnOutcome Refused(string reason) => new TurnOutcome(false, string.IsNullOrEmpty(reason) ? "Refused" : reason);
+
+        /// <summary>
+        /// Refused with a text each player reads in their own language (<see cref="ReasonText"/>); it travels to
+        /// the clients encoded in <see cref="Reason"/>.
+        /// </summary>
+        public static TurnOutcome Refused(LocalizedText reason) =>
+            reason.IsEmpty ? Refused("") : new TurnOutcome(false, LocalizedTextCodec.ToWire(reason));
+
+        /// <summary>
+        /// The reason as a text to translate: what <see cref="Refused(LocalizedText)"/> gave, or a plain reason as
+        /// a key of its own (it shows as written when no table has it).
+        /// </summary>
+        public LocalizedText ReasonText => LocalizedTextCodec.FromWire(Reason);
 
         public override string ToString() => Accepted ? "Ok" : "Refused: " + Reason;
     }
@@ -154,6 +169,17 @@ namespace RPGFramework.Turns
         public string Title { get; }
 
         public IReadOnlyList<string> Options { get; }
+
+        /// <summary>
+        /// <see cref="Title"/> as a text to translate (one the host opened with <see cref="LocalizedText"/>, or a
+        /// plain title as a key of its own).
+        /// </summary>
+        public LocalizedText TitleText => LocalizedTextCodec.FromWire(Title);
+
+        /// <summary>
+        /// <see cref="Options"/> as texts to translate.
+        /// </summary>
+        public IReadOnlyList<LocalizedText> OptionTexts => Options.Select(LocalizedTextCodec.FromWire).ToList();
 
         /// <summary>
         /// Seconds to answer; 0 or less: no limit.

@@ -265,6 +265,10 @@ namespace RPGFramework.ActionRpg.Tests
             Assert.That(guest.World.Level, Is.EqualTo(1));
             Assert.That(guest.World.ActiveQuests.Select(q => q.Quest.Id), Is.EqualTo(new[] { HuntQuest }));
             Assert.That(guest.World.Log, Has.Some.Contains("joins the party"));
+            var joined = guest.World.LogLines.Last(l => l.Text.Key == "kit.log.joins");
+            var ukrainian = new RPGFramework.Localization.StringTable("uk").Set("kit.log.joins", "{name} приєднується");
+            Assert.That(joined.In(new RPGFramework.Localization.LocalizationService(new[] { ukrainian })), Does.EndWith(" приєднується"),
+                "the friend reads the host's line in their own language");
             Assert.That(_host.PlayerCount, Is.EqualTo(2));
         }
 

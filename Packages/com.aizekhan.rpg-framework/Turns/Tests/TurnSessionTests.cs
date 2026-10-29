@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using RPGFramework.Localization;
 using RPGFramework.Networking;
 
 namespace RPGFramework.Turns.Tests
@@ -25,6 +26,8 @@ namespace RPGFramework.Turns.Tests
             public TurnOutcome Apply(int seat, TurnIntent intent)
             {
                 int steps = intent.Number();
+                if (steps == 0)
+                    return TurnOutcome.Refused(LocalizedText.Of("race.atLeast", ("steps", 1)));
                 if (steps < 1 || steps > 6)
                     return TurnOutcome.Refused("1 to 6");
                 _positions[seat] += steps;
@@ -193,6 +196,37 @@ namespace RPGFramework.Turns.Tests
             CollectionAssert.AreEqual(new byte[] { 0, 2, 4, 101 }, bob.View);
             CollectionAssert.AreEqual(new[] { 0, 1 }, moves.Select(m => m.Item1).ToArray());
             Assert.AreEqual(4, moves[1].Item2.Number());
+        }
+
+        [Test]
+        public void ARefusalAndAQuestion_ReachTheClient_AsTextsToTranslate()
+        {
+            Host();
+            var bob = Join("Bob");
+            var rules = StartRace(bob);
+            rules.CurrentSeat = 1;
+            TurnOutcome refused = default;
+            bob.Replied += (id, outcome) => refused = outcome;
+            TurnPrompt asked = null;
+            bob.Prompted += p => asked = p;
+
+            bob.Submit(TurnIntent.Of("Move", 0));
+            _host.OpenPrompt("block", new LocalizedText[] { "block.card", LocalizedText.Of("block.pay", ("gold", 3)) }, new[] { 1 }, 0f, _ => { },
+                title: LocalizedText.Of("block.title", ("hunter", LocalizedText.Of("hero.anna"))));
+            Pump();
+
+            Assert.IsFalse(refused.Accepted);
+            Assert.AreEqual(LocalizedText.Of("race.atLeast", ("steps", 1)), refused.ReasonText);
+            Assert.AreEqual("hero.anna", ((LocalizedText)asked.TitleText.Arg("hunter")).Key);
+            Assert.AreEqual(new[] { "block.card", "block.pay" }, asked.OptionTexts.Select(o => o.Key).ToArray());
+            Assert.AreEqual(3, asked.OptionTexts[1].Arg("gold"));
+
+            var ukrainian = new StringTable("uk").Set("block.title", "{hunter}: зупинити засідку?").Set("hero.anna", "Анна")
+                .Set("race.atLeast", "Хоча б {steps}");
+            var localization = new LocalizationService(new[] { ukrainian });
+            Assert.AreEqual("Анна: зупинити засідку?", localization.Text(asked.TitleText));
+            Assert.AreEqual("Хоча б 1", localization.Text(refused.ReasonText));
+            Assert.AreEqual("Not your move now", TurnOutcome.Refused("Not your move now").ReasonText.Key, "a plain reason is its own key");
         }
 
         [Test]

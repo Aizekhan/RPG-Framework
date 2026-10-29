@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using NUnit.Framework;
 using RPGFramework.Bootstrap;
 using RPGFramework.Events;
@@ -187,6 +188,29 @@ namespace RPGFramework.Localization.Tests
                 Object.DestroyImmediate(ukrainian);
                 Object.DestroyImmediate(library);
             }
+        }
+
+        [Test]
+        public void ACodec_CarriesATextAndItsValues_InBytesAndInAString_AndAPlainStringIsItsOwnKey()
+        {
+            var text = LocalizedText.Of("log.hit", ("who", LocalizedText.Of("hero.anna")), ("count", 3), ("share", 0.5), ("crit", true),
+                ("note", "ow"), ("nothing", null), ("big", 5000000000L));
+            var stream = new MemoryStream();
+            LocalizedTextCodec.Write(new BinaryWriter(stream), text);
+            stream.Position = 0;
+            var back = LocalizedTextCodec.Read(new BinaryReader(stream));
+            Assert.That(back, Is.EqualTo(text));
+
+            string wire = LocalizedTextCodec.ToWire(text);
+            Assert.That(LocalizedTextCodec.IsEncoded(wire), Is.True);
+            Assert.That(LocalizedTextCodec.FromWire(wire), Is.EqualTo(text));
+            Assert.That(LocalizedTextCodec.ToWire("menu.play"), Is.EqualTo("menu.play"), "a key alone stays readable");
+            Assert.That(LocalizedTextCodec.FromWire("Not your move").Key, Is.EqualTo("Not your move"));
+            Assert.That(LocalizedTextCodec.FromWire(null).IsEmpty, Is.True);
+            Assert.That(LocalizedTextCodec.FromWire("not base64!").Key, Is.EqualTo("not base64!"), "damaged: a literal");
+
+            var english = new StringTable("en").Set("log.hit", "{who} hits {count} times").Set("hero.anna", "Anna");
+            Assert.That(new LocalizationService(new[] { english }).Text(LocalizedTextCodec.FromWire(wire)), Is.EqualTo("Anna hits 3 times"));
         }
     }
 }

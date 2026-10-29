@@ -8,6 +8,7 @@
         "RPGFramework.Networking.Runtime",
         "RPGFramework.Logging.Runtime",
         "RPGFramework.Events.Runtime",
+        "RPGFramework.Localization.Runtime",
         "UniTask"
     ],
     "includePlatforms": [

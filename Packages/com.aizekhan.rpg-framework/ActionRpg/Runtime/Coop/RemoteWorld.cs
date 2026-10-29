@@ -7,6 +7,7 @@ using RPGFramework.Events;
 using RPGFramework.Interaction;
 using RPGFramework.Inventory.Runtime;
 using RPGFramework.Items;
+using RPGFramework.Localization;
 using RPGFramework.Quests;
 using RPGFramework.StatusEffects;
 
@@ -67,8 +68,10 @@ namespace RPGFramework.ActionRpg.Coop
         public int CurrentWave => _party.Wave;
         public IReadOnlyList<string> Log => _party.Log;
 
-        // The host sends English lines only
-        public IReadOnlyList<LogLine> LogLines => Array.Empty<LogLine>();
+        // The host's lines, each with its text to translate when it has one
+        public IReadOnlyList<LogLine> LogLines => _party.Log
+            .Select((english, i) => new LogLine(i < _party.LogTexts.Count ? LocalizedTextCodec.FromWire(_party.LogTexts[i]) : default, english))
+            .ToList();
         public IEnumerable<(IQuest Quest, IQuestProgress Progress)> ActiveQuests => _activeQuests;
         public IReadOnlyList<string> CompletedQuests => _party.CompletedQuests;
         public IInventoryContainer<IItem> Inventory => _inventory;

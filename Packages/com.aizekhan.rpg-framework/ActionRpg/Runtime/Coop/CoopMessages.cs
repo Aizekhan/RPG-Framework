@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using RPGFramework.Localization;
 using RPGFramework.Logging;
 using RPGFramework.Networking;
 
@@ -61,7 +62,7 @@ namespace RPGFramework.ActionRpg.Coop
         /// <summary>
         /// Changes whenever the messages change, so older and newer builds refuse each other instead of misreading.
         /// </summary>
-        public const int Version = 15;
+        public const int Version = 16;
 
         public const int DefaultPort = 7777;
         public const int DefaultMaxPlayers = 4;
@@ -790,6 +791,12 @@ namespace RPGFramework.ActionRpg.Coop
         public List<string> Log = new List<string>();
 
         /// <summary>
+        /// The log's lines as texts to translate, one per <see cref="Log"/> line (<see cref="LocalizedTextCodec"/>
+        /// strings; empty for a plain line), so a friend reads the log in their own language.
+        /// </summary>
+        public List<string> LogTexts = new List<string>();
+
+        /// <summary>
         /// The PvP match; null when the game is not PvP.
         /// </summary>
         public PvpStatus Pvp;
@@ -831,7 +838,8 @@ namespace RPGFramework.ActionRpg.Coop
                 status.ActiveQuests.Add(record);
             }
             status.CompletedQuests.AddRange(world.CompletedQuestsOf(playerId));
-            status.Log.AddRange(world.Log);
+            status.Log.AddRange(world.LogLines.Select(l => l.English));
+            status.LogTexts.AddRange(world.LogLines.Select(l => l.Text.IsEmpty ? "" : LocalizedTextCodec.ToWire(l.Text)));
             if (world.Match != null && world.Settings.Pvp != null)
             {
                 status.Pvp = new PvpStatus();
@@ -872,6 +880,7 @@ namespace RPGFramework.ActionRpg.Coop
             }
             WriteStrings(writer, CompletedQuests);
             WriteStrings(writer, Log);
+            WriteStrings(writer, LogTexts);
             writer.Write(Pvp != null);
             Pvp?.Write(writer);
             writer.Write(Paused);
@@ -906,6 +915,7 @@ namespace RPGFramework.ActionRpg.Coop
             }
             CompletedQuests = ReadStrings(reader);
             Log = ReadStrings(reader);
+            LogTexts = ReadStrings(reader);
             Pvp = null;
             if (reader.ReadBoolean())
             {

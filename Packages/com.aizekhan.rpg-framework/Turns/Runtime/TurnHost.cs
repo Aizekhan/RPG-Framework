@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using RPGFramework.Localization;
 using RPGFramework.Logging;
 using RPGFramework.Networking;
 
@@ -233,6 +234,15 @@ namespace RPGFramework.Turns
         /// <param name="seconds">0 or less: no limit.</param>
         /// <param name="title">What to ask the players, for their screens.</param>
         /// <returns>The window id.</returns>
+        public int OpenPrompt(string kind, IReadOnlyList<LocalizedText> options, IEnumerable<int> seats, float seconds,
+            Action<IReadOnlyDictionary<int, int>> closed, byte[] data = null, LocalizedText title = default) =>
+            OpenPrompt(kind, options?.Select(LocalizedTextCodec.ToWire).ToList(), seats, seconds, closed, data,
+                title.IsEmpty ? null : LocalizedTextCodec.ToWire(title));
+
+        /// <summary>
+        /// <see cref="OpenPrompt(string, IReadOnlyList{LocalizedText}, IEnumerable{int}, float, Action{IReadOnlyDictionary{int, int}}, byte[], LocalizedText)"/>
+        /// with plain options and title.
+        /// </summary>
         public int OpenPrompt(string kind, IReadOnlyList<string> options, IEnumerable<int> seats, float seconds,
             Action<IReadOnlyDictionary<int, int>> closed, byte[] data = null, string title = null)
         {
