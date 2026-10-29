@@ -271,7 +271,7 @@ namespace RPGFramework.TurnBased.Tests
             DefendUntil(battle, Mage);
             result = Expect(battle.Perform(BattleAction.Ability(Fire, Enemy(battle, 1).Id)));
             Assert.That(result.Targets.Single().Critical, Is.True);
-            Assert.That(result.Targets.Single().Damage, Is.EqualTo(39), "26 x 1.5");
+            Assert.That(result.Targets.Single().Damage, Is.EqualTo(20), "26 x 1.5, halved: it has defended by now");
             Assert.That(battle.Log.Any(line => line.Contains("(critical)")), Is.True);
         }
 
