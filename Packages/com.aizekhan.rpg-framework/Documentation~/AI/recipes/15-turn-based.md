@@ -1,8 +1,9 @@
 # Recipe: a turn-based party RPG
 
 `TurnBased` is the rules of a JRPG-style game: a party of heroes fights a run of encounters in turns. It is
-engine-free and fully tested. **There is no battle screen yet**: the game builds its own views (a menu of actions, a
-target picker, health and mana bars) on top of `ITurnBasedWorld` and `Battle`. Do not write your own turn order,
+engine-free and fully tested. `TurnBasedHost` runs it in a scene with a battle screen built from code
+(`BattleScreen`); a game with its own look builds its views on `ITurnBasedWorld`, `Battle` and `BattleMenu`. Do not
+write your own turn order, battle menu,
 damage maths, cooldowns, status effects, rewards or levels: they are here, built on the framework's Abilities,
 StatusEffects, Progression, Items, Inventory and Loot modules.
 
@@ -32,18 +33,26 @@ StatusEffects, Progression, Items, Inventory and Loot modules.
 ## Start it
 
 ```csharp
-public sealed class MyGameHost : GameHostBehaviour
+public sealed class MyGameHost : TurnBasedHost
 {
     [SerializeField] private MyGameConfig _config; // your ScriptableObject with the party, enemies, encounters
 
-    public TurnBasedModule Game { get; private set; }
-
-    protected override void ConfigureModules(IGameCompositionBuilder builder)
+    protected override void ConfigureGame(TurnBasedSettings settings, TurnBasedContent content)
     {
-        Game = TurnBasedComposition.Configure(builder, _config.Settings(), _config.Content());
+        _config.FillSettings(settings);
+        _config.FillContent(content);
     }
 }
 ```
+
+Put it on an object in the scene and press Play: the battle screen (enemies, party, log, the turn's menu, a command
+then its target, "Fight" for the next encounter, "New run" after a defeat) is built from code. In the inspector:
+`Enemy Turn Seconds` (enemies act one by one so the player sees them; 0: at once), `Saves` (save after every battle
+in `Application.persistentDataPath/<Save Folder>` and continue the run on start), `Battle Screen` (off: build your
+own on `host.World`, `host.StartBattle()`, `host.Act(action)`, `host.NewRun()`).
+
+Without the host (another host, a test), compose it yourself:
+`Game = TurnBasedComposition.Configure(builder, settings, content);`
 
 `TurnBasedSettings`: `Party`, `Enemies` (`CombatantData`: stats, growth per level, `AbilityIds`, rewards),
 `Encounters` (`EncounterData`: enemy ids, `CanFlee`, `EnemyLevel`), `StartingItems`, `StartingGold`, `FleeChance`,
@@ -56,6 +65,10 @@ assets so content stays in the inspector: `ItemAsset.ToItem()`, `LootTableAsset.
 status effect.
 
 ## Drive it from the screen
+
+`BattleMenu.For(battle, world.Inventory.GetAllItems())` gives the current hero's commands as the rules see them: each
+`BattleCommand` has a `Label`, `NeedsTarget` with its `Targets`, or a `Refusal` ("Not enough mana..."); aim it with
+`command.With(target)` and pass that to `battle.Perform`. By hand:
 
 ```csharp
 var world = host.Game.World;               // ITurnBasedWorld for views
