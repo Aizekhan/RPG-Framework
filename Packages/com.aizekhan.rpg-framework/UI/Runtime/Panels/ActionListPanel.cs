@@ -73,6 +73,8 @@ namespace RPGFramework.UI.Panels
         private Vector2 _anchor = new Vector2(0.5f, 0.5f);
         [SerializeField] private Vector2 _offset;
         [SerializeField] private Color _buttonColor = new Color(0.22f, 0.32f, 0.5f, 1f);
+        [SerializeField, Min(0f), Tooltip("The rows scroll when taller than this; 0: the box grows with its rows")]
+        private float _maxHeight;
 
         private sealed class Shown
         {
@@ -87,6 +89,8 @@ namespace RPGFramework.UI.Panels
         private readonly List<ActionRow> _bound = new List<ActionRow>();
         private RectTransform _panel;
         private RectTransform _list;
+        private RectTransform _viewport;
+        private GameObject _lastSelected;
         private Text _title;
         private GameObject _titleRow;
         private string _titleText = "";
@@ -171,6 +175,48 @@ namespace RPGFramework.UI.Panels
         }
 
         /// <summary>
+        /// The rows scroll (mouse wheel, drag, a selected button brought into view) when they are taller than this;
+        /// 0: the box grows with its rows.
+        /// </summary>
+        public float MaxHeight
+        {
+            get => _maxHeight;
+            set => Resize(ref _maxHeight, Math.Max(0f, value));
+        }
+
+        /// <summary>
+        /// Whether the rows are taller than <see cref="MaxHeight"/>.
+        /// </summary>
+        public bool Scrolls => _maxHeight > 0f && RowsHeight > _maxHeight;
+
+        /// <summary>
+        /// How far the rows are scrolled down, in pixels from the first row's top.
+        /// </summary>
+        public float ScrollOffset => _viewport != null ? _list.anchoredPosition.y : 0f;
+
+        /// <summary>
+        /// Scrolls just enough for a row to be in view (nothing when everything fits).
+        /// </summary>
+        public void ScrollTo(int row)
+        {
+            if (_viewport == null || row < 0 || row >= _rows.Count)
+                return;
+            float top = row * (RowHeight + RowSpacing);
+            float bottom = top + RowHeight;
+            float offset = _list.anchoredPosition.y;
+            if (top < offset)
+                offset = top;
+            else if (bottom > offset + _maxHeight)
+                offset = bottom - _maxHeight;
+            offset = Mathf.Clamp(offset, 0f, Mathf.Max(0f, RowsHeight - _maxHeight));
+            _list.anchoredPosition = new Vector2(_list.anchoredPosition.x, offset);
+        }
+
+        private float RowHeight => Mathf.Max(_iconSize, _fontSize * 2f);
+        private float RowSpacing => _fontSize * 0.3f;
+        private float RowsHeight => _rows.Count == 0 ? 0f : _rows.Count * RowHeight + (_rows.Count - 1) * RowSpacing;
+
+        /// <summary>
         /// Shows these rows, in this order. Replaces the rows shown before.
         /// </summary>
         public void Bind(IEnumerable<ActionRow> rows)
@@ -192,6 +238,11 @@ namespace RPGFramework.UI.Panels
             _rows.Clear();
             foreach (var row in _bound)
                 AddRow(row);
+            if (_viewport != null)
+            {
+                UIBuilder.Sized(_viewport, 0f, Mathf.Max(1f, Mathf.Min(RowsHeight, _maxHeight)));
+                _list.anchoredPosition = Vector2.zero;
+            }
             Refresh();
         }
 
@@ -243,6 +294,33 @@ namespace RPGFramework.UI.Panels
             _sinceRefresh += Time.unscaledDeltaTime;
             if (_sinceRefresh >= _refreshSeconds)
                 Refresh();
+            FollowSelection();
+        }
+
+        // A button chosen with the keys or a pad is brought into view
+        private void FollowSelection()
+        {
+            if (_viewport == null)
+                return;
+            var selected = UnityEngine.EventSystems.EventSystem.current != null
+                ? UnityEngine.EventSystems.EventSystem.current.currentSelectedGameObject
+                : null;
+            if (selected == _lastSelected)
+                return;
+            _lastSelected = selected;
+            if (selected == null)
+                return;
+            for (int i = 0; i < _rows.Count; i++)
+            {
+                foreach (var (_, button, _) in _rows[i].Buttons)
+                {
+                    if (button.gameObject == selected)
+                    {
+                        ScrollTo(i);
+                        return;
+                    }
+                }
+            }
         }
 
         private void AddRow(ActionRow row)
@@ -307,7 +385,31 @@ namespace RPGFramework.UI.Panels
             _title = UIBuilder.Label(_titleRow.transform, "Text", _titleText, Mathf.RoundToInt(_fontSize * 1.25f), TextAnchor.MiddleLeft);
             _titleRow.SetActive(_titleText.Length > 0);
 
-            _list = UIBuilder.List(_panel, "Rows", vertical: true, spacing: _fontSize * 0.3f);
+            if (_maxHeight <= 0f)
+            {
+                _viewport = null;
+                _list = UIBuilder.List(_panel, "Rows", vertical: true, spacing: RowSpacing);
+                return;
+            }
+
+            // The rows hang from the top of a window they scroll in
+            _viewport = UIBuilder.Box(_panel, "Viewport", new Vector2(0.5f, 1f), Vector2.zero, Vector2.zero, new Color(0f, 0f, 0f, 0f));
+            _viewport.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0f); // the wheel works between rows too
+            _viewport.gameObject.AddComponent<RectMask2D>();
+            _list = UIBuilder.List(_viewport, "Rows", vertical: true, spacing: RowSpacing);
+            _list.anchorMin = new Vector2(0f, 1f);
+            _list.anchorMax = new Vector2(1f, 1f);
+            _list.pivot = new Vector2(0.5f, 1f);
+            _list.anchoredPosition = Vector2.zero;
+            _list.sizeDelta = new Vector2(0f, _list.sizeDelta.y);
+            var scroll = _viewport.gameObject.AddComponent<ScrollRect>();
+            scroll.content = _list;
+            scroll.viewport = _viewport;
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.inertia = false;
+            scroll.scrollSensitivity = _fontSize * 2f;
         }
 
         // A size changed: an already built panel is built again with the same rows
@@ -319,6 +421,7 @@ namespace RPGFramework.UI.Panels
             UIBuilder.Discard(_panel.gameObject);
             _panel = null;
             _list = null;
+            _viewport = null;
             Bind(new List<ActionRow>(_bound));
         }
 

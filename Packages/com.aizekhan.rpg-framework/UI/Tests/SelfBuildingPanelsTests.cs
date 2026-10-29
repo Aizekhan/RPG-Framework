@@ -217,6 +217,44 @@ namespace RPGFramework.UI.Tests
         }
 
         [Test]
+        public void ActionList_WithAMaxHeight_ScrollsItsRows_AndBringsARowIntoView()
+        {
+            var panel = Panel<ActionListPanel>();
+            panel.FontSize = 20;
+            panel.IconSize = 0f;
+            panel.MaxHeight = 200f;
+            var rows = new ActionRow[10];
+            for (int i = 0; i < rows.Length; i++)
+            {
+                int n = i;
+                rows[i] = new ActionRow(() => "Row " + n, null, new ActionButton("Go", () => { }));
+            }
+            panel.Bind(rows);
+
+            // rows of 40 with 6 between: 10 rows are 454 tall
+            var viewport = panel.transform.Find("Panel/Viewport");
+            Assert.That(viewport, Is.Not.Null);
+            Assert.That(viewport.GetComponent<ScrollRect>().content, Is.SameAs(viewport.Find("Rows")));
+            Assert.That(viewport.GetComponent<LayoutElement>().preferredHeight, Is.EqualTo(200f));
+            Assert.That(panel.Scrolls, Is.True);
+            Assert.That(panel.ScrollOffset, Is.EqualTo(0f));
+
+            panel.ScrollTo(9);
+            Assert.That(panel.ScrollOffset, Is.EqualTo(254f).Within(0.01f), "the last row's bottom at the window's");
+            panel.ScrollTo(1);
+            Assert.That(panel.ScrollOffset, Is.EqualTo(46f).Within(0.01f), "the second row's top at the window's");
+
+            panel.Bind(new[] { rows[0], rows[1] });
+            Assert.That(panel.Scrolls, Is.False);
+            Assert.That(viewport.GetComponent<LayoutElement>().preferredHeight, Is.EqualTo(86f).Within(0.01f), "as tall as two rows");
+            Assert.That(panel.ScrollOffset, Is.EqualTo(0f));
+
+            panel.MaxHeight = 0f;
+            Assert.That(panel.transform.Find("Panel/Viewport"), Is.Null, "no window without a limit");
+            Assert.That(panel.RowCount, Is.EqualTo(2));
+        }
+
+        [Test]
         public void ASlotMadeInCode_HasACaptionACount_AndHoversByItself()
         {
             var canvas = new GameObject("Canvas", typeof(RectTransform), typeof(Canvas));
