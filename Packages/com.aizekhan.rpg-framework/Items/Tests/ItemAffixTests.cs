@@ -93,5 +93,28 @@ namespace RPGFramework.Items.Tests
             Assert.That(reforged.Select(a => a.AffixId), Is.EqualTo(affixes.Select(a => a.AffixId)));
             Assert.That(() => new AffixDefinition("bad id", AffixSlot.Prefix, "", "", 0f, 1f), Throws.ArgumentException);
         }
+
+        [Test]
+        public void RarityTable_RollsByWeight_AndLuckFavoursTheRareTiers()
+        {
+            var table = new RarityTable().Set(ItemRarity.Common, 3).Set(ItemRarity.Rare, 1);
+            Assert.That(table.ChanceOf(ItemRarity.Rare), Is.EqualTo(0.25).Within(1e-9));
+            Assert.That(table.ChanceOf(ItemRarity.Rare, luck: 1f), Is.EqualTo(0.5).Within(1e-9), "Rare (tier 2) weighs 3 with luck 1");
+            Assert.That(table.ChanceOf(ItemRarity.Epic), Is.EqualTo(0.0));
+
+            var random = new Random(11);
+            int rare = 0;
+            for (int i = 0; i < 4000; i++)
+            {
+                var rarity = table.Roll(random);
+                Assert.That(rarity, Is.EqualTo(ItemRarity.Common).Or.EqualTo(ItemRarity.Rare));
+                if (rarity == ItemRarity.Rare)
+                    rare++;
+            }
+            Assert.That(rare / 4000.0, Is.EqualTo(0.25).Within(0.03));
+
+            Assert.That(new RarityTable().Roll(new Random(1)), Is.EqualTo(ItemRarity.Common), "an empty table");
+            Assert.That(RarityTable.Default().WeightOf(ItemRarity.Mythic), Is.EqualTo(1));
+        }
     }
 }
