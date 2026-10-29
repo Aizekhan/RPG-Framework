@@ -80,6 +80,8 @@ namespace RPGFramework.ActionRpg
         public float Defense => _stats.GetFinalStat(ActorStat.Defense);
         public float CriticalChance => _stats.GetFinalStat(ActorStat.CriticalChance);
         public float CriticalDamage => _stats.GetFinalStat(ActorStat.CriticalDamage);
+        public float Evasion => _stats.GetFinalStat(ActorStat.Evasion);
+        public float LifeSteal => _stats.GetFinalStat(ActorStat.LifeSteal);
         public float HealthFraction => MaxHealth > 0f ? Math.Max(0f, Math.Min(1f, Health / MaxHealth)) : 0f;
 
         /// <summary>

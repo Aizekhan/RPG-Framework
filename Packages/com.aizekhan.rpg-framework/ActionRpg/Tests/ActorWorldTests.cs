@@ -93,6 +93,31 @@ namespace RPGFramework.ActionRpg.Tests
             Assert.That(hits.Last().Amount, Is.GreaterThan(normal));
         }
 
+        [Test]
+        public void Evasion_MakesStrikesMiss_AndLifeStealHealsTheAttacker()
+        {
+            _settings.Enemies[0].MaxHealth = 1000f;
+            _settings.Enemies[0].LifeSteal = 0.5f;
+            StartGame();
+            var evaded = new List<ActorEvadedEvent>();
+            _host.Container.Resolve<IEventBus>().Subscribe<ActorEvadedEvent>(evaded.Add);
+            int goblin = World.SpawnEnemy(Goblin);
+            World.Get(goblin).ApplyDamage(100f);
+
+            float dealt = World.Attack(goblin, World.PlayerId);
+            Assert.That(dealt, Is.GreaterThan(0f));
+            Assert.That(World.Get(goblin).Health, Is.EqualTo(900f + dealt * 0.5f).Within(1e-3f), "half of it back");
+
+            World.Player.SetBaseStat(ActorStat.Evasion, 1f);
+            float health = World.Player.Health;
+            Assert.That(World.Attack(goblin, World.PlayerId), Is.EqualTo(0f));
+            Assert.That(World.Player.Health, Is.EqualTo(health));
+            Assert.That(evaded.Single().EntityId, Is.EqualTo(World.PlayerId));
+            Assert.That(evaded.Single().AttackerId, Is.EqualTo(goblin));
+            Assert.That(World.DealDamage(goblin, World.PlayerId, 5f), Is.GreaterThan(0f),
+                "other damage is not evaded");
+        }
+
         [TearDown]
         public void TearDown()
         {

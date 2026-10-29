@@ -41,6 +41,23 @@ namespace RPGFramework.ActionRpg
     }
 
     /// <summary>
+    /// A strike missed because the target evaded it (<see cref="ActorStat.Evasion"/>): a "Miss" over its head.
+    /// </summary>
+    public readonly struct ActorEvadedEvent : IEvent
+    {
+        public ActorEvadedEvent(int entityId, int attackerId, RPGFramework.Combat.AttackContext context)
+        {
+            EntityId = entityId;
+            AttackerId = attackerId;
+            Context = context;
+        }
+
+        public int EntityId { get; }
+        public int AttackerId { get; }
+        public RPGFramework.Combat.AttackContext Context { get; }
+    }
+
+    /// <summary>
     /// A character left the world (a slain enemy, or everyone at shutdown); the presentation removes it.
     /// </summary>
     public readonly struct ActorDespawnedEvent : IEvent

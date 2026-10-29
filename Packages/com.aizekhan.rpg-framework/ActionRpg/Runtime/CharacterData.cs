@@ -62,6 +62,16 @@ namespace RPGFramework.ActionRpg
         public float CriticalDamage = 1.5f;
 
         /// <summary>
+        /// Chance (0..1) a strike on it misses (<see cref="ActorStat.Evasion"/>); effects and other damage still land.
+        /// </summary>
+        public float Evasion;
+
+        /// <summary>
+        /// Share of its strikes' damage it heals back (<see cref="ActorStat.LifeSteal"/>: 0.1 = a tenth).
+        /// </summary>
+        public float LifeSteal;
+
+        /// <summary>
         /// What it resists, is weak to or is immune to ("fire" 0.5, "ice" -0.5); which hits carry an element is
         /// <see cref="ActionRpgSettings.ElementTags"/>.
         /// </summary>
@@ -77,6 +87,8 @@ namespace RPGFramework.ActionRpg
                 case ActorStat.Defense: return Defense + DefensePerLevel * above;
                 case ActorStat.CriticalChance: return CriticalChance;
                 case ActorStat.CriticalDamage: return CriticalDamage;
+                case ActorStat.Evasion: return Evasion;
+                case ActorStat.LifeSteal: return LifeSteal;
                 default: throw new ArgumentOutOfRangeException(nameof(stat), stat, null);
             }
         }
@@ -96,6 +108,16 @@ namespace RPGFramework.ActionRpg
         /// <summary>
         /// A critical strike's damage multiplier (1.5 = +50%).
         /// </summary>
-        CriticalDamage
+        CriticalDamage,
+
+        /// <summary>
+        /// Chance (0..1) a strike on the character misses.
+        /// </summary>
+        Evasion,
+
+        /// <summary>
+        /// Share of the character's strike damage healed back.
+        /// </summary>
+        LifeSteal
     }
 }
