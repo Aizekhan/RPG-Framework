@@ -73,6 +73,17 @@ unity test "<path>" --mode EditMode --output "<xml>" --verbose --timeout <second
 4. Read `FRAMEWORK-GAPS.md` of every game that uses the framework (READ ONLY, never edit those repos), so gaps and bugs are seen even when a cross-session message was missed:
    - `D:\HuntersRunner\FRAMEWORK-GAPS.md` (MythRunner)
    - `D:\The Bloodline Hunt\FRAMEWORK-GAPS.md` (The Bloodline Hunt)
+   - `D:\RPG-Games\Kurhan\FRAMEWORK-GAPS.md` (Kurhan, demo on v0.18.0)
+   - `D:\RPG-Games\EchoTower\FRAMEWORK-GAPS.md` (Echo Tower, demo on v0.18.0)
+   - `D:\RPG-Games\SaltRoad\FRAMEWORK-GAPS.md` (The Salt Road, demo on v0.18.0)
+   - `D:\RPG-Games\AshenDeck\FRAMEWORK-GAPS.md` (Ashen Deck, demo on v0.18.0)
+   - `D:\RPG-Games\CrossroadsInn\FRAMEWORK-GAPS.md` (Crossroads Inn, demo on v0.18.0)
+   - `D:\RPG-Games\Potioneer\FRAMEWORK-GAPS.md` (Potioneer, demo on v0.18.0)
+   - `D:\RPG-Games\Homestead\FRAMEWORK-GAPS.md` (Homestead, demo on v0.18.0)
+   - `D:\RPG-Games\BoneRoad\FRAMEWORK-GAPS.md` (Bone Road, demo on v0.18.0)
+   - `D:\RPG-Games\Stepdeep\FRAMEWORK-GAPS.md` (Stepdeep, demo on v0.18.0)
+   - `D:\RPG-Games\GreycloakGuild\FRAMEWORK-GAPS.md` (Greycloak Guild, demo on v0.18.0)
+   - `D:\RPG-Games\README.md` — gaps confirmed by several of these demos (strongest framework candidates)
 
    When a new game or project starts using the framework, add its `FRAMEWORK-GAPS.md` to this list.
 
