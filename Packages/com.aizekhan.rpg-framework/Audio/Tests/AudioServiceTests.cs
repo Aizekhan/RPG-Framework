@@ -242,6 +242,37 @@ namespace RPGFramework.Audio.Tests
             }
         }
 
+        [Test]
+        public void SceneAudio_WithoutAHost_PlaysItsMusicAtTheKeptVolumes()
+        {
+            var cue = AudioCue.Create("ui.click", new[] { Clip("click") }, spatial: false);
+            var library = AudioLibrary.Create(new[] { cue }, new[] { new MusicTrack { Id = "title", Clip = Clip("title") } });
+            _cleanup.Add(cue);
+            _cleanup.Add(library);
+            var menu = new GameObject("Menu");
+            _cleanup.Add(menu);
+            var store = new MemoryVolumeStore();
+            store.Save(AudioChannels.Music, 0.3f);
+            var scene = menu.AddComponent<SceneAudio>();
+            Assert.That(scene.Audio, Is.Null, "no library, no sound");
+
+            scene.Volumes = store;
+            scene.Music = "title";
+            scene.MusicFade = 0f;
+            scene.Library = library;
+
+            Assert.That(scene.Audio.Music, Is.EqualTo("title"));
+            Assert.That(scene.Audio.Has("ui.click"), Is.True);
+            Assert.That(scene.Audio.GetVolume(AudioChannels.Music), Is.EqualTo(0.3f));
+            var title = menu.GetComponentsInChildren<AudioSource>(true).Single(s => s.clip != null && s.clip.name == "title");
+            Assert.That(title.loop, Is.True);
+
+            scene.Library = library;
+            Assert.That(scene.Audio, Is.Not.Null);
+            Assert.That(menu.GetComponentsInChildren<AudioSource>(true).Count(s => s.name.StartsWith("Music")), Is.EqualTo(2),
+                "built again, the old sources are gone");
+        }
+
         private AudioClip Clip(string name)
         {
             var clip = AudioClip.Create(name, 4410, 1, 44100, false);

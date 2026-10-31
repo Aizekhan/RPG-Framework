@@ -233,7 +233,7 @@ GameHost.Start(configure)                               // Bootstrap.Runtime, б
 - Unity: ассети `AudioCue`, `AudioLibrary`; `AudioModule` (сервіс на шині хоста, гучності в PlayerPrefs
   `RPGFramework.Audio.<channel>`, реальний час навіть на паузі). `ActionRpgHost` має поле Audio і грає кюї `kit.*`.
 - Кооп: звук мережею не ходить, кожна машина грає зі своїх подій.
-- [частково]: сцена без хоста (головне меню) збирає `AudioService` вручну.
+- Сцена без хоста гри (головне меню): компонент `SceneAudio` (бібліотека, музика на старті, збережені гучності, реальний час, зникає зі сценою; `SceneAudio.Audio`) — [є] з v0.22.
 
 ### 4.2 Localization (з v0.17)
 
@@ -328,7 +328,7 @@ GameHost.Start(configure)                               // Bootstrap.Runtime, б
 | Фізика 2D (Rigidbody2D, Tilemap) у жанровому кіті | [немає]; ActionRpg — 3D. 2D-вигляд = 3D-сцена з ортографічною камерою зверху |
 | Екран бою для TurnBased | [є] з v0.19: `BattleScreen`, `BattleMenu`, `TurnBasedHost`; свій view — на `ITurnBasedWorld` |
 | Тексти кількома мовами | [є] з v0.17 (розд. 4.2) |
-| Звук у сцені без хоста гри (меню) | [частково]: збирається вручну з `AudioService` + `UnityAudioOutput` |
+| Звук у сцені без хоста гри (меню) | [є] з v0.22: `SceneAudio` |
 | Налаштування URP / HDRP у New Game | [немає] (розд. 1) |
 
 ### 5.3 Прямі залежності між модулями (з `.asmdef`)
@@ -541,7 +541,6 @@ New Game також виставляє Player Settings (Run In Background, Linea
 6. `UI.Runtime` залежить від шести L2-модулів (Items, Inventory, Quests, Loot, Stats, Characters) — панелі під RPG.
 7. Unity Relay не перевірений між реальними мережами.
 8. Частина тексту TurnBased (журнал бою, підписи `BattleMenu`) ще англійська; відмови вже ключі (v0.20).
-9. Сцена без хоста гри збирає звук вручну (розд. 4.1).
 
 ---
 

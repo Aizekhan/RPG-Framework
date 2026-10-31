@@ -98,17 +98,21 @@ namespace RPGFramework.Audio.Unity
                 output = _unityOutput;
             }
             _service = new AudioService(output, bus, _store ?? new PlayerPrefsVolumeStore());
-            if (_library != null)
-            {
-                foreach (var cue in _library.Cues)
-                {
-                    if (cue != null)
-                        _service.Register(cue.ToData());
-                }
-            }
+            RegisterCues(_service, _library);
             if (_unityOutput != null)
                 _unityOutput.Root.gameObject.AddComponent<AudioDriver>().Tick = _service.Update;
             return _service;
+        }
+
+        internal static void RegisterCues(AudioService service, AudioLibrary library)
+        {
+            if (library == null)
+                return;
+            foreach (var cue in library.Cues)
+            {
+                if (cue != null)
+                    service.Register(cue.ToData());
+            }
         }
     }
 }

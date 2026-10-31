@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- Audio: `SceneAudio`, sound for a scene without a game host such as a main menu. It is a component with an Audio Library and a Music track to start. It plays at the player's kept volumes (the same PlayerPrefs keys as `AudioModule`, or `Volumes`), ticks in real time, and goes with the scene. `SceneAudio.Audio` is the `IAudioService` for clicks. Asked by MythRunner, whose menu wired `AudioService` by hand.
+
 ## [0.21.0] - 2026-10-31
 
 ### Added
