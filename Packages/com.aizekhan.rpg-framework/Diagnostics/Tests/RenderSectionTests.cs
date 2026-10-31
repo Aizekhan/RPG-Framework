@@ -79,7 +79,7 @@ namespace RPGFramework.Diagnostics.Tests
             Assert.That(cubes.MeshTriangles, Is.EqualTo(12));
             for (int i = 1; i < _section.Heaviest.Count; i++)
                 Assert.That(_section.Heaviest[i - 1].Triangles, Is.GreaterThanOrEqualTo(_section.Heaviest[i].Triangles));
-            Assert.That(_section.Heaviest.IndexOf(cubes), Is.GreaterThan(0), "the sphere has more triangles than two cubes");
+            Assert.That(_section.Heaviest.ToList().IndexOf(cubes), Is.GreaterThan(0), "the sphere has more triangles than two cubes");
         }
 
         [Test]
