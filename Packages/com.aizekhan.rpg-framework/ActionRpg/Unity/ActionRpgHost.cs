@@ -179,7 +179,9 @@ namespace RPGFramework.ActionRpg
 
         /// <summary>
         /// The diagnostics panel's "Render" block (null until diagnostics start): <c>Measure()</c> for budget tests,
-        /// <c>Budget</c>, <c>ModelOf</c> to group meshes by model.
+        /// <c>Budget</c>, <c>ModelOf</c> to group meshes by model. It counts the follow camera's view, and that camera
+        /// eases towards the player: a test that teleports the player waits until the camera is near before it measures,
+        /// or it counts the old view.
         /// </summary>
         public RenderSection Render => _render;
 
