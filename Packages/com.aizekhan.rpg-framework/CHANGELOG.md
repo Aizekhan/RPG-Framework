@@ -2,8 +2,13 @@
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-10-31
+
 ### Added
 - Audio: `SceneAudio`, sound for a scene without a game host such as a main menu. It is a component with an Audio Library and a Music track to start. It plays at the player's kept volumes (the same PlayerPrefs keys as `AudioModule`, or `Volumes`), ticks in real time, and goes with the scene. `SceneAudio.Audio` is the `IAudioService` for clicks. Asked by MythRunner, whose menu wired `AudioService` by hand.
+
+### Changed
+- Docs: `ActionRpgHost.Render` and recipe 14 say a render budget test waits for the follow camera to arrive after a teleport (it eases), or it counts the old view (MythRunner).
 
 ## [0.21.0] - 2026-10-31
 
