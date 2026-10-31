@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using RPGFramework.Events;
@@ -18,7 +19,7 @@ namespace RPGFramework.Abilities.Tests
         {
             _log.Clear();
             _bus = new EventBus();
-            _bus.Subscribe<AbilityChannelTickEvent>(e => _log.Add($"tick {e.Tick} at {e.Timestamp}"));
+            _bus.Subscribe<AbilityChannelTickEvent>(e => _log.Add(FormattableString.Invariant($"tick {e.Tick} at {e.Timestamp}")));
             _bus.Subscribe<AbilityChannelEndedEvent>(e => _log.Add($"ended {e.Completed} {e.Reason} after {e.Ticks}"));
         }
 
