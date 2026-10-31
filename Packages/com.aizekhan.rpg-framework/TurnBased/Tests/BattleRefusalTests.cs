@@ -18,12 +18,21 @@ namespace RPGFramework.TurnBased.Tests
         [SetUp]
         public void SetUp() => _game = new TurnBasedTestGame();
 
+        [TearDown]
+        public void TearDown() => _game.Dispose();
+
+        private Battle StartBattle()
+        {
+            _game.Start();
+            return _game.World.StartBattle();
+        }
+
         [Test]
         public void Refused_HasACode_AndATextWithTheNumbers()
         {
             _game.EnemiesDefend();
             _game.MageData.MaxMana = 5;
-            var battle = _game.World.StartBattle();
+            var battle = StartBattle();
 
             var result = battle.Perform(BattleAction.Ability(Fire, battle.Enemies[0].Id));
 
@@ -40,7 +49,7 @@ namespace RPGFramework.TurnBased.Tests
         {
             _game.EnemiesDefend();
             _game.MageData.MaxMana = 5;
-            var battle = _game.World.StartBattle();
+            var battle = StartBattle();
             var ukrainian = new StringTable("uk", "Українська");
             ukrainian.Set("battle.refusal.notEnoughMana", "Бракує мани: {ability} коштує {cost}, у {actor} лише {has}.");
             var localization = new LocalizationService(new[] { BattleTexts.Table(), ukrainian }, "uk");
@@ -54,7 +63,7 @@ namespace RPGFramework.TurnBased.Tests
         public void ADoneAction_HasNoRefusal()
         {
             _game.EnemiesDefend();
-            var battle = _game.World.StartBattle();
+            var battle = StartBattle();
 
             var result = battle.Perform(BattleAction.Defend());
 
@@ -69,7 +78,7 @@ namespace RPGFramework.TurnBased.Tests
         {
             _game.EnemiesDefend();
             _game.MageData.MaxMana = 5;
-            var battle = _game.World.StartBattle();
+            var battle = StartBattle();
 
             var fire = BattleMenu.For(battle).Single(c => c.Kind == BattleActionKind.Ability && c.Action.AbilityId == Fire);
 

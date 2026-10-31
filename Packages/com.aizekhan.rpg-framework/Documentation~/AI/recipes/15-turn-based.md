@@ -12,7 +12,9 @@ StatusEffects, Progression, Items, Inventory and Loot modules.
 - **Turns:** order by Speed each round (ties: party first, then slot order). A fallen combatant leaves the order.
 - **Actions** (`BattleAction`): `Attack(target)`, `Ability(id, target)`, `Defend()`, `Item(id, target)`, `Flee()`.
   `battle.Perform(action)` acts for the current combatant; a refused action changes nothing and says why
-  (`ActionResult.Refusal`, or ask first with `battle.WhyNot(action)` / `CanPerform`).
+  (`ActionResult.Refusal`, or ask first with `battle.WhyNot(action)` / `CanPerform`). For a game in another
+  language, `ActionResult.Reason` is the code and `RefusalText` a `battle.refusal.*` text to translate
+  (`BattleTexts.Table()` is the English; `battle.RefusalOf(action)` asks first) - never match the English words.
 - **Abilities:** an `IAbility` (Abilities module) gives the mana cost and the cooldown in rounds; an
   `AbilityEffectData` with the same id says what it does (damage, heal, support; single or all enemies or allies;
   status effects with a chance; revive). Instant abilities only.
@@ -81,6 +83,7 @@ var target = battle.LivingOpponents(hero)[0];
 var result = battle.Perform(BattleAction.Attack(target.Id));
 if (!result.Done)
     ShowMessage(result.Refusal);           // e.g. "Not enough mana: Fire costs 6 MP and Mage has 2."
+    // in the player's language: localization.Text(result.RefusalText)
 ```
 
 Show `battle.TurnOrder`, each `Combatant`'s `Health`/`MaxHealth`/`Mana`, `battle.CooldownLeft(id, abilityId)` and

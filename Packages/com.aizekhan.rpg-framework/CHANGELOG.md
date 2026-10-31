@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Added
+- Trading: `TradeError` says why a trade failed as a code (`InsufficientGold`, `MissingItems`, `OfferNotAvailable`, `ReputationTooLow`, ...), on `TradeResultData.Error` and `TradeDeclinedEvent.Error`, so a game tells the player in its own language without matching the English `ErrorMessage` (which stays). `TradeResultData.CreateFailure(error, message)`, `TradingManager.MessageOf(error)`. The action RPG kit's `ActorWorld.Trade` sets it too (`NotInParty`, `NoTraders`, `ReputationTooLow` for a faction trader).
+- TurnBased: refusals as codes and texts to translate. `BattleRefusal` (`Reason`, `Text`, `Message`), `BattleRefusalReason`, `Battle.RefusalOf(action)`, `ActionResult.Reason` / `RefusalText` / `Why`, `BattleCommand.Why`. `BattleTexts` holds the `battle.refusal.*` keys in English with the names and numbers as arguments (`{ability}`, `{cost}`, `{has}`; `notReady` has plural forms) and `Table()` for a game's tables. `Refusal` and `WhyNot` still give the same English sentences.
+- Turns: `TurnHost.RefusedNoMove`, `RefusedNotStarted`, `RefusedBusy`, `RefusedNotYourMove` name the host's own refusals; a plain reason is its own key in `TurnOutcome.ReasonText`, so a game translates them by these keys.
+- StatusEffects: `IStatusEffectManager.ProcessTicks(entityId, currentTime, onTick)` (it was on `StatusEffectManager` only, so turn-based games cast). Time is whatever the caller counts: a turn or tick counter works.
+
+### Changed
+- `IStatusEffectManager` has a new member, `ProcessTicks`: a game's own implementation of the interface must add it.
+- The TurnBased runtime assembly references `RPGFramework.Localization.Runtime`.
+
 ## [0.19.0] - 2026-10-29
 
 ### Added
