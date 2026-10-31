@@ -240,7 +240,7 @@ namespace RPGFramework.ActionRpg
                 _ticking = true;
                 try
                 {
-                    _full?.ProcessTicks(id, Time, _onTick);
+                    _manager.ProcessTicks(id, Time, _onTick);
                     _manager.UpdateEffects(id, deltaTime);
                 }
                 finally

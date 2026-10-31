@@ -68,6 +68,17 @@ namespace RPGFramework.StatusEffects
         void UpdateEffects(int entityId, float deltaTime);
 
         /// <summary>
+        /// Process DoT/HoT ticks for an entity at <paramref name="currentTime"/>: Damage and Healing are reported
+        /// (the callback gets entity, effect id, damage, healing, and an EffectTick event is published) for the game
+        /// to apply. Time is whatever the caller counts in: seconds, or a turn or tick counter in a turn-based game
+        /// (call <see cref="UpdateEffects"/> with 1 for each turn as well, so durations run out).
+        /// </summary>
+        /// <param name="entityId">Target entity</param>
+        /// <param name="currentTime">The time now, in the same units as the effects' tick intervals</param>
+        /// <param name="onTick">Called with (entityId, effectId, damage, healing) for each effect that ticked</param>
+        void ProcessTicks(int entityId, float currentTime, System.Action<int, string, float, float> onTick = null);
+
+        /// <summary>
         /// Get all active effects on an entity.
         /// </summary>
         /// <param name="entityId">Target entity</param>

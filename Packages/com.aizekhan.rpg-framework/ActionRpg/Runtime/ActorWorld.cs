@@ -1204,12 +1204,12 @@ namespace RPGFramework.ActionRpg
         {
             int owner = ProgressOwnerOf(playerId);
             if (owner < 0)
-                return TradeResultData.CreateFailure("Not in the party");
+                return TradeResultData.CreateFailure(TradeError.NotInParty, TradingManager.MessageOf(TradeError.NotInParty));
             if (Trading == null)
-                return TradeResultData.CreateFailure("The game has no traders");
+                return TradeResultData.CreateFailure(TradeError.NoTraders, TradingManager.MessageOf(TradeError.NoTraders));
             string refused = Reputation.WhyNotTrade(playerId, TraderOf(offerId));
             if (refused != null)
-                return TradeResultData.CreateFailure(refused);
+                return TradeResultData.CreateFailure(TradeError.ReputationTooLow, refused);
             TradingPlayer = playerId;
             try
             {

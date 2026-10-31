@@ -128,6 +128,7 @@ namespace RPGFramework.ActionRpg.Tests
             var refused = World.Trade(hero, "buy_sword");
             Assert.That(refused.Success, Is.False);
             Assert.That(refused.ErrorMessage, Is.EqualTo("They will not trade with you"));
+            Assert.That(refused.Error, Is.EqualTo(RPGFramework.Trading.TradeError.ReputationTooLow));
             Assert.That(World.CurrencyOf(hero), Is.EqualTo(410));
         }
 

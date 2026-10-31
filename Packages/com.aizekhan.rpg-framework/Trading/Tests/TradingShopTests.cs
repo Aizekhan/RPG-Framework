@@ -141,6 +141,7 @@ namespace RPGFramework.Trading.Tests
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.ErrorMessage, Is.EqualTo("Missing items"));
+            Assert.That(result.Error, Is.EqualTo(TradeError.MissingItems));
             Assert.That(_wallet.Balance(Hero), Is.EqualTo(200));
             Assert.That(_inventory.Count(Hero, "iron"), Is.EqualTo(1));
             Assert.That(_inventory.Count(Hero, "sword"), Is.EqualTo(0));
@@ -157,6 +158,7 @@ namespace RPGFramework.Trading.Tests
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.ErrorMessage, Is.EqualTo("Insufficient gold"));
+            Assert.That(result.Error, Is.EqualTo(TradeError.InsufficientGold));
             Assert.That(_wallet.Balance(Hero), Is.EqualTo(100));
             Assert.That(_inventory.Count(Hero, "iron"), Is.EqualTo(2));
             Assert.That(_inventory.Count(Hero, "sword"), Is.EqualTo(0));
@@ -175,6 +177,7 @@ namespace RPGFramework.Trading.Tests
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.ErrorMessage, Is.EqualTo("Could not give items"));
+            Assert.That(result.Error, Is.EqualTo(TradeError.CouldNotGiveItems));
             Assert.That(_inventory.Count(Hero, "iron"), Is.EqualTo(2), "the iron taken is given back");
             Assert.That(_inventory.Count(Hero, "sword"), Is.EqualTo(0));
             Assert.That(_wallet.Balance(Hero), Is.EqualTo(200));
@@ -227,6 +230,7 @@ namespace RPGFramework.Trading.Tests
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.ErrorMessage, Is.EqualTo("Offer not found"));
+            Assert.That(result.Error, Is.EqualTo(TradeError.OfferNotFound));
         }
 
         [Test]
@@ -240,10 +244,13 @@ namespace RPGFramework.Trading.Tests
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.ErrorMessage, Is.EqualTo("Insufficient gold"));
+            Assert.That(result.Error, Is.EqualTo(TradeError.InsufficientGold));
             Assert.That(declined.Count, Is.EqualTo(1));
             Assert.That(declined[0].Reason, Is.EqualTo("Insufficient gold"));
+            Assert.That(declined[0].Error, Is.EqualTo(TradeError.InsufficientGold));
             _wallet.Add(Hero, 1000);
             Assert.That(_manager.AcceptTrade(Hero, "buy_sword").ErrorMessage, Is.EqualTo("Trade not proposed"));
+            Assert.That(_manager.AcceptTrade(Hero, "buy_sword").Error, Is.EqualTo(TradeError.NotProposed));
         }
 
         [Test]
@@ -263,6 +270,7 @@ namespace RPGFramework.Trading.Tests
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.ErrorMessage, Is.EqualTo("Offer not available"));
+            Assert.That(result.Error, Is.EqualTo(TradeError.OfferNotAvailable));
             Assert.That(_wallet.Balance(Hero), Is.EqualTo(200));
         }
 

@@ -25,7 +25,8 @@ namespace RPGFramework.Trading
         /// </summary>
         /// <param name="playerEntityId">Entity accepting the trade</param>
         /// <param name="offerId">ID of the offer to accept</param>
-        /// <returns>Result of the trade execution; on failure, ErrorMessage says why ("Missing items",
+        /// <returns>Result of the trade execution; on failure, Error says why as a code (MissingItems,
+        /// InsufficientGold, ...) and ErrorMessage in English ("Missing items",
         /// "Insufficient gold", ...)</returns>
         TradeResultData AcceptTrade(int playerEntityId, string offerId);
 
@@ -35,7 +36,7 @@ namespace RPGFramework.Trading
         /// </summary>
         /// <param name="playerEntityId">Entity trading</param>
         /// <param name="offerId">ID of the offer</param>
-        /// <returns>Result of the trade; on failure, ErrorMessage says why (including "Offer not found",
+        /// <returns>Result of the trade; on failure, Error says why as a code and ErrorMessage in English (including "Offer not found",
         /// "Offer not available" or "Reputation too low" when it could not be proposed)</returns>
         TradeResultData Trade(int playerEntityId, string offerId);
 

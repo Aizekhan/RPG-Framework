@@ -46,41 +46,41 @@ namespace RPGFramework.Trading
 
         public bool ProposeTradeOffer(int playerEntityId, string offerId)
         {
-            return TryPropose(playerEntityId, offerId) == null;
+            return TryPropose(playerEntityId, offerId) == TradeError.None;
         }
 
         public TradeResultData AcceptTrade(int playerEntityId, string offerId)
         {
             // Get proposed trade
             if (!_proposedTrades.TryGetValue((playerEntityId, offerId), out var proposed))
-                return TradeResultData.CreateFailure("Trade not proposed");
+                return Fail(TradeError.NotProposed);
 
             var offer = proposed.offer;
             var playerData = GetOrCreatePlayerData(playerEntityId);
             var trader = _traderRegistry.GetTrader(offer.TraderId);
 
             if (trader == null)
-                return TradeResultData.CreateFailure("Trader not found");
+                return Fail(TradeError.TraderNotFound);
 
             // Another player may have used up the offer since it was proposed
             if (!offer.CanBeUsedAgain())
-                return TradeResultData.CreateFailure("Offer not available");
+                return Fail(TradeError.OfferNotAvailable);
 
             // Check items
             if (_inventory != null && offer.RequestedItems.Any(i => !_inventory.HasItem(playerEntityId, i.ItemId, i.Quantity)))
-                return TradeResultData.CreateFailure("Missing items");
+                return Fail(TradeError.MissingItems);
 
             // Check gold (the price for this player, asked again: their stats may have changed since the proposal)
             long gold = GoldFor(playerEntityId, trader, offer);
             long totalGoldCost = gold < 0 ? -gold : 0;
             long availableGold = _wallet != null ? _wallet.Balance(playerEntityId) : playerData.AvailableGold;
             if (availableGold < totalGoldCost)
-                return TradeResultData.CreateFailure("Insufficient gold");
+                return Fail(TradeError.InsufficientGold);
 
             // Move items and gold, all or nothing
-            string failure = Exchange(playerEntityId, offer, gold, ref playerData);
-            if (failure != null)
-                return TradeResultData.CreateFailure(failure);
+            var failure = Exchange(playerEntityId, offer, gold, ref playerData);
+            if (failure != TradeError.None)
+                return Fail(failure);
 
             // Create result
             var result = TradeResultData.CreateSuccess(offerId, gold, 0f); // Timestamp handled by game layer
@@ -124,13 +124,13 @@ namespace RPGFramework.Trading
 
         public TradeResultData Trade(int playerEntityId, string offerId)
         {
-            string failure = TryPropose(playerEntityId, offerId);
-            if (failure != null)
-                return TradeResultData.CreateFailure(failure);
+            var failure = TryPropose(playerEntityId, offerId);
+            if (failure != TradeError.None)
+                return Fail(failure);
 
             var result = AcceptTrade(playerEntityId, offerId);
             if (!result.Success)
-                Decline(playerEntityId, offerId, result.ErrorMessage);
+                Decline(playerEntityId, offerId, result.ErrorMessage, result.Error);
             return result;
         }
 
@@ -197,9 +197,9 @@ namespace RPGFramework.Trading
         }
 
         /// <summary>
-        /// Checks the offer and stores the proposal; returns null on success, else why it failed.
+        /// Checks the offer and stores the proposal; returns TradeError.None on success, else why it failed.
         /// </summary>
-        private string TryPropose(int playerEntityId, string offerId)
+        private TradeError TryPropose(int playerEntityId, string offerId)
         {
             // Find the offer
             ITradeOffer offer = null;
@@ -217,17 +217,17 @@ namespace RPGFramework.Trading
             }
 
             if (offer == null || trader == null)
-                return "Offer not found";
+                return TradeError.OfferNotFound;
 
             // Check if can use again
             if (!offer.CanBeUsedAgain())
-                return "Offer not available";
+                return TradeError.OfferNotAvailable;
 
             // Check conditions (simplified - game layer handles specifics)
             var playerData = GetOrCreatePlayerData(playerEntityId);
             int playerRep = playerData.GetReputation(trader.TraderId);
             if (!trader.MeetsReputationRequirement(playerRep))
-                return "Reputation too low";
+                return TradeError.ReputationTooLow;
 
             // Store proposed trade
             _proposedTrades[(playerEntityId, offerId)] = (offer, 0f); // Timestamp handled by game layer
@@ -242,10 +242,34 @@ namespace RPGFramework.Trading
                 GoldAmount = GoldFor(playerEntityId, trader, offer),
                 Timestamp = 0f
             });
-            return null;
+            return TradeError.None;
         }
 
-        private void Decline(int playerEntityId, string offerId, string reason)
+        private static TradeResultData Fail(TradeError error) => TradeResultData.CreateFailure(error, MessageOf(error));
+
+        /// <summary>
+        /// The English sentence for a trade error (what <see cref="TradeResultData.ErrorMessage"/> says).
+        /// </summary>
+        public static string MessageOf(TradeError error)
+        {
+            switch (error)
+            {
+                case TradeError.None: return "";
+                case TradeError.NotProposed: return "Trade not proposed";
+                case TradeError.OfferNotFound: return "Offer not found";
+                case TradeError.TraderNotFound: return "Trader not found";
+                case TradeError.OfferNotAvailable: return "Offer not available";
+                case TradeError.ReputationTooLow: return "Reputation too low";
+                case TradeError.MissingItems: return "Missing items";
+                case TradeError.CouldNotGiveItems: return "Could not give items";
+                case TradeError.InsufficientGold: return "Insufficient gold";
+                case TradeError.NotInParty: return "Not in the party";
+                case TradeError.NoTraders: return "The game has no traders";
+                default: return "Trade failed";
+            }
+        }
+
+        private void Decline(int playerEntityId, string offerId, string reason, TradeError error = TradeError.None)
         {
             if (!_proposedTrades.TryGetValue((playerEntityId, offerId), out var proposed))
                 return;
@@ -258,15 +282,16 @@ namespace RPGFramework.Trading
                 TraderId = proposed.offer.TraderId,
                 TradeOfferId = offerId,
                 Reason = reason,
+                Error = error,
                 Timestamp = 0f
             });
         }
 
         /// <summary>
         /// Takes the requested items, gives the offered items and moves the gold. When a step fails, undoes the
-        /// steps before it and returns why; returns null when everything moved.
+        /// steps before it and returns why; returns TradeError.None when everything moved.
         /// </summary>
-        private string Exchange(int playerEntityId, ITradeOffer offer, long gold, ref ActiveTradesData playerData)
+        private TradeError Exchange(int playerEntityId, ITradeOffer offer, long gold, ref ActiveTradesData playerData)
         {
             var taken = new List<TradeItem>();
             var given = new List<TradeItem>();
@@ -276,14 +301,14 @@ namespace RPGFramework.Trading
                 foreach (var item in offer.RequestedItems)
                 {
                     if (!_inventory.RemoveItem(playerEntityId, item.ItemId, item.Quantity))
-                        return Undo(playerEntityId, taken, given, "Missing items");
+                        return Undo(playerEntityId, taken, given, TradeError.MissingItems);
                     taken.Add(item);
                 }
 
                 foreach (var item in offer.OfferedItems)
                 {
                     if (!_inventory.AddItem(playerEntityId, item.ItemId, item.Quantity))
-                        return Undo(playerEntityId, taken, given, "Could not give items");
+                        return Undo(playerEntityId, taken, given, TradeError.CouldNotGiveItems);
                     given.Add(item);
                 }
             }
@@ -294,20 +319,20 @@ namespace RPGFramework.Trading
                 if (gold > 0)
                     _wallet.Add(playerEntityId, gold, Currencies.Gold, reason);
                 else if (gold < 0 && !_wallet.TrySpend(playerEntityId, -gold, Currencies.Gold, reason))
-                    return Undo(playerEntityId, taken, given, "Insufficient gold");
+                    return Undo(playerEntityId, taken, given, TradeError.InsufficientGold);
             }
             else
             {
                 if (gold > 0)
                     playerData.AddGold(gold);
                 else if (gold < 0 && !playerData.SpendGold(-gold))
-                    return Undo(playerEntityId, taken, given, "Insufficient gold");
+                    return Undo(playerEntityId, taken, given, TradeError.InsufficientGold);
             }
 
-            return null;
+            return TradeError.None;
         }
 
-        private string Undo(int playerEntityId, List<TradeItem> taken, List<TradeItem> given, string failure)
+        private TradeError Undo(int playerEntityId, List<TradeItem> taken, List<TradeItem> given, TradeError failure)
         {
             for (int i = given.Count - 1; i >= 0; i--)
                 _inventory.RemoveItem(playerEntityId, given[i].ItemId, given[i].Quantity);

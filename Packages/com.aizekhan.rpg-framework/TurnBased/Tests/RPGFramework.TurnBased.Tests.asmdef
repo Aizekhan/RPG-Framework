@@ -24,6 +24,7 @@
         "RPGFramework.Achievements.Runtime",
         "RPGFramework.Skills.Runtime",
         "RPGFramework.Factions.Runtime",
+        "RPGFramework.Localization.Runtime",
         "RPGFramework.TurnBased.Unity",
         "RPGFramework.UI.Runtime",
         "RPGFramework.UINavigation.Runtime",

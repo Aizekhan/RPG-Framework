@@ -126,9 +126,15 @@ namespace RPGFramework.TurnBased
         /// <summary>
         /// Why the action cannot be taken now, in plain words; null when it can.
         /// </summary>
-        public string WhyNot(BattleAction action) => Prepare(action, out _);
+        public string WhyNot(BattleAction action) => Prepare(action, out _).Message;
 
-        public bool CanPerform(BattleAction action) => Prepare(action, out _) == null;
+        /// <summary>
+        /// Why the action cannot be taken now, as a code and a text to translate; <see cref="BattleRefusal.IsNone"/>
+        /// when it can.
+        /// </summary>
+        public BattleRefusal RefusalOf(BattleAction action) => Prepare(action, out _);
+
+        public bool CanPerform(BattleAction action) => Prepare(action, out _).IsNone;
 
         /// <summary>
         /// The current combatant takes the action: its turn ends and the battle moves on (enemies acting on their own
@@ -136,8 +142,8 @@ namespace RPGFramework.TurnBased
         /// </summary>
         public ActionResult Perform(BattleAction action)
         {
-            string refusal = Prepare(action, out var plan);
-            if (refusal != null)
+            var refusal = Prepare(action, out var plan);
+            if (!refusal.IsNone)
                 return ActionResult.Refused(refusal, action);
             var result = Act(plan);
             RunAutomaticTurns();
@@ -151,7 +157,7 @@ namespace RPGFramework.TurnBased
         public ActionResult PlayAiTurn()
         {
             if (IsOver)
-                return ActionResult.Refused("The battle is over.", default);
+                return ActionResult.Refused(BattleRefusal.Of(BattleRefusalReason.BattleOver), default);
             var result = Act(ChooseFor(Current));
             RunAutomaticTurns();
             return result;
@@ -321,13 +327,13 @@ namespace RPGFramework.TurnBased
                 choice = BattleAction.Defend();
             }
 
-            string refusal = Prepare(choice, out var plan);
-            if (refusal == null)
+            var refusal = Prepare(choice, out var plan);
+            if (refusal.IsNone)
                 return plan;
 
-            _world.Logger?.LogWarning($"The battle AI chose something {actor.Name} cannot do ({refusal}); it attacks instead", Category);
+            _world.Logger?.LogWarning($"The battle AI chose something {actor.Name} cannot do ({refusal.Message}); it attacks instead", Category);
             var foes = LivingOpponents(actor);
-            if (foes.Count > 0 && Prepare(BattleAction.Attack(foes[0].Id), out plan) == null)
+            if (foes.Count > 0 && Prepare(BattleAction.Attack(foes[0].Id), out plan).IsNone)
                 return plan;
             Prepare(BattleAction.Defend(), out plan);
             return plan;
@@ -347,27 +353,27 @@ namespace RPGFramework.TurnBased
             public float Magnitude;
         }
 
-        private string Prepare(BattleAction action, out Plan plan)
+        private BattleRefusal Prepare(BattleAction action, out Plan plan)
         {
             plan = null;
             if (IsOver)
-                return "The battle is over.";
+                return BattleRefusal.Of(BattleRefusalReason.BattleOver);
             var actor = Current;
             if (actor == null)
-                return "The battle has not started.";
+                return BattleRefusal.Of(BattleRefusalReason.NotStarted);
             if (action.ActorId >= 0 && action.ActorId != actor.Id)
-                return $"It is not {Get(action.ActorId)?.Name ?? "that combatant"}'s turn; it is {actor.Name}'s.";
+                return BattleRefusal.Of(BattleRefusalReason.NotYourTurn, ("name", Get(action.ActorId)?.Name ?? "that combatant"), ("current", actor.Name));
 
             var candidate = new Plan { Action = action, Actor = actor };
-            string refusal;
+            BattleRefusal refusal;
             switch (action.Kind)
             {
                 case BattleActionKind.Attack:
-                    refusal = SingleTarget(candidate, action.TargetId, wantOpponent: true, wantFallen: false, "attack");
+                    refusal = SingleTarget(candidate, action.TargetId, wantOpponent: true, wantFallen: false, null);
                     break;
                 case BattleActionKind.Defend:
                     candidate.Targets.Add(actor);
-                    refusal = null;
+                    refusal = BattleRefusal.None;
                     break;
                 case BattleActionKind.Ability:
                     refusal = PrepareAbility(candidate);
@@ -376,72 +382,74 @@ namespace RPGFramework.TurnBased
                     refusal = PrepareItem(candidate);
                     break;
                 case BattleActionKind.Flee:
-                    refusal = !actor.IsParty ? "Only the party can flee."
-                        : !Encounter.CanFlee ? "There is no running from this fight." : null;
+                    refusal = !actor.IsParty ? BattleRefusal.Of(BattleRefusalReason.OnlyPartyFlees)
+                        : !Encounter.CanFlee ? BattleRefusal.Of(BattleRefusalReason.CannotFlee) : BattleRefusal.None;
                     break;
                 default:
-                    refusal = $"Unknown action {action.Kind}.";
+                    refusal = BattleRefusal.Of(BattleRefusalReason.UnknownAction, ("action", action.Kind));
                     break;
             }
 
-            if (refusal == null)
+            if (refusal.IsNone)
                 plan = candidate;
             return refusal;
         }
 
-        private string SingleTarget(Plan plan, int targetId, bool wantOpponent, bool wantFallen, string verb)
+        // what: the ability or item used on the target; null for a plain attack
+        private BattleRefusal SingleTarget(Plan plan, int targetId, bool wantOpponent, bool wantFallen, string what)
         {
             if (targetId < 0)
-                return "Choose a target.";
+                return BattleRefusal.Of(BattleRefusalReason.ChooseTarget);
             var target = Get(targetId);
             if (target == null)
-                return "That target is not in this battle.";
+                return BattleRefusal.Of(BattleRefusalReason.TargetNotInBattle);
             bool opponent = target.Side != plan.Actor.Side;
             if (wantOpponent && !opponent)
-                return $"{plan.Actor.Name} cannot {verb} an ally.";
+                return what == null ? BattleRefusal.Of(BattleRefusalReason.CannotAttackAlly, ("actor", plan.Actor.Name))
+                    : BattleRefusal.Of(BattleRefusalReason.CannotUseOnAlly, ("actor", plan.Actor.Name), ("what", what));
             if (!wantOpponent && opponent)
-                return $"{plan.Actor.Name} cannot {verb} an enemy.";
+                return BattleRefusal.Of(BattleRefusalReason.CannotUseOnEnemy, ("actor", plan.Actor.Name), ("what", what));
             if (wantFallen && target.IsAlive)
-                return $"{target.Name} is not down.";
+                return BattleRefusal.Of(BattleRefusalReason.TargetNotDown, ("target", target.Name));
             if (!wantFallen && !target.IsAlive)
-                return $"{target.Name} is already down.";
+                return BattleRefusal.Of(BattleRefusalReason.TargetAlreadyDown, ("target", target.Name));
             plan.Targets.Add(target);
-            return null;
+            return BattleRefusal.None;
         }
 
-        private string PrepareAbility(Plan plan)
+        private BattleRefusal PrepareAbility(Plan plan)
         {
             var actor = plan.Actor;
             string id = plan.Action.AbilityId;
             if (string.IsNullOrEmpty(id))
-                return "Choose an ability.";
+                return BattleRefusal.Of(BattleRefusalReason.ChooseAbility);
             var ability = _world.Abilities.GetAbility(id);
             if (ability == null)
-                return $"There is no ability '{id}'.";
+                return BattleRefusal.Of(BattleRefusalReason.NoSuchAbility, ("ability", id));
             if (!actor.Knows(id))
-                return $"{actor.Name} does not know {ability.Name}.";
+                return BattleRefusal.Of(BattleRefusalReason.DoesNotKnowAbility, ("actor", actor.Name), ("ability", ability.Name));
             if (actor.IsSilenced)
-                return $"{actor.Name} is silenced and cannot use abilities.";
+                return BattleRefusal.Of(BattleRefusalReason.Silenced, ("actor", actor.Name));
             if (ability.Type != AbilityType.Active && ability.Type != AbilityType.Triggered)
-                return $"{ability.Name} cannot be used in battle ({ability.Type}).";
+                return BattleRefusal.Of(BattleRefusalReason.AbilityNotForBattle, ("ability", ability.Name), ("type", ability.Type));
             if (ability.CastInfo.CastTime > 0f || ability.CastInfo.ChannelDuration > 0f)
-                return $"{ability.Name} takes time to cast, which turn-based battles do not support.";
+                return BattleRefusal.Of(BattleRefusalReason.CastTimeNotSupported, ("ability", ability.Name));
             int cooldown = CooldownLeft(actor.Id, id);
             if (cooldown > 0)
-                return $"{ability.Name} is not ready: {cooldown} more round{(cooldown == 1 ? "" : "s")}.";
+                return BattleRefusal.Of(BattleRefusalReason.NotReady, ("ability", ability.Name), ("count", cooldown));
             if (!_world.Executor.CanExecuteAbility(id, actor.Id, Round))
-                return $"{ability.Name} has no uses left.";
+                return BattleRefusal.Of(BattleRefusalReason.NoUsesLeft, ("ability", ability.Name));
 
             foreach (var cost in ability.ResourceCosts)
             {
                 var resource = Resources.Parse(cost.ResourceType);
                 if (resource == Resource.None)
-                    return $"{ability.Name} costs {cost.ResourceType}, which combatants do not have.";
+                    return BattleRefusal.Of(BattleRefusalReason.UnknownResource, ("ability", ability.Name), ("resource", cost.ResourceType));
                 int price = Price(actor, cost);
                 if (resource == Resource.Mana && actor.Mana < price)
-                    return $"Not enough mana: {ability.Name} costs {price} MP and {actor.Name} has {actor.Mana}.";
+                    return BattleRefusal.Of(BattleRefusalReason.NotEnoughMana, ("ability", ability.Name), ("cost", price), ("actor", actor.Name), ("has", actor.Mana));
                 if (resource == Resource.Health && actor.Health <= price)
-                    return $"{ability.Name} costs {price} HP, more than {actor.Name} can give.";
+                    return BattleRefusal.Of(BattleRefusalReason.NotEnoughHealth, ("ability", ability.Name), ("cost", price), ("actor", actor.Name));
             }
 
             plan.Ability = ability;
@@ -451,9 +459,9 @@ namespace RPGFramework.TurnBased
             switch (scope)
             {
                 case TargetScope.SingleEnemy:
-                    return SingleTarget(plan, plan.Action.TargetId, wantOpponent: true, wantFallen: false, $"use {ability.Name} on");
+                    return SingleTarget(plan, plan.Action.TargetId, wantOpponent: true, wantFallen: false, ability.Name);
                 case TargetScope.SingleAlly:
-                    return SingleTarget(plan, plan.Action.TargetId, wantOpponent: false, wantFallen: revives, $"use {ability.Name} on");
+                    return SingleTarget(plan, plan.Action.TargetId, wantOpponent: false, wantFallen: revives, ability.Name);
                 case TargetScope.AllEnemies:
                     plan.Targets.AddRange(LivingOpponents(actor));
                     break;
@@ -464,22 +472,22 @@ namespace RPGFramework.TurnBased
                     plan.Targets.Add(actor);
                     break;
             }
-            return plan.Targets.Count == 0 ? $"{ability.Name} has nobody to reach." : null;
+            return plan.Targets.Count == 0 ? BattleRefusal.Of(BattleRefusalReason.NobodyToReach, ("ability", ability.Name)) : BattleRefusal.None;
         }
 
-        private string PrepareItem(Plan plan)
+        private BattleRefusal PrepareItem(Plan plan)
         {
             var actor = plan.Actor;
             string id = plan.Action.ItemId;
             if (!actor.IsParty)
-                return "Only the party uses items.";
+                return BattleRefusal.Of(BattleRefusalReason.OnlyPartyUsesItems);
             if (string.IsNullOrEmpty(id))
-                return "Choose an item.";
+                return BattleRefusal.Of(BattleRefusalReason.ChooseItem);
             var item = _world.Inventory.GetAllItems().FirstOrDefault(i => i != null && i.ItemId == id);
             if (item == null)
-                return $"The party has no {_world.ItemName(id)}.";
+                return BattleRefusal.Of(BattleRefusalReason.NoSuchItem, ("item", _world.ItemName(id)));
             if (!(item is IConsumable consumable) || !consumable.UsableInCombat)
-                return $"{item.Name} cannot be used in battle.";
+                return BattleRefusal.Of(BattleRefusalReason.ItemNotForBattle, ("item", item.Name));
 
             plan.Item = item;
             plan.ItemEffect = ItemEffects.Normalize(consumable.EffectId);
@@ -489,17 +497,17 @@ namespace RPGFramework.TurnBased
                 case ItemEffects.RestoreHealth:
                 case ItemEffects.RestoreMana:
                 case ItemEffects.Cure:
-                    return SingleTarget(plan, plan.Action.TargetId, wantOpponent: false, wantFallen: false, $"use {item.Name} on");
+                    return SingleTarget(plan, plan.Action.TargetId, wantOpponent: false, wantFallen: false, item.Name);
                 case ItemEffects.Revive:
-                    return SingleTarget(plan, plan.Action.TargetId, wantOpponent: false, wantFallen: true, $"use {item.Name} on");
+                    return SingleTarget(plan, plan.Action.TargetId, wantOpponent: false, wantFallen: true, item.Name);
                 case ItemEffects.Damage:
-                    return SingleTarget(plan, plan.Action.TargetId, wantOpponent: true, wantFallen: false, $"use {item.Name} on");
+                    return SingleTarget(plan, plan.Action.TargetId, wantOpponent: true, wantFallen: false, item.Name);
                 default:
                     if (string.IsNullOrEmpty(plan.ItemEffect) || _world.StatusEffects.GetEffect(plan.ItemEffect) == null)
-                        return $"{item.Name} cannot be used in battle.";
+                        return BattleRefusal.Of(BattleRefusalReason.ItemNotForBattle, ("item", item.Name));
                     var target = Get(plan.Action.TargetId);
                     return SingleTarget(plan, plan.Action.TargetId, wantOpponent: target != null && target.Side != actor.Side,
-                        wantFallen: false, $"use {item.Name} on");
+                        wantFallen: false, item.Name);
             }
         }
 
@@ -558,7 +566,7 @@ namespace RPGFramework.TurnBased
                     {
                         // Checked above, so this is the Abilities module refusing for a reason of its own
                         _world.Logger?.LogWarning($"{plan.Ability.Name} was refused by the ability system: {used.FailureReason}", Category);
-                        return ActionResult.Refused(used.FailureReason, action);
+                        return ActionResult.Refused(BattleRefusal.Of(BattleRefusalReason.Other, ("reason", used.FailureReason)), action);
                     }
                     Write($"{actor.Name} uses {plan.Ability.Name}" + Describe(done.Outcomes));
                     break;

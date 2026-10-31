@@ -12,7 +12,10 @@ namespace RPGFramework.Trading
         /// <summary>Whether the trade was successful</summary>
         public bool Success;
 
-        /// <summary>Error message if trade failed</summary>
+        /// <summary>Why the trade failed, as a code a game can tell the player in its own words</summary>
+        public TradeError Error;
+
+        /// <summary>Error message if trade failed (English, for logs)</summary>
         public string ErrorMessage;
 
         /// <summary>Items player received in the trade</summary>
@@ -33,6 +36,7 @@ namespace RPGFramework.Trading
         public TradeResultData(bool success, string errorMessage = "")
         {
             Success = success;
+            Error = success ? TradeError.None : TradeError.Other;
             ErrorMessage = errorMessage;
             ItemsReceived = new List<TradeItem>();
             ItemsGiven = new List<TradeItem>();
@@ -60,6 +64,14 @@ namespace RPGFramework.Trading
         public static TradeResultData CreateFailure(string errorMessage)
         {
             return new TradeResultData(false, errorMessage);
+        }
+
+        /// <summary>
+        /// Creates a failed trade result with its reason's code and its English message.
+        /// </summary>
+        public static TradeResultData CreateFailure(TradeError error, string errorMessage)
+        {
+            return new TradeResultData(false, errorMessage) { Error = error };
         }
     }
 }

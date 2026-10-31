@@ -211,6 +211,23 @@ namespace RPGFramework.StatusEffects.Tests
             Assert.That(_target.Resources["Mana"], Is.EqualTo(92f));
         }
 
+        // AshenDeck AD-04, BoneRoad BR-05, Stepdeep SD-01: a turn-based game ticks through the interface, turns as time
+        [Test]
+        public void ProcessTicks_IsOnTheInterface_AndCountsTurnsAsTime()
+        {
+            RegisterTicking("burn", 1f, Mod(ModifierType.Damage, "Health", 3f, ModifierOperation.Add));
+            IStatusEffectManager effects = _manager;
+            effects.ApplyEffect(_entity, "burn", "caster", 0f);
+            int ticks = 0;
+            float burned = 0f;
+
+            for (int turn = 1; turn <= 2; turn++)
+                effects.ProcessTicks(_entity, turn, (entity, effect, damage, healing) => { ticks++; burned += damage; });
+
+            Assert.That(ticks, Is.EqualTo(2));
+            Assert.That(burned, Is.EqualTo(6f));
+        }
+
         [Test]
         public void ResourceAdd_ScalesWithPower()
         {

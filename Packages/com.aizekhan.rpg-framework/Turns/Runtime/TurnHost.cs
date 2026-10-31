@@ -39,6 +39,16 @@ namespace RPGFramework.Turns
     {
         private const string Category = "Turns";
 
+        /// <summary>
+        /// The host's own refusals (before the game's rules are asked), as <see cref="TurnOutcome.Reason"/> gives
+        /// them. A plain reason is its own key (<see cref="TurnOutcome.ReasonText"/>), so a game translates these by
+        /// putting them in its string tables as keys.
+        /// </summary>
+        public const string RefusedNoMove = "No move";
+        public const string RefusedNotStarted = "The match has not started";
+        public const string RefusedBusy = "Another move is being made";
+        public const string RefusedNotYourMove = "Not your move now";
+
         private sealed class Place
         {
             public TurnSeat Seat;
@@ -163,13 +173,13 @@ namespace RPGFramework.Turns
         public TurnOutcome Act(int seat, TurnIntent intent)
         {
             if (intent == null)
-                return TurnOutcome.Refused("No move");
+                return TurnOutcome.Refused(RefusedNoMove);
             if (!IsStarted)
-                return TurnOutcome.Refused("The match has not started");
+                return TurnOutcome.Refused(RefusedNotStarted);
             if (_applying)
-                return TurnOutcome.Refused("Another move is being made");
+                return TurnOutcome.Refused(RefusedBusy);
             if (!_rules.CanAct(seat, intent))
-                return TurnOutcome.Refused("Not your move now");
+                return TurnOutcome.Refused(RefusedNotYourMove);
             _applying = true;
             TurnOutcome outcome;
             try

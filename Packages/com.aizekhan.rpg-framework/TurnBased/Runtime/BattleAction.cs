@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using RPGFramework.Localization;
 
 namespace RPGFramework.TurnBased
 {
@@ -130,17 +131,17 @@ namespace RPGFramework.TurnBased
     }
 
     /// <summary>
-    /// The answer to <see cref="Battle.Perform"/>: done (with what it did), or refused with the reason in plain
-    /// words, in which case nothing changed.
+    /// The answer to <see cref="Battle.Perform"/>: done (with what it did), or refused with the reason (a code, a
+    /// text to translate and plain English words), in which case nothing changed.
     /// </summary>
     public sealed class ActionResult
     {
         private static readonly IReadOnlyList<TargetOutcome> NoTargets = Array.Empty<TargetOutcome>();
 
-        private ActionResult(bool done, string refusal, int actorId, BattleAction action, IReadOnlyList<TargetOutcome> targets, bool escaped)
+        private ActionResult(bool done, BattleRefusal refusal, int actorId, BattleAction action, IReadOnlyList<TargetOutcome> targets, bool escaped)
         {
             Done = done;
-            Refusal = refusal;
+            Why = refusal;
             ActorId = actorId;
             Action = action;
             Targets = targets ?? NoTargets;
@@ -153,9 +154,24 @@ namespace RPGFramework.TurnBased
         public bool Done { get; }
 
         /// <summary>
-        /// Why the action was refused; null when it was done.
+        /// Why the action was refused, in English; null when it was done.
         /// </summary>
-        public string Refusal { get; }
+        public string Refusal => Why.Message;
+
+        /// <summary>
+        /// Why the action was refused, as a code (<see cref="BattleRefusalReason.None"/> when it was done).
+        /// </summary>
+        public BattleRefusalReason Reason => Why.Reason;
+
+        /// <summary>
+        /// Why the action was refused, as a text to translate (<see cref="BattleTexts"/> keys); empty when it was done.
+        /// </summary>
+        public LocalizedText RefusalText => Why.Text;
+
+        /// <summary>
+        /// The refusal whole: code, text and English.
+        /// </summary>
+        public BattleRefusal Why { get; }
 
         public int ActorId { get; }
         public BattleAction Action { get; }
@@ -166,11 +182,11 @@ namespace RPGFramework.TurnBased
         /// </summary>
         public bool Escaped { get; }
 
-        internal static ActionResult Refused(string reason, BattleAction action) =>
+        internal static ActionResult Refused(BattleRefusal reason, BattleAction action) =>
             new ActionResult(false, reason, -1, action, null, false);
 
         internal static ActionResult Performed(int actorId, BattleAction action, IReadOnlyList<TargetOutcome> targets, bool escaped = false) =>
-            new ActionResult(true, null, actorId, action, targets, escaped);
+            new ActionResult(true, BattleRefusal.None, actorId, action, targets, escaped);
 
         public override string ToString() => Done ? $"{Action} done" : $"Refused: {Refusal}";
     }

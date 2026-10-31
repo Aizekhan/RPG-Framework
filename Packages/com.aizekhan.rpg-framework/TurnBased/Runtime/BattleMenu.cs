@@ -11,13 +11,13 @@ namespace RPGFramework.TurnBased
     /// </summary>
     public sealed class BattleCommand
     {
-        internal BattleCommand(string label, BattleAction action, IReadOnlyList<Combatant> targets, bool needsTarget, string refusal)
+        internal BattleCommand(string label, BattleAction action, IReadOnlyList<Combatant> targets, bool needsTarget, BattleRefusal refusal)
         {
             Label = label ?? "";
             Action = action;
             Targets = targets ?? Array.Empty<Combatant>();
             NeedsTarget = needsTarget;
-            Refusal = refusal;
+            Why = refusal;
         }
 
         public string Label { get; }
@@ -37,11 +37,17 @@ namespace RPGFramework.TurnBased
         public bool NeedsTarget { get; }
 
         /// <summary>
-        /// Why it cannot be taken now ("Not enough mana."); null when it can.
+        /// Why it cannot be taken now, in English ("Not enough mana: ..."); null when it can.
         /// </summary>
-        public string Refusal { get; }
+        public string Refusal => Why.Message;
 
-        public bool IsAvailable => Refusal == null;
+        /// <summary>
+        /// Why it cannot be taken now: a code and a text to translate (<see cref="BattleTexts"/> keys);
+        /// <see cref="BattleRefusal.IsNone"/> when it can.
+        /// </summary>
+        public BattleRefusal Why { get; }
+
+        public bool IsAvailable => Why.IsNone;
 
         /// <summary>
         /// The action aimed at a target (the target is ignored by actions that need none).
@@ -108,23 +114,23 @@ namespace RPGFramework.TurnBased
 
         private static BattleCommand Make(Battle battle, string label, BattleAction action)
         {
-            string asIs = battle.WhyNot(action);
-            if (asIs == null)
-                return new BattleCommand(label, action, null, needsTarget: false, refusal: null);
+            var asIs = battle.RefusalOf(action);
+            if (asIs.IsNone)
+                return new BattleCommand(label, action, null, needsTarget: false, refusal: BattleRefusal.None);
 
             var targets = new List<Combatant>();
-            string firstRefusal = null;
+            var firstRefusal = BattleRefusal.None;
             foreach (var combatant in battle.Combatants)
             {
-                string why = battle.WhyNot(Aim(action, combatant.Id));
-                if (why == null)
+                var why = battle.RefusalOf(Aim(action, combatant.Id));
+                if (why.IsNone)
                     targets.Add(combatant);
-                else if (firstRefusal == null && (combatant.IsAlive || action.Kind == BattleActionKind.Item))
+                else if (firstRefusal.IsNone && (combatant.IsAlive || action.Kind == BattleActionKind.Item))
                     firstRefusal = why;
             }
             return targets.Count > 0
-                ? new BattleCommand(label, action, targets, needsTarget: true, refusal: null)
-                : new BattleCommand(label, action, null, needsTarget: false, refusal: firstRefusal ?? asIs);
+                ? new BattleCommand(label, action, targets, needsTarget: true, refusal: BattleRefusal.None)
+                : new BattleCommand(label, action, null, needsTarget: false, refusal: firstRefusal.IsNone ? asIs : firstRefusal);
         }
 
         private static BattleAction Aim(BattleAction action, int targetId)
