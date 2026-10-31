@@ -84,8 +84,14 @@ namespace RPGFramework.ActionRpg
         [Tooltip("Also save every this many seconds, so a crash loses little (0 = only on level-up, quests and quit)")]
         [SerializeField, Min(0f)] private float _autosaveSeconds = 60f;
 
-        [Tooltip("In the Editor and development builds, F3 shows systems, events and frame times (off in release builds)")]
+        [Tooltip("In the Editor and development builds, the diagnostics key shows systems, events, frame times and what the camera draws (off in release builds)")]
         [SerializeField] private bool _diagnostics = true;
+
+        [Tooltip("The key that shows and hides the diagnostics panel (None: no key)")]
+        [SerializeField] private KeyCode _diagnosticsKey = KeyCode.F3;
+
+        [Tooltip("What a frame may draw: the diagnostics panel's Render block marks values above it OVER (0 = no limit)")]
+        [SerializeField] private RenderBudget _renderBudget = new RenderBudget();
 
         [Tooltip("Wait for StartGame (a start menu: continue, new game, host, join) instead of starting at once; the world does not run until then")]
         [SerializeField] private bool _startOnRequest;
@@ -125,6 +131,7 @@ namespace RPGFramework.ActionRpg
         private SubscriptionBag _pvpTriggers = new SubscriptionBag();
         private IDisposable _sounds;
         private DiagnosticsOverlay _overlay;
+        private RenderSection _render;
         private ActionRpgHud _hud;
         private Transform _charactersRoot;
         private INetworkSessionProvider _sessions;
@@ -169,6 +176,12 @@ namespace RPGFramework.ActionRpg
         /// The F3 diagnostics panel (null when diagnostics are off or in a release build).
         /// </summary>
         public DiagnosticsOverlay Diagnostics => _overlay;
+
+        /// <summary>
+        /// The diagnostics panel's "Render" block (null until diagnostics start): <c>Measure()</c> for budget tests,
+        /// <c>Budget</c>, <c>ModelOf</c> to group meshes by model.
+        /// </summary>
+        public RenderSection Render => _render;
 
         private bool DiagnosticsEnabled => _diagnostics && Debug.isDebugBuild;
 
@@ -1303,7 +1316,10 @@ namespace RPGFramework.ActionRpg
                 _overlay = gameObject.AddComponent<DiagnosticsOverlay>();
                 _overlay.Visible = false;
             }
-            _overlay.Hub = Host.Container.Resolve<DiagnosticsHub>();
+            _overlay.ToggleKey = _diagnosticsKey;
+            if (_render == null)
+                _render = new RenderSection(FrameCamera, _renderBudget, gameObject);
+            _overlay.Hub = Host.Container.Resolve<DiagnosticsHub>().Add(_render);
         }
 
         private void StartSaving()
@@ -1382,6 +1398,9 @@ namespace RPGFramework.ActionRpg
             ViewShown?.Invoke(entityId, view);
         }
 
+        // The camera that follows the player, else the main camera
+        private Camera FrameCamera() => _camera != null && _camera.TryGetComponent(out Camera camera) ? camera : Camera.main;
+
         private void FollowWithCamera(Transform player)
         {
             _followed = player;
@@ -1413,6 +1432,7 @@ namespace RPGFramework.ActionRpg
             HideGame();
             _back?.Dispose();
             _screens?.Dispose();
+            _render?.Dispose();
             base.OnDestroy();
         }
     }

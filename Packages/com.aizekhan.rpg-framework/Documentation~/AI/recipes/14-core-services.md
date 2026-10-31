@@ -134,6 +134,7 @@ framework's pathfinding for grid and tile logic in the rules.
 | Need | Use this | Not that |
 |---|---|---|
 | See systems, events, timers, pools, frame times in the game | `DiagnosticsModule` + `DiagnosticsOverlay` (F3; `ActionRpgHost` has them in development builds); your own panel: an `IDiagnosticsSection` added to `DiagnosticsHub` | `OnGUI` debug text |
+| See and test what a scene draws (triangles in view by model, draw calls, set-pass calls) against a budget | `RenderSection` (Diagnostics.Unity: `Measure()` → `RenderSample`, `Heaviest`, `RenderBudget`, `ModelOf`); `ActionRpgHost.Render` and its Render Budget field; a PlayMode test asserts `Measure().Triangles` per scene | counting renderers by hand |
 | Frame time and memory | `PerformanceMonitor` (`AverageFps`, `WorstFps`, `ManagedMemoryBytes`, `GcCollections`) | `Time.deltaTime` averaging by hand |
 | Draw shapes in the Scene view | `DebugDraw.DrawCircleXZ(center, radius, color)`, `DrawBox`, `DrawArrow`, `DrawSphere`, `DrawCross` | Line-by-line `Debug.DrawLine` circles |
 

@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+- Diagnostics: `RenderSection` ("Render" in the diagnostics panel) counts what the camera sees: triangles and meshes in its view (mesh and skinned mesh renderers of every loaded scene and of an anchor's DontDestroyOnLoad scene; counted on the CPU, so it works without graphics and in tests), by model heaviest first (`Heaviest`, `RenderModel`; `ModelOf` maps a mesh to its model, the mesh's name by default), and, where the profiler's render counters run (the Editor and development builds), the GPU's triangles, draw calls, set-pass calls and batches. `Measure()` returns a `RenderSample` for budget tests. `RenderBudget` (`Triangles`, `DrawCalls`, `SetPassCalls`, `ModelTriangles` per mesh; 0 = no limit): values over it read OVER. Asked by MythRunner.
+- Diagnostics: `DiagnosticsOverlay.ToggleKey` sets the key from code (a `KeyCode`, matched by name under the Input System).
+- Action RPG kit: `ActionRpgHost` adds the Render section to its diagnostics, with a Render Budget field for designers, and has a Diagnostics Key field (F3 by default, None for no key); `ActionRpgHost.Render`.
+
 ## [0.20.0] - 2026-10-31
 
 ### Added

@@ -8,7 +8,7 @@ namespace RPGFramework.Diagnostics.Unity
     /// <summary>
     /// IMGUI overlay that shows a <see cref="DiagnosticsHub"/> report, refreshed a few times per second on unscaled
     /// time. Assign <see cref="Hub"/> from your bootstrap; toggle with <see cref="Visible"/> or the toggle key (F3 by
-    /// default; read through the Input System when it is installed and enabled, else the legacy input manager).
+    /// default, <see cref="ToggleKey"/> from code; read through the Input System when it is installed and enabled, else the legacy input manager).
     /// </summary>
     public sealed class DiagnosticsOverlay : MonoBehaviour
     {
@@ -22,6 +22,9 @@ namespace RPGFramework.Diagnostics.Unity
         [SerializeField] private KeyCode _toggleKey = KeyCode.F3;
 #endif
 
+#if !(RPG_INPUT_SYSTEM && ENABLE_INPUT_SYSTEM) && !ENABLE_LEGACY_INPUT_MANAGER
+        private KeyCode _unreadKey = KeyCode.F3;
+#endif
         private float _nextRefresh;
         private Vector2 _scroll;
         private GUIStyle _style;
@@ -32,6 +35,25 @@ namespace RPGFramework.Diagnostics.Unity
         {
             get => _visible;
             set => _visible = value;
+        }
+
+        /// <summary>
+        /// The key that shows and hides the overlay (<c>KeyCode.None</c>: no key), settable from code, e.g. by a host
+        /// that adds the overlay at runtime. With the Input System the key is matched by name (letters, F-keys,
+        /// digits and the keypad).
+        /// </summary>
+        public KeyCode ToggleKey
+        {
+#if RPG_INPUT_SYSTEM && ENABLE_INPUT_SYSTEM
+            get => KeyCodeOf(_toggleKey);
+            set => _toggleKey = KeyOf(value);
+#elif ENABLE_LEGACY_INPUT_MANAGER
+            get => _toggleKey;
+            set => _toggleKey = value;
+#else
+            get => _unreadKey;
+            set => _unreadKey = value;
+#endif
         }
 
         /// <summary>
@@ -61,6 +83,25 @@ namespace RPGFramework.Diagnostics.Unity
             if (_visible && UnityEngine.Time.unscaledTime >= _nextRefresh)
                 Refresh();
         }
+
+#if RPG_INPUT_SYSTEM && ENABLE_INPUT_SYSTEM
+        // By name: Alpha5 is Digit5, Keypad5 is Numpad5; letters and F-keys share their names
+        internal static Key KeyOf(KeyCode code)
+        {
+            if (code == KeyCode.None)
+                return Key.None;
+            string name = code.ToString().Replace("Alpha", "Digit").Replace("Keypad", "Numpad");
+            return System.Enum.TryParse(name, out Key key) ? key : Key.None;
+        }
+
+        internal static KeyCode KeyCodeOf(Key key)
+        {
+            if (key == Key.None)
+                return KeyCode.None;
+            string name = key.ToString().Replace("Digit", "Alpha").Replace("Numpad", "Keypad");
+            return System.Enum.TryParse(name, out KeyCode code) ? code : KeyCode.None;
+        }
+#endif
 
         private void OnGUI()
         {
