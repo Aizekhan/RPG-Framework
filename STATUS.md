@@ -1,6 +1,6 @@
 # RPG Framework - Project Status
 
-**Last Updated:** 2026-10-29
+**Last Updated:** 2026-10-31
 **Repository:** https://github.com/Aizekhan/RPG-Framework (public, MIT)
 **Branch:** main (force-push and deletion blocked)
 **Unity:** 6000.0.45f1 · Unity CLI 1.0.0-beta.14
@@ -11,6 +11,7 @@
 
 | Gate | Result | SHA |
 |---|---|---|
+| **Release `v0.20.0`** (tag on `4cc2b3c`, GitHub release; from the 10 demo games' FRAMEWORK-GAPS): refusal codes - `TradeError` on `TradeResultData.Error` / `TradeDeclinedEvent.Error` (ET-06, CI-05, AD-05, BR-07, CS-12), TurnBased `BattleRefusal` / `BattleRefusalReason` / `BattleTexts` (`battle.refusal.*`), `ActionResult.Reason` / `RefusalText`, `BattleCommand.Why` (ET-06, GG-07), `TurnHost.Refused*` constants (BR-07); `IStatusEffectManager.ProcessTicks` (AD-04, BR-05, SD-01). Code `a1736ca` + `d6f54cd`; locale-proof channel test `7aa530e`. EditMode **1997 / 1997** in the main project at `7aa530e` (`D:/RPG-Results/edit-7aa530e.xml`); CI green on `7aa530e` (run `41212682237`, PlayMode on rerun: the first attempt hit a GitHub API 403 in game-ci). PlayMode not run locally | ✅ | `4cc2b3c` |
 | **Release `v0.19.0`** (tag on `044e41e`, GitHub release): the kit gains gear affixes and sets, elites and enemy levels, elements, crits, evasion and life steal, skill trees, crafting, dialogue effects, consumables (Cure), faction reputation and traders, achievements and `KitRows`. TurnBased gains a Unity layer (`TurnBasedHost`, `BattleScreen`), `BattleMenu`, crits, elements, quests, achievements, skill trees, reputation and `PartyRows`. Also `AchievementTracker`, `LocalizedTextCodec` with Turns `LocalizedText` (BH-07), `HealthTrail` (FG-26) and co-op protocol 16. CI green on `44e6097` (run `40903884832`). Earlier runs failed on CS0104 (`ConditionType`) and on two test expectations that missed reputation spreading through relations, fixed in `c17738a` and `44e6097`. Local Unity not run: CI is the proof | ✅ CI | `44e6097` |
 | **Release `v0.18.0`** (tag on `9a68e98`, GitHub release): settings `RPGFramework.Settings` (MythRunner FG-25: `ISettingsService`, toggle/choice/slider, `DisplaySettings`, PlayerPrefs `RPGFramework.Settings.<id>`, `SettingsRows`, `ActionRpgHost.Settings`), StatusEffects `Reapply` + tick catch-up + `UseStatContainers`, Abilities channel ticks / recharging charges / per-second upkeep, Dialogue `IDialogueGameContext`, localized kit log (`kit.log.*`), Pathfinding `DistanceMap`, Crafting/Save events on the bus, Items affixes (`AffixPool`, `RarityTable`), `ActionListPanel.MaxHeight` scrolling. CI green on `91c476b` (run `40882308776`); earlier runs failed on CS0012 test asmdef refs and two test bugs, fixed in `34fe9b1`, `06d3da6`, `91c476b`. Local Unity not run (low memory): proof is CI | ✅ CI | `91c476b` |
 | **Release `v0.17.0`** (tag on `ae50b7a`, GitHub release): localization FG-24 (CI green on `7979ff4`) | ✅ CI | `ae50b7a` |
