@@ -94,6 +94,8 @@ unity test "<path>" --mode EditMode --output "<xml>" --verbose --timeout <second
 
 **At milestone completion:**
 1. Update `STATUS.md` and `HANDOFF_NEXT_CHAT.md` with actual state (exact SHAs, proof, open gates).
+   On every release tag, also update `TARGET-ARCHITECTURE.md` from the new version's `CHANGELOG.md` (version and tag in
+   the header, [є]/[частково]/[немає] marks, test results), in Ukrainian, describing the framework only.
 2. Open/update PR in roadmap repository.
 3. Short report: what changed, which SHAs verified, what passed, what merged, next step.
 
