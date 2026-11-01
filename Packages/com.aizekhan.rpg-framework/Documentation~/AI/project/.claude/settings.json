@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git ls-remote:*)",
+      "Bash(unity test:*)",
+      "Bash(unity recompile:*)"
+    ]
+  }
+}

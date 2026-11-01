@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+- Game Kit: Install AI Guidance creates the process files a game is run with, once, then keeps them: `STATUS.md` (where the work stands, the last verified tests with their commit, the next step), `Docs/ARCHITECTURE.md` (how this game is built: assemblies, modules, features, events, saves, stand-ins), `.claude/settings.json` (read-only git and `unity test` allowed without asking) and the Claude Code commands `/start` and `/handoff` (`.claude/commands/`), which read and update them. Every file under `Documentation~/AI/project` is installed at the same path; a file the game already has is never replaced.
+- The `CLAUDE.md` block lists the game's documents and the `/start` / `/handoff` session routine. `START-NEW-GAME.md` has a "Process files" table (what each file holds, who updates it and when) and ends setup with the first `STATUS.md` and `Docs/ARCHITECTURE.md`.
+
 ## [0.24.0] - 2026-11-01
 
 ### Added

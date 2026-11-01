@@ -9,7 +9,9 @@ namespace RPGFramework.GameKit.Editor
     /// <summary>
     /// Installs the guidance an AI assistant (or a new developer) needs to build a game the framework's way:
     /// a block in the project's <c>CLAUDE.md</c>, the architecture guide and recipes under <c>Docs/RPGFramework</c>,
-    /// the game's own documents (<c>GAME.md</c>, <c>FRAMEWORK-GAPS.md</c>, <c>DEVLOG.md</c>, created once and then kept),
+    /// the game's own documents (<c>GAME.md</c>, <c>STATUS.md</c>, <c>FRAMEWORK-GAPS.md</c>, <c>DEVLOG.md</c>,
+    /// <c>Docs/ARCHITECTURE.md</c>) and Claude Code files (<c>.claude/settings.json</c>, the <c>/start</c> and
+    /// <c>/handoff</c> commands), created once and then kept,
     /// a CI workflow that runs the tests when the project has none, and a <c>.gitattributes</c> that puts binary
     /// assets in Git LFS when the project has none. Reinstalling updates the framework's files and its
     /// <c>CLAUDE.md</c> block; the rest of <c>CLAUDE.md</c> is kept.
@@ -60,17 +62,19 @@ namespace RPGFramework.GameKit.Editor
                 }
             }
 
-            // The game's own documents: created once from templates, never overwritten (they hold the game's records)
+            // The game's own documents and Claude Code files, at the same paths as in the template folder: created once,
+            // never overwritten (they hold the game's records and settings)
             string projectDocs = Path.Combine(documentationRoot, "project");
             if (Directory.Exists(projectDocs))
             {
-                foreach (var template in Directory.GetFiles(projectDocs, "*.md"))
+                foreach (var template in Directory.GetFiles(projectDocs, "*", SearchOption.AllDirectories))
                 {
-                    string target = Path.Combine(projectRoot, Path.GetFileName(template));
+                    string relative = template.Substring(projectDocs.Length + 1).Replace('\\', '/');
+                    string target = Path.Combine(projectRoot, relative);
                     if (File.Exists(target))
                         continue;
                     Copy(template, target);
-                    written.Add(Path.GetFileName(template));
+                    written.Add(relative);
                 }
             }
 

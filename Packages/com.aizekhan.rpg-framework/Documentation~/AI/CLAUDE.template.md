@@ -84,10 +84,18 @@ Assets/<Game>/
    `## Resolved` with the framework version. Leaving a stand-in next to the module that replaces it is duplication.
 3. Run all tests; record what moved in `DEVLOG.md`.
 
-## The game's own documents (project root)
+## The game's own documents (created once, then the game's)
+Start a session with `/start` and end it, or a feature, with `/handoff` (`.claude/commands/`): they read and update
+these files.
+- `STATUS.md`: where the work stands now: in progress, next step, last verified tests with their commit, blockers.
+  Read it first; rewrite it at every hand-off.
 - `GAME.md`: what the game is: genre, core loop, features in priority order, what it will not have. Read it before
   planning; update it when the developer decides something.
-- `FRAMEWORK-GAPS.md`: the gaps above. `DEVLOG.md`: one line per finished feature (date, what, commit).
+- `Docs/ARCHITECTURE.md`: how this game is built: assemblies, modules, features, events, saves, stand-ins. Update it
+  when the structure changes.
+- `FRAMEWORK-GAPS.md`: the gaps above. `DEVLOG.md`: one line per finished step (date, what, commit, tests).
+- `.claude/settings.json`: the commands Claude Code may run without asking (read-only git, `unity test`).
+- A result (tests, CI, a play check) is true only for the commit it was measured on: write the commit next to it.
 
 ## Workflow
 1. Generate structure instead of writing it: **RPG Framework > Game Kit** (New Game, New Feature).

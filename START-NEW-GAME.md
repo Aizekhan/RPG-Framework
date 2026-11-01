@@ -23,8 +23,8 @@ installs tell you everything you need. Follow these rules for the whole project:
    show the proof (command output, test counts, a file) and tick it in `SETUP.md`. Never claim a step is done
    without proof. If a step fails, find the cause; do not skip it and do not weaken a check to pass it.
 3. **Keep `SETUP.md` up to date** (created in step 0): the checklist below with each step's state and its proof.
-   At the start of every session, read `SETUP.md` (and after step 10 `CLAUDE.md`, `GAME.md`, `DEVLOG.md`) and
-   continue from the first unfinished step.
+   At the start of every session, read `SETUP.md` and continue from the first unfinished step. After step 10, a
+   session starts with `/start` and ends with `/handoff` (see "Process files").
 4. **Ask only what only the developer can decide or do**: the game's name and idea, installing Unity or logging in,
    pressing Play and saying what they see, approving plans. Everything you can check yourself, check yourself.
 5. **Unity runs in batch mode only when the project is closed in the Unity Editor** (an open Editor locks the
@@ -161,6 +161,7 @@ Create `.gitignore` with Unity's standard entries:
 *.aab
 *.unitypackage
 TestResults*.xml
+.claude/settings.local.json
 ```
 
 Commit: `git add -A && git commit -m "chore: empty Unity 6 project"`. Ask whether they want a GitHub repository now
@@ -194,8 +195,9 @@ The first run downloads the packages and imports everything; it can take several
 
 - `grep -c "error CS" Logs/newgame.log` is **0** (otherwise show the errors and fix the cause).
 - `Assets/<Game>/` exists with `Scripts/Core`, `Content`, `Scenes`, `Tests`.
-- `CLAUDE.md`, `Docs/RPGFramework/` (architecture guide and recipes), `GAME.md`, `FRAMEWORK-GAPS.md`, `DEVLOG.md`,
-  `.gitattributes` and `.github/workflows/unity-tests.yml` exist.
+- `CLAUDE.md`, `Docs/RPGFramework/` (architecture guide and recipes), the process files (`STATUS.md`, `GAME.md`,
+  `Docs/ARCHITECTURE.md`, `FRAMEWORK-GAPS.md`, `DEVLOG.md`, `.claude/settings.json`, `.claude/commands/start.md` and
+  `handoff.md`), `.gitattributes` and `.github/workflows/unity-tests.yml` exist.
 - `ProjectSettings/ProjectSettings.asset` has `runInBackground: 1` (co-op), `m_ActiveColorSpace: 1` (Linear) and a
   `companyName` that is not `DefaultCompany` (New Game uses the game's name; pass `-company "<Studio>"` to choose).
 - The CI workflow **fails** until the repository has the `UNITY_LICENSE`, `UNITY_EMAIL` and `UNITY_PASSWORD` secrets
@@ -259,13 +261,42 @@ markers is replaced on framework updates):
 ```markdown
 # This project
 - Game: <Game>. Unity editor: <Unity>. Framework: com.aizekhan.rpg-framework <version> (Packages/manifest.json).
-- Read at the start of every session: GAME.md, DEVLOG.md (last entries), FRAMEWORK-GAPS.md (open gaps).
+- Start every session with /start and end it, or a feature, with /handoff (.claude/commands/).
 - Tests: <the two commands from step 6>. Close the Unity Editor first, or use its Test Runner.
 - Work one feature at a time with the development loop in START-NEW-GAME.md (kept in Docs/).
 ```
 
-Move this file to `Docs/START-NEW-GAME.md` (it stays the reference for the development loop), tick step 10, commit,
-and tell the developer the setup is complete and what the first feature will be.
+Fill `Docs/ARCHITECTURE.md` from the generated game (assemblies, composition, the modules it uses) and write the first
+`STATUS.md` (the first milestone's first feature as "Next", the step 6 test counts with their commit). Move this file
+to `Docs/START-NEW-GAME.md` (it stays the reference for the development loop), tick step 10, commit, and tell the
+developer the setup is complete, what the first feature will be, and that sessions now start with `/start` and end
+with `/handoff`.
+
+---
+
+## Process files (what keeps the work under control)
+
+Step 5 creates them from the framework's templates; after that they belong to the game and a framework update never
+overwrites them (only the framework block of `CLAUDE.md` and `Docs/RPGFramework/` are replaced). Keep them true:
+a session that cannot trust them has to ask the developer again what is going on.
+
+| File | What it holds | Who updates it, when | Read |
+|---|---|---|---|
+| `SETUP.md` | this file's checklist, each step's state and proof | you, after every setup step | every session until step 10 |
+| `CLAUDE.md` | the framework's rules (block between the markers) and "This project" (editor, version, test commands) | the framework block: on reinstall; "This project": you, when a tool or command changes | every session |
+| `STATUS.md` | now: milestone, in progress, next step, last verified tests/CI/play check **with their commit**, blockers, files left uncommitted on purpose | you, rewritten at every `/handoff` | first, every session |
+| `GAME.md` | what the game is: pitch, genre, core loop, features with status, what it will not have, decisions | with the developer, when they decide something | before planning |
+| `Docs/ARCHITECTURE.md` | how this game is built: assemblies, composition and modules, per feature its rules, view, content assets, events and tests, systems, saves, networking, stand-ins | you, when a feature changes the structure | before changing structure |
+| `FRAMEWORK-GAPS.md` | what the framework lacks: needed for, wanted API, stand-in, found, resolved in | you, when a gap is found or the framework closes it | every session (open gaps), every framework update |
+| `DEVLOG.md` | history: one line per finished step, date, what, commit, tests | you, at every `/handoff` | the last lines, every session |
+| `PLAN.md` (optional) | the plan of the current milestone, if the developer prefers it outside `GAME.md` | with the developer | when planning |
+| `.claude/commands/start.md`, `handoff.md` | the `/start` and `/handoff` commands that read and update the files above | adapt them to the game if needed | — |
+| `.claude/settings.json` | commands allowed without asking: read-only git, `unity test`, `unity recompile` | the developer decides what to add | — |
+| `<Game>ArchitectureTests` | the rules GA01–GA14 as tests: they fail when code breaks the architecture | never weaken them | on every test run |
+
+Rules for all of them: a result is true only for the commit it was measured on, so write the commit next to it;
+`STATUS.md` is rewritten, `DEVLOG.md` is only appended; when two files contradict each other or the code, settle it
+with the developer before changing code.
 
 ---
 
@@ -292,8 +323,9 @@ and tell the developer the setup is complete and what the first feature will be.
 6. **Run all tests** (step 6 commands). Everything green, including `<Game>ArchitectureTests`. Never delete or
    weaken a test to make it pass; fix the code.
 7. **The developer plays it** and says whether it does what they wanted. Adjust.
-8. **Record and commit**: a line in `DEVLOG.md`, the feature's status in `GAME.md`, then
-   `git commit -m "feat: <what the player can now do>"` (conventional commits: feat, fix, test, docs, chore).
+8. **Record and commit**: `git commit -m "feat: <what the player can now do>"` (conventional commits: feat, fix,
+   test, docs, chore), then `/handoff`: `STATUS.md`, a line in `DEVLOG.md`, the feature's status in `GAME.md`,
+   `Docs/ARCHITECTURE.md` if the structure changed.
 9. Every few features, **review `FRAMEWORK-GAPS.md`** with the developer: gaps that every RPG would need are
    candidates for the framework itself (with the game's stand-in as proof); game-specific ones stay in the game.
 

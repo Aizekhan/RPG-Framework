@@ -198,6 +198,28 @@ namespace RPGFramework.GameKit.Tests
         }
 
         [Test]
+        public void AIGuidance_InstallsTheProcessFiles_AndKeepsTheGamesOwn()
+        {
+            string architecture = Path.Combine(_project, "Docs", "ARCHITECTURE.md");
+            Directory.CreateDirectory(Path.GetDirectoryName(architecture));
+            File.WriteAllText(architecture, "# Ours");
+
+            var written = AIGuidance.Install(AIGuidance.DocumentationRoot, _project);
+
+            Assert.That(written, Is.SupersetOf(new[]
+            {
+                "STATUS.md", ".claude/settings.json", ".claude/commands/start.md", ".claude/commands/handoff.md"
+            }));
+            Assert.That(written, Has.No.Member("Docs/ARCHITECTURE.md"));
+            Assert.That(File.ReadAllText(architecture), Is.EqualTo("# Ours"));
+            Assert.That(File.ReadAllText(Path.Combine(_project, ".claude", "settings.json")), Does.Contain("\"permissions\""));
+            Assert.That(File.ReadAllText(Path.Combine(_project, ".claude", "commands", "start.md")), Does.Contain("STATUS.md"));
+
+            File.Delete(architecture);
+            Assert.That(AIGuidance.Install(AIGuidance.DocumentationRoot, _project), Has.Member("Docs/ARCHITECTURE.md"));
+        }
+
+        [Test]
         public void EveryRule_IsATestInEveryGame()
         {
             var tests = typeof(RPGFramework.GameKit.TestSupport.GameArchitectureTests).GetMethods()
