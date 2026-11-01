@@ -10,8 +10,8 @@ namespace RPGFramework.GameKit.Editor
     /// Installs the guidance an AI assistant (or a new developer) needs to build a game the framework's way:
     /// a block in the project's <c>CLAUDE.md</c>, the architecture guide and recipes under <c>Docs/RPGFramework</c>,
     /// the game's own documents (<c>GAME.md</c>, <c>STATUS.md</c>, <c>FRAMEWORK-GAPS.md</c>, <c>DEVLOG.md</c>,
-    /// <c>THIRD-PARTY-ASSETS.md</c>, <c>CREDITS.md</c>, <c>Docs/ARCHITECTURE.md</c>) and Claude Code files (<c>.claude/settings.json</c>, the <c>/start</c> and
-    /// <c>/handoff</c> commands), created once and then kept,
+    /// <c>THIRD-PARTY-ASSETS.md</c>, <c>CREDITS.md</c>, <c>Docs/ARCHITECTURE.md</c>) and Claude Code files (<c>.claude/settings.json</c> with a new game only, the
+    /// <c>/start</c> and <c>/handoff</c> commands), created once and then kept,
     /// a CI workflow that runs the tests when the project has none, and a <c>.gitattributes</c> that puts binary
     /// assets in Git LFS when the project has none. Reinstalling updates the framework's files and its
     /// <c>CLAUDE.md</c> block; the rest of <c>CLAUDE.md</c> is kept.
@@ -25,6 +25,12 @@ namespace RPGFramework.GameKit.Editor
         public const string WorkflowHeader = "# Installed by RPG Framework > Game Kit > Install AI Guidance";
         public const string GitAttributesPath = ".gitattributes";
 
+        /// <summary>
+        /// Claude Code's permissions for the project: installed only with a new game, never by a reinstall, because in an
+        /// existing project they are the developer's decision.
+        /// </summary>
+        public const string ClaudeSettingsPath = ".claude/settings.json";
+
         public static string DocumentationRoot => Path.Combine(PackagePaths.Root, "Documentation~", "AI");
 
         [MenuItem("RPG Framework/Game Kit/Install AI Guidance", priority = 20)]
@@ -36,8 +42,9 @@ namespace RPGFramework.GameKit.Editor
 
         public static void InstallFromCommandLine() => InstallFromMenu();
 
+        /// <param name="claudeSettings">Also create <see cref="ClaudeSettingsPath"/> (New Game does; a reinstall does not).</param>
         /// <returns>Project-relative paths written.</returns>
-        public static List<string> Install(string documentationRoot, string projectRoot)
+        public static List<string> Install(string documentationRoot, string projectRoot, bool claudeSettings = false)
         {
             if (!Directory.Exists(documentationRoot))
                 throw new DirectoryNotFoundException($"Framework AI documentation not found at {documentationRoot}");
@@ -71,7 +78,7 @@ namespace RPGFramework.GameKit.Editor
                 {
                     string relative = template.Substring(projectDocs.Length + 1).Replace('\\', '/');
                     string target = Path.Combine(projectRoot, relative);
-                    if (File.Exists(target))
+                    if (File.Exists(target) || (!claudeSettings && relative == ClaudeSettingsPath))
                         continue;
                     Copy(template, target);
                     written.Add(relative);

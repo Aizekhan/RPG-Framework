@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Changed
+- Game Kit: Install AI Guidance creates `.claude/settings.json` only with New Game. A reinstall in an existing project (menu or `InstallFromCommandLine`) leaves Claude Code's permissions to the developer and still adds the documents and the `/start` and `/handoff` commands. `AIGuidance.Install(..., claudeSettings)`, `AIGuidance.ClaudeSettingsPath`.
 - `/start` template: a framework update waits for the developer's yes unless they gave standing permission (The Bloodline Hunt note).
 
 ## [0.27.0] - 2026-11-01

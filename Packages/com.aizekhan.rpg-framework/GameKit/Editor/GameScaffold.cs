@@ -128,7 +128,7 @@ namespace RPGFramework.GameKit.Editor
             StarterContent.LinkScene(scene, setup, ground);
 
             if (installAIGuidance)
-                AIGuidance.Install(AIGuidance.DocumentationRoot, PackagePaths.ProjectRoot);
+                AIGuidance.Install(AIGuidance.DocumentationRoot, PackagePaths.ProjectRoot, claudeSettings: true);
             AssetDatabase.Refresh();
 
             Debug.Log($"[Game Kit] Created {game} in Assets/{game}: open {scene} and press Play. " +

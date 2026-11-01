@@ -204,7 +204,7 @@ namespace RPGFramework.GameKit.Tests
             Directory.CreateDirectory(Path.GetDirectoryName(architecture));
             File.WriteAllText(architecture, "# Ours");
 
-            var written = AIGuidance.Install(AIGuidance.DocumentationRoot, _project);
+            var written = AIGuidance.Install(AIGuidance.DocumentationRoot, _project, claudeSettings: true);
 
             Assert.That(written, Is.SupersetOf(new[]
             {
@@ -217,6 +217,16 @@ namespace RPGFramework.GameKit.Tests
 
             File.Delete(architecture);
             Assert.That(AIGuidance.Install(AIGuidance.DocumentationRoot, _project), Has.Member("Docs/ARCHITECTURE.md"));
+        }
+
+        [Test]
+        public void AIGuidance_Reinstall_LeavesClaudePermissionsToTheDeveloper()
+        {
+            var written = AIGuidance.Install(AIGuidance.DocumentationRoot, _project);
+
+            Assert.That(written, Has.No.Member(AIGuidance.ClaudeSettingsPath));
+            Assert.That(File.Exists(Path.Combine(_project, ".claude", "settings.json")), Is.False);
+            Assert.That(written, Has.Member(".claude/commands/start.md"), "the commands still come");
         }
 
         [Test]

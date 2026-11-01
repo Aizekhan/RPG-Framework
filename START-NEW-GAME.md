@@ -293,7 +293,7 @@ a session that cannot trust them has to ask the developer again what is going on
 | `CREDITS.md` | the text of the Credits screen (and a copy for builds), built from `THIRD-PARTY-ASSETS.md` | you, in the same commit as an asset added or removed; checked at every `/handoff` | when building the Credits screen or a release |
 | `PLAN.md` (optional) | the plan of the current milestone, if the developer prefers it outside `GAME.md` | with the developer | when planning |
 | `.claude/commands/start.md`, `handoff.md` | the `/start` and `/handoff` commands that read and update the files above | adapt them to the game if needed | — |
-| `.claude/settings.json` | commands allowed without asking: read-only git, `unity test`, `unity recompile` | the developer decides what to add | — |
+| `.claude/settings.json` | commands allowed without asking: read-only git, `unity test`, `unity recompile`; created with a new game only (a reinstall in an existing project leaves permissions to the developer) | the developer decides what to add | — |
 | `<Game>ArchitectureTests` | the rules GA01–GA15 as tests: they fail when code breaks the architecture | never weaken them | on every test run |
 
 Rules for all of them: a result is true only for the commit it was measured on, so write the commit next to it;
