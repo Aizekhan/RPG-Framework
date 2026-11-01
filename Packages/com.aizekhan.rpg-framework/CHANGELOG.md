@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-11-01
+
 Turn protocol 3: host and players need the same version (players on 2 are refused with the reason).
 
 ### Added
