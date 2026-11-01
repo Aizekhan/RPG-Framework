@@ -38,6 +38,7 @@ namespace RPGFramework.Turns
         private string _pendingEnd;
         private int _nextRequest;
         private int _viewNumber = int.MinValue;
+        private readonly Dictionary<int, float> _banks = new Dictionary<int, float>();
 
         /// <param name="network">An unstarted network manager made by <see cref="TurnProtocol.CreateNetwork"/>.</param>
         /// <param name="fingerprint">The game and its rules version, the same as the host's.</param>
@@ -58,6 +59,7 @@ namespace RPGFramework.Turns
             _handlers.Add(_network.RegisterMessageHandler<TurnNoticeMessage>(OnNotice));
             _handlers.Add(_network.RegisterMessageHandler<TurnPromptMessage>(OnPrompt));
             _handlers.Add(_network.RegisterMessageHandler<TurnPromptClosedMessage>(OnPromptClosed));
+            _handlers.Add(_network.RegisterMessageHandler<TurnClockMessage>(OnClock));
         }
 
         public string PlayerName { get; set; }
@@ -86,6 +88,24 @@ namespace RPGFramework.Turns
         public byte[] View { get; private set; } = Array.Empty<byte>();
 
         public IReadOnlyList<TurnPrompt> OpenPrompts => _prompts.Values.OrderBy(p => p.WindowId).ToList();
+
+        /// <summary>
+        /// Seconds left of the current step, as the host last said, counted down here between its messages.
+        /// </summary>
+        public float TurnTimeLeft { get; private set; }
+
+        public float TurnLength { get; private set; }
+
+        public bool TurnClockRuns { get; private set; }
+
+        public int PausedBy { get; private set; } = -1;
+
+        /// <summary>
+        /// A seat's pause bank as the host last said (the pausing seat's counted down here); 0 before the host said.
+        /// </summary>
+        public float BankOf(int seat) => _banks.TryGetValue(seat, out float bank) ? bank : 0f;
+
+        public event Action ClockChanged;
 
         /// <summary>
         /// The host let this player in.
@@ -130,6 +150,27 @@ namespace RPGFramework.Turns
             _network.SendToServer(new TurnAnswerMessage { WindowId = windowId, Option = option });
         }
 
+        /// <summary>
+        /// Asks the host to pause the turn with this seat's bank; <see cref="ClockChanged"/> tells when it did.
+        /// </summary>
+        /// <returns>False when it cannot be asked (not in a started match, already paused).</returns>
+        public bool PauseTurn()
+        {
+            if (State != TurnClientState.Seated || !IsStarted || !_network.IsConnected || PausedBy >= 0)
+                return false;
+            _network.SendToServer(new TurnPauseMessage { Pause = true });
+            return true;
+        }
+
+        /// <summary>
+        /// Asks the host to end this seat's pause.
+        /// </summary>
+        public void ResumeTurn()
+        {
+            if (State == TurnClientState.Seated && PausedBy == LocalSeat && _network.IsConnected)
+                _network.SendToServer(new TurnPauseMessage { Pause = false });
+        }
+
         public void SetReady(bool ready)
         {
             if (State == TurnClientState.Seated && !IsStarted && _network.IsConnected)
@@ -139,6 +180,10 @@ namespace RPGFramework.Turns
         public void Update(float deltaTime)
         {
             _network.Update(deltaTime);
+            if (TurnClockRuns)
+                TurnTimeLeft = Math.Max(0f, TurnTimeLeft - deltaTime);
+            if (PausedBy >= 0)
+                _banks[PausedBy] = Math.Max(0f, BankOf(PausedBy) - deltaTime);
             if (_pendingEnd == null)
                 return;
             // Ended from inside a message handler: the network is stopped here, outside its own update
@@ -181,6 +226,7 @@ namespace RPGFramework.Turns
             _viewNumber = int.MinValue;
             _prompts.Clear();
             _seats = new List<TurnSeat>();
+            ResetClock();
             State = TurnClientState.Connecting;
             try
             {
@@ -289,6 +335,29 @@ namespace RPGFramework.Turns
                 PromptClosed?.Invoke(message.WindowId);
         }
 
+        private void OnClock(int connectionId, TurnClockMessage message)
+        {
+            if (State != TurnClientState.Seated)
+                return;
+            TurnLength = message.Length;
+            TurnTimeLeft = message.TimeLeft;
+            TurnClockRuns = message.Runs;
+            PausedBy = message.PausedBy;
+            _banks.Clear();
+            for (int i = 0; i < message.BankSeats.Count && i < message.Banks.Count; i++)
+                _banks[message.BankSeats[i]] = message.Banks[i];
+            ClockChanged?.Invoke();
+        }
+
+        private void ResetClock()
+        {
+            TurnLength = 0f;
+            TurnTimeLeft = 0f;
+            TurnClockRuns = false;
+            PausedBy = -1;
+            _banks.Clear();
+        }
+
         private void End(string reason)
         {
             if (_network.IsConnected || _network.Role != NetworkRole.None)
@@ -296,6 +365,7 @@ namespace RPGFramework.Turns
             State = TurnClientState.Ended;
             IsStarted = false;
             _prompts.Clear();
+            ResetClock();
             EndReason = reason;
             _logger?.LogInfo($"Left the table: {reason}", Category);
             Ended?.Invoke(reason);

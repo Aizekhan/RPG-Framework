@@ -21,9 +21,14 @@ namespace RPGFramework.Turns
 
         /// <summary>
         /// Seconds a player has for a turn before <see cref="ITurnRules.DefaultIntent"/> is made for them (also while
-        /// they are away); 0: no limit.
+        /// they are away); 0: no limit. Rules that implement <see cref="ITurnClock"/> give each step its own.
         /// </summary>
         public float TurnSeconds { get; set; }
+
+        /// <summary>
+        /// Pause seconds every seat has for the whole match (<see cref="TurnHost.PauseTurn(int)"/>); 0: no pauses.
+        /// </summary>
+        public float PauseBankSeconds { get; set; }
 
         public float RejoinWindow { get; set; } = TurnProtocol.RejoinWindow;
     }
@@ -80,6 +85,8 @@ namespace RPGFramework.Turns
         private int _turnSeat = -1;
         private bool _applying;
         private bool _viewsDirty;
+        private readonly Dictionary<int, float> _banks = new Dictionary<int, float>();
+        private bool _clockRuns;
 
         public TurnHost(INetworkManager network, string hostName, TurnHostOptions options = null, ILogger logger = null)
         {
@@ -92,6 +99,7 @@ namespace RPGFramework.Turns
             _handlers.Add(_network.RegisterMessageHandler<TurnReadyMessage>(OnReady));
             _handlers.Add(_network.RegisterMessageHandler<TurnIntentMessage>(OnIntent));
             _handlers.Add(_network.RegisterMessageHandler<TurnAnswerMessage>(OnAnswer));
+            _handlers.Add(_network.RegisterMessageHandler<TurnPauseMessage>(OnPause));
         }
 
         public int LocalSeat => 0;
@@ -113,9 +121,17 @@ namespace RPGFramework.Turns
         public bool AllReady => _places.Count > 1 && _places.All(p => p.Seat.Ready);
 
         /// <summary>
-        /// Seconds left of the current turn; 0 without a limit.
+        /// Seconds left of the current step of the turn; 0 without a limit.
         /// </summary>
         public float TurnTimeLeft { get; private set; }
+
+        public float TurnLength { get; private set; }
+
+        public bool TurnClockRuns => IsStarted && TurnLength > 0f && _turnSeat >= 0 && _windows.Count == 0 && PausedBy < 0;
+
+        public int PausedBy { get; private set; } = -1;
+
+        public event Action ClockChanged;
 
         public event Action LobbyChanged;
         public event Action Started;
@@ -153,6 +169,8 @@ namespace RPGFramework.Turns
                 throw new InvalidOperationException("The match has already started");
             _rules = rules ?? throw new ArgumentNullException(nameof(rules));
             Options = options ?? Array.Empty<byte>();
+            _banks.Clear();
+            PausedBy = -1;
             _network.Broadcast(new TurnStartedMessage { Options = Options });
             Started?.Invoke();
             ResetTurnTimer();
@@ -267,6 +285,8 @@ namespace RPGFramework.Turns
                 Closed = closed
             };
             _windows[id] = window;
+            if (_clockRuns != TurnClockRuns)
+                SendClock();
             var message = new TurnPromptMessage
             {
                 WindowId = id, Kind = window.Prompt.Kind, Title = window.Prompt.Title, Options = window.Prompt.Options.ToList(), Seconds = seconds,
@@ -294,6 +314,37 @@ namespace RPGFramework.Turns
 
         public void Answer(int windowId, int option) => TakeAnswer(0, windowId, option);
 
+        public float BankOf(int seat) =>
+            seat < 0 ? 0f : _banks.TryGetValue(seat, out float bank) ? bank : Math.Max(0f, _options.PauseBankSeconds);
+
+        public bool PauseTurn() => PauseTurn(0);
+
+        /// <summary>
+        /// Stops the turn's time and the questions' time with a seat's pause bank (any seat the rules know, also one
+        /// played at this machine in hot-seat) until <see cref="ResumeTurn"/> or the bank runs out.
+        /// </summary>
+        /// <returns>False when it cannot (not started, already paused, no bank left).</returns>
+        public bool PauseTurn(int seat)
+        {
+            if (!IsStarted || PausedBy >= 0 || BankOf(seat) <= 0f)
+                return false;
+            _banks[seat] = BankOf(seat);
+            PausedBy = seat;
+            SendClock();
+            return true;
+        }
+
+        /// <summary>
+        /// Ends the pause, whoever made it.
+        /// </summary>
+        public void ResumeTurn()
+        {
+            if (PausedBy < 0)
+                return;
+            PausedBy = -1;
+            SendClock();
+        }
+
         /// <summary>
         /// Sends every seat its view again (after something changed outside a move).
         /// </summary>
@@ -307,6 +358,16 @@ namespace RPGFramework.Turns
                 if (!place.Seat.Connected)
                     place.AwayFor += deltaTime;
             }
+            if (PausedBy >= 0)
+            {
+                float bank = BankOf(PausedBy) - deltaTime;
+                _banks[PausedBy] = Math.Max(0f, bank);
+                if (bank <= 0f)
+                    ResumeTurn();
+                if (_viewsDirty)
+                    SendViews();
+                return;
+            }
             foreach (var window in _windows.Values.ToList())
             {
                 if (window.Prompt.Seconds <= 0f)
@@ -316,6 +377,8 @@ namespace RPGFramework.Turns
                     Close(window);
             }
             UpdateTurnTimer(deltaTime);
+            if (_clockRuns != TurnClockRuns)
+                SendClock();
             if (_viewsDirty)
                 SendViews();
         }
@@ -324,6 +387,7 @@ namespace RPGFramework.Turns
         {
             _network.Stop();
             _rules = null;
+            PausedBy = -1;
         }
 
         public void Dispose()
@@ -396,6 +460,7 @@ namespace RPGFramework.Turns
             // Back in a match: the options, the view and the questions still open for them
             _network.Send(connectionId, new TurnStartedMessage { Options = Options });
             SendView(place);
+            _network.Send(connectionId, ClockMessage());
             foreach (var window in _windows.Values)
             {
                 if (!window.Seats.Contains(place.Seat.Seat) || window.Answers.ContainsKey(place.Seat.Seat))
@@ -453,6 +518,16 @@ namespace RPGFramework.Turns
                 TakeAnswer(place.Seat.Seat, answer.WindowId, answer.Option);
         }
 
+        private void OnPause(int connectionId, TurnPauseMessage message)
+        {
+            if (!_byConnection.TryGetValue(connectionId, out var place))
+                return;
+            if (message.Pause)
+                PauseTurn(place.Seat.Seat);
+            else if (PausedBy == place.Seat.Seat)
+                ResumeTurn();
+        }
+
         private void TakeAnswer(int seat, int windowId, int option)
         {
             if (!_windows.TryGetValue(windowId, out var window) || !window.Seats.Contains(seat) || window.Answers.ContainsKey(seat))
@@ -497,7 +572,7 @@ namespace RPGFramework.Turns
 
         private void UpdateTurnTimer(float deltaTime)
         {
-            if (!IsStarted || _options.TurnSeconds <= 0f)
+            if (!IsStarted)
             {
                 TurnTimeLeft = 0f;
                 return;
@@ -505,7 +580,7 @@ namespace RPGFramework.Turns
             int seat = _rules.CurrentSeat;
             if (seat != _turnSeat)
                 ResetTurnTimer();
-            if (seat < 0 || _windows.Count > 0)
+            if (seat < 0 || _windows.Count > 0 || TurnLength <= 0f)
                 return;
             TurnTimeLeft -= deltaTime;
             if (TurnTimeLeft > 0f)
@@ -523,7 +598,42 @@ namespace RPGFramework.Turns
         private void ResetTurnTimer()
         {
             _turnSeat = IsStarted ? _rules.CurrentSeat : -1;
-            TurnTimeLeft = _options.TurnSeconds;
+            TurnLength = Math.Max(0f, LengthFor(_turnSeat));
+            TurnTimeLeft = TurnLength;
+            if (IsStarted)
+                SendClock();
+        }
+
+        private float LengthFor(int seat)
+        {
+            if (seat >= 0 && _rules is ITurnClock clock)
+            {
+                float seconds = clock.SecondsFor(seat);
+                if (seconds >= 0f)
+                    return seconds;
+            }
+            return _options.TurnSeconds;
+        }
+
+        private TurnClockMessage ClockMessage()
+        {
+            var message = new TurnClockMessage
+            {
+                Length = TurnLength, TimeLeft = TurnTimeLeft, Runs = TurnClockRuns, PausedBy = PausedBy
+            };
+            foreach (var bank in _banks)
+            {
+                message.BankSeats.Add(bank.Key);
+                message.Banks.Add(bank.Value);
+            }
+            return message;
+        }
+
+        private void SendClock()
+        {
+            _clockRuns = TurnClockRuns;
+            _network.Broadcast(ClockMessage());
+            ClockChanged?.Invoke();
         }
 
         private void SendViews()

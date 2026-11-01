@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+Turn protocol 3: host and players need the same version (players on 2 are refused with the reason).
+
+### Added
+- Turns: a turn clock (The Bloodline Hunt BH-08). Rules that also implement `ITurnClock` give each step of a turn its own time with `SecondsFor(seat)` (0 is no limit, below 0 uses `TurnHostOptions.TurnSeconds`). The host asks again at the start, after every accepted move, when a question closes and when the turn passes. `TurnHostOptions.PauseBankSeconds` gives every seat pause seconds for the whole match. `TurnHost.PauseTurn(seat)` stops the turn's time and the questions' time and spends that seat's bank until `ResumeTurn()` or the bank runs out. Every seat sees the clock: `TurnLength`, `TurnTimeLeft` (counted down between the host's messages), `TurnClockRuns`, `PausedBy`, `BankOf(seat)` and `ClockChanged` on `ITurnSession`. A player pauses with `TurnClient.PauseTurn()` and ends their own pause with `ResumeTurn()`. Hot-seat runs the same clock: a `TurnHost` opened on a `LoopbackNetwork` that nobody joins, with `Act(seat, move)` and `PauseTurn(seat)` for the player at the screen.
+
+### Changed
+- `ITurnSession` has the clock members above (a game's own implementation adds them). `TurnProtocol.Version` is 3 (new messages 1312 clock, 1313 pause).
+
 ## [0.22.0] - 2026-10-31
 
 ### Added

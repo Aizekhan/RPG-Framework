@@ -222,4 +222,15 @@ namespace RPGFramework.Turns
         /// </summary>
         TurnIntent DefaultIntent(int seat);
     }
+
+    /// <summary>
+    /// Rules that also implement this give each step of a turn its own time (10 seconds to roll, 20 to decide in a
+    /// city). The host asks it whenever the turn's time starts again: at the start, after every accepted move, when a
+    /// question closes and when the turn passes to another seat.
+    /// </summary>
+    public interface ITurnClock
+    {
+        /// <returns>Seconds the seat has for the step now; 0: no limit; below 0: <c>TurnHostOptions.TurnSeconds</c>.</returns>
+        float SecondsFor(int seat);
+    }
 }

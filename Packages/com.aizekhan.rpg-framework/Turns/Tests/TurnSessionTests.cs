@@ -12,11 +12,16 @@ namespace RPGFramework.Turns.Tests
         private const string Fingerprint = "race-1";
 
         // A race: on turn a seat moves 1 to 6; every seat has a secret card only it may see
-        private sealed class RaceRules : ITurnRules
+        private sealed class RaceRules : ITurnRules, ITurnClock
         {
             private readonly int[] _positions;
 
             public RaceRules(int seats) => _positions = new int[seats];
+
+            // Seconds of a step by seat; missing: the host's TurnSeconds
+            public Dictionary<int, float> StepSeconds { get; } = new Dictionary<int, float>();
+
+            public float SecondsFor(int seat) => StepSeconds.TryGetValue(seat, out float seconds) ? seconds : -1f;
 
             public int CurrentSeat { get; set; }
             public int Position(int seat) => _positions[seat];
@@ -297,6 +302,94 @@ namespace RPGFramework.Turns.Tests
 
             Assert.AreEqual(1, rules.Position(1));
             Assert.AreEqual(1, bob.View[2]);
+        }
+
+        [Test]
+        public void EachStep_HasTheTimeTheRulesGive_AndPlayersSeeIt()
+        {
+            Host(new TurnHostOptions { TurnSeconds = 10f });
+            var bob = Join("Bob");
+            var rules = new RaceRules(2);
+            rules.StepSeconds[1] = 0.5f;
+            _host.Start(rules);
+            Pump();
+
+            Assert.AreEqual(10f, _host.TurnLength, "seat 0 has the host's TurnSeconds");
+            Assert.AreEqual(10f, bob.TurnLength);
+            Assert.IsTrue(bob.TurnClockRuns);
+            Assert.Less(bob.TurnTimeLeft, 10f, "counted down between the host's messages");
+            Assert.Greater(bob.TurnTimeLeft, 9f);
+
+            _host.Submit(TurnIntent.Of("Move", 2));
+            Pump();
+            Assert.AreEqual(0.5f, bob.TurnLength, "seat 1's step has its own time");
+            Pump(40);
+            Assert.AreEqual(1, rules.Position(1), "its time ran out: the default move");
+
+            rules.StepSeconds[0] = 0f;
+            _host.Submit(TurnIntent.Of("Move", 1));
+            Pump();
+            rules.CurrentSeat = 0;
+            _host.Refresh();
+            Pump();
+            Assert.AreEqual(0f, bob.TurnLength, "0: no limit");
+            Assert.IsFalse(bob.TurnClockRuns);
+        }
+
+        [Test]
+        public void APause_StopsTheTurnsTime_AndSpendsTheSeatsBank()
+        {
+            Host(new TurnHostOptions { TurnSeconds = 10f, PauseBankSeconds = 0.6f });
+            var bob = Join("Bob");
+            var rules = StartRace(bob);
+
+            Assert.IsTrue(bob.PauseTurn());
+            Pump();
+            Assert.AreEqual(1, _host.PausedBy);
+            Assert.AreEqual(1, bob.PausedBy);
+            Assert.IsFalse(bob.TurnClockRuns);
+            float left = _host.TurnTimeLeft;
+            Pump(10);
+            Assert.AreEqual(left, _host.TurnTimeLeft, "the turn's time stands");
+            Assert.Less(_host.BankOf(1), 0.6f);
+            Assert.Less(bob.BankOf(1), 0.6f, "the player sees the bank go");
+            Assert.AreEqual(0.6f, _host.BankOf(0));
+            Assert.IsFalse(_host.PauseTurn(), "one pause at a time");
+
+            bob.ResumeTurn();
+            Pump();
+            Assert.AreEqual(-1, _host.PausedBy);
+            Assert.IsTrue(bob.TurnClockRuns);
+            float bank = _host.BankOf(1);
+
+            Assert.IsTrue(_host.PauseTurn(1));
+            Pump(60);
+            Assert.AreEqual(0f, _host.BankOf(1), "used up");
+            Assert.AreEqual(-1, _host.PausedBy, "an empty bank ends the pause");
+            Assert.Less(_host.BankOf(1), bank);
+            Assert.IsFalse(_host.PauseTurn(1));
+            Assert.AreEqual(0, rules.Position(0), "no move was made while paused");
+        }
+
+        [Test]
+        public void HotSeat_RunsTheSameClock_WithoutAnyoneJoining()
+        {
+            // Every player at this machine: a host on an in-memory network nobody joins, rules for three seats
+            _host = new TurnHost(TurnProtocol.CreateNetwork(_loopback.CreateTransport()), "Table",
+                new TurnHostOptions { TurnSeconds = 0.5f, PauseBankSeconds = 300f });
+            _host.Open(Port);
+            var rules = new RaceRules(3);
+            _host.Start(rules);
+            Assert.AreEqual(TurnOutcome.Ok.Accepted, _host.Act(0, TurnIntent.Of("Move", 3)).Accepted);
+            Assert.AreEqual(1, rules.CurrentSeat);
+
+            Assert.IsTrue(_host.PauseTurn(1), "seat 1 pauses at the shared screen");
+            Pump(40);
+            Assert.AreEqual(0, rules.Position(1), "paused: no move made");
+            _host.ResumeTurn();
+            Pump(40);
+            Assert.AreEqual(1, rules.Position(1), "its time ran out: the default move");
+            Assert.AreEqual(2, rules.CurrentSeat);
         }
 
         [Test]

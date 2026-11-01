@@ -23,8 +23,10 @@ namespace RPGFramework.Turns
         public const int PromptId = 1309;
         public const int PromptClosedId = 1310;
         public const int ReplyId = 1311;
+        public const int ClockId = 1312;
+        public const int PauseId = 1313;
 
-        public const int Version = 2;
+        public const int Version = 3;
         public const int DefaultPort = 7788;
         public const int DefaultMaxSeats = 6;
         public const float ConnectionTimeout = 10f;
@@ -51,6 +53,8 @@ namespace RPGFramework.Turns
             serializer.RegisterMessageType<TurnPromptMessage>(PromptId);
             serializer.RegisterMessageType<TurnPromptClosedMessage>(PromptClosedId);
             serializer.RegisterMessageType<TurnReplyMessage>(ReplyId);
+            serializer.RegisterMessageType<TurnClockMessage>(ClockId);
+            serializer.RegisterMessageType<TurnPauseMessage>(PauseId);
             return serializer;
         }
 
@@ -59,6 +63,8 @@ namespace RPGFramework.Turns
             .Set(ReadyId, MessageAuthority.Client)
             .Set(IntentId, MessageAuthority.Client)
             .Set(AnswerId, MessageAuthority.Client)
+            .Set(PauseId, MessageAuthority.Client)
+            .Set(ClockId, MessageAuthority.Server)
             .Set(WelcomeId, MessageAuthority.Server)
             .Set(LobbyId, MessageAuthority.Server)
             .Set(StartedId, MessageAuthority.Server)
@@ -364,5 +370,61 @@ namespace RPGFramework.Turns
 
         public void Write(BinaryWriter writer) => writer.Write(WindowId);
         public void Read(BinaryReader reader) => WindowId = reader.ReadInt32();
+    }
+
+    /// <summary>
+    /// The turn's clock as the host has it; players count it down between these.
+    /// </summary>
+    public sealed class TurnClockMessage : NetworkMessage, INetworkPayload
+    {
+        public override int MessageTypeId => TurnProtocol.ClockId;
+        public float Length;
+        public float TimeLeft;
+        public bool Runs;
+        public int PausedBy = -1;
+        public List<int> BankSeats = new List<int>();
+        public List<float> Banks = new List<float>();
+
+        public void Write(BinaryWriter writer)
+        {
+            writer.Write(Length);
+            writer.Write(TimeLeft);
+            writer.Write(Runs);
+            writer.Write(PausedBy);
+            writer.Write(BankSeats.Count);
+            for (int i = 0; i < BankSeats.Count; i++)
+            {
+                writer.Write(BankSeats[i]);
+                writer.Write(i < Banks.Count ? Banks[i] : 0f);
+            }
+        }
+
+        public void Read(BinaryReader reader)
+        {
+            Length = reader.ReadSingle();
+            TimeLeft = reader.ReadSingle();
+            Runs = reader.ReadBoolean();
+            PausedBy = reader.ReadInt32();
+            int count = TurnProtocol.ReadCount(reader);
+            BankSeats = new List<int>(count);
+            Banks = new List<float>(count);
+            for (int i = 0; i < count; i++)
+            {
+                BankSeats.Add(reader.ReadInt32());
+                Banks.Add(reader.ReadSingle());
+            }
+        }
+    }
+
+    /// <summary>
+    /// A player pauses the turn with their bank, or ends their pause.
+    /// </summary>
+    public sealed class TurnPauseMessage : NetworkMessage, INetworkPayload
+    {
+        public override int MessageTypeId => TurnProtocol.PauseId;
+        public bool Pause;
+
+        public void Write(BinaryWriter writer) => writer.Write(Pause);
+        public void Read(BinaryReader reader) => Pause = reader.ReadBoolean();
     }
 }
