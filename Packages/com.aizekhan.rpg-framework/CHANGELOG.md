@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.31.1] - 2026-11-01
+
+### Fixed
+- ActionCombat: an enemy that held an attack token, had its target in reach and no move ready (cooldowns) switched between Approach and BackOff in every tick (MythRunner report). It now gives the token back ("no move ready"), circles and asks again when a move is ready. It backs off only when the target is closer than every usable move's `MinRange`. Moves with Weight 0 no longer count for the reach.
+
+### Added
+- ActionCombat: `EnemyBehaviourAsset.Problems()`, logged as warnings in `OnValidate`. It reports a move without an attack, a combo link to itself or out of the list, Max Range below Min Range, and no opener with a weight.
+
 ## [0.31.0] - 2026-11-01
 
 ### Added
