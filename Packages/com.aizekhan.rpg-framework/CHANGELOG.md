@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-11-02
+
 ### Added
 - Quests: stages. `QuestData.Stages` (`QuestStageData`: objectives that count in the stage, links to the next stages, an outcome), `StartStageId`, `Type`, `Requirements` (`QuestRequirementData`: level, faction, item, flag or the game's own, answered by `IQuestRequirements`) and `RepeatCooldownSeconds`.
   - `IQuestStages` on `QuestManager`: `CurrentStageOf`, `AdvanceStage` (along a link, or any stage with `force`), `Signal` (takes the links whose condition is the signalled name), `WhyNot` (`QuestRefusal`), `CooldownLeft`, `RestoreStage`, `RestoreCompletedAt`. A link without a condition is taken when the stage's objectives are done. A Success stage completes the quest, a Failure stage fails it. `QuestStageChangedEvent` on every move.
