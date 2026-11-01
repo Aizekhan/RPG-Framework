@@ -88,6 +88,41 @@ namespace RPGFramework.ActionCombat.PlayTests
             Assert.That(_arena.Rules.IsSwingLive(swing), Is.False);
         }
 
+        [UnityTest]
+        public IEnumerator TwoEnemies_RunUpToADummy_AndStrikeIt()
+        {
+            _arena.AddEnemyTarget(Hero);
+            var dummyBody = _hero.gameObject;
+            dummyBody.AddComponent<CapsuleCollider>();
+            dummyBody.AddComponent<Hurtbox>();
+
+            var places = new[] { new Vector3(4f, 0f, 0f), new Vector3(-4f, 0f, 0f) };
+            for (int i = 0; i < places.Length; i++)
+            {
+                var enemy = Make("enemy " + i);
+                enemy.transform.position = places[i];
+                var brain = enemy.AddComponent<CombatEnemyAI>();
+                var behaviour = new EnemyBehaviour { NoticeSeconds = 0f, ViewAngle = 360f, RecoveryPause = 0.2f };
+                behaviour.Moves.Add(new EnemyMove(new AttackDefinition("slash", 0.15f, 0.25f, 0.2f), 0f, 1.6f));
+                brain.UseBehaviour(behaviour);
+                enemy.GetComponent<Combatant>().UseEntityId(20 + i);
+
+                var sword = Make("sword " + i);
+                sword.transform.SetParent(enemy.transform, false);
+                sword.transform.localPosition = new Vector3(0f, 0f, 0.9f);
+                sword.AddComponent<BoxCollider>().size = new Vector3(0.3f, 0.3f, 1.2f);
+                sword.AddComponent<Hitbox>();
+            }
+
+            float until = Time.time + 8f;
+            while (Time.time < until && !(_damage.Attackers.Contains(20) && _damage.Attackers.Contains(21)))
+                yield return null;
+
+            Assert.That(_damage.Attackers, Has.Member(20).And.Member(21), "both ran up and struck");
+            Assert.That(_damage.Hits, Has.Member(Hero));
+            Assert.That(_arena.Timeline.Entries, Has.Some.Matches<TimelineEntry>(e => e.Kind == TimelineKind.Decision));
+        }
+
         private GameObject Make(string name)
         {
             var created = new GameObject(name);
@@ -98,12 +133,14 @@ namespace RPGFramework.ActionCombat.PlayTests
         private sealed class RecordingDamage : ICombatDamage
         {
             public readonly List<int> Hits = new List<int>();
+            public readonly List<int> Attackers = new List<int>();
 
             public bool CanHit(int attackerId, int targetId) => true;
 
             public float Deal(int attackerId, int targetId, AttackContext context)
             {
                 Hits.Add(targetId);
+                Attackers.Add(attackerId);
                 return 5f;
             }
         }

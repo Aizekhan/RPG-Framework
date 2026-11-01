@@ -48,6 +48,17 @@ namespace RPGFramework.ActionCombat
     }
 
     /// <summary>
+    /// How hard a hit staggered: a flinch, a heavy stagger with a push back, or a knockdown and get-up
+    /// (<see cref="CombatantSettings.TierOf"/>).
+    /// </summary>
+    public enum HitTier
+    {
+        Light = 0,
+        Heavy = 1,
+        Knockdown = 2
+    }
+
+    /// <summary>
     /// How a contact between a hitbox and a body ended.
     /// </summary>
     public enum ContactResult

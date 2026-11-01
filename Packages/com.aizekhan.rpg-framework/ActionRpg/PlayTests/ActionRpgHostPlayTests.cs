@@ -131,6 +131,26 @@ namespace RPGFramework.ActionRpg.PlayTests
                 .SetValue(target, value);
 
         [UnityTest]
+        public IEnumerator AKilledEnemysBody_StaysForItsCorpseTime()
+        {
+            _setup.Characters.First(c => c.Id == "goblin").SetCorpseSeconds(0.6f);
+            var world = _host.World;
+            yield return WaitUntil(() => world.LivingEnemies.Count() == 2 && world.LivingEnemies.All(id => _host.Views.TryGetView(id, out _)),
+                "first wave with views");
+            int enemy = world.LivingEnemies.First();
+            _host.Views.TryGetView(enemy, out var view);
+            var body = view.gameObject;
+
+            _host.Host.Container.Resolve<ILifeStateManager>().Kill(enemy, world.PlayerId, "test");
+            yield return null;
+
+            Assert.That(_host.Views.TryGetView(enemy, out _), Is.False, "no longer the enemy's view");
+            Assert.That(body != null && body.activeInHierarchy, Is.True, "the body stays");
+            yield return new WaitForSeconds(0.9f);
+            Assert.That(body == null || !body.activeInHierarchy, Is.True, "then it goes");
+        }
+
+        [UnityTest]
         public IEnumerator AssetsOnlyGame_Plays()
         {
             var world = _host.World;

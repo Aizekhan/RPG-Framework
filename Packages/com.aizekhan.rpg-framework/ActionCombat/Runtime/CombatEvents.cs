@@ -165,22 +165,43 @@ namespace RPGFramework.ActionCombat
     }
 
     /// <summary>
-    /// A hit staggered the combatant for <see cref="Seconds"/>.
+    /// A hit staggered the combatant for <see cref="Seconds"/>: how hard (<see cref="Tier"/>) and how far it is pushed
+    /// along <see cref="Direction"/> (the Unity side moves the body).
     /// </summary>
     public readonly struct HitReactStartedEvent : IEvent
     {
         public HitReactStartedEvent(int entityId, int attackerId, float seconds, float time)
+            : this(entityId, attackerId, seconds, time, HitTier.Light, 0f, CombatVector.Zero)
+        {
+        }
+
+        public HitReactStartedEvent(int entityId, int attackerId, float seconds, float time, HitTier tier, float knockback,
+            CombatVector direction)
         {
             EntityId = entityId;
             AttackerId = attackerId;
             Seconds = seconds;
             Time = time;
+            Tier = tier;
+            Knockback = knockback;
+            Direction = direction;
         }
 
         public int EntityId { get; }
         public int AttackerId { get; }
         public float Seconds { get; }
         public float Time { get; }
+        public HitTier Tier { get; }
+
+        /// <summary>
+        /// Metres to push the body back (0: none).
+        /// </summary>
+        public float Knockback { get; }
+
+        /// <summary>
+        /// Away from the attacker, on the ground (zero when the poses are unknown).
+        /// </summary>
+        public CombatVector Direction { get; }
     }
 
     public readonly struct HitReactEndedEvent : IEvent

@@ -23,7 +23,10 @@ the `Combat` damage calculator); use `ActionCombat` when the timing of a blow ma
   (`ActorWorldDamage`), so crits, evasion, resistances and life steal still apply.
 - **Hit reaction:** a staggering hit puts the target in HitReact for its `HitReactSeconds` and interrupts an
   interruptible attack, a charge or a dodge. `Poise` absorbs stagger until it runs out (it refills after
-  `PoiseRecoverySeconds` without a hit).
+  `PoiseRecoverySeconds` without a hit). **By force** (the attack's `Stagger`): below `HeavyStagger` a light
+  flinch, from it a heavy stagger (`HeavyHitReactSeconds`, pushed back `HeavyKnockback` m), from `KnockdownStagger`
+  a knockdown with get-up (`KnockdownSeconds`, `KnockdownKnockback`). `HitReactStartedEvent` carries `Tier`,
+  `Knockback` and `Direction` (away from the attacker); the Unity side moves the body.
 - **Dodge with i-frames:** `Dodge(entity, direction)` is invulnerable for exactly the dodge (`DodgeSeconds`) or a
   window inside it (`InvulnerableFrom`/`InvulnerableUntil`; on `Combatant`, a dodge clip's length and its
   `InvulnerableStart`/`InvulnerableEnd` animation events). There is no separate guard timer. A dodge cancels a charge
@@ -62,8 +65,47 @@ the `Combat` damage calculator); use `ActionCombat` when the timing of a blow ma
    `ChargeRelease`, `Dodge`, `HitReact`, `Block`; missing parameters are skipped.
 7. Ranged: **`ProjectileLauncher`** (muzzle, a `CombatProjectile` prefab, speed) fires on the projectile attack's
    active phase along `Aim` (set it from the camera) or the muzzle's forward.
-8. Enemies: **`CombatEnemyBrain`** instead of `EnemyBrain` (with a Combatant): it chases as before, starts its
-   attack in reach and stands while it swings or is staggered. Your own AI calls the same `Combatant` API.
+8. Enemies: **`CombatEnemyAI`** (below) for monsters that fight like in an action RPG; the simple
+   **`CombatEnemyBrain`** chases as `EnemyBrain` does and starts its attack in reach. Your own AI calls the same
+   `Combatant` API.
+
+## Enemy combat AI
+
+`EnemyDirector` (engine-free, `arena.Enemies`) decides for every enemy each frame; `CombatEnemyAI` (replaces
+`EnemyBrain` on the prefab, with a `Combatant`) moves the body along its `EnemyIntent`. Tune a kind of monster in an
+**Enemy Behaviour** asset (Create > RPG Framework > Action Combat > Enemy Behaviour):
+
+- **Perception:** `SightRadius`, `ViewAngle` (cone) and a line of sight (a raycast from `Eye Height`, blocked by the
+  arena's `Sight Blockers`); `HearingRadius` notices anyone close; being struck alerts at once. `MemorySeconds` of
+  chasing after losing sight, `LeashRadius` from home, then it goes home. `NoticeSeconds` of a roar first.
+- **Movement** (each with its speed): Idle, Patrol (the component's waypoints, or `WanderRadius` around home),
+  Chase (run beyond `EngageDistance`), Approach (walk in to strike), Circle (strafe at `CircleDistance` while
+  waiting), BackOff (too close while waiting, or hurt), Returning. `TurnSpeed`; no turning in an attack's hit window
+  (`TrackDuringWindUp` per move for the wind-up). Enemies keep `PersonalSpace` from each other.
+- **Attack tokens:** at most `Attackers Per Target` (arena, default 2) enemies attack one target at once
+  (`AttackTokens`); the others circle. Free slots go to the nearest and longest waiting. A token is given back when
+  the attack or combo ends or the enemy is staggered.
+- **Moves:** an attack with `MinRange`/`MaxRange` (a lunge is a gap closer from range), `Weight`, `Cooldown`,
+  `Next` (a combo link played only when the previous blow hit or was blocked; `Opener` off = only as a link). Picked
+  by distance, cooldowns and weights with the arena's `Seed`. After an attack or combo, `RecoveryPause`: the
+  player's punish window.
+- **Defence:** when its target starts a swing: `BlockChance` (held `BlockSeconds`), else `DodgeChance` (sideways);
+  under `BackOffHealthShare` of health a `BackOffChance` to step away.
+- **Hit reactions** by force through the `Combatant`'s hit tiers (light, heavy with push back, knockdown and
+  get-up); big moves with `Interruptible` off keep going (hyper armour).
+- **Death:** `EnemyDiedEvent` with `Variant` (one of `DeathVariants` clips). The kit keeps the body for the
+  character's **`Corpse Seconds`** (Character asset) before the view goes; `ActorPresenter.CorpseRemoving` is the
+  hook for a fade. Any `ActorView` hears `OnKilled()` while still bound.
+- **Animation:** `EnemyAnimatorBridge` sets `Speed`, `MoveX`/`MoveY` (local m/s, for a strafe blend tree),
+  `Notice`, `Death` + `DeathIndex`; `CombatAnimatorBridge` the attacks, `Block`, `Dodge`, `HitReact` and by tier
+  `HitLight`/`HitHeavy`/`Knockdown`. Missing parameters are skipped.
+- **Why it did that:** events `EnemyNoticedEvent`, `EnemyStateChangedEvent` (with the reason),
+  `AttackTokenGrantedEvent`/`AttackTokenReleasedEvent`, `AttackChosenEvent`, `EnemyDiedEvent`, and `Decision`
+  entries in the timeline ("Circle -> Attacking: slash", "token released: combo missed").
+
+Outside the kit (a training dummy), `arena.AddEnemyTarget(id)` makes something a target; `CombatEnemyAI.UseBehaviour`
+sets a behaviour from code. Path finding is not built in: the enemies steer straight (with separation); a level with
+walls between them and the player needs a pathfinding layer under `CombatEnemyAI` (NavMesh, or `DistanceMap`).
 
 ## The player's input
 

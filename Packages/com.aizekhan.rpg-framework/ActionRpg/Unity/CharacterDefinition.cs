@@ -64,6 +64,9 @@ namespace RPGFramework.ActionRpg
         [Tooltip("Rolled for the killer; add the dropped items to the Game Setup")]
         [SerializeField] private LootTableAsset _loot;
 
+        [Tooltip("Seconds the body stays after death (for a death animation) before it goes; 0: it goes at once")]
+        [SerializeField, Min(0f)] private float _corpseSeconds;
+
         public string Id => string.IsNullOrWhiteSpace(_id) ? name.ToLowerInvariant().Replace(' ', '_') : _id;
         public string DisplayName => string.IsNullOrWhiteSpace(_displayName) ? name : _displayName;
         public GameObject Prefab => _prefab;
@@ -72,6 +75,11 @@ namespace RPGFramework.ActionRpg
         public float AttackRange => _attackRange;
         public float AttackCooldown => _attackCooldown;
         public LootTableAsset Loot => _loot;
+
+        /// <summary>
+        /// Seconds the killed character's body stays in the scene before its view is released (0: at once).
+        /// </summary>
+        public float CorpseSeconds => _corpseSeconds;
 
         public CharacterData ToData() => new CharacterData
         {
@@ -121,6 +129,11 @@ namespace RPGFramework.ActionRpg
             _attackRange = attackRange;
             _attackCooldown = attackCooldown;
         }
+
+        /// <summary>
+        /// Seconds the body stays after death (<see cref="CorpseSeconds"/>).
+        /// </summary>
+        public void SetCorpseSeconds(float seconds) => _corpseSeconds = Mathf.Max(0f, seconds);
 
         public void SetGrowth(float healthPerLevel, float attackPerLevel, float defensePerLevel)
         {

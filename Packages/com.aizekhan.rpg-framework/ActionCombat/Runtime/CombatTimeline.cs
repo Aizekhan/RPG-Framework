@@ -42,7 +42,13 @@ namespace RPGFramework.ActionCombat
         /// <summary>
         /// The game's own mark (<see cref="CombatTimeline.Mark"/>): an input, an animation event.
         /// </summary>
-        Mark = 15
+        Mark = 15,
+
+        /// <summary>
+        /// An enemy's decision (<c>EnemyDirector</c>): a state change, a token, a chosen attack, a defence, and why
+        /// (<see cref="TimelineEntry.Note"/>).
+        /// </summary>
+        Decision = 16
     }
 
     /// <summary>

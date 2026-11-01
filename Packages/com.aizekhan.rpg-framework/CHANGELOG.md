@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Added
+- ActionCombat: an enemy combat AI (MythRunner request). The rules are engine-free in `EnemyDirector`, reached through `arena.Enemies`.
+  - Perception: sight radius, view cone, line of sight, hearing and being struck. The enemy remembers a lost target, has a leash, goes home, and has a Notice state.
+  - Movement states: patrol, chase, approach, circle and back off, with turn limits. It does not turn in an attack's hit window, and enemies keep apart from each other.
+  - `AttackTokens`: at most N attackers per target; the others circle.
+  - Moves with ranges, weights, cooldowns and combo links. A combo continues only while it lands, and gap closers are supported.
+  - A punish pause after an attack, chances to block or dodge a swing, and backing off when hurt.
+  - Death with a variant.
+  - Decisions are published as events and recorded as `Decision` timeline entries. The behaviour is seeded and repeatable.
+  - Unity layer: `EnemyBehaviourAsset`, `CombatEnemyAI` (replaces `EnemyBrain`, moves the body along its `EnemyIntent`, and applies knockback), `EnemyAnimatorBridge` (Speed, MoveX/MoveY, Notice, Death/DeathIndex), and `CombatArena` settings (attackers per target, seed, sight blockers, eye height, `AddEnemyTarget`, `RegisterBody`).
+- ActionCombat: hit tiers by the attack's `Stagger`.
+  - `CombatantSettings.HeavyStagger` and `KnockdownStagger` choose a light, heavy or knockdown reaction, each with its own seconds and knockback. `HitReactStartedEvent` now carries `Tier`, `Knockback` and `Direction`.
+  - `CombatAnimatorBridge` sets `HitLight`, `HitHeavy` and `Knockdown`.
+  - `CombatRules.HitTierOf` and `CombatRules.TryGetPose`.
+- Action RPG kit: corpse time. `CharacterDefinition.CorpseSeconds` (`SetCorpseSeconds`) keeps a killed character's body in the scene before its view is released, so a death animation can play. `ActorPresenter.CorpseRemoving` is the hook for a fade, and `ActorView.OnKilled()` is called while the view is still bound.
+
 ## [0.30.0] - 2026-11-01
 
 ### Added

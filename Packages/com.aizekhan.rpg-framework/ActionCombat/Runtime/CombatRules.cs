@@ -145,6 +145,26 @@ namespace RPGFramework.ActionCombat
         }
 
         /// <summary>
+        /// How hard the current stagger is (Light when not staggered).
+        /// </summary>
+        public HitTier HitTierOf(int entityId)
+        {
+            var fighter = Find(entityId);
+            return fighter != null && fighter.State == CombatState.HitReact ? fighter.Tier : HitTier.Light;
+        }
+
+        /// <summary>
+        /// Where the combatant stands, as last set (<see cref="SetPose"/>).
+        /// </summary>
+        public bool TryGetPose(int entityId, out CombatVector position, out CombatVector forward)
+        {
+            var fighter = Find(entityId);
+            position = fighter?.Position ?? CombatVector.Zero;
+            forward = fighter?.Forward ?? CombatVector.Zero;
+            return fighter != null && fighter.HasPose;
+        }
+
+        /// <summary>
         /// Inside a dodge's invulnerability.
         /// </summary>
         public bool IsInvulnerable(int entityId)
@@ -494,7 +514,9 @@ namespace RPGFramework.ActionCombat
         private void React(Fighter target, int attackerId, AttackDefinition attack, bool force)
         {
             var settings = target.Settings;
-            if (settings.HitReactSeconds <= 0f)
+            var tier = settings.TierOf(attack.Stagger);
+            float seconds = settings.SecondsOf(tier);
+            if (seconds <= 0f)
                 return;
             if (!force)
             {
@@ -532,10 +554,22 @@ namespace RPGFramework.ActionCombat
                     Raise(new BlockLoweredEvent(target.Id, Time), new TimelineEntry(Time, TimelineKind.BlockLowered, target.Id));
                     break;
             }
-            Enter(target, CombatState.HitReact, settings.HitReactSeconds);
-            Raise(new HitReactStartedEvent(target.Id, attackerId, settings.HitReactSeconds, Time),
-                new TimelineEntry(Time, TimelineKind.HitReactStarted, target.Id, attackerId, value: settings.HitReactSeconds,
-                    note: force ? "guard broken" : null));
+            Enter(target, CombatState.HitReact, seconds);
+            target.Tier = tier;
+            Raise(new HitReactStartedEvent(target.Id, attackerId, seconds, Time, tier, settings.KnockbackOf(tier), Away(target, attackerId)),
+                new TimelineEntry(Time, TimelineKind.HitReactStarted, target.Id, attackerId, value: seconds,
+                    note: tier != HitTier.Light ? tier + (force ? ", guard broken" : "") : force ? "guard broken" : null));
+        }
+
+        // Unit direction from the attacker to the target on the ground, or zero
+        private CombatVector Away(Fighter target, int attackerId)
+        {
+            var attacker = Find(attackerId);
+            if (attacker == null || !attacker.HasPose || !target.HasPose)
+                return CombatVector.Zero;
+            var away = (target.Position - attacker.Position).Flat;
+            float length = away.Length;
+            return length < 1e-4f ? CombatVector.Zero : new CombatVector(away.X / length, 0f, away.Z / length);
         }
 
         private float Deal(Swing swing, int targetId, float share)
@@ -642,6 +676,7 @@ namespace RPGFramework.ActionCombat
             public CombatVector Forward;
             public bool HasPose;
             public CombatVector DodgeDirection;
+            public HitTier Tier;
             public bool Removed;
         }
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using RPGFramework.ActionRpg;
 using RPGFramework.Combat;
 using RPGFramework.Events;
@@ -39,6 +40,24 @@ namespace RPGFramework.ActionCombat
         [Tooltip("How many entries the timeline keeps (the oldest go first)")]
         [SerializeField, Min(1)] private int _timelineCapacity = 4096;
 
+        [Header("Enemies")]
+        [Tooltip("At most this many enemies attack one target at once; the others circle")]
+        [SerializeField, Min(0)] private int _attackersPerTarget = 2;
+
+        [Tooltip("Seeds the enemies' rolls (moves, defences, wandering)")]
+        [SerializeField] private int _seed;
+
+        [Tooltip("What blocks an enemy's view (line of sight)")]
+        [SerializeField] private LayerMask _sightBlockers = ~0;
+
+        [Tooltip("Eye height above a body's origin for the line of sight")]
+        [SerializeField, Min(0f)] private float _eyeHeight = 1.5f;
+
+        private readonly Dictionary<int, Transform> _bodies = new Dictionary<int, Transform>();
+        private readonly HashSet<int> _targets = new HashSet<int>();
+        private readonly RaycastHit[] _sightHits = new RaycastHit[16];
+        private EnemyDirector _enemies;
+
         private static CombatArena _current;
         private ActionRpgHost _host;
         private float _nextHostSearch;
@@ -68,6 +87,43 @@ namespace RPGFramework.ActionCombat
         }
 
         public CombatTimeline Timeline => Rules.Timeline;
+
+        /// <summary>
+        /// The enemies' combat AI (<see cref="CombatEnemyAI"/> joins it).
+        /// </summary>
+        public EnemyDirector Enemies
+        {
+            get
+            {
+                Prepare();
+                return _enemies;
+            }
+        }
+
+        /// <summary>
+        /// Where a body is, by entity id (every <see cref="Combatant"/> registers itself; add others here).
+        /// </summary>
+        public void RegisterBody(int entityId, Transform body)
+        {
+            if (entityId >= 0 && body != null)
+                _bodies[entityId] = body;
+        }
+
+        public void ForgetBody(int entityId, Transform body)
+        {
+            if (_bodies.TryGetValue(entityId, out var known) && known == body)
+                _bodies.Remove(entityId);
+        }
+
+        public bool TryGetBody(int entityId, out Transform body) =>
+            _bodies.TryGetValue(entityId, out body) && body != null;
+
+        /// <summary>
+        /// Someone the enemies fight besides the kit's living players (a training dummy, a game without the kit).
+        /// </summary>
+        public void AddEnemyTarget(int entityId) => _targets.Add(entityId);
+
+        public void RemoveEnemyTarget(int entityId) => _targets.Remove(entityId);
 
         /// <summary>
         /// The arena's own bus: subscribe to the combat events here (<see cref="AttackActiveStartedEvent"/>,
@@ -120,6 +176,7 @@ namespace RPGFramework.ActionCombat
         {
             if (_current == this)
                 _current = null;
+            _enemies?.Dispose();
         }
 
         private void Prepare()
@@ -128,6 +185,7 @@ namespace RPGFramework.ActionCombat
                 return;
             _events = new EventBus();
             _rules = new CombatRules(new ActorWorldDamage(() => World), _events, new CombatTimeline(_timelineCapacity));
+            _enemies = new EnemyDirector(_rules, new ArenaEnemyWorld(this), _events, _seed, new AttackTokens(_attackersPerTarget));
         }
 
         private void Update()
@@ -136,6 +194,75 @@ namespace RPGFramework.ActionCombat
             if (world != null && world.IsPaused)
                 return;
             Rules.Tick(Time.deltaTime);
+            Enemies.Tick();
+        }
+
+        // The scene as the enemies see it: the kit's living hostile players and the added targets, bodies' poses,
+        // a raycast for the line of sight
+        private sealed class ArenaEnemyWorld : IEnemyWorld
+        {
+            private readonly CombatArena _arena;
+
+            public ArenaEnemyWorld(CombatArena arena) => _arena = arena;
+
+            public IEnumerable<int> TargetsOf(int enemyId)
+            {
+                var world = _arena.World;
+                if (world != null)
+                {
+                    foreach (int player in world.LivingPlayers)
+                    {
+                        if (world.AreHostile(enemyId, player))
+                            yield return player;
+                    }
+                }
+                foreach (int target in _arena._targets)
+                {
+                    if (target != enemyId && IsAlive(target))
+                        yield return target;
+                }
+            }
+
+            public bool TryGetPose(int entityId, out CombatVector position, out CombatVector forward)
+            {
+                if (_arena.TryGetBody(entityId, out var body))
+                {
+                    position = Combatant.ToCombat(body.position);
+                    forward = Combatant.ToCombat(body.forward);
+                    return true;
+                }
+                position = forward = CombatVector.Zero;
+                return false;
+            }
+
+            public bool CanSee(int fromId, int toId)
+            {
+                if (!_arena.TryGetBody(fromId, out var from) || !_arena.TryGetBody(toId, out var to))
+                    return false;
+                var eye = from.position + Vector3.up * _arena._eyeHeight;
+                var aim = to.position + Vector3.up * _arena._eyeHeight;
+                var line = aim - eye;
+                float distance = line.magnitude;
+                if (distance < 0.01f)
+                    return true;
+                int count = Physics.RaycastNonAlloc(eye, line / distance, _arena._sightHits, distance, _arena._sightBlockers,
+                    QueryTriggerInteraction.Ignore);
+                for (int i = 0; i < count; i++)
+                {
+                    var hit = _arena._sightHits[i].transform;
+                    if (!hit.IsChildOf(from) && !hit.IsChildOf(to))
+                        return false;
+                }
+                return true;
+            }
+
+            public float HealthShare(int entityId) => _arena.World?.Get(entityId)?.HealthFraction ?? 1f;
+
+            public bool IsAlive(int entityId)
+            {
+                var actor = _arena.World?.Get(entityId);
+                return actor == null ? _arena._bodies.ContainsKey(entityId) || _arena._targets.Contains(entityId) : actor.IsAlive();
+            }
         }
     }
 }

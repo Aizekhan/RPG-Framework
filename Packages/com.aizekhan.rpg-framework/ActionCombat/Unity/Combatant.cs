@@ -52,6 +52,18 @@ namespace RPGFramework.ActionCombat
         [Tooltip("Share of a blocked blow's damage that still gets through")]
         [SerializeField, Range(0f, 1f)] private float _blockDamageMultiplier;
 
+        [Header("Hit tiers (by the attack's Stagger)")]
+        [Tooltip("Stagger from which a hit is heavy (a longer stagger, a push back); 0: every reaction is light")]
+        [SerializeField, Min(0f)] private float _heavyStagger;
+        [SerializeField, Min(0f)] private float _heavyHitReactSeconds = 0.8f;
+        [SerializeField, Min(0f)] private float _heavyKnockback = 0.5f;
+
+        [Tooltip("Stagger from which a hit knocks it down (fall and get-up); 0: never")]
+        [SerializeField, Min(0f)] private float _knockdownStagger;
+        [Tooltip("The fall and the get-up together")]
+        [SerializeField, Min(0f)] private float _knockdownSeconds = 2f;
+        [SerializeField, Min(0f)] private float _knockdownKnockback = 1.5f;
+
         private CombatArena _arena;
         private int _joined = -1;
 
@@ -138,7 +150,13 @@ namespace RPGFramework.ActionCombat
                 InvulnerableFrom = _invulnerableFrom,
                 InvulnerableUntil = _invulnerableUntil,
                 BlockAngle = _blockAngle,
-                BlockDamageMultiplier = _blockDamageMultiplier
+                BlockDamageMultiplier = _blockDamageMultiplier,
+                HeavyStagger = _heavyStagger,
+                HeavyHitReactSeconds = _heavyHitReactSeconds,
+                HeavyKnockback = _heavyKnockback,
+                KnockdownStagger = _knockdownStagger,
+                KnockdownSeconds = _knockdownSeconds,
+                KnockdownKnockback = _knockdownKnockback
             };
             if (_dodgeClip != null && _dodgeClip.length > 0f)
             {
@@ -189,6 +207,7 @@ namespace RPGFramework.ActionCombat
                 return;
             Leave();
             Arena.Rules.Add(id, BuildSettings());
+            Arena.RegisterBody(id, transform);
             _joined = id;
         }
 
@@ -197,7 +216,10 @@ namespace RPGFramework.ActionCombat
             if (_joined < 0)
                 return;
             if (Arena != null)
+            {
                 Arena.Rules.Remove(_joined);
+                Arena.ForgetBody(_joined, transform);
+            }
             _joined = -1;
         }
 

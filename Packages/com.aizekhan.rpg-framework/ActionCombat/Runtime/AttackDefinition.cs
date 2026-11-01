@@ -181,6 +181,33 @@ namespace RPGFramework.ActionCombat
         public float PoiseRecoverySeconds { get; set; } = 3f;
 
         /// <summary>
+        /// A staggering blow with at least this <see cref="AttackDefinition.Stagger"/> is a heavy hit
+        /// (<see cref="HitTier.Heavy"/>: <see cref="HeavyHitReactSeconds"/>, <see cref="HeavyKnockback"/>); 0 = no heavy
+        /// tier, every reaction is light.
+        /// </summary>
+        public float HeavyStagger { get; set; }
+
+        /// <summary>
+        /// A blow with at least this stagger knocks it down (<see cref="HitTier.Knockdown"/>: down and up again in
+        /// <see cref="KnockdownSeconds"/>); 0 = never knocked down.
+        /// </summary>
+        public float KnockdownStagger { get; set; }
+
+        public float HeavyHitReactSeconds { get; set; } = 0.8f;
+
+        /// <summary>
+        /// Seconds of a knockdown, the fall and the get-up together.
+        /// </summary>
+        public float KnockdownSeconds { get; set; } = 2f;
+
+        /// <summary>
+        /// How far a heavy hit pushes it back (the Unity side moves the body; <see cref="HitReactStartedEvent.Knockback"/>).
+        /// </summary>
+        public float HeavyKnockback { get; set; } = 0.5f;
+
+        public float KnockdownKnockback { get; set; } = 1.5f;
+
+        /// <summary>
         /// Seconds a dodge lasts.
         /// </summary>
         public float DodgeSeconds { get; set; } = 0.5f;
@@ -205,6 +232,20 @@ namespace RPGFramework.ActionCombat
         /// Share of a blocked blow's damage that still gets through (0 = all of it stopped).
         /// </summary>
         public float BlockDamageMultiplier { get; set; }
+
+        /// <summary>
+        /// The reaction to a staggering blow of this force.
+        /// </summary>
+        public HitTier TierOf(float stagger) =>
+            KnockdownStagger > 0f && stagger >= KnockdownStagger ? HitTier.Knockdown
+            : HeavyStagger > 0f && stagger >= HeavyStagger ? HitTier.Heavy
+            : HitTier.Light;
+
+        public float SecondsOf(HitTier tier) =>
+            tier == HitTier.Knockdown ? KnockdownSeconds : tier == HitTier.Heavy ? HeavyHitReactSeconds : HitReactSeconds;
+
+        public float KnockbackOf(HitTier tier) =>
+            tier == HitTier.Knockdown ? KnockdownKnockback : tier == HitTier.Heavy ? HeavyKnockback : 0f;
 
         internal float InvulnerableEnd => InvulnerableUntil < 0f ? DodgeSeconds : Math.Min(InvulnerableUntil, DodgeSeconds);
     }

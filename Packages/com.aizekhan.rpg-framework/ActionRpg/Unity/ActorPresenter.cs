@@ -38,6 +38,8 @@ namespace RPGFramework.ActionRpg
         private readonly HashSet<GameObject> _placeholders = new HashSet<GameObject>();
         private readonly Dictionary<int, ActorPose> _reported = new Dictionary<int, ActorPose>();
         private readonly bool _enemiesDrivenElsewhere;
+        private readonly Dictionary<int, float> _dying = new Dictionary<int, float>();
+        private readonly HashSet<GameObject> _corpses = new HashSet<GameObject>();
 
         public ActorPresenter(IActorWorld world, GameSetup setup, IEventBus bus, IPrefabSpawner spawner,
             IEntityViewRegistry views, Transform root, ILogger logger, bool enemiesDrivenElsewhere = false)
@@ -65,6 +67,12 @@ namespace RPGFramework.ActionRpg
         public Color[] PartyColors { get; set; }
 
         /// <summary>
+        /// Raised when a killed character's body is about to be released after its corpse time
+        /// (<see cref="CharacterDefinition.CorpseSeconds"/>): fade it, leave a mark.
+        /// </summary>
+        public event Action<int, GameObject> CorpseRemoving;
+
+        /// <summary>
         /// Registers the prefabs, shows everyone already in the world (the player spawns while the game starts)
         /// and follows from then on.
         /// </summary>
@@ -79,6 +87,7 @@ namespace RPGFramework.ActionRpg
             }
 
             _bus.Subscribe<ActorSpawnedEvent>(e => ShowAsync(e.EntityId).Forget()).AddTo(_subscriptions);
+            _bus.Subscribe<ActorKilledEvent>(OnKilled).AddTo(_subscriptions);
             _bus.Subscribe<ActorDespawnedEvent>(e => Hide(e.EntityId)).AddTo(_subscriptions);
             _bus.Subscribe<ActorDamagedEvent>(OnDamaged).AddTo(_subscriptions);
             foreach (var actor in new List<Actor>(_world.Actors))
@@ -90,6 +99,12 @@ namespace RPGFramework.ActionRpg
             _subscriptions.Dispose();
             _lifetime.Cancel();
             _lifetime.Dispose();
+            foreach (var corpse in new List<GameObject>(_corpses))
+            {
+                if (corpse != null)
+                    ReleaseView(corpse);
+            }
+            _corpses.Clear();
             foreach (var view in new List<EntityView>(_views.Views))
             {
                 if (view != null)
@@ -219,14 +234,48 @@ namespace RPGFramework.ActionRpg
                 strike.Play();
         }
 
+        // Before the killed character leaves the world: its parts hear it (a death animation) while still bound
+        private void OnKilled(ActorKilledEvent killed)
+        {
+            if (!_views.TryGetView(killed.EntityId, out var view))
+                return;
+            float seconds = _setup.FindCharacter(killed.CharacterId)?.CorpseSeconds ?? 0f;
+            if (seconds > 0f)
+                _dying[killed.EntityId] = seconds;
+            foreach (var part in view.GetComponentsInChildren<ActorView>(true))
+                part.Kill();
+        }
+
         private void Hide(int entityId)
         {
             _reported.Remove(entityId);
+            bool corpse = _dying.TryGetValue(entityId, out float seconds);
+            _dying.Remove(entityId);
             var instance = _views.Unbind(entityId);
             if (instance == null)
                 return;
             foreach (var part in instance.GetComponentsInChildren<ActorView>(true))
                 part.Unbind();
+            if (corpse && !_lifetime.IsCancellationRequested)
+                KeepCorpseAsync(entityId, instance, seconds).Forget();
+            else
+                ReleaseView(instance);
+        }
+
+        private async UniTaskVoid KeepCorpseAsync(int entityId, GameObject instance, float seconds)
+        {
+            _corpses.Add(instance);
+            try
+            {
+                await UniTask.Delay(TimeSpan.FromSeconds(seconds), cancellationToken: _lifetime.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            if (!_corpses.Remove(instance) || instance == null)
+                return;
+            CorpseRemoving?.Invoke(entityId, instance);
             ReleaseView(instance);
         }
 

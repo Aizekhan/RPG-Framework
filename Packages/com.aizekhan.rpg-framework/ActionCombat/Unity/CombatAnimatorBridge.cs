@@ -28,7 +28,13 @@ namespace RPGFramework.ActionCombat
         [SerializeField] private string _chargeRelease = "ChargeRelease";
 
         [SerializeField] private string _dodge = "Dodge";
+        [Tooltip("Trigger on every stagger")]
         [SerializeField] private string _hitReact = "HitReact";
+
+        [Tooltip("Triggers by how hard the hit was (the Combatant's hit tiers)")]
+        [SerializeField] private string _hitLight = "HitLight";
+        [SerializeField] private string _hitHeavy = "HitHeavy";
+        [SerializeField] private string _knockdown = "Knockdown";
 
         [Tooltip("Bool, true while the block is up")]
         [SerializeField] private string _block = "Block";
@@ -50,7 +56,11 @@ namespace RPGFramework.ActionCombat
             _subscriptions.Add(events.Subscribe<AttackReleasedEvent>(OnReleased));
             _subscriptions.Add(events.Subscribe<AttackEndedEvent>(e => Mine(e.EntityId, () => SetBool(_chargeHold, false))));
             _subscriptions.Add(events.Subscribe<DodgeStartedEvent>(e => Mine(e.EntityId, () => Trigger(_dodge))));
-            _subscriptions.Add(events.Subscribe<HitReactStartedEvent>(e => Mine(e.EntityId, () => Trigger(_hitReact))));
+            _subscriptions.Add(events.Subscribe<HitReactStartedEvent>(e => Mine(e.EntityId, () =>
+            {
+                Trigger(_hitReact);
+                Trigger(e.Tier == HitTier.Knockdown ? _knockdown : e.Tier == HitTier.Heavy ? _hitHeavy : _hitLight);
+            })));
             _subscriptions.Add(events.Subscribe<BlockRaisedEvent>(e => Mine(e.EntityId, () => SetBool(_block, true))));
             _subscriptions.Add(events.Subscribe<BlockLoweredEvent>(e => Mine(e.EntityId, () => SetBool(_block, false))));
         }

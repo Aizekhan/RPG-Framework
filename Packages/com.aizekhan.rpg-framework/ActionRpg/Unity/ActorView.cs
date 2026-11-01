@@ -31,6 +31,12 @@ namespace RPGFramework.ActionRpg
             OnBound();
         }
 
+        internal void Kill()
+        {
+            if (IsBound)
+                OnKilled();
+        }
+
         internal void Unbind()
         {
             OnUnbound();
@@ -45,6 +51,14 @@ namespace RPGFramework.ActionRpg
         }
 
         protected virtual void OnUnbound()
+        {
+        }
+
+        /// <summary>
+        /// The character was killed (an enemy; a fallen player is not killed). Called while still bound, just before it is
+        /// unbound: play a death animation here. The body stays for <see cref="CharacterDefinition.CorpseSeconds"/>.
+        /// </summary>
+        protected virtual void OnKilled()
         {
         }
 

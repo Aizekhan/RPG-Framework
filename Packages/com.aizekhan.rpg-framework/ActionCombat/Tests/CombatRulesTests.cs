@@ -142,6 +142,33 @@ namespace RPGFramework.ActionCombat.Tests
         }
 
         [Test]
+        public void AHitsForce_PicksLightHeavyOrKnockdown_WithAPushAway()
+        {
+            _rules.Add(Monster, new CombatantSettings
+            {
+                HitReactSeconds = 0.3f, HeavyStagger = 2f, HeavyHitReactSeconds = 0.8f, HeavyKnockback = 0.5f,
+                KnockdownStagger = 4f, KnockdownSeconds = 2f, KnockdownKnockback = 1.5f
+            });
+            _rules.SetPose(Hero, CombatVector.Zero, new CombatVector(1f, 0f, 0f));
+            _rules.SetPose(Monster, new CombatVector(2f, 0f, 0f), new CombatVector(-1f, 0f, 0f));
+            var reactions = new List<HitReactStartedEvent>();
+            _bus.Subscribe<HitReactStartedEvent>(e => reactions.Add(e));
+
+            foreach (float stagger in new[] { 1f, 2f, 5f })
+            {
+                _rules.Attack(Hero, new AttackDefinition("blow", 0f, 0.1f, 0f) { Stagger = stagger });
+                _rules.ReportContact(Hero, Monster, _rules.SwingOf(Hero));
+                Assert.That(_rules.HitTierOf(Monster), Is.EqualTo(reactions.Last().Tier));
+                _rules.Tick(3f);
+            }
+
+            Assert.That(reactions.Select(r => r.Tier), Is.EqualTo(new[] { HitTier.Light, HitTier.Heavy, HitTier.Knockdown }));
+            Assert.That(reactions.Select(r => r.Seconds), Is.EqualTo(new[] { 0.3f, 0.8f, 2f }));
+            Assert.That(reactions.Select(r => r.Knockback), Is.EqualTo(new[] { 0f, 0.5f, 1.5f }));
+            Assert.That(reactions[2].Direction.X, Is.EqualTo(1f).Within(1e-5f), "away from the attacker");
+        }
+
+        [Test]
         public void AnUninterruptibleAttack_TakesTheHit_ButKeepsGoing()
         {
             _rules.Attack(Monster, new AttackDefinition("slam", 0.5f, 0.1f, 0.5f) { Interruptible = false });

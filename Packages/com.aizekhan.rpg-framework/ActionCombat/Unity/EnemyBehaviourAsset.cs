@@ -1,0 +1,160 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace RPGFramework.ActionCombat
+{
+    /// <summary>
+    /// How a kind of monster notices, moves and fights (<see cref="EnemyBehaviour"/>), tuned in the inspector:
+    /// Create > RPG Framework > Action Combat > Enemy Behaviour. Its moves are attacks with ranges, weights, cooldowns
+    /// and combo links.
+    /// </summary>
+    [CreateAssetMenu(menuName = "RPG Framework/Action Combat/Enemy Behaviour", fileName = "EnemyBehaviour")]
+    public sealed class EnemyBehaviourAsset : ScriptableObject
+    {
+        [Serializable]
+        public sealed class Move
+        {
+            public AttackAsset Attack;
+
+            [Tooltip("Used from this distance to the target (centre to centre)")]
+            [Min(0f)] public float MinRange;
+
+            [Tooltip("Used up to this distance; a lunge has a long one")]
+            [Min(0f)] public float MaxRange = 2f;
+
+            [Min(0f)] public float Weight = 1f;
+
+            [Tooltip("Seconds before it is chosen again")]
+            [Min(0f)] public float Cooldown;
+
+            [Tooltip("Index of the combo's next move in this list (played when this one hit or was blocked); -1: none")]
+            public int Next = -1;
+
+            [Tooltip("Off: the next move is only a combo link, never chosen on its own")]
+            public bool Opener = true;
+
+            [Tooltip("Turns towards the target during the wind-up (never in the hit window)")]
+            public bool TrackDuringWindUp = true;
+        }
+
+        [Header("Perception")]
+        [SerializeField, Min(0f)] private float _sightRadius = 12f;
+        [SerializeField, Range(0f, 360f)] private float _viewAngle = 120f;
+        [Tooltip("Notices anyone this close, whichever way it faces")]
+        [SerializeField, Min(0f)] private float _hearingRadius = 3f;
+        [Tooltip("Keeps chasing this long after it lost sight")]
+        [SerializeField, Min(0f)] private float _memorySeconds = 4f;
+        [Tooltip("The Notice state (a roar) before the chase; 0: none")]
+        [SerializeField, Min(0f)] private float _noticeSeconds = 0.8f;
+        [Tooltip("Gives up beyond this distance from home; 0: never")]
+        [SerializeField, Min(0f)] private float _leashRadius = 30f;
+
+        [Header("Patrol (waypoints are on the enemy component)")]
+        [SerializeField, Min(0f)] private float _wanderRadius;
+        [SerializeField, Min(0f)] private float _patrolPauseSeconds = 2f;
+
+        [Header("Distances")]
+        [Tooltip("Beyond this it runs; inside it walks")]
+        [SerializeField, Min(0f)] private float _engageDistance = 5f;
+        [Tooltip("The distance it keeps while circling, waiting for its turn")]
+        [SerializeField, Min(0f)] private float _circleDistance = 3f;
+        [Tooltip("Closer than this while waiting, it steps back")]
+        [SerializeField, Min(0f)] private float _backOffDistance = 1.5f;
+        [SerializeField, Min(0f)] private float _personalSpace = 1.1f;
+
+        [Header("Speeds (m/s) and turning (deg/s)")]
+        [SerializeField, Min(0f)] private float _patrolSpeed = 1.5f;
+        [SerializeField, Min(0f)] private float _chaseSpeed = 4.5f;
+        [SerializeField, Min(0f)] private float _approachSpeed = 2f;
+        [SerializeField, Min(0f)] private float _circleSpeed = 1.4f;
+        [SerializeField, Min(0f)] private float _backOffSpeed = 1.8f;
+        [SerializeField, Min(0f)] private float _returnSpeed = 3f;
+        [SerializeField, Min(0f)] private float _turnSpeed = 360f;
+        [SerializeField, Min(0.1f)] private float _circleSwitchSeconds = 2.5f;
+
+        [Header("Fighting")]
+        [SerializeField] private List<Move> _moves = new List<Move>();
+        [Tooltip("The pause after an attack or a combo: the player's punish window")]
+        [SerializeField, Min(0f)] private float _recoveryPause = 0.6f;
+
+        [Header("Defence (when the target swings at it)")]
+        [SerializeField, Range(0f, 1f)] private float _blockChance;
+        [SerializeField, Min(0f)] private float _blockSeconds = 0.8f;
+        [SerializeField, Range(0f, 1f)] private float _dodgeChance;
+        [Tooltip("Below this share of health it may back off")]
+        [SerializeField, Range(0f, 1f)] private float _backOffHealthShare;
+        [SerializeField, Range(0f, 1f)] private float _backOffChance = 0.3f;
+        [SerializeField, Min(0f)] private float _backOffSeconds = 1f;
+
+        [Header("Death")]
+        [Tooltip("How many death clips the animator has (DeathIndex 0..n-1)")]
+        [SerializeField, Min(1)] private int _deathVariants = 1;
+
+        public IReadOnlyList<Move> Moves => _moves;
+
+        /// <summary>
+        /// The rules' behaviour (a new one each call: the patrol points are the enemy's own).
+        /// </summary>
+        public EnemyBehaviour Build(IReadOnlyList<CombatVector> patrolPoints = null)
+        {
+            var behaviour = new EnemyBehaviour
+            {
+                SightRadius = _sightRadius,
+                ViewAngle = _viewAngle,
+                HearingRadius = _hearingRadius,
+                MemorySeconds = _memorySeconds,
+                NoticeSeconds = _noticeSeconds,
+                LeashRadius = _leashRadius,
+                PatrolPoints = patrolPoints ?? Array.Empty<CombatVector>(),
+                WanderRadius = _wanderRadius,
+                PatrolPauseSeconds = _patrolPauseSeconds,
+                EngageDistance = _engageDistance,
+                CircleDistance = _circleDistance,
+                BackOffDistance = _backOffDistance,
+                PersonalSpace = _personalSpace,
+                PatrolSpeed = _patrolSpeed,
+                ChaseSpeed = _chaseSpeed,
+                ApproachSpeed = _approachSpeed,
+                CircleSpeed = _circleSpeed,
+                BackOffSpeed = _backOffSpeed,
+                ReturnSpeed = _returnSpeed,
+                TurnSpeed = _turnSpeed,
+                CircleSwitchSeconds = _circleSwitchSeconds,
+                RecoveryPause = _recoveryPause,
+                BlockChance = _blockChance,
+                BlockSeconds = _blockSeconds,
+                DodgeChance = _dodgeChance,
+                BackOffHealthShare = _backOffHealthShare,
+                BackOffChance = _backOffChance,
+                BackOffSeconds = _backOffSeconds,
+                DeathVariants = _deathVariants
+            };
+
+            var built = new EnemyMove[_moves.Count];
+            for (int i = 0; i < _moves.Count; i++)
+            {
+                var move = _moves[i];
+                if (move?.Attack == null)
+                    continue;
+                built[i] = new EnemyMove(move.Attack.Definition, move.MinRange, Mathf.Max(move.MinRange, move.MaxRange))
+                {
+                    Weight = move.Weight,
+                    Cooldown = move.Cooldown,
+                    TrackDuringWindUp = move.TrackDuringWindUp
+                };
+            }
+            for (int i = 0; i < _moves.Count; i++)
+            {
+                var move = _moves[i];
+                if (built[i] == null)
+                    continue;
+                if (move.Next >= 0 && move.Next < built.Length && move.Next != i)
+                    built[i].Next = built[move.Next];
+                if (move.Opener)
+                    behaviour.Moves.Add(built[i]);
+            }
+            return behaviour;
+        }
+    }
+}
