@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.31.0] - 2026-11-01
+
 ### Added
 - ActionCombat: an enemy combat AI (MythRunner request). The rules are engine-free in `EnemyDirector`, reached through `arena.Enemies`.
   - Perception: sight radius, view cone, line of sight, hearing and being struck. The enemy remembers a lost target, has a leash, goes home, and has a Notice state.
