@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Changed
+- `/start` template: a framework update waits for the developer's yes unless they gave standing permission (The Bloodline Hunt note).
+
 ## [0.27.0] - 2026-11-01
 
 ### Added
