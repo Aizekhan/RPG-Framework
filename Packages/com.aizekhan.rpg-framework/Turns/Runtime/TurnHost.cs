@@ -30,6 +30,12 @@ namespace RPGFramework.Turns
         /// </summary>
         public float PauseBankSeconds { get; set; }
 
+        /// <summary>
+        /// A pause ends when the turn passes to another seat (<see cref="ITurnRules.CurrentSeat"/> changes); off: it
+        /// lasts until <see cref="TurnHost.ResumeTurn"/> or its bank runs out.
+        /// </summary>
+        public bool EndPauseWithTurn { get; set; }
+
         public float RejoinWindow { get; set; } = TurnProtocol.RejoinWindow;
     }
 
@@ -87,6 +93,7 @@ namespace RPGFramework.Turns
         private bool _viewsDirty;
         private readonly Dictionary<int, float> _banks = new Dictionary<int, float>();
         private bool _clockRuns;
+        private readonly HashSet<string> _holds = new HashSet<string>();
 
         public TurnHost(INetworkManager network, string hostName, TurnHostOptions options = null, ILogger logger = null)
         {
@@ -127,7 +134,13 @@ namespace RPGFramework.Turns
 
         public float TurnLength { get; private set; }
 
-        public bool TurnClockRuns => IsStarted && TurnLength > 0f && _turnSeat >= 0 && _windows.Count == 0 && PausedBy < 0;
+        public bool TurnClockRuns =>
+            IsStarted && TurnLength > 0f && _turnSeat >= 0 && _windows.Count == 0 && PausedBy < 0 && _holds.Count == 0;
+
+        /// <summary>
+        /// Something holds the turn's time (<see cref="HoldClock"/>).
+        /// </summary>
+        public bool IsClockHeld => _holds.Count > 0;
 
         public int PausedBy { get; private set; } = -1;
 
@@ -170,6 +183,7 @@ namespace RPGFramework.Turns
             _rules = rules ?? throw new ArgumentNullException(nameof(rules));
             Options = options ?? Array.Empty<byte>();
             _banks.Clear();
+            _holds.Clear();
             PausedBy = -1;
             _network.Broadcast(new TurnStartedMessage { Options = Options });
             Started?.Invoke();
@@ -335,6 +349,25 @@ namespace RPGFramework.Turns
         }
 
         /// <summary>
+        /// Holds the turn's time without spending anyone's bank, while the screens still show what a move did (dice
+        /// rolling, a card turning). The time left stands until every reason is released; questions keep their time.
+        /// </summary>
+        public void HoldClock(string reason)
+        {
+            if (_holds.Add(reason ?? "") && _clockRuns != TurnClockRuns)
+                SendClock();
+        }
+
+        /// <summary>
+        /// Releases one reason of <see cref="HoldClock"/>; the time runs on from where it stood when none is left.
+        /// </summary>
+        public void ReleaseClock(string reason)
+        {
+            if (_holds.Remove(reason ?? "") && _clockRuns != TurnClockRuns)
+                SendClock();
+        }
+
+        /// <summary>
         /// Ends the pause, whoever made it.
         /// </summary>
         public void ResumeTurn()
@@ -358,6 +391,8 @@ namespace RPGFramework.Turns
                 if (!place.Seat.Connected)
                     place.AwayFor += deltaTime;
             }
+            if (PausedBy >= 0 && IsStarted && _rules.CurrentSeat != _turnSeat)
+                ResetTurnTimer();
             if (PausedBy >= 0)
             {
                 float bank = BankOf(PausedBy) - deltaTime;
@@ -580,7 +615,7 @@ namespace RPGFramework.Turns
             int seat = _rules.CurrentSeat;
             if (seat != _turnSeat)
                 ResetTurnTimer();
-            if (seat < 0 || _windows.Count > 0 || TurnLength <= 0f)
+            if (seat < 0 || _windows.Count > 0 || TurnLength <= 0f || _holds.Count > 0)
                 return;
             TurnTimeLeft -= deltaTime;
             if (TurnTimeLeft > 0f)
@@ -597,7 +632,10 @@ namespace RPGFramework.Turns
 
         private void ResetTurnTimer()
         {
-            _turnSeat = IsStarted ? _rules.CurrentSeat : -1;
+            int seat = IsStarted ? _rules.CurrentSeat : -1;
+            if (_options.EndPauseWithTurn && PausedBy >= 0 && seat != _turnSeat)
+                PausedBy = -1;
+            _turnSeat = seat;
             TurnLength = Math.Max(0f, LengthFor(_turnSeat));
             TurnTimeLeft = TurnLength;
             if (IsStarted)

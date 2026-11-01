@@ -372,6 +372,57 @@ namespace RPGFramework.Turns.Tests
         }
 
         [Test]
+        public void AHold_StopsTheTurnsTime_WithoutSpendingABank()
+        {
+            Host(new TurnHostOptions { TurnSeconds = 0.5f, PauseBankSeconds = 10f });
+            var bob = Join("Bob");
+            var rules = StartRace(bob);
+            rules.CurrentSeat = 1;
+            Pump(1);
+
+            _host.HoldClock("dice");
+            _host.HoldClock("card");
+            Pump();
+            Assert.IsTrue(_host.IsClockHeld);
+            Assert.IsFalse(bob.TurnClockRuns, "every seat sees the time stand");
+            float left = _host.TurnTimeLeft;
+            Pump(40);
+            Assert.AreEqual(left, _host.TurnTimeLeft);
+            Assert.AreEqual(0, rules.Position(1), "held: no move made for them");
+            Assert.AreEqual(10f, _host.BankOf(1), "no bank spent");
+
+            _host.ReleaseClock("dice");
+            Pump(40);
+            Assert.AreEqual(0, rules.Position(1), "one reason still holds it");
+            _host.ReleaseClock("card");
+            Pump();
+            Assert.IsTrue(bob.TurnClockRuns);
+            Pump(40);
+            Assert.AreEqual(1, rules.Position(1), "runs on from where it stood, then the default move");
+        }
+
+        [Test]
+        public void WithEndPauseWithTurn_APauseEnds_WhenTheTurnPasses()
+        {
+            Host(new TurnHostOptions { TurnSeconds = 10f, PauseBankSeconds = 10f, EndPauseWithTurn = true });
+            var bob = Join("Bob");
+            var rules = StartRace(bob);
+
+            Assert.IsTrue(_host.PauseTurn(1), "a seat not on turn may pause");
+            _host.Submit(TurnIntent.Of("Move", 2));
+            Pump();
+            Assert.AreEqual(1, rules.CurrentSeat);
+            Assert.AreEqual(-1, _host.PausedBy, "the turn passed: the pause ended");
+            Assert.AreEqual(-1, bob.PausedBy);
+
+            Assert.IsTrue(bob.PauseTurn());
+            Pump();
+            rules.CurrentSeat = 0;
+            Pump();
+            Assert.AreEqual(-1, _host.PausedBy, "also when the turn passes outside a move");
+        }
+
+        [Test]
         public void HotSeat_RunsTheSameClock_WithoutAnyoneJoining()
         {
             // Every player at this machine: a host on an in-memory network nobody joins, rules for three seats
