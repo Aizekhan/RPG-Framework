@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.30.0] - 2026-11-01
+
 ### Added
 - New module `ActionCombat` (MythRunner request): real-time action combat where contact decides the hit.
   - Rules without the engine (`RPGFramework.ActionCombat.Runtime`, `CombatRules`):
