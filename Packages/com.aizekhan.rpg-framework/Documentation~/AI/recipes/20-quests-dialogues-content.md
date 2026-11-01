@@ -43,8 +43,9 @@ objectives that do not exist, missing or circular prerequisites. The Quest asset
   CompleteQuest, SetVariable, GrantSkillPoints, ChangeReputation, **SignalQuest** (a stage condition), **RaiseEvent**
   (`DialogueEventRaisedEvent` with a name and a number for the game's own reaction: start a world event, open a
   door).
-- `DialogueGraph.Check(dialogue, questExists, stageExists)` finds: lines that lead nowhere without being an End,
-  choices without answers (or with only conditional answers), loops with no exit, nodes that cannot be reached,
+- A line with no way on (no `next`, or none whose condition passes) is the last one: going on ends the
+  conversation, as an End node does. A one-line conversation is one line. A choice waits for an answer.
+- `DialogueGraph.Check(dialogue, questExists, stageExists)` finds: branches that lead nowhere, choices without answers (or with only conditional answers), loops with no exit, nodes that cannot be reached,
   links to nodes that do not exist, empty lines, speakers who are not participants, a quest or stage that does not
   exist. The Dialogue asset's inspector shows the warnings.
 
@@ -91,7 +92,8 @@ objectives that do not exist, missing or circular prerequisites. The Quest asset
   types: quest (completed), stat, item, variable (or flag), custom. Effect kinds: the game's (the kit's
   `DialogueEffectKind` names). An answer without an id is `c1`, `c2`... in order.
 - A node goes on through `next` (the first whose condition passes) or its `choices`; an `end` node closes the
-  conversation and can still say its text. A tool that marks "end" on a line exports it as `"type": "end"`.
+  conversation and can still say its text, and so does a line with no `next` (from v0.32.1). A conversation cannot
+  start at an `end` node (it would close before its line is shown): a one-line conversation is a line.
 - Ids are the contract between the file and the game: keep them when the text changes, so saves and effects still
   match.
 

@@ -183,6 +183,38 @@ namespace RPGFramework.Dialogue.Tests
         }
 
         [Test]
+        public void ALineWithNoWayOn_EndsTheConversation()
+        {
+            Register("only", Line("only"));
+            Assert.That(_manager.StartDialogue(_player, "talk"), Is.True);
+            Assert.That(Current, Is.EqualTo("only"), "the one line is shown");
+
+            Assert.That(_manager.AdvanceDialogue(_player), Is.True);
+            Assert.That(_manager.GetDialogueProgress(_player), Is.Null);
+            Assert.That(_order, Is.EqualTo(new[] { "started", "line:only", "ended:Completed" }));
+        }
+
+        [Test]
+        public void ALineWhoseNextLinesAllFail_EndsTheConversation()
+        {
+            Register("greet", Line("greet", "hero"), Line("hero", Quest("dragon"), "bye"), End("bye"));
+            _manager.StartDialogue(_player, "talk");
+
+            Assert.That(_manager.AdvanceDialogue(_player), Is.True, "no next line passes: the conversation is over");
+            Assert.That(_manager.GetDialogueProgress(_player), Is.Null);
+        }
+
+        [Test]
+        public void AChoice_WaitsForAnAnswer()
+        {
+            Register("ask", Choice("ask", new DialogueChoice("yes", "Yes", "bye")), End("bye"));
+            _manager.StartDialogue(_player, "talk");
+
+            Assert.That(_manager.AdvanceDialogue(_player), Is.False);
+            Assert.That(Current, Is.EqualTo("ask"));
+        }
+
+        [Test]
         public void BranchNodes_ThatLoopForever_DoNotHang()
         {
             Register("greet",

@@ -60,7 +60,7 @@ namespace RPGFramework.Dialogue.Tests
 
             Assert.That(codes, Is.EquivalentTo(new[]
             {
-                "badLink", "deadEnd", "emptyText", "speakerNotIn", "noChoices", "missingQuest", "unreachable", "unreachable",
+                "badLink", "emptyText", "speakerNotIn", "noChoices", "missingQuest", "unreachable", "unreachable",
                 "noWayOut", "noWayOut", "noWayOut"
             }));
         }
@@ -89,6 +89,20 @@ namespace RPGFramework.Dialogue.Tests
             Assert.That(DialogueText.Of(dialogue.GetNode("n2"), ukrainian), Is.EqualTo("Be careful."), "no key: the text as written");
             Assert.That(DialogueText.Of(node.Choices[0], ukrainian), Is.EqualTo("Yes."));
             Assert.That(DialogueText.KeyFor("edge", "n1", "help"), Is.EqualTo("dlg.edge.n1.help"));
+        }
+
+        [Test]
+        public void AOneLineConversation_IsFine_ABranchThatLeadsNowhere_IsADeadEnd()
+        {
+            var oneLine = new DialogueData { Id = "hi", RootNodeId = "a", Nodes = new[] { Line("a", "Morning.") } };
+            Assert.That(DialogueGraph.Check(new Dialogue(oneLine)), Is.Empty, "a line with no way on ends the conversation");
+
+            var fork = new DialogueData
+            {
+                Id = "fork", RootNodeId = "a",
+                Nodes = new[] { Line("a", "Hm.", "b"), new DialogueNodeData { Id = "b", NodeType = DialogueNodeType.Branch } }
+            };
+            Assert.That(DialogueGraph.Check(new Dialogue(fork)).Select(i => i.Code), Has.Member("deadEnd"));
         }
 
         [Test]

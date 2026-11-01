@@ -84,8 +84,8 @@ namespace RPGFramework.Dialogue
                     issues.Add(Error("noChoices", id, node.Id, "is a choice with no answers"));
                 if (node.NodeType == DialogueNodeType.Choice && node.Choices.Count > 0 && node.Choices.All(c => c.Condition != null))
                     issues.Add(Warning("deadEnd", id, node.Id, "every answer has a condition: when none passes the player is stuck"));
-                if (node.NodeType != DialogueNodeType.End && node.NodeType != DialogueNodeType.Choice && node.NextNodeIds.Count == 0)
-                    issues.Add(Warning("deadEnd", id, node.Id, "leads nowhere and is not an End node"));
+                if (node.NodeType == DialogueNodeType.Branch && node.NextNodeIds.Count == 0)
+                    issues.Add(Warning("deadEnd", id, node.Id, "is a branch that leads nowhere (a line with no way on ends the conversation)"));
                 if ((node.NodeType == DialogueNodeType.Line || node.NodeType == DialogueNodeType.Choice) && string.IsNullOrWhiteSpace(node.Text))
                     issues.Add(Warning("emptyText", id, node.Id, "has no text"));
                 foreach (var choice in node.Choices.Where(c => string.IsNullOrWhiteSpace(c.Text)))

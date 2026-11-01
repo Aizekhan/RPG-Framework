@@ -111,7 +111,8 @@ namespace RPGFramework.Dialogue
 
         /// <summary>
         /// Advance the dialogue to the next node.
-        /// Without a choice, goes to the first next node whose condition passes.
+        /// Without a choice, goes to the first next node whose condition passes; on a line with none, the dialogue
+        /// completes.
         /// With a choice, the choice must be enabled and its condition must pass.
         /// </summary>
         public bool AdvanceDialogue(int entityId, string? choiceId = null)
@@ -160,7 +161,15 @@ namespace RPGFramework.Dialogue
             {
                 var next = PickNext(dialogue, currentNode, context);
                 if (next == null)
-                    return false;
+                {
+                    // A line with no way on is the last one: going on ends the conversation. A choice waits for an answer.
+                    if (currentNode.NodeType == DialogueNodeType.Choice)
+                        return false;
+                    Complete(ref activeDialogues, dialogueId, progressData);
+                    _entityManager.AddComponent(entityId, activeDialogues);
+                    PublishCompleted(entityId, dialogueId);
+                    return true;
+                }
 
                 landing = Follow(dialogue, next, context, path);
             }
@@ -292,21 +301,9 @@ namespace RPGFramework.Dialogue
             bool finished = landing.NodeType == DialogueNodeType.End;
 
             if (finished)
-            {
-                progressData.State = DialogueState.Completed;
-                progressData.EndTime = DateTime.UtcNow;
-                activeDialogues.ActiveDialogues.Remove(dialogueId);
-
-                if (activeDialogues.CompletedDialogueIds == null)
-                    activeDialogues.CompletedDialogueIds = new List<string>();
-
-                activeDialogues.CompletedDialogueIds.Add(dialogueId);
-                activeDialogues.TotalDialoguesCompleted++;
-            }
+                Complete(ref activeDialogues, dialogueId, progressData);
             else
-            {
                 activeDialogues.ActiveDialogues[dialogueId] = progressData;
-            }
 
             _entityManager.AddComponent(entityId, activeDialogues);
 
@@ -321,15 +318,34 @@ namespace RPGFramework.Dialogue
             });
 
             if (finished)
+                PublishCompleted(entityId, dialogueId);
+        }
+
+        /// <summary>
+        /// The dialogue is no longer active and counts as completed.
+        /// </summary>
+        private static void Complete(ref ActiveDialoguesData activeDialogues, string dialogueId, DialogueProgressData progressData)
+        {
+            progressData.State = DialogueState.Completed;
+            progressData.EndTime = DateTime.UtcNow;
+            activeDialogues.ActiveDialogues.Remove(dialogueId);
+
+            if (activeDialogues.CompletedDialogueIds == null)
+                activeDialogues.CompletedDialogueIds = new List<string>();
+
+            activeDialogues.CompletedDialogueIds.Add(dialogueId);
+            activeDialogues.TotalDialoguesCompleted++;
+        }
+
+        private void PublishCompleted(int entityId, string dialogueId)
+        {
+            _events?.Publish(new DialogueEndedEvent
             {
-                _events?.Publish(new DialogueEndedEvent
-                {
-                    EntityId = entityId,
-                    DialogueId = dialogueId,
-                    EndState = DialogueState.Completed,
-                    EndedAt = DateTime.UtcNow
-                });
-            }
+                EntityId = entityId,
+                DialogueId = dialogueId,
+                EndState = DialogueState.Completed,
+                EndedAt = DateTime.UtcNow
+            });
         }
 
         /// <summary>
