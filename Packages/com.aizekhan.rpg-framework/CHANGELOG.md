@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+### Added
+- New module `ActionCombat` (MythRunner request): real-time action combat where contact decides the hit.
+  - Rules without the engine (`RPGFramework.ActionCombat.Runtime`, `CombatRules`):
+    - Attack phases (`AttackDefinition`: wind-up, active, recovery, damage multiplier, stagger, interruptible, block cost, tags, source).
+    - Combatant states (`CombatState`: Idle, Charging, WindUp, Active, Recovery, Dodging, Blocking, HitReact).
+    - `ReportContact(attacker, target, swingId, point)`. A contact lands only in the active window and only once per target per swing. The result is Hit, Blocked, Dodged, or Ignored with a reason.
+    - Damage goes through `ICombatDamage`.
+    - Hit reactions with poise; hyper armour on attacks that cannot be interrupted.
+    - `Dodge` is invulnerable for the dodge's own time or a window inside it.
+    - A held block (`SetBlocking`) covers a cone in front. Each blow costs from `IBlockStock`, and the guard breaks when the stock cannot pay.
+    - `BeginCharge`/`Release`: the hold is clamped to [min, max] and the damage follows a curve. A short release is the quick attack.
+    - Projectile swings stay live for the flight (`EndSwing`, lifetime).
+    - Readonly struct events carry their exact time, and `CombatTimeline` records phases, contacts, damage, dodges, blocks and refused actions.
+  - Unity layer (`RPGFramework.ActionCombat.Unity`): `CombatArena`, `Combatant`, `Hitbox`, `Hurtbox`, `AttackAsset` (phases from seconds or from a clip's marks or `ActiveStart`/`ActiveEnd` events), `CombatProjectile` (a swept sphere), `ProjectileLauncher`, `CombatAnimatorBridge`, `CombatEnemyBrain`, and `ActorWorldDamage` (blows through `IActorWorld.Attack`).
+  - Recipe 18.
+- `EnemyBrain`: `protected virtual bool IsBusy` and `protected virtual void StrikeAt(int target)`, so a brain can strike another way. The default behaviour is unchanged.
+
 ## [0.29.0] - 2026-11-01
 
 ### Added

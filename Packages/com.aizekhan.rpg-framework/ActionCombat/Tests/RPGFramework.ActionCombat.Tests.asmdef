@@ -1,0 +1,32 @@
+{
+    "name": "RPGFramework.ActionCombat.Tests",
+    "rootNamespace": "RPGFramework.ActionCombat.Tests",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "RPGFramework.ActionCombat.Runtime",
+        "RPGFramework.ActionCombat.Unity",
+        "RPGFramework.ActionRpg.Runtime",
+        "RPGFramework.ActionRpg.Unity",
+        "RPGFramework.Combat.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "RPGFramework.Presentation.Unity",
+        "UniTask"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

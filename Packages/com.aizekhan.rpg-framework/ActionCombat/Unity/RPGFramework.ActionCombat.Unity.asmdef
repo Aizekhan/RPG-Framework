@@ -1,0 +1,26 @@
+{
+    "name": "RPGFramework.ActionCombat.Unity",
+    "rootNamespace": "RPGFramework.ActionCombat",
+    "references": [
+        "RPGFramework.ActionCombat.Runtime",
+        "RPGFramework.ActionRpg.Runtime",
+        "RPGFramework.ActionRpg.Unity",
+        "RPGFramework.Bootstrap.Runtime",
+        "RPGFramework.Bootstrap.Unity",
+        "RPGFramework.Combat.Runtime",
+        "RPGFramework.ECS.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Logging.Runtime",
+        "RPGFramework.Presentation.Unity",
+        "UniTask"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

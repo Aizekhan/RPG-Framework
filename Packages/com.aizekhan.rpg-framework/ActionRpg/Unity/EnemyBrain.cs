@@ -34,6 +34,10 @@ namespace RPGFramework.ActionRpg
             float distance = toPlayer.magnitude;
             Face(toPlayer, _turnSpeed);
 
+            // Mid-swing or staggered (an action combat attack, IsBusy): it faces its target but neither walks nor strikes
+            if (IsBusy)
+                return;
+
             var step = Separation();
             if (distance > Definition.AttackRange * 0.9f)
                 step += toPlayer / Mathf.Max(distance, 0.001f);
@@ -43,10 +47,25 @@ namespace RPGFramework.ActionRpg
             if (distance <= Definition.AttackRange && _cooldown <= 0f)
             {
                 _cooldown = Definition.AttackCooldown;
-                if (_strike != null)
-                    _strike.Play();
-                World.Attack(EntityId, target);
+                StrikeAt(target);
             }
+        }
+
+        /// <summary>
+        /// The enemy is busy with something that keeps it in place (false here; an action combat brain is busy while
+        /// it swings, dodges or is staggered).
+        /// </summary>
+        protected virtual bool IsBusy => false;
+
+        /// <summary>
+        /// Strikes at a player in reach when the attack is ready: plays the lunge and attacks through the world. Override
+        /// to strike another way (start an action combat attack whose hitbox decides the hit).
+        /// </summary>
+        protected virtual void StrikeAt(int target)
+        {
+            if (_strike != null)
+                _strike.Play();
+            World.Attack(EntityId, target);
         }
 
         private bool TryFindNearestPlayer(out int target, out Vector3 position)

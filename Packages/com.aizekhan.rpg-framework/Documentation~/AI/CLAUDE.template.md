@@ -14,7 +14,8 @@ Automated tests enforce the architecture, so a change that breaks it fails.
   inventory, items, loot, dialogue, crafting, factions, persistence, UI navigation, spawning, pooling and timers exist.
 
 ## Genre kits
-- Real-time action RPG: `ActionRpg` (the New Game template; recipes 01-13).
+- Real-time action RPG: `ActionRpg` (the New Game template; recipes 01-13). Combat where the timing of a blow
+  matters (attack phases, weapon hitboxes, dodge, block, charge, projectiles): `ActionCombat` (recipe 18).
 - Turn-based party RPG: `TurnBased` (turn order, actions, abilities, status effects, enemy AI, rewards, levels, saves;
   recipe 15). It has no battle screen: build the views on `ITurnBasedWorld` / `Battle`, never your own battle rules.
 
