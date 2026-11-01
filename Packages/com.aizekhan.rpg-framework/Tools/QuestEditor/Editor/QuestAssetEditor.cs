@@ -18,6 +18,12 @@ namespace RPGFramework.Tools.QuestEditor.Editor
         private SerializedProperty isRepeatableProp;
         private SerializedProperty objectivesProp;
         private SerializedProperty rewardsProp;
+        private SerializedProperty questTypeProp;
+        private SerializedProperty repeatCooldownProp;
+        private SerializedProperty requirementsProp;
+        private SerializedProperty startStageProp;
+        private SerializedProperty stagesProp;
+        private bool showStages = true;
 
         private bool showObjectives = true;
         private bool showRewards = true;
@@ -34,6 +40,11 @@ namespace RPGFramework.Tools.QuestEditor.Editor
             isRepeatableProp = serializedObject.FindProperty("isRepeatable");
             objectivesProp = serializedObject.FindProperty("objectives");
             rewardsProp = serializedObject.FindProperty("rewards");
+            questTypeProp = serializedObject.FindProperty("questType");
+            repeatCooldownProp = serializedObject.FindProperty("repeatCooldownHours");
+            requirementsProp = serializedObject.FindProperty("requirements");
+            startStageProp = serializedObject.FindProperty("startStage");
+            stagesProp = serializedObject.FindProperty("stages");
         }
 
         public override void OnInspectorGUI()
@@ -53,6 +64,7 @@ namespace RPGFramework.Tools.QuestEditor.Editor
                 EditorGUILayout.PropertyField(questIdProp, new GUIContent("Quest ID"));
                 EditorGUILayout.PropertyField(titleProp, new GUIContent("Title"));
                 EditorGUILayout.PropertyField(descriptionProp, new GUIContent("Description"));
+                EditorGUILayout.PropertyField(questTypeProp, new GUIContent("Type"));
             });
 
             EditorGUILayout.Space(10);
@@ -63,6 +75,17 @@ namespace RPGFramework.Tools.QuestEditor.Editor
                 EditorGUILayout.PropertyField(prerequisiteQuestsProp, new GUIContent("Prerequisites"), true);
                 EditorGUILayout.PropertyField(minimumLevelProp, new GUIContent("Minimum Level"));
                 EditorGUILayout.PropertyField(isRepeatableProp, new GUIContent("Repeatable"));
+                if (isRepeatableProp.boolValue)
+                    EditorGUILayout.PropertyField(repeatCooldownProp, new GUIContent("Repeat Cooldown (hours)"));
+                EditorGUILayout.PropertyField(requirementsProp, new GUIContent("Requirements"), true);
+            });
+
+            EditorGUILayout.Space(10);
+
+            showStages = DrawFoldoutSection($"Stages ({stagesProp.arraySize})", showStages, () =>
+            {
+                EditorGUILayout.PropertyField(startStageProp, new GUIContent("Start Stage"));
+                EditorGUILayout.PropertyField(stagesProp, new GUIContent("Stages"), true);
             });
 
             EditorGUILayout.Space(10);
@@ -226,13 +249,24 @@ namespace RPGFramework.Tools.QuestEditor.Editor
                 hasIssues = true;
             }
 
-            // Check objectives
-            if (questAsset.objectives == null || questAsset.objectives.Length == 0)
+            // The stage graph and the requirements
+            foreach (var issue in QuestGraph.Check(new Quest(questAsset.ToQuestData())))
+            {
+                if (issue.Code == "noTitle")
+                    continue;
+                EditorGUILayout.HelpBox($"{(issue.Where != null ? issue.Where + ": " : "")}{issue.Message}",
+                    issue.Level == QuestIssueLevel.Error ? MessageType.Error : MessageType.Warning);
+                hasIssues = true;
+            }
+
+            // Check objectives (a quest with stages can move on signals alone)
+            bool staged = questAsset.stages != null && questAsset.stages.Length > 0;
+            if (!staged && (questAsset.objectives == null || questAsset.objectives.Length == 0))
             {
                 EditorGUILayout.HelpBox("Quest must have at least one objective", MessageType.Error);
                 hasIssues = true;
             }
-            else
+            else if (questAsset.objectives != null)
             {
                 for (int i = 0; i < questAsset.objectives.Length; i++)
                 {

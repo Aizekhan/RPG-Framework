@@ -56,7 +56,8 @@ Assets/<Game>/
    e.g. `ChestOpenedEvent`). Another feature cares → subscribe to it. Features do not call each other directly.
 4. **Designers tune, code reads.** Numbers, prefabs and content live in ScriptableObjects or `[SerializeField]`
    fields, not in constants. Characters, enemies, items, loot and quests go in the Game Setup and Character assets
-   (recipe 10); code only adds rules the assets cannot express.
+   (recipe 10); quests with stages, dialogues and content files from other tools: recipe 20. Code only adds rules
+   the assets cannot express.
 5. **Every change comes with tests.** Rules: EditMode tests that boot `GameHost` with the composition.
    Scenes: a PlayMode test. Never delete or weaken a test to make it pass.
 6. **Every new file and folder under `Assets/` gets its `.meta`**: let Unity import (open the Editor or run it in
@@ -113,6 +114,8 @@ these files.
    Batch mode: `Unity -batchmode -quit -projectPath . -executeMethod RPGFramework.GameKit.Editor.GameScaffold.NewFeatureFromCommandLine -game <Game> -feature <Feature>`.
 2. Implement the rules in `<Game>.Core` with tests, then the view.
 3. Run the tests: `unity test . --mode EditMode` and `--mode PlayMode` (or Unity Test Runner).
-   `<Game>ArchitectureTests` must stay green.
+   `<Game>ArchitectureTests` must stay green. Every batch-mode entry point with its exit code, and the read-only
+   project index (a JSON map of assets, scenes, prefabs, scripts and framework modules):
+   `Docs/RPGFramework/recipes/19-command-line.md`.
 4. Commit with conventional messages (`feat:`, `fix:`, `test:`, `docs:`).
 <!-- rpg-framework:end -->

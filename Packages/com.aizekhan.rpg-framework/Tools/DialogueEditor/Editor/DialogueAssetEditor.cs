@@ -31,6 +31,10 @@ namespace RPGFramework.Tools.DialogueEditor.Editor
             DrawProperty("dialogueId");
             DrawProperty("title");
             DrawProperty("description");
+            DrawProperty("dialogueType");
+            DrawProperty("questId");
+            DrawProperty("questStageId");
+            DrawProperty("participantIds");
             DrawProperty("startNodeId");
             DrawProperty("nodes");
 
@@ -59,6 +63,17 @@ namespace RPGFramework.Tools.DialogueEditor.Editor
                 EditorGUILayout.HelpBox("Ready: the conversation can be played from start to end", MessageType.Info);
             else
                 EditorGUILayout.HelpBox(string.Join("\n", errors), MessageType.Error);
+
+            // Dead ends, loops without an exit, lines without text, speakers who are not participants
+            if (errors.Count == 0)
+            {
+                var warnings = DialogueGraph.Check(dialogue.ToDialogue())
+                    .Where(i => i.Level == DialogueIssueLevel.Warning && i.Code != "unreachable")
+                    .Select(i => (i.NodeId != null ? i.NodeId + ": " : "") + i.Message)
+                    .ToList();
+                if (warnings.Count > 0)
+                    EditorGUILayout.HelpBox(string.Join("\n", warnings), MessageType.Warning);
+            }
         }
 
         private static void DrawOutline(DialogueAsset dialogue)

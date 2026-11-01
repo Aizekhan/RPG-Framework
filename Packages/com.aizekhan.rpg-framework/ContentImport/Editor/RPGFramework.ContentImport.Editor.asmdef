@@ -1,0 +1,22 @@
+{
+    "name": "RPGFramework.ContentImport.Editor",
+    "rootNamespace": "RPGFramework.ContentImport.Editor",
+    "references": [
+        "RPGFramework.ContentImport.Runtime",
+        "RPGFramework.Quests.Runtime",
+        "RPGFramework.Dialogue.Runtime",
+        "RPGFramework.Tools.QuestEditor.Runtime",
+        "RPGFramework.Tools.DialogueEditor.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

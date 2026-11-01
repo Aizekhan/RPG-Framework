@@ -24,6 +24,19 @@ namespace RPGFramework.Tools.DialogueEditor
         [TextArea(2, 4)]
         public string description = "";
 
+        [Header("Belongs to")]
+        [Tooltip("The game's own kind of dialogue (quest, ambient, trader, bark...); free text")]
+        public string dialogueType = "";
+
+        [Tooltip("The quest this conversation belongs to; empty for none")]
+        public string questId = "";
+
+        [Tooltip("The stage of that quest it belongs to; empty = any stage")]
+        public string questStageId = "";
+
+        [Tooltip("The speakers expected in it (character ids); empty = anyone. 'player' and 'narrator' always may speak")]
+        public List<string> participantIds = new List<string>();
+
         [Header("Flow")]
         [Tooltip("Id of the node the conversation starts with")]
         public string startNodeId = "start";
@@ -42,6 +55,10 @@ namespace RPGFramework.Tools.DialogueEditor
                 Title = title,
                 Description = description,
                 RootNodeId = startNodeId,
+                Type = dialogueType ?? "",
+                QuestId = questId ?? "",
+                QuestStageId = questStageId ?? "",
+                ParticipantIds = (participantIds ?? new List<string>()).Where(p => !string.IsNullOrWhiteSpace(p)).ToArray(),
                 Nodes = (nodes ?? new List<DialogueNodeEntry>())
                     .Where(n => n != null)
                     .Select(n => n.ToNodeData())
@@ -240,6 +257,9 @@ namespace RPGFramework.Tools.DialogueEditor
         [TextArea(2, 5)]
         public string text = "";
 
+        [Tooltip("Localization key of the line; empty = the text as written")]
+        public string textKey = "";
+
         [Tooltip("Where the conversation goes after this node when the player does not pick a choice (the first one whose condition passes)")]
         public List<string> nextNodeIds = new List<string>();
 
@@ -263,6 +283,7 @@ namespace RPGFramework.Tools.DialogueEditor
                 NodeType = nodeType,
                 SpeakerId = speakerId,
                 Text = text,
+                TextKey = textKey ?? "",
                 NextNodeIds = (nextNodeIds ?? new List<string>())
                     .Where(id => !string.IsNullOrWhiteSpace(id))
                     .ToArray(),
@@ -287,6 +308,9 @@ namespace RPGFramework.Tools.DialogueEditor
         [Tooltip("The answer as the player sees it")]
         public string text = "";
 
+        [Tooltip("Localization key of the answer; empty = the text as written")]
+        public string textKey = "";
+
         [Tooltip("Id of the node the conversation goes to when the player picks this answer")]
         public string targetNodeId = "";
 
@@ -305,6 +329,7 @@ namespace RPGFramework.Tools.DialogueEditor
             {
                 Id = choiceId,
                 Text = text,
+                TextKey = textKey ?? "",
                 TargetNodeId = targetNodeId,
                 Condition = hasCondition && condition != null ? condition.ToConditionData() : (DialogueConditionData?)null
             };

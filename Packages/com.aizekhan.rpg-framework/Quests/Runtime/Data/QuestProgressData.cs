@@ -15,6 +15,9 @@ namespace RPGFramework.Quests
         public long StartedAtTicks;
         public long? CompletedAtTicks;
 
+        /// <summary>The stage the quest is in; null for a quest without stages.</summary>
+        public string StageId;
+
         public DateTime? GetStartedAt()
         {
             return StartedAtTicks > 0 ? new DateTime(StartedAtTicks) : null;

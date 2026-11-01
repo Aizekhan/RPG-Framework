@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -7,7 +8,7 @@ namespace RPGFramework.Quests
     /// Implementation of IQuest.
     /// Represents a quest definition with objectives and rewards.
     /// </summary>
-    public class Quest : IQuest
+    public class Quest : IStagedQuest
     {
         public string Id { get; }
         public string Title { get; }
@@ -17,6 +18,11 @@ namespace RPGFramework.Quests
         public IReadOnlyList<string> PrerequisiteQuestIds { get; }
         public int MinimumLevel { get; }
         public bool IsRepeatable { get; }
+        public string Type { get; }
+        public IReadOnlyList<QuestStageData> Stages { get; } = new QuestStageData[0];
+        public string StartStageId { get; }
+        public IReadOnlyList<QuestRequirementData> Requirements { get; } = new QuestRequirementData[0];
+        public double RepeatCooldownSeconds { get; }
 
         /// <summary>
         /// Create a Quest from QuestData.
@@ -40,6 +46,12 @@ namespace RPGFramework.Quests
                 ?? new List<QuestReward>();
 
             PrerequisiteQuestIds = data.PrerequisiteQuestIds ?? new string[0];
+            Type = data.Type ?? "";
+            Stages = data.Stages ?? new QuestStageData[0];
+            StartStageId = !string.IsNullOrEmpty(data.StartStageId) ? data.StartStageId
+                : Stages.Count > 0 ? Stages[0].Id : null;
+            Requirements = data.Requirements ?? new QuestRequirementData[0];
+            RepeatCooldownSeconds = Math.Max(0d, data.RepeatCooldownSeconds);
         }
 
         /// <summary>

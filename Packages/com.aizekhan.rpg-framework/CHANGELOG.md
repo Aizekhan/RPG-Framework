@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+### Added
+- Quests: stages. `QuestData.Stages` (`QuestStageData`: objectives that count in the stage, links to the next stages, an outcome), `StartStageId`, `Type`, `Requirements` (`QuestRequirementData`: level, faction, item, flag or the game's own, answered by `IQuestRequirements`) and `RepeatCooldownSeconds`.
+  - `IQuestStages` on `QuestManager`: `CurrentStageOf`, `AdvanceStage` (along a link, or any stage with `force`), `Signal` (takes the links whose condition is the signalled name), `WhyNot` (`QuestRefusal`), `CooldownLeft`, `RestoreStage`, `RestoreCompletedAt`. A link without a condition is taken when the stage's objectives are done. A Success stage completes the quest, a Failure stage fails it. `QuestStageChangedEvent` on every move.
+  - `QuestGraph.Check`: missing or unreachable stages, dead ends, loops with no exit, no reachable success, unknown objectives, bad requirements, missing or circular prerequisites, duplicate ids.
+  - Quest asset: type, requirements, cooldown, stages and links; the inspector shows the `QuestGraph` issues.
+- Dialogue: `DialogueData.Type`, `QuestId`, `QuestStageId`, `ParticipantIds`; `TextKey` on lines and answers with `DialogueText.Of` / `KeyFor` for localized text; `DialogueBarks.Pick` for one-line barks; `DialogueGraph.Check` (lines that lead nowhere, choices without answers, loops with no exit, unreachable nodes, bad links, empty lines, speakers who are not participants, a missing quest or stage). The Dialogue asset holds the new fields and shows the warnings.
+- New module `ContentImport` (WhiteWrite request): quests and dialogues from JSON (`rpgframework.content/1`). `ContentImporter.Read(json, knownQuest)` gives quests, dialogues, the effects of lines and answers, and the problems (form errors and the graph checks); `ContentImporter.Write` writes them back. `ContentAssetImport` makes or updates Quest and Dialogue assets (menu **RPG Framework > Tools > Import Content (JSON)...**, batch `ImportFromCommandLine`, exit code 0/1/2). Recipe 20.
+- New module `Tools.ProjectIndex` (WhiteWrite request): a read-only JSON map of the project (`rpgframework.project-index/1`): Unity version, render pipeline, packages, build scenes, git branch and commit, framework modules and who uses them, assets with GUIDs and references, scenes and prefabs with their roots and components, scripts with their types and public members, assemblies, problems. It reads files only. Menu **RPG Framework > Tools > Export Project Index**, batch `ProjectIndexCommand.ExportFromCommandLine`.
+- Editor: `FrameworkValidation.ValidateFromCommandLine` sets the exit code (0 clean, 1 errors, 2 the check failed); `ErrorCount` and `WarningCount`. Recipe 19 lists every batch-mode entry point.
+- Action RPG kit:
+  - Quest stages and requirements: the kit answers level, reputation, items in the backpack and dialogue variables as flags. `World.WhyNotQuest`, `QuestStageOf`, `SignalQuests`. Saves keep the stage and the completion times; co-op sends the stage.
+  - Dialogue effects `SignalQuest` and `RaiseEvent` (`DialogueEventRaisedEvent`), `Dialogue.Bark(player, dialogueId)`; the dialogue rows of `KitRows` show localized text.
+  - Game Setup **Content Files** (content JSON files) and **Starting Quest Ids**; `ActionRpgContent.Add(ContentPackage)`. Validate names a file with errors.
+
+### Changed
+- Action RPG co-op protocol 17 (the quest stage in the progress and party status). Every player needs this version.
+- `QuestManager.WhyNot` / `CanAcceptQuest` check prerequisites, and `MinimumLevel` and `Requirements` when the manager has an `IQuestRequirements` (the kit sets one). A quest that needs level 5 can no longer be taken at level 1 in the kit.
+- `QuestManager.CompleteQuest` completes a staged quest only from a Success stage.
+
+### Fixed
+- `FrameworkValidation` checked no quests or dialogues (it searched for asset types that do not exist). It now checks the Quest and Dialogue assets with `QuestGraph` and `DialogueGraph`.
+
 ## [0.31.1] - 2026-11-01
 
 ### Fixed

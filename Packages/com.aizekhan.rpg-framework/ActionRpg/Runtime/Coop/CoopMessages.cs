@@ -62,7 +62,7 @@ namespace RPGFramework.ActionRpg.Coop
         /// <summary>
         /// Changes whenever the messages change, so older and newer builds refuse each other instead of misreading.
         /// </summary>
-        public const int Version = 16;
+        public const int Version = 17;
 
         public const int DefaultPort = 7777;
         public const int DefaultMaxPlayers = 4;
@@ -186,6 +186,7 @@ namespace RPGFramework.ActionRpg.Coop
             foreach (var quest in progress.ActiveQuests)
             {
                 writer.Write(quest.QuestId ?? "");
+                writer.Write(quest.StageId ?? "");
                 writer.Write(quest.Objectives.Count);
                 foreach (var objective in quest.Objectives)
                 {
@@ -211,7 +212,7 @@ namespace RPGFramework.ActionRpg.Coop
             int quests = ReadCount(reader);
             for (int i = 0; i < quests; i++)
             {
-                var record = new QuestRecord { QuestId = reader.ReadString() };
+                var record = new QuestRecord { QuestId = reader.ReadString(), StageId = reader.ReadString() };
                 int objectives = ReadCount(reader);
                 for (int o = 0; o < objectives; o++)
                     record.Objectives.Add(new ObjectiveRecord { ObjectiveId = reader.ReadString(), Progress = reader.ReadInt32() });
@@ -833,7 +834,7 @@ namespace RPGFramework.ActionRpg.Coop
                 .OrderBy(b => b.Key, StringComparer.Ordinal).Select(b => new CurrencyRecord { Currency = b.Key, Amount = b.Value }));
             foreach (var (quest, progress) in world.ActiveQuestsOf(playerId))
             {
-                var record = new QuestRecord { QuestId = quest.Id };
+                var record = new QuestRecord { QuestId = quest.Id, StageId = world.QuestStageOf(playerId, quest.Id) ?? "" };
                 record.Objectives.AddRange(progress.ObjectiveProgress.Select(p => new ObjectiveRecord { ObjectiveId = p.Key, Progress = p.Value }));
                 status.ActiveQuests.Add(record);
             }
@@ -871,6 +872,7 @@ namespace RPGFramework.ActionRpg.Coop
             foreach (var quest in ActiveQuests)
             {
                 writer.Write(quest.QuestId ?? "");
+                writer.Write(quest.StageId ?? "");
                 writer.Write(quest.Objectives.Count);
                 foreach (var objective in quest.Objectives)
                 {
@@ -907,7 +909,7 @@ namespace RPGFramework.ActionRpg.Coop
             ActiveQuests = new List<QuestRecord>(quests);
             for (int i = 0; i < quests; i++)
             {
-                var record = new QuestRecord { QuestId = reader.ReadString() };
+                var record = new QuestRecord { QuestId = reader.ReadString(), StageId = reader.ReadString() };
                 int objectives = CoopProtocol.ReadCount(reader);
                 for (int o = 0; o < objectives; o++)
                     record.Objectives.Add(new ObjectiveRecord { ObjectiveId = reader.ReadString(), Progress = reader.ReadInt32() });

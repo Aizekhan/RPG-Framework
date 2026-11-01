@@ -633,6 +633,41 @@ namespace RPGFramework.ActionRpg.Tests
         }
 
         [Test]
+        public void QuestStages_AskTheKitsRequirements_MoveOnSignals_AndTravelWithTheProgress()
+        {
+            _settings.ProgressMode = ProgressMode.PerPlayer;
+            _content.Quests.Add(new Quest(new QuestData
+            {
+                Id = "forge", Title = "The Forge", IsRepeatable = true, RepeatCooldownSeconds = 3600,
+                Requirements = new[] { new QuestRequirementData { Kind = QuestRequirementKinds.Flag, Id = "met_smith", Value = 1 } },
+                Stages = new[]
+                {
+                    new QuestStageData { Id = "light", Next = new[] { new QuestStageLinkData { To = "work", Condition = "fire_lit" } } },
+                    new QuestStageData { Id = "work", Next = new[] { new QuestStageLinkData { To = "done", Condition = "blade_made" } } },
+                    new QuestStageData { Id = "done", Outcome = QuestOutcome.Success },
+                }
+            }));
+            StartGame();
+
+            Assert.That(World.WhyNotQuest(World.PlayerId, "forge"), Is.EqualTo(QuestRefusal.RequirementNotMet));
+            World.Dialogue.SetVariable(World.PlayerId, "met_smith", 1);
+            Assert.That(World.AcceptQuest(World.PlayerId, "forge"), Is.True);
+            Assert.That(World.SignalQuests(World.PlayerId, "fire_lit"), Is.EqualTo(1));
+            Assert.That(World.QuestStageOf(World.PlayerId, "forge"), Is.EqualTo("work"));
+
+            var progress = World.CaptureProgress();
+            Assert.That(progress.ActiveQuests.Single(q => q.QuestId == "forge").StageId, Is.EqualTo("work"));
+            int friend = World.AddPlayer(progress: progress);
+            Assert.That(World.QuestStageOf(friend, "forge"), Is.EqualTo("work"), "the stage comes back with the progress");
+
+            World.SignalQuests(friend, "blade_made");
+            Assert.That(World.CompletedQuestsOf(friend), Has.Member("forge"));
+            Assert.That(World.WhyNotQuest(friend, "forge"), Is.EqualTo(QuestRefusal.CoolingDown));
+            var home = World.CaptureProgress(friend);
+            Assert.That(home.QuestCompletions.Select(c => c.QuestId), Is.EqualTo(new[] { "forge" }));
+        }
+
+        [Test]
         public void PerPlayer_APlayerBringsTheirProgress_GrowsAlone_AndTakesItHome()
         {
             _settings.ProgressMode = ProgressMode.PerPlayer;

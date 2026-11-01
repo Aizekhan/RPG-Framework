@@ -39,6 +39,12 @@ namespace RPGFramework.ActionRpg
         [Tooltip("Other quests (given later by your own code)")]
         [SerializeField] private List<QuestAsset> _otherQuests = new List<QuestAsset>();
 
+        [Tooltip("Quests and dialogues (with their effects) as JSON files, rpgframework.content/1 (recipe 20)")]
+        [SerializeField] private List<TextAsset> _contentFiles = new List<TextAsset>();
+
+        [Tooltip("Ids of quests from the content files the player has from the start")]
+        [SerializeField] private List<string> _startingQuestIds = new List<string>();
+
         [Header("Rules")]
         [Tooltip("Turn a quest in as soon as its objectives are done")]
         [SerializeField] private bool _completeQuestsAutomatically = true;
@@ -146,6 +152,7 @@ namespace RPGFramework.ActionRpg
             };
             settings.Enemies.AddRange(_enemies.Where(e => e != null).Select(e => e.ToData()));
             settings.StartingQuests.AddRange(_startingQuests.Where(q => q != null).Select(q => q.questId));
+            settings.StartingQuests.AddRange(_startingQuestIds.Where(id => !string.IsNullOrWhiteSpace(id)).Select(id => id.Trim()));
             settings.GearSlots.AddRange(_gearSlots.Where(s => s != null).Select(s => new GearSlot(s.Id, string.IsNullOrEmpty(s.Kind) ? s.Id : s.Kind, s.DisplayName)));
             return settings;
         }
@@ -170,7 +177,29 @@ namespace RPGFramework.ActionRpg
 
             var quests = _startingQuests.Concat(_otherQuests).Where(q => q != null).Distinct();
             content.Quests.AddRange(quests.Select(q => (IQuest)new Quest(q.ToQuestData())));
+            ImportContentFiles(content, null);
             return content;
+        }
+
+        public List<TextAsset> ContentFiles => _contentFiles;
+
+        // The JSON content files on top of the assets; a file with errors is left out
+        private void ImportContentFiles(ActionRpgContent content, List<string> problems)
+        {
+            foreach (var file in _contentFiles.Where(f => f != null))
+            {
+                var package = RPGFramework.ContentImport.ContentImporter.Read(file.text, id => content.Quests.Any(q => q.Id == id));
+                foreach (var problem in package.Problems.Where(p => p.Level == RPGFramework.ContentImport.ContentProblemLevel.Error))
+                    problems?.Add($"Content file {file.name}: {problem.Where}: {problem.Message}");
+                if (package.HasErrors)
+                {
+                    if (problems == null)
+                        Debug.LogError($"[Game Setup] Content file {file.name} has errors and is left out; see Validate", this); // framework-ok: the asset builds content before a host logger exists
+                    continue;
+                }
+                foreach (var skipped in content.Add(package))
+                    problems?.Add($"Content file {file.name}: {skipped}");
+            }
         }
 
         /// <summary>
@@ -187,6 +216,12 @@ namespace RPGFramework.ActionRpg
                 problems.Add("A quest list has an empty slot.");
             if (_player != null && _enemies.Contains(_player))
                 problems.Add($"{_player.DisplayName} is both the player and an enemy.");
+            if (_contentFiles.Any(f => f == null))
+                problems.Add("The content file list has an empty slot.");
+            var withAssets = new ActionRpgContent();
+            withAssets.Quests.AddRange(_startingQuests.Concat(_otherQuests).Where(q => q != null).Distinct()
+                .Select(q => (IQuest)new Quest(q.ToQuestData())));
+            ImportContentFiles(withAssets, problems);
 
             problems.AddRange(BuildSettings().Validate(BuildContent()));
             return problems;

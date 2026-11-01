@@ -77,6 +77,73 @@ namespace RPGFramework.ActionRpg.Tests
             _host.Start(builder => _module = ActionRpgComposition.Configure(builder, _settings, _content));
 
         [Test]
+        public void EffectsSignalQuestStages_AndRaiseTheGamesEvents_AndBarksPickALineThatPasses()
+        {
+            _content.Quests.Add(new Quest(new QuestData
+            {
+                Id = "vow", Title = "The Vow",
+                Stages = new[]
+                {
+                    new QuestStageData { Id = "ask", Next = new[] { new QuestStageLinkData { To = "sworn", Condition = "vow_sworn" } } },
+                    new QuestStageData { Id = "sworn", Outcome = QuestOutcome.Success },
+                }
+            }));
+            var swear = new List<IDialogueNode>
+            {
+                new DialogueNode("swear", DialogueNodeType.Line, Elder, "Swear it.", new[] { "end" }, new IDialogueChoice[0]),
+                new DialogueNode("end", DialogueNodeType.End, Elder, "Good.", new string[0], new IDialogueChoice[0])
+            };
+            _content.Dialogues.Add(new RPGFramework.Dialogue.Dialogue("oath", "Oath", "", "swear", swear));
+            _content.DialogueEffects.Add(DialogueEffect.OnNode("oath", "swear", DialogueEffectKind.SignalQuest, "vow_sworn"));
+            _content.DialogueEffects.Add(DialogueEffect.OnNode("oath", "end", DialogueEffectKind.RaiseEvent, "storm", 3));
+            var barks = new List<IDialogueNode>
+            {
+                new DialogueNode("rain", DialogueNodeType.Line, Elder, "Rain again.", new string[0], new IDialogueChoice[0]),
+                new DialogueNode("rich", DialogueNodeType.Line, Elder, "Nice coat.", new string[0], new IDialogueChoice[0],
+                    new DialogueCondition(ConditionType.StatCheck, "Gold", 1000)),
+            };
+            _content.Dialogues.Add(new RPGFramework.Dialogue.Dialogue("elder_barks", "Barks", "", "rain", barks));
+            StartGame();
+            var raised = new List<DialogueEventRaisedEvent>();
+            _host.Container.Resolve<RPGFramework.Events.IEventBus>().Subscribe<DialogueEventRaisedEvent>(raised.Add);
+            World.AcceptQuest(World.PlayerId, "vow");
+
+            Assert.That(Talks.Start(World.PlayerId, "oath"), Is.True);
+            Assert.That(World.CompletedQuests, Has.Member("vow"), "the line signalled the stage");
+            Talks.Advance(World.PlayerId);
+            Assert.That(raised.Single().Name, Is.EqualTo("storm"));
+            Assert.That(raised.Single().Amount, Is.EqualTo(3));
+
+            for (int i = 0; i < 10; i++)
+                Assert.That(Talks.Bark(World.PlayerId, "elder_barks").Id, Is.EqualTo("rain"), "the rich line's condition fails");
+            Assert.That(Talks.IsTalking(World.PlayerId), Is.False, "a bark is not a conversation");
+            Assert.That(Talks.Bark(World.PlayerId, "nothing"), Is.Null);
+        }
+
+        [Test]
+        public void AContentFile_AddsItsQuestsDialoguesAndEffects()
+        {
+            var package = RPGFramework.ContentImport.ContentImporter.Read(@"{ ""schema"": ""rpgframework.content/1"",
+              ""quests"": [{ ""id"": ""smith"", ""title"": ""The Smith"",
+                ""stages"": [{ ""id"": ""go"", ""next"": [{ ""to"": ""done"", ""condition"": ""met_smith"" }] }, { ""id"": ""done"", ""outcome"": ""success"" }] }],
+              ""dialogues"": [{ ""id"": ""smithy"", ""nodes"": [
+                { ""id"": ""hi"", ""speaker"": ""smith"", ""text"": ""Need a blade?"", ""next"": [""bye""],
+                  ""effects"": [{ ""kind"": ""acceptQuest"", ""target"": ""smith"" }, { ""kind"": ""SIGNALQUEST"", ""target"": ""met_smith"" },
+                                { ""kind"": ""dance"" }] },
+                { ""id"": ""bye"", ""type"": ""end"", ""text"": ""Off you go."", ""effects"": [{ ""kind"": ""giveItem"", ""target"": ""medal"" }] }] }] }");
+            Assert.That(package.HasErrors, Is.False, string.Join("\n", package.Problems));
+
+            var skipped = _content.Add(package);
+            StartGame();
+
+            Assert.That(skipped.Single(), Does.Contain("'dance'"));
+            Assert.That(Talks.Start(World.PlayerId, "smithy"), Is.True);
+            Assert.That(World.CompletedQuests, Has.Member("smith"), "taken and moved on by the line's effects");
+            Talks.Advance(World.PlayerId);
+            Assert.That(World.Inventory.GetAllItems().Select(i => i.ItemId), Has.Member(Medal));
+        }
+
+        [Test]
         public void ATalk_FollowsTheConditions_AndItsEffectsHappen()
         {
             StartGame();

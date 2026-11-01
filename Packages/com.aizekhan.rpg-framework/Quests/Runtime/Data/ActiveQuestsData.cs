@@ -13,5 +13,8 @@ namespace RPGFramework.Quests
         public Dictionary<string, QuestProgressData> ActiveQuests;
         public List<string> CompletedQuestIds;
         public int TotalQuestsCompleted;
+
+        /// <summary>When each quest was last completed (UTC ticks), for repeat cooldowns.</summary>
+        public Dictionary<string, long> LastCompletedTicks;
     }
 }

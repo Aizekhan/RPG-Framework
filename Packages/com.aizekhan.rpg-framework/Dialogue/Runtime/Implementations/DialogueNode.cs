@@ -7,7 +7,7 @@ namespace RPGFramework.Dialogue
     /// Implementation of IDialogueNode.
     /// Represents a single node in a dialogue tree (line, choice, branch, or end).
     /// </summary>
-    public class DialogueNode : IDialogueNode
+    public class DialogueNode : IDialogueNode, ILocalizedLine
     {
         public string Id { get; }
         public DialogueNodeType NodeType { get; }
@@ -16,6 +16,7 @@ namespace RPGFramework.Dialogue
         public IReadOnlyList<string> NextNodeIds { get; }
         public IReadOnlyList<IDialogueChoice> Choices { get; }
         public IDialogueCondition? Condition { get; }
+        public string TextKey { get; } = "";
 
         /// <summary>
         /// Create a DialogueNode from DialogueNodeData.
@@ -26,6 +27,7 @@ namespace RPGFramework.Dialogue
             NodeType = data.NodeType;
             SpeakerId = data.SpeakerId;
             Text = data.Text;
+            TextKey = data.TextKey ?? "";
             NextNodeIds = data.NextNodeIds ?? new string[0];
 
             var choices = new List<DialogueChoice>();

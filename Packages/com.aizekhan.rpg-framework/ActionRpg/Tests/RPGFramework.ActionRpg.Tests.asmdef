@@ -16,6 +16,7 @@
         "RPGFramework.Combat.Runtime",
         "RPGFramework.Progression.Runtime",
         "RPGFramework.Quests.Runtime",
+        "RPGFramework.ContentImport.Runtime",
         "RPGFramework.Items.Runtime",
         "RPGFramework.Inventory.Runtime",
         "RPGFramework.Loot.Runtime",

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using RPGFramework.Dialogue;
 using RPGFramework.Factions;
 using RPGFramework.Items;
 using RPGFramework.Localization;
@@ -175,7 +176,12 @@ namespace RPGFramework.ActionRpg
             var node = dialogue?.Current(playerId);
             if (node == null)
                 return rows;
-            string line = string.IsNullOrEmpty(node.SpeakerId) ? node.Text : node.SpeakerId + ": " + node.Text;
+            // A line with a localization key is shown in the player's language
+            Func<string, string, string> localize = null;
+            if (localization != null)
+                localize = localization.Text;
+            string text = DialogueText.Of(node, localize);
+            string line = string.IsNullOrEmpty(node.SpeakerId) ? text : node.SpeakerId + ": " + text;
             rows.Add(new ActionRow(() => line));
             var choices = dialogue.Choices(playerId);
             if (node.NodeType == RPGFramework.Dialogue.DialogueNodeType.Choice && choices.Count > 0)
@@ -183,7 +189,7 @@ namespace RPGFramework.ActionRpg
                 foreach (var choice in choices)
                 {
                     var shown = choice;
-                    rows.Add(new ActionRow(() => "", null, new ActionButton(shown.Text, () => dialogue.Advance(playerId, shown.Id))));
+                    rows.Add(new ActionRow(() => "", null, new ActionButton(DialogueText.Of(shown, localize), () => dialogue.Advance(playerId, shown.Id))));
                 }
             }
             else

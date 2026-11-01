@@ -35,6 +35,9 @@ namespace RPGFramework.ActionRpg
         public List<QuestRecord> ActiveQuests { get; set; } = new List<QuestRecord>();
         public List<string> CompletedQuests { get; set; } = new List<string>();
 
+        /// <summary>When the completed quests were last completed (for repeat cooldowns); saved, not sent in co-op.</summary>
+        public List<QuestTimeRecord> QuestCompletions { get; set; } = new List<QuestTimeRecord>();
+
         /// <summary>
         /// What the player learned in the skill tree (<see cref="ActorSkills"/>).
         /// </summary>
@@ -66,6 +69,16 @@ namespace RPGFramework.ActionRpg
     {
         public string QuestId { get; set; }
         public List<ObjectiveRecord> Objectives { get; set; } = new List<ObjectiveRecord>();
+
+        /// <summary>The stage of a quest with stages; empty otherwise.</summary>
+        public string StageId { get; set; } = "";
+    }
+
+    /// <summary>When a quest was last completed, for its repeat cooldown.</summary>
+    public sealed class QuestTimeRecord
+    {
+        public string QuestId { get; set; }
+        public long CompletedAtUtcTicks { get; set; }
     }
 
     public sealed class ObjectiveRecord

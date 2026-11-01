@@ -2,6 +2,8 @@ using UnityEditor;
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
+using RPGFramework.Dialogue;
+using RPGFramework.Quests;
 
 namespace RPGFramework.Editor.Utilities
 {
@@ -33,133 +35,82 @@ namespace RPGFramework.Editor.Utilities
             DisplayValidationResults();
         }
 
+        /// <summary>Errors found by the last validation.</summary>
+        public static int ErrorCount => errors.Count;
+
+        /// <summary>Warnings found by the last validation.</summary>
+        public static int WarningCount => warnings.Count;
+
+        /// <summary>
+        /// <see cref="ValidateAllData"/> for batch mode: exit code 0 without errors, 1 with errors (2 when the
+        /// validation itself failed). Warnings do not fail it.
+        /// <c>Unity -batchmode -quit -projectPath . -executeMethod RPGFramework.Editor.Utilities.FrameworkValidation.ValidateFromCommandLine</c>
+        /// </summary>
+        public static void ValidateFromCommandLine()
+        {
+            try
+            {
+                ValidateAllData();
+                Debug.Log($"[Validation] {errors.Count} error(s), {warnings.Count} warning(s)");
+                EditorApplication.Exit(errors.Count > 0 ? 1 : 0);
+            }
+            catch (System.Exception exception)
+            {
+                Debug.LogError("[Validation] Failed: " + exception);
+                EditorApplication.Exit(2);
+            }
+        }
+
+        // Quest assets: each quest's stage graph and requirements, prerequisites across all quests
         private static void ValidateQuests()
         {
-            string[] guids = AssetDatabase.FindAssets("t:QuestData");
-            infos.Add($"Found {guids.Length} quest(s) to validate");
-
-            foreach (string guid in guids)
+            var quests = LoadAll<RPGFramework.Tools.QuestEditor.QuestAsset>();
+            infos.Add($"Found {quests.Count} quest(s) to validate");
+            foreach (var issue in QuestGraph.Check(quests.Select(q => (IQuest)new Quest(q.ToQuestData()))))
             {
-                string path = AssetDatabase.GUIDToAssetPath(guid);
-                Object questObj = AssetDatabase.LoadAssetAtPath<Object>(path);
-
-                if (questObj == null)
-                {
-                    errors.Add($"Failed to load quest at path: {path}");
-                    continue;
-                }
-
-                SerializedObject so = new SerializedObject(questObj);
-
-                // Validate quest ID
-                SerializedProperty questIdProp = so.FindProperty("questId");
-                if (questIdProp != null && string.IsNullOrEmpty(questIdProp.stringValue))
-                {
-                    errors.Add($"Quest '{questObj.name}' has empty Quest ID");
-                }
-
-                // Validate title
-                SerializedProperty titleProp = so.FindProperty("title");
-                if (titleProp != null && string.IsNullOrEmpty(titleProp.stringValue))
-                {
-                    warnings.Add($"Quest '{questObj.name}' has empty title");
-                }
-
-                // Validate objectives
-                SerializedProperty objectivesProp = so.FindProperty("objectives");
-                if (objectivesProp != null && objectivesProp.arraySize == 0)
-                {
-                    warnings.Add($"Quest '{questObj.name}' has no objectives");
-                }
-
-                // Validate rewards
-                SerializedProperty rewardsProp = so.FindProperty("rewards");
-                if (rewardsProp != null && rewardsProp.arraySize == 0)
-                {
-                    infos.Add($"Quest '{questObj.name}' has no rewards (this may be intentional)");
-                }
+                var message = $"Quest {issue}";
+                if (issue.Level == QuestIssueLevel.Error)
+                    errors.Add(message);
+                else
+                    warnings.Add(message);
             }
+            foreach (var quest in quests.Where(q => string.IsNullOrEmpty(q.questId)))
+                errors.Add($"Quest '{quest.name}' has empty Quest ID");
         }
 
+        // Dialogue assets: ids and links (DialogueAsset.Validate), then dead ends, loops, empty lines, speakers and the
+        // quest and stage each one belongs to
         private static void ValidateDialogues()
         {
-            string[] guids = AssetDatabase.FindAssets("t:DialogueData");
-            infos.Add($"Found {guids.Length} dialogue(s) to validate");
-
-            foreach (string guid in guids)
+            var dialogues = LoadAll<RPGFramework.Tools.DialogueEditor.DialogueAsset>();
+            infos.Add($"Found {dialogues.Count} dialogue(s) to validate");
+            var quests = LoadAll<RPGFramework.Tools.QuestEditor.QuestAsset>()
+                .GroupBy(q => q.questId).ToDictionary(g => g.Key ?? "", g => g.First().ToQuestData());
+            var playable = new List<IDialogue>();
+            foreach (var dialogue in dialogues)
             {
-                string path = AssetDatabase.GUIDToAssetPath(guid);
-                Object dialogueObj = AssetDatabase.LoadAssetAtPath<Object>(path);
-
-                if (dialogueObj == null)
-                {
-                    errors.Add($"Failed to load dialogue at path: {path}");
-                    continue;
-                }
-
-                SerializedObject so = new SerializedObject(dialogueObj);
-
-                // Validate dialogue ID
-                SerializedProperty dialogueIdProp = so.FindProperty("dialogueId");
-                if (dialogueIdProp != null && string.IsNullOrEmpty(dialogueIdProp.stringValue))
-                {
-                    errors.Add($"Dialogue '{dialogueObj.name}' has empty Dialogue ID");
-                }
-
-                // Validate start node
-                SerializedProperty startNodeProp = so.FindProperty("startNodeId");
-                if (startNodeProp != null && string.IsNullOrEmpty(startNodeProp.stringValue))
-                {
-                    warnings.Add($"Dialogue '{dialogueObj.name}' has no start node ID");
-                }
-
-                // Validate nodes
-                SerializedProperty nodesProp = so.FindProperty("nodes");
-                if (nodesProp != null)
-                {
-                    if (nodesProp.arraySize == 0)
-                    {
-                        warnings.Add($"Dialogue '{dialogueObj.name}' has no nodes");
-                    }
-                    else
-                    {
-                        // Check for duplicate node IDs
-                        HashSet<string> nodeIds = new HashSet<string>();
-                        for (int i = 0; i < nodesProp.arraySize; i++)
-                        {
-                            SerializedProperty nodeProp = nodesProp.GetArrayElementAtIndex(i);
-                            SerializedProperty nodeIdProp = nodeProp.FindPropertyRelative("id");
-
-                            if (nodeIdProp != null)
-                            {
-                                string nodeId = nodeIdProp.stringValue;
-                                if (string.IsNullOrEmpty(nodeId))
-                                {
-                                    errors.Add($"Dialogue '{dialogueObj.name}' has node with empty ID at index {i}");
-                                }
-                                else if (nodeIds.Contains(nodeId))
-                                {
-                                    errors.Add($"Dialogue '{dialogueObj.name}' has duplicate node ID: {nodeId}");
-                                }
-                                else
-                                {
-                                    nodeIds.Add(nodeId);
-                                }
-                            }
-                        }
-
-                        // Validate start node exists
-                        if (startNodeProp != null && !string.IsNullOrEmpty(startNodeProp.stringValue))
-                        {
-                            if (!nodeIds.Contains(startNodeProp.stringValue))
-                            {
-                                errors.Add($"Dialogue '{dialogueObj.name}' start node '{startNodeProp.stringValue}' not found in nodes");
-                            }
-                        }
-                    }
-                }
+                var problems = dialogue.Validate();
+                foreach (var problem in problems)
+                    errors.Add($"Dialogue '{dialogue.name}': {problem}");
+                if (problems.Count == 0)
+                    playable.Add(dialogue.ToDialogue());
+            }
+            foreach (var issue in DialogueGraph.Check(playable, quests.ContainsKey,
+                         (quest, stage) => quests.TryGetValue(quest, out var data) && (data.Stages ?? new QuestStageData[0]).Any(s => s.Id == stage)))
+            {
+                var message = $"Dialogue {issue}";
+                if (issue.Level == DialogueIssueLevel.Error)
+                    errors.Add(message);
+                else if (issue.Code != "unreachable" && issue.Code != "badLink" && issue.Code != "badStart")
+                    warnings.Add(message);
             }
         }
+
+        private static List<T> LoadAll<T>() where T : Object =>
+            AssetDatabase.FindAssets("t:" + typeof(T).Name)
+                .Select(guid => AssetDatabase.LoadAssetAtPath<T>(AssetDatabase.GUIDToAssetPath(guid)))
+                .Where(asset => asset != null)
+                .ToList();
 
         private static void ValidateFactions()
         {

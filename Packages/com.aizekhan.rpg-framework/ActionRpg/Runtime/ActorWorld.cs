@@ -84,6 +84,38 @@ namespace RPGFramework.ActionRpg
             Reputation = new ActorReputation(this, entities, bus);
             _random = settings.Seed != 0 ? new Random(settings.Seed) : new Random();
             Hostility = HostilityRules.For(settings);
+            if (quests is QuestManager questManager && questManager.Requirements == null)
+                questManager.Requirements = new KitQuestRequirements(this);
+        }
+
+        // A quest's requirements in the kit: the level, the reputation with a faction, items in the backpack, a dialogue
+        // variable as a flag
+        private sealed class KitQuestRequirements : IQuestRequirements
+        {
+            private readonly ActorWorld _world;
+
+            public KitQuestRequirements(ActorWorld world) => _world = world;
+
+            public bool IsMet(int entityId, QuestRequirementData requirement)
+            {
+                // A loaded game puts back the quests the player had, whatever they need now
+                if (_world.IsRestoring)
+                    return true;
+                int value = requirement.Value;
+                switch ((requirement.Kind ?? "").Trim().ToLowerInvariant())
+                {
+                    case QuestRequirementKinds.Level:
+                        return _world._progression.GetLevel(entityId) >= value;
+                    case QuestRequirementKinds.Faction:
+                        return _world.Reputation.Of(entityId, requirement.Id) >= value;
+                    case QuestRequirementKinds.Item:
+                        return _world.InventoryOf(entityId).GetAllItems().Count(i => i != null && i.ItemId == requirement.Id) >= Math.Max(1, value);
+                    case QuestRequirementKinds.Flag:
+                        return _world.Dialogue.VariableOf(entityId, requirement.Id) >= Math.Max(1, value);
+                    default:
+                        return false;
+                }
+            }
         }
 
         /// <summary>
@@ -372,6 +404,37 @@ namespace RPGFramework.ActionRpg
                 return false;
             Write("kit.log.newQuest", ("quest", _questRegistry.GetQuest(questId)?.Title ?? questId));
             return true;
+        }
+
+        /// <summary>
+        /// Why a party member cannot take a quest now (<see cref="QuestRefusal.None"/> when they can).
+        /// </summary>
+        public QuestRefusal WhyNotQuest(int playerId, string questId)
+        {
+            int owner = ProgressOwnerOf(playerId);
+            if (owner < 0)
+                return QuestRefusal.UnknownQuest;
+            return _quests is IQuestStages stages ? stages.WhyNot(owner, questId)
+                : _quests.CanAcceptQuest(owner, questId) ? QuestRefusal.None : QuestRefusal.RequirementNotMet;
+        }
+
+        /// <summary>
+        /// The stage a party member's quest is in (quests with stages); null when it has none or is not active.
+        /// </summary>
+        public string QuestStageOf(int playerId, string questId)
+        {
+            int owner = ProgressOwnerOf(playerId);
+            return owner >= 0 && _quests is IQuestStages stages ? stages.CurrentStageOf(owner, questId) : null;
+        }
+
+        /// <summary>
+        /// Something happened that quest stages wait for ("golem_defeated"): every active quest of the party member
+        /// whose stage has a link with that condition moves on. Returns how many quests moved.
+        /// </summary>
+        public int SignalQuests(int playerId, string condition)
+        {
+            int owner = ProgressOwnerOf(playerId);
+            return owner >= 0 && _quests is IQuestStages stages ? stages.Signal(owner, condition) : 0;
         }
 
         /// <summary>
@@ -783,11 +846,20 @@ namespace RPGFramework.ActionRpg
                 .Select(b => new CurrencyRecord { Currency = b.Key, Amount = b.Value }));
             foreach (var active in _quests.GetActiveQuests(owner))
             {
-                var record = new QuestRecord { QuestId = active.QuestId };
+                var record = new QuestRecord { QuestId = active.QuestId, StageId = QuestStageOf(owner, active.QuestId) ?? "" };
                 record.Objectives.AddRange(active.ObjectiveProgress.Select(p => new ObjectiveRecord { ObjectiveId = p.Key, Progress = p.Value }));
                 progress.ActiveQuests.Add(record);
             }
             progress.CompletedQuests.AddRange(_quests.GetCompletedQuests(owner));
+            if (_quests is IQuestStages questStages)
+            {
+                foreach (var questId in progress.CompletedQuests)
+                {
+                    var at = questStages.LastCompletedAt(owner, questId);
+                    if (at != null)
+                        progress.QuestCompletions.Add(new QuestTimeRecord { QuestId = questId, CompletedAtUtcTicks = at.Value.Ticks });
+                }
+            }
             progress.Gear.AddRange(Gear.RecordsOf(playerId));
             progress.Loadout = Gear.LoadoutOf(playerId);
             progress.Skills.AddRange(Skills.RecordsOf(playerId));
@@ -868,7 +940,19 @@ namespace RPGFramework.ActionRpg
                         _quests.AcceptQuest(owner, questId);
                     foreach (var objective in quest.Objectives)
                         SetObjective(owner, questId, objective.Id, objective.RequiredCount);
+                    // A quest with stages hands in from a success stage
+                    var success = (quest as IStagedQuest)?.Stages.FirstOrDefault(s => s.Outcome == QuestOutcome.Success).Id;
+                    if (success != null && _quests is IQuestStages restoring)
+                        restoring.RestoreStage(owner, questId, success);
                     _quests.CompleteQuest(owner, questId);
+                }
+                if (_quests is IQuestStages times)
+                {
+                    foreach (var record in progress.QuestCompletions ?? new List<QuestTimeRecord>())
+                    {
+                        if (!string.IsNullOrEmpty(record.QuestId) && record.CompletedAtUtcTicks > 0)
+                            times.RestoreCompletedAt(owner, record.QuestId, new DateTime(record.CompletedAtUtcTicks, DateTimeKind.Utc));
+                    }
                 }
 
                 foreach (var record in progress.ActiveQuests ?? new List<QuestRecord>())
@@ -880,6 +964,9 @@ namespace RPGFramework.ActionRpg
                     }
                     if (_quests.GetQuestProgress(owner, record.QuestId) == null && !_quests.AcceptQuest(owner, record.QuestId))
                         continue;
+                    // The stage first, so the objectives count where they were made
+                    if (!string.IsNullOrEmpty(record.StageId) && _quests is IQuestStages stages)
+                        stages.RestoreStage(owner, record.QuestId, record.StageId);
                     foreach (var objective in record.Objectives ?? new List<ObjectiveRecord>())
                         SetObjective(owner, record.QuestId, objective.ObjectiveId, objective.Progress);
                 }

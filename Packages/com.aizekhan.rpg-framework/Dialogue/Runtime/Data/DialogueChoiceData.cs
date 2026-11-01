@@ -18,6 +18,9 @@ namespace RPGFramework.Dialogue
         /// </summary>
         public string Text;
 
+        /// <summary>The answer's localization key; empty = <see cref="Text"/> as written.</summary>
+        public string TextKey;
+
         /// <summary>
         /// ID of the target node to proceed to if this choice is selected.
         /// </summary>

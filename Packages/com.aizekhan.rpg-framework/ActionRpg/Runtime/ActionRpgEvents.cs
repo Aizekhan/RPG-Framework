@@ -4,6 +4,26 @@ using RPGFramework.Events;
 namespace RPGFramework.ActionRpg
 {
     /// <summary>
+    /// A dialogue effect asked for the game's own reaction (<see cref="DialogueEffectKind.RaiseEvent"/>): start a world
+    /// event, open a door, play a cutscene.
+    /// </summary>
+    public readonly struct DialogueEventRaisedEvent : IEvent
+    {
+        public DialogueEventRaisedEvent(int playerId, string dialogueId, string name, int amount)
+        {
+            PlayerId = playerId;
+            DialogueId = dialogueId;
+            Name = name;
+            Amount = amount;
+        }
+
+        public int PlayerId { get; }
+        public string DialogueId { get; }
+        public string Name { get; }
+        public int Amount { get; }
+    }
+
+    /// <summary>
     /// A character entered the world; the presentation shows it.
     /// </summary>
     public readonly struct ActorSpawnedEvent : IEvent

@@ -134,7 +134,7 @@ namespace RPGFramework.ActionRpg.Coop
             progress.Currencies.AddRange(_party.Currencies.Select(c => new CurrencyRecord { Currency = c.Currency, Amount = c.Amount }));
             foreach (var record in _party.ActiveQuests)
             {
-                var copy = new QuestRecord { QuestId = record.QuestId };
+                var copy = new QuestRecord { QuestId = record.QuestId, StageId = record.StageId };
                 copy.Objectives.AddRange(record.Objectives.Select(o => new ObjectiveRecord { ObjectiveId = o.ObjectiveId, Progress = o.Progress }));
                 progress.ActiveQuests.Add(copy);
             }

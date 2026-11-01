@@ -315,6 +315,43 @@ namespace RPGFramework.ActionRpg
         public List<DialogueEffect> DialogueEffects { get; } = new List<DialogueEffect>();
 
         /// <summary>
+        /// Adds what a content file holds (<see cref="RPGFramework.ContentImport.ContentImporter.Read"/>): its quests,
+        /// its dialogues and their effects (kinds by <see cref="DialogueEffectKind"/> name, any case). Quests and
+        /// dialogues whose id is here already are replaced.
+        /// </summary>
+        /// <returns>Effects that were left out (an unknown kind), in plain words; empty when all went in.</returns>
+        public List<string> Add(RPGFramework.ContentImport.ContentPackage package)
+        {
+            var skipped = new List<string>();
+            if (package == null)
+                return skipped;
+            foreach (var data in package.Quests)
+            {
+                Quests.RemoveAll(q => q.Id == data.Id);
+                Quests.Add(new Quest(data));
+            }
+            foreach (var data in package.Dialogues)
+            {
+                Dialogues.RemoveAll(d => d.Id == data.Id);
+                DialogueEffects.RemoveAll(e => e.DialogueId == data.Id);
+                Dialogues.Add(new RPGFramework.Dialogue.Dialogue(data));
+            }
+            foreach (var effect in package.Effects)
+            {
+                if (!Enum.TryParse(effect.Kind, true, out DialogueEffectKind kind) || !Enum.IsDefined(typeof(DialogueEffectKind), kind))
+                {
+                    skipped.Add($"Dialogue {effect.DialogueId}/{effect.NodeId ?? effect.ChoiceId}: effect '{effect.Kind}' is not one of " +
+                                string.Join(", ", Enum.GetNames(typeof(DialogueEffectKind))));
+                    continue;
+                }
+                DialogueEffects.Add(effect.NodeId != null
+                    ? DialogueEffect.OnNode(effect.DialogueId, effect.NodeId, kind, effect.Target, effect.Amount)
+                    : DialogueEffect.OnChoice(effect.DialogueId, effect.ChoiceId, kind, effect.Target, effect.Amount));
+            }
+            return skipped;
+        }
+
+        /// <summary>
         /// The game's factions: the players' reputation with them (<see cref="ActorWorld.Reputation"/>).
         /// </summary>
         public List<RPGFramework.Factions.IFaction> Factions { get; } = new List<RPGFramework.Factions.IFaction>();

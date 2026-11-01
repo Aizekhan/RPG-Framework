@@ -33,6 +33,23 @@ namespace RPGFramework.Tools.QuestEditor
         [Tooltip("Can this quest be repeated after completion?")]
         public bool isRepeatable = false;
 
+        [Tooltip("The game's own kind of quest (main, side, faction, daily...); free text")]
+        public string questType = "";
+
+        [Tooltip("Hours before a repeatable quest can be taken again (24 for a daily); 0 = at once")]
+        [Min(0f)]
+        public float repeatCooldownHours;
+
+        [Tooltip("Checked by the game (IQuestRequirements) before the quest can be taken: a level, faction, item or flag")]
+        public QuestRequirementEntry[] requirements = new QuestRequirementEntry[0];
+
+        [Header("Stages")]
+        [Tooltip("The first stage; empty = the first in the list")]
+        public string startStage = "";
+
+        [Tooltip("Stages with links between them. Empty = the quest completes when its objectives are done")]
+        public QuestStageEntry[] stages = new QuestStageEntry[0];
+
         [Header("Objectives")]
         [Tooltip("Quest objectives that must be completed")]
         public QuestObjectiveEntry[] objectives = new QuestObjectiveEntry[1];
@@ -73,7 +90,18 @@ namespace RPGFramework.Tools.QuestEditor
                 Rewards = rewardData,
                 PrerequisiteQuestIds = prerequisiteIds,
                 MinimumLevel = minimumLevel,
-                IsRepeatable = isRepeatable
+                IsRepeatable = isRepeatable,
+                Type = questType ?? "",
+                RepeatCooldownSeconds = repeatCooldownHours * 3600d,
+                Requirements = (requirements ?? System.Array.Empty<QuestRequirementEntry>())
+                    .Where(r => r != null && !string.IsNullOrWhiteSpace(r.kind))
+                    .Select(r => new QuestRequirementData { Kind = r.kind.Trim(), Id = r.id ?? "", Value = r.value })
+                    .ToArray(),
+                StartStageId = startStage ?? "",
+                Stages = (stages ?? System.Array.Empty<QuestStageEntry>())
+                    .Where(s => s != null)
+                    .Select(s => s.ToStageData())
+                    .ToArray()
             };
         }
 
@@ -118,6 +146,67 @@ namespace RPGFramework.Tools.QuestEditor
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// A quest stage in the inspector (<see cref="QuestStageData"/>).
+    /// </summary>
+    [System.Serializable]
+    public class QuestStageEntry
+    {
+        [Tooltip("Unique within the quest")]
+        public string stageId = "s1";
+
+        public string title = "";
+
+        [TextArea(2, 4)]
+        public string description = "";
+
+        [Tooltip("Ids of the objectives that count in this stage; an objective named by no stage counts in all of them")]
+        public string[] objectiveIds = new string[0];
+
+        [Tooltip("Where the quest goes next; the first link that applies is taken")]
+        public QuestLinkEntry[] next = new QuestLinkEntry[0];
+
+        [Tooltip("Success completes the quest, Failure fails it")]
+        public QuestOutcome outcome = QuestOutcome.None;
+
+        public QuestStageData ToStageData() => new QuestStageData
+        {
+            Id = stageId,
+            Title = title,
+            Description = description,
+            ObjectiveIds = (objectiveIds ?? System.Array.Empty<string>()).Where(o => !string.IsNullOrWhiteSpace(o)).ToArray(),
+            Next = (next ?? System.Array.Empty<QuestLinkEntry>())
+                .Where(l => l != null && !string.IsNullOrWhiteSpace(l.toStage))
+                .Select(l => new QuestStageLinkData { To = l.toStage, Condition = l.condition ?? "" })
+                .ToArray(),
+            Outcome = outcome
+        };
+    }
+
+    /// <summary>A link between quest stages in the inspector (<see cref="QuestStageLinkData"/>).</summary>
+    [System.Serializable]
+    public class QuestLinkEntry
+    {
+        public string toStage = "";
+
+        [Tooltip("A name the game signals (IQuestStages.Signal); empty = when the stage's objectives are done")]
+        public string condition = "";
+    }
+
+    /// <summary>A quest requirement in the inspector (<see cref="QuestRequirementData"/>).</summary>
+    [System.Serializable]
+    public class QuestRequirementEntry
+    {
+        [Tooltip("level, faction, item, flag, or a kind of the game's own")]
+        public string kind = QuestRequirementKinds.Flag;
+
+        [Tooltip("The faction, item or flag; empty for a level")]
+        public string id = "";
+
+        [Tooltip("The level, standing or count; 1 for a flag")]
+        public int value = 1;
     }
 
     /// <summary>

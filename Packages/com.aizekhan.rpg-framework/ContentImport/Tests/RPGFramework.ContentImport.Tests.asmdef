@@ -1,0 +1,29 @@
+{
+    "name": "RPGFramework.ContentImport.Tests",
+    "rootNamespace": "RPGFramework.ContentImport.Tests",
+    "references": [
+        "RPGFramework.ContentImport.Runtime",
+        "RPGFramework.ContentImport.Editor",
+        "RPGFramework.Quests.Runtime",
+        "RPGFramework.Dialogue.Runtime",
+        "RPGFramework.Tools.QuestEditor.Runtime",
+        "RPGFramework.Tools.DialogueEditor.Runtime",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

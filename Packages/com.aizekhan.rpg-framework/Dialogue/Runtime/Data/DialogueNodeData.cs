@@ -28,6 +28,9 @@ namespace RPGFramework.Dialogue
         /// </summary>
         public string Text;
 
+        /// <summary>The line's localization key; empty = <see cref="Text"/> as written.</summary>
+        public string TextKey;
+
         /// <summary>
         /// IDs of the next nodes to proceed to (usually one for lines, multiple for branches).
         /// </summary>

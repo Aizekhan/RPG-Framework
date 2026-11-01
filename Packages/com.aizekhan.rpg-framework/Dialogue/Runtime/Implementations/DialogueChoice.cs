@@ -4,13 +4,14 @@ namespace RPGFramework.Dialogue
     /// Implementation of IDialogueChoice.
     /// Represents a choice available to the player in a dialogue node.
     /// </summary>
-    public class DialogueChoice : IDialogueChoice
+    public class DialogueChoice : IDialogueChoice, ILocalizedLine
     {
         public string Id { get; }
         public string Text { get; }
         public string TargetNodeId { get; }
         public IDialogueCondition? Condition { get; }
         public bool IsEnabled { get; }
+        public string TextKey { get; } = "";
 
         /// <summary>
         /// Create a DialogueChoice from DialogueChoiceData.
@@ -19,6 +20,7 @@ namespace RPGFramework.Dialogue
         {
             Id = data.Id;
             Text = data.Text;
+            TextKey = data.TextKey ?? "";
             TargetNodeId = data.TargetNodeId;
             Condition = data.Condition.HasValue ? new DialogueCondition(data.Condition.Value) : null;
             IsEnabled = true;

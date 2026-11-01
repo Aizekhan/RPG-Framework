@@ -20,7 +20,16 @@ namespace RPGFramework.ActionRpg
         CompleteQuest,
         SetVariable,
         GrantSkillPoints,
-        ChangeReputation
+        ChangeReputation,
+
+        /// <summary>Signals a quest-stage condition (<see cref="ActorWorld.SignalQuests"/>); Target: the condition.</summary>
+        SignalQuest,
+
+        /// <summary>
+        /// Publishes <see cref="DialogueEventRaisedEvent"/> for the game's own reaction (start a world event, open a
+        /// door); Target: the event's name, Amount: a number it carries.
+        /// </summary>
+        RaiseEvent
     }
 
     /// <summary>
@@ -64,7 +73,8 @@ namespace RPGFramework.ActionRpg
     /// Dialogue module). Conditions are checked against the player: completed quests, items in the backpack (and how
     /// many), stats (<see cref="ActorStat"/> names, "Level", "Gold" or any currency id) and the player's dialogue
     /// variables. Effects (<see cref="ActionRpgContent.DialogueEffects"/>) give and take items and currency, accept and
-    /// hand in quests, set variables and grant skill points. Starting a dialogue counts as an Interact quest objective
+    /// hand in quests, signal quest stages, set variables, grant skill points, change reputation and raise the game's
+    /// own events. <see cref="Bark"/> picks a one-line remark from a bark dialogue. Starting a dialogue counts as an Interact quest objective
     /// with the dialogue's id. The variables are part of the player's save.
     /// </summary>
     public sealed class ActorDialogue : IDisposable
@@ -75,10 +85,13 @@ namespace RPGFramework.ActionRpg
         private readonly List<DialogueEffect> _effects = new List<DialogueEffect>();
         private readonly SubscriptionBag _subscriptions = new SubscriptionBag();
         private readonly DialogueManager _manager;
+        private readonly IEventBus _bus;
+        private readonly Random _random = new Random();
 
         internal ActorDialogue(ActorWorld world, RPGFramework.ECS.IEntityManager entities, IEventBus bus)
         {
             _world = world ?? throw new ArgumentNullException(nameof(world));
+            _bus = bus;
             _manager = new DialogueManager(entities, _dialogues, bus, ContextOf);
             bus.Subscribe<LineSpokenEvent>(OnLine).AddTo(_subscriptions);
             bus.Subscribe<ChoiceSelectedEvent>(OnChoice).AddTo(_subscriptions);
@@ -120,6 +133,13 @@ namespace RPGFramework.ActionRpg
         public bool Advance(int playerId, string choiceId = null) => _manager.AdvanceDialogue(playerId, choiceId);
 
         public void End(int playerId) => _manager.EndDialogue(playerId);
+
+        /// <summary>
+        /// A one-line remark from a bark dialogue (its Line nodes; the conditions are checked against the player), or
+        /// null when none can be said. Not a conversation: nothing starts, no effects; show it over the speaker.
+        /// </summary>
+        public IDialogueNode Bark(int playerId, string dialogueId) =>
+            DialogueBarks.Pick(_dialogues.GetDialogue(dialogueId), ContextOf(playerId), _random);
 
         public bool IsTalking(int playerId) => _manager.GetDialogueProgress(playerId) != null;
 
@@ -254,6 +274,12 @@ namespace RPGFramework.ActionRpg
                     break;
                 case DialogueEffectKind.ChangeReputation:
                     _world.Reputation.Change(playerId, effect.TargetId, effect.Amount);
+                    break;
+                case DialogueEffectKind.SignalQuest:
+                    _world.SignalQuests(playerId, effect.TargetId);
+                    break;
+                case DialogueEffectKind.RaiseEvent:
+                    _bus?.Publish(new DialogueEventRaisedEvent(playerId, effect.DialogueId, effect.TargetId, effect.Amount));
                     break;
             }
         }

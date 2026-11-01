@@ -17,7 +17,9 @@
         "RPGFramework.Dialogue.Runtime",
         "RPGFramework.Trading.Runtime",
         "RPGFramework.Crafting.Runtime",
-        "RPGFramework.Factions.Runtime"
+        "RPGFramework.Factions.Runtime",
+        "RPGFramework.Tools.QuestEditor.Runtime",
+        "RPGFramework.Tools.DialogueEditor.Runtime"
     ],
     "includePlatforms": [
         "Editor"

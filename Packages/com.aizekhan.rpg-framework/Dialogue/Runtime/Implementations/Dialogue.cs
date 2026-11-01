@@ -7,13 +7,17 @@ namespace RPGFramework.Dialogue
     /// Implementation of IDialogue.
     /// Represents a complete dialogue definition with nodes and branching structure.
     /// </summary>
-    public class Dialogue : IDialogue
+    public class Dialogue : IDialogue, IDialogueDetails
     {
         public string Id { get; }
         public string Title { get; }
         public string Description { get; }
         public string RootNodeId { get; }
         public IReadOnlyList<IDialogueNode> Nodes { get; }
+        public string Type { get; } = "";
+        public string QuestId { get; } = "";
+        public string QuestStageId { get; } = "";
+        public IReadOnlyList<string> ParticipantIds { get; } = new string[0];
 
         private readonly Dictionary<string, IDialogueNode> _nodeDict;
 
@@ -26,6 +30,10 @@ namespace RPGFramework.Dialogue
             Title = data.Title;
             Description = data.Description;
             RootNodeId = data.RootNodeId;
+            Type = data.Type ?? "";
+            QuestId = data.QuestId ?? "";
+            QuestStageId = data.QuestStageId ?? "";
+            ParticipantIds = data.ParticipantIds ?? new string[0];
 
             var nodes = new List<DialogueNode>();
             if (data.Nodes != null)
