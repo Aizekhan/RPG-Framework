@@ -1,8 +1,8 @@
-# RPG Framework — архітектура (фактичний стан v0.29.0)
+# RPG Framework — архітектура (фактичний стан v0.30.0)
 
-> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.29.0**
-> (тег `v0.29.0` на коміті `a70f7db`, Unity 6000.0), звірений із кодом пакета 2026-11-01: збірки (`.asmdef`), їхні
-> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.29.0), `Documentation~/networking.md`, рецепти
+> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.30.0**
+> (тег `v0.30.0` на коміті `c8bed74`, Unity 6000.0), звірений із кодом пакета 2026-11-01: збірки (`.asmdef`), їхні
+> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.30.0), `Documentation~/networking.md`, рецепти
 > AI-guidance 01–17.
 > Попередня редакція (стан v0.5.0/v0.5.1) у git не потрапляла; цей файл замінює її повністю. Історію змін між
 > версіями дає `CHANGELOG.md` пакета.
@@ -28,7 +28,7 @@
   правила, стати, прогресія, квести, предмети, лут, збереження, ассети, спавн, сцени, UI-навігація, звук, локалізація,
   налаштування, діагностика, мережа.
 - Гра володіє **контентом, поданням і правилами, які роблять її унікальною**.
-- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.29.0`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
+- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.30.0`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
   1.11.2, Unity Transport 2.5.3, uGUI, вбудованого модуля Audio. Гра живе в окремому репозиторії/проєкті і не редагує
   пакет (`Library/PackageCache` перезаписується).
 - **Конвеєр рендерингу — будь-який.** Пакет не залежить від URP/HDRP і не має шейдерів під конкретний конвеєр:
@@ -423,6 +423,25 @@ Feature-модулі для підключення одним рядком ле�
 екрани ще показують наслідок ходу (кубики, карта); `TurnHostOptions.EndPauseWithTurn` знімає паузу, коли хід
 переходить до іншого місця.
 
+### 7.4 ActionCombat — бій у реальному часі, де влучання вирішує контакт (з v0.30)
+
+[є] Запит MythRunner. **Правила (`ActionCombat.Runtime`, без рушія):** `CombatRules`, `AttackDefinition` (фази
+WindUp → Active → Recovery, множник шкоди, `Stagger`, `Interruptible` — інакше hyper armour, `BlockCost`, теги й джерело
+для `AttackContext`, заряд `MinCharge`/`MaxCharge`/`MaxChargeMultiplier`/`ChargeCurve`/`QuickAttack`, `Projectile`),
+`CombatantSettings`, стани `CombatState` (Idle, Charging, WindUp, Active, Recovery, Dodging, Blocking, HitReact).
+`ReportContact(attacker, target, swingId, point)` влучає лише в активному вікні й один раз на ціль за замах; результат
+Hit / Blocked / Dodged / Ignored з причиною (`ContactIgnored`). Шкода йде через `ICombatDamage` (у кіті —
+`IActorWorld.Attack` з множником). Реакція на удар з poise; ухилення невразливе рівно свій час або вікно всередині
+нього (окремого таймера захисту немає); блок утримується, діє в конусі спереду й коштує `IBlockStock` за удар (немає
+запасу — захист пробито). Утримання заряду обмежене [min, max], коротке відпускання — швидка атака; лук — те саме.
+Снаряд тримає вікно свого замаху весь політ (`EndSwing`, `ProjectileLifetime`). Події — readonly struct з точним часом;
+`CombatTimeline` записує фази, контакти, шкоду, ухилення, блоки й відмовлені дії для панелі діагностики.
+**Unity (`ActionCombat.Unity`):** `CombatArena` (одна на сцену, тікає правила, стоїть на паузі світу), `Combatant`
+(нащадок `ActorView`), `Hurtbox`, `Hitbox` (тригер зброї), `AttackAsset` (фази в секундах або з кліпа: мітки чи події
+`ActiveStart`/`ActiveEnd`), `CombatProjectile` (sphere cast, без пролітання крізь тіло), `ProjectileLauncher`,
+`CombatAnimatorBridge`, `CombatEnemyBrain` (`EnemyBrain` отримав хуки `IsBusy`/`StrikeAt`). Рецепт 18.
+Обмеження: правила працюють там, де світ (одна гра або хост коопу).
+
 ---
 
 ## 8. Мережа і кооп
@@ -542,7 +561,7 @@ New Game також виставляє Player Settings (Run In Background, Linea
 | `.meta` з валідним GUID для кожного файлу | CI-крок «Unity .meta integrity» |
 | Тексти на екрані — ключі, не рядки | тексти кітів через `ILocalization`; `LocalizationChecks` для таблиць гри |
 
-Тестова база: v0.29.0 (код `6e740e5`) — EditMode **2015/2015** і PlayMode **17/17** на `6e740e5`; CI run `41321283551` зелений.
+Тестова база: v0.30.0 (код `f964692`) — EditMode **2043/2043** і PlayMode **19/19** на `f964692`; CI run `41339513152` зелений.
 
 ---
 
