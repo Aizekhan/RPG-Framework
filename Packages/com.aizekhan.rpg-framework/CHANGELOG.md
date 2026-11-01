@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-11-01
+
 ### Added
 - Game Kit: a reinstall of AI guidance (menu or `InstallFromCommandLine`) warns about the game's Claude Code commands (`.claude/commands/*`) that differ from this version's templates, without replacing them, so a game sees when `/start` or `/handoff` gained a step. `AIGuidance.CommandsThatDiffer(documentationRoot, projectRoot)` (The Bloodline Hunt idea).
 
