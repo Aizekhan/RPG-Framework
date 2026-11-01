@@ -108,6 +108,22 @@ namespace RPGFramework.ContentImport.Tests
         }
 
         [Test]
+        public void KeysTheFormatDoesNotKnow_AreSkipped()
+        {
+            var package = ContentImporter.Read(@"{ ""schema"": ""rpgframework.content/1"", ""exportedBy"": ""tool"",
+              ""quests"": [{ ""id"": ""q"", ""title"": ""Q"",
+                ""refs"": { ""giver"": ""c:lyra"", ""characters"": [""c:lyra"", ""e:golem""], ""locations"": [], ""factions"": [""c:smiths""] },
+                ""stages"": [{ ""id"": ""a"", ""outcome"": ""success"", ""notes"": [{ ""x"": 1 }] }] }],
+              ""dialogues"": [{ ""id"": ""d"", ""location"": ""forest_edge"", ""participants"": [""c:lyra""],
+                ""nodes"": [{ ""id"": ""n"", ""speaker"": ""c:lyra"", ""speaker_name"": ""Lyra"", ""text"": ""Hi"", ""next"": [""m""] },
+                            { ""id"": ""m"", ""type"": ""end"", ""speaker"": ""c:lyra"", ""text"": ""Bye"" }] }] }");
+
+            Assert.That(package.Problems, Is.Empty, string.Join("\n", package.Problems));
+            Assert.That(package.Quests.Single().Stages.Single().Outcome, Is.EqualTo(QuestOutcome.Success));
+            Assert.That(package.Dialogues.Single().Nodes[0].Text, Is.EqualTo("Hi"));
+        }
+
+        [Test]
         public void WrittenContent_ReadsBackTheSame()
         {
             var first = ContentImporter.Read(LostHammer);
