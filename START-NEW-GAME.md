@@ -196,7 +196,7 @@ The first run downloads the packages and imports everything; it can take several
 - `grep -c "error CS" Logs/newgame.log` is **0** (otherwise show the errors and fix the cause).
 - `Assets/<Game>/` exists with `Scripts/Core`, `Content`, `Scenes`, `Tests`.
 - `CLAUDE.md`, `Docs/RPGFramework/` (architecture guide and recipes), the process files (`STATUS.md`, `GAME.md`,
-  `Docs/ARCHITECTURE.md`, `FRAMEWORK-GAPS.md`, `DEVLOG.md`, `THIRD-PARTY-ASSETS.md`, `.claude/settings.json`, `.claude/commands/start.md` and
+  `Docs/ARCHITECTURE.md`, `FRAMEWORK-GAPS.md`, `DEVLOG.md`, `THIRD-PARTY-ASSETS.md`, `CREDITS.md`, `.claude/settings.json`, `.claude/commands/start.md` and
   `handoff.md`), `.gitattributes` and `.github/workflows/unity-tests.yml` exist.
 - `ProjectSettings/ProjectSettings.asset` has `runInBackground: 1` (co-op), `m_ActiveColorSpace: 1` (Linear) and a
   `companyName` that is not `DefaultCompany` (New Game uses the game's name; pass `-company "<Studio>"` to choose).
@@ -290,10 +290,11 @@ a session that cannot trust them has to ask the developer again what is going on
 | `FRAMEWORK-GAPS.md` | what the framework lacks: needed for, wanted API, stand-in, found, resolved in | you, when a gap is found or the framework closes it | every session (open gaps), every framework update |
 | `DEVLOG.md` | history: one line per finished step, date, what, commit, tests | you, at every `/handoff` | the last lines, every session |
 | `THIRD-PARTY-ASSETS.md` | every model, prefab, texture, sound, font or code from outside: source page, author, licence (and a copy of it next to the files), commercial use, attribution text; assets generated with a tool or AI service (Meshy, ...): tool, plan when generated, date, input, rights | you, **before** importing; checked at every `/handoff` | before importing anything |
+| `CREDITS.md` | the text of the Credits screen (and a copy for builds), built from `THIRD-PARTY-ASSETS.md` | you, in the same commit as an asset added or removed; checked at every `/handoff` | when building the Credits screen or a release |
 | `PLAN.md` (optional) | the plan of the current milestone, if the developer prefers it outside `GAME.md` | with the developer | when planning |
 | `.claude/commands/start.md`, `handoff.md` | the `/start` and `/handoff` commands that read and update the files above | adapt them to the game if needed | — |
 | `.claude/settings.json` | commands allowed without asking: read-only git, `unity test`, `unity recompile` | the developer decides what to add | — |
-| `<Game>ArchitectureTests` | the rules GA01–GA14 as tests: they fail when code breaks the architecture | never weaken them | on every test run |
+| `<Game>ArchitectureTests` | the rules GA01–GA15 as tests: they fail when code breaks the architecture | never weaken them | on every test run |
 
 Rules for all of them: a result is true only for the commit it was measured on, so write the commit next to it;
 `STATUS.md` is rewritten, `DEVLOG.md` is only appended; when two files contradict each other or the code, settle it
@@ -322,7 +323,9 @@ with the developer before changing code.
    game's composition. Then the **view** and input in the `<Game>` assembly. Then the **content** as assets
    (Game Setup, Characters, items, loot tables, quests) that a designer can edit in the inspector. A model, sound or
    other asset downloaded from outside gets its row in `THIRD-PARTY-ASSETS.md` (source page, licence) before it is
-   imported; ask the developer when the licence is unclear or forbids commercial use.
+   imported, its files go in `Assets/ThirdParty/<Source>/<Asset>/` with a copy of the licence (GA15), and its
+   attribution goes into `CREDITS.md`; ask the developer when the licence is unclear or forbids commercial use. A model
+   from a service's community (Meshy Community, ...) is someone else's asset even after you remesh it.
 6. **Run all tests** (step 6 commands). Everything green, including `<Game>ArchitectureTests`. Never delete or
    weaken a test to make it pass; fix the code.
 7. **The developer plays it** and says whether it does what they wanted. Adjust.
@@ -351,4 +354,4 @@ to "Resolved" with the version (`CLAUDE.md`, "After the framework is updated").
 | Tests: total is lower than before, or 0 | A test assembly did not compile or load: search the log for `error` near the assembly's name |
 | Licence or sign-in errors | The developer signs in to Unity Hub and activates a licence |
 | A `.meta` is missing or Unity ignores a file | Let Unity import (open the Editor or run a batch command); never invent a GUID |
-| An architecture test fails | Its message names the rule (GA01-GA13) and the fix; `Docs/RPGFramework/architecture.md` explains it |
+| An architecture test fails | Its message names the rule (GA01-GA15) and the fix; `Docs/RPGFramework/architecture.md` explains it |

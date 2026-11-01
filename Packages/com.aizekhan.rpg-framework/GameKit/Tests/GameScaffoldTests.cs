@@ -208,7 +208,7 @@ namespace RPGFramework.GameKit.Tests
 
             Assert.That(written, Is.SupersetOf(new[]
             {
-                "STATUS.md", "THIRD-PARTY-ASSETS.md", ".claude/settings.json", ".claude/commands/start.md", ".claude/commands/handoff.md"
+                "STATUS.md", "THIRD-PARTY-ASSETS.md", "CREDITS.md", ".claude/settings.json", ".claude/commands/start.md", ".claude/commands/handoff.md"
             }));
             Assert.That(written, Has.No.Member("Docs/ARCHITECTURE.md"));
             Assert.That(File.ReadAllText(architecture), Is.EqualTo("# Ours"));

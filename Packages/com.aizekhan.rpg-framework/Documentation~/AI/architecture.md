@@ -129,3 +129,17 @@ maps each game need to its module. The rule looks for:
 These are heuristics, so `// architecture: allow GA14` does **not** work. The only way past is a recorded gap: a
 `// framework-gap: <id>` marker on the line, on the line above it, or above the type it is in (above its doc comment and attributes too), with its section in
 `FRAMEWORK-GAPS.md` (GA12). Either the module does the job, or the framework learns what it lacks.
+
+### GA15 Assets taken from outside are recorded with their licence
+Models, prefabs, textures, sounds, fonts and code taken from outside the team (a store, a free site, a service's
+community) live in `Assets/ThirdParty/<Source>/<Asset>/`, one folder per asset. Each asset folder needs:
+- its row in `THIRD-PARTY-ASSETS.md` (project root) that names the folder (`Assets/ThirdParty/<Source>/<Asset>`), with
+  the source page, author, licence, commercial use and attribution text;
+- a copy of its licence or terms: a file named `LICENSE*`, `LICENCE*`, `TERMS*` or `COPYING*` (text, PDF or a
+  screenshot) in the asset's folder, or once in the source's folder when one licence covers all its assets (a
+  service's community terms, a support answer).
+
+A file directly in `Assets/ThirdParty/<Source>/` that is not a licence copy fails too. The rule only sees that folder:
+assets the team made or generated on its own account stay in `Assets/<Game>/` (their row goes in the "Generated with
+tools" table, which no test checks). There is no opt-out: an asset with no known licence is a question for the
+developer, not for a marker.

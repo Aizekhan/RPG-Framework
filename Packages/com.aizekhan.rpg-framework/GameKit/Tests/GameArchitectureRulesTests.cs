@@ -253,6 +253,36 @@ namespace RPGFramework.GameKit.Tests
         }
 
         [Test]
+        public void GA15_AnOutsideAssetNeedsItsRowAndALicenceCopy()
+        {
+            string thirdParty = Path.Combine(_folder, "ThirdParty");
+            string ledger = Path.Combine(_folder, "THIRD-PARTY-ASSETS.md");
+            Assert.That(GameArchitectureRules.OutsideAssetsAreRecorded(thirdParty, ledger), Is.Empty, "no outside assets: nothing to record");
+
+            string axe = Path.Combine(thirdParty, "MeshyCommunity", "FrostfuryAxe");
+            string ui = Path.Combine(thirdParty, "Kenney", "UIPack");
+            Directory.CreateDirectory(axe);
+            Directory.CreateDirectory(ui);
+            File.WriteAllText(Path.Combine(axe, "axe.fbx"), "");
+            File.WriteAllText(Path.Combine(axe, "axe.fbx.meta"), "");
+            File.WriteAllText(Path.Combine(ui, "button.png"), "");
+            File.WriteAllText(Path.Combine(thirdParty, "Kenney", "stray.png"), "");
+
+            var all = GameArchitectureRules.OutsideAssetsAreRecorded(thirdParty, ledger).ToList();
+            Assert.That(all.Select(v => v.Rule), Is.All.EqualTo("GA15"));
+            Assert.That(all, Has.Count.EqualTo(5), "two assets without row and licence, one stray file");
+            Assert.That(all.Count(v => v.Where.EndsWith("stray.png")), Is.EqualTo(1));
+
+            File.WriteAllText(ledger, "| Frostfury axe | Assets/ThirdParty/MeshyCommunity/FrostfuryAxe | ... | CC0 1.0 |\n" +
+                                      "| UI pack | Assets/ThirdParty/Kenney/UIPack | kenney.nl | CC0 1.0 |\n");
+            File.WriteAllText(Path.Combine(thirdParty, "MeshyCommunity", "LICENSE-meshy-support.png"), ""); // one copy for the source
+            File.WriteAllText(Path.Combine(ui, "License.txt"), "");
+            File.Delete(Path.Combine(thirdParty, "Kenney", "stray.png"));
+
+            Assert.That(GameArchitectureRules.OutsideAssetsAreRecorded(thirdParty, ledger), Is.Empty);
+        }
+
+        [Test]
         public void GA13_HandMadeCoreServices_AreCaught_TheOptOutAndCleanCodePass()
         {
             var file = Source("Bad.cs", string.Join("\n",

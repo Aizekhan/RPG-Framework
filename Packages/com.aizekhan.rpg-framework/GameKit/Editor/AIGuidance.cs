@@ -10,7 +10,7 @@ namespace RPGFramework.GameKit.Editor
     /// Installs the guidance an AI assistant (or a new developer) needs to build a game the framework's way:
     /// a block in the project's <c>CLAUDE.md</c>, the architecture guide and recipes under <c>Docs/RPGFramework</c>,
     /// the game's own documents (<c>GAME.md</c>, <c>STATUS.md</c>, <c>FRAMEWORK-GAPS.md</c>, <c>DEVLOG.md</c>,
-    /// <c>THIRD-PARTY-ASSETS.md</c>, <c>Docs/ARCHITECTURE.md</c>) and Claude Code files (<c>.claude/settings.json</c>, the <c>/start</c> and
+    /// <c>THIRD-PARTY-ASSETS.md</c>, <c>CREDITS.md</c>, <c>Docs/ARCHITECTURE.md</c>) and Claude Code files (<c>.claude/settings.json</c>, the <c>/start</c> and
     /// <c>/handoff</c> commands), created once and then kept,
     /// a CI workflow that runs the tests when the project has none, and a <c>.gitattributes</c> that puts binary
     /// assets in Git LFS when the project has none. Reinstalling updates the framework's files and its

@@ -5,7 +5,7 @@ This game is built on the RPG Framework package (`com.aizekhan.rpg-framework`). 
 Automated tests enforce the architecture, so a change that breaks it fails.
 
 ## Read before changing code
-- `Docs/RPGFramework/architecture.md`: the layers and the rules GA01–GA14 (test failures name the rule).
+- `Docs/RPGFramework/architecture.md`: the layers and the rules GA01–GA15 (test failures name the rule).
 - `Docs/RPGFramework/recipes/16-game-needs-to-modules.md`: which module a game need goes to (a chest → loot table,
   a shop → Trading, a perk → Abilities, poison → StatusEffects). GA14 fails on rules that hand-roll them.
 - `Docs/RPGFramework/recipes/`: step-by-step recipes. Find the one that matches the task and follow it.
@@ -96,8 +96,13 @@ these files.
 - `FRAMEWORK-GAPS.md`: the gaps above. `DEVLOG.md`: one line per finished step (date, what, commit, tests).
 - `THIRD-PARTY-ASSETS.md`: every model, prefab, texture, sound, font or code taken from outside: source page,
   author, licence, commercial use, attribution. **Add the row and a copy of the licence before importing**; ask the
-  developer when the licence is missing, non-commercial, no-derivatives or share-alike. Assets generated with a
-  tool or AI service (Meshy, ...) get a row too: tool, plan when generated, date, input, the rights its terms give. Never commit store assets
+  developer when the licence is missing, non-commercial, no-derivatives or share-alike. Outside assets live in
+  `Assets/ThirdParty/<Source>/<Asset>/` with a `LICENSE*` copy (GA15). A model from a service's community (Meshy
+  Community, ...) is someone else's work even after you remesh or edit it: an outside asset under the community's
+  terms, not your own generation; images in the same post may have other terms. Assets generated with a tool or AI
+  service on your own account get a row too: tool, plan when generated, date, input, the rights its terms give.
+- `CREDITS.md`: the text of the game's Credits screen, built from `THIRD-PARTY-ASSETS.md` (every attribution text
+  there appears here). The Credits screen shows it; copy it next to the executable in builds. Never commit store assets
   (Asset Store, Fab) to a public repository.
 - `.claude/settings.json`: the commands Claude Code may run without asking (read-only git, `unity test`).
 - A result (tests, CI, a play check) is true only for the commit it was measured on: write the commit next to it.

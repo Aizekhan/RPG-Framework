@@ -51,6 +51,16 @@ namespace RPGFramework.GameKit.Editor
         public const string GapsFile = "FRAMEWORK-GAPS.md";
 
         /// <summary>
+        /// Where a game records every asset it took from outside: source, licence, attribution (project root, GA15).
+        /// </summary>
+        public const string AssetsLedgerFile = "THIRD-PARTY-ASSETS.md";
+
+        /// <summary>
+        /// Where assets taken from outside live, one folder per source and asset: <c>Assets/ThirdParty/&lt;Source&gt;/&lt;Asset&gt;</c>.
+        /// </summary>
+        public const string ThirdPartyFolder = "Assets/ThirdParty";
+
+        /// <summary>
         /// The recipe that maps each everyday need to the framework service for it (GA13 points here).
         /// </summary>
         public const string CoreServicesRecipe = "Docs/RPGFramework/recipes/14-core-services.md";
@@ -76,7 +86,8 @@ namespace RPGFramework.GameKit.Editor
                 ("GA11", "The game does not redo the framework", GameDoesNotRedoTheFramework),
                 ("GA12", "Framework gaps are recorded", FrameworkGapsAreRecorded),
                 ("GA13", "The game uses the framework's core services", GameUsesCoreServices),
-                ("GA14", "The game's rules use the framework's gameplay modules", GameUsesGameplayModules)
+                ("GA14", "The game's rules use the framework's gameplay modules", GameUsesGameplayModules),
+                ("GA15", "Assets taken from outside are recorded with their licence", OutsideAssetsAreRecorded)
             };
 
         /// <summary>
@@ -376,6 +387,57 @@ namespace RPGFramework.GameKit.Editor
                 }
             }
         }
+
+        private static readonly Regex LicenceCopy = new Regex(@"^(licen[cs]e|terms|copying)", RegexOptions.IgnoreCase);
+
+        public static IEnumerable<ArchitectureViolation> OutsideAssetsAreRecorded(GameCodebase codebase) =>
+            OutsideAssetsAreRecorded(ThirdPartyFolder, AssetsLedgerFile);
+
+        /// <summary>
+        /// Every asset folder under <paramref name="thirdPartyFolder"/> (<c>&lt;Source&gt;/&lt;Asset&gt;</c>) has its row in the
+        /// ledger (the row names the folder) and a copy of its licence or terms (a file named LICENSE*, LICENCE*, TERMS*
+        /// or COPYING*) in the asset's folder or, for every asset of a source, in the source's folder.
+        /// </summary>
+        public static IEnumerable<ArchitectureViolation> OutsideAssetsAreRecorded(string thirdPartyFolder, string ledgerFile)
+        {
+            if (!Directory.Exists(thirdPartyFolder))
+                yield break;
+            string ledger = File.Exists(ledgerFile) ? GameCodebase.Normalize(File.ReadAllText(ledgerFile)) : "";
+            foreach (var source in Directory.GetDirectories(thirdPartyFolder).OrderBy(d => d))
+            {
+                string sourceName = Path.GetFileName(source);
+                foreach (var file in Files(source).Where(f => !LicenceCopy.IsMatch(Path.GetFileName(f))))
+                {
+                    yield return new ArchitectureViolation("GA15", GameCodebase.Normalize(file),
+                        "an outside asset's file directly in its source folder",
+                        $"Keep each asset in its own folder, {ThirdPartyFolder}/{sourceName}/<Asset>/, so its files, row and " +
+                        "licence stay together.");
+                }
+                bool sourceLicence = Files(source).Any(f => LicenceCopy.IsMatch(Path.GetFileName(f)));
+                foreach (var asset in Directory.GetDirectories(source).OrderBy(d => d))
+                {
+                    string key = $"{sourceName}/{Path.GetFileName(asset)}";
+                    string where = GameCodebase.Normalize(asset);
+                    if (ledger.IndexOf(key, StringComparison.OrdinalIgnoreCase) < 0)
+                    {
+                        yield return new ArchitectureViolation("GA15", where, $"no row in {AssetsLedgerFile}",
+                            $"Add its row to {AssetsLedgerFile} (project root) with \"{ThirdPartyFolder}/{key}\" as its folder: " +
+                            "source page, author, licence, commercial use, attribution text. Ask the developer when the " +
+                            "licence is unknown or forbids commercial use.");
+                    }
+                    if (!sourceLicence && !Files(asset).Any(f => LicenceCopy.IsMatch(Path.GetFileName(f))))
+                    {
+                        yield return new ArchitectureViolation("GA15", where, "no copy of its licence or terms",
+                            "Save the licence text, the terms page or the service's written answer as LICENSE.txt (or " +
+                            "LICENSE-<what>.pdf/.png) in the asset's folder, or once in the source's folder for all its " +
+                            "assets: the page it came from can change or disappear.");
+                    }
+                }
+            }
+        }
+
+        private static IEnumerable<string> Files(string folder) =>
+            Directory.GetFiles(folder).Where(f => !f.EndsWith(".meta", StringComparison.OrdinalIgnoreCase));
 
         // A Unity object call: "Object.Instantiate", "GameObject.Destroy" or the bare inherited one, not "service.Instantiate"
         private const string UnityObjectCall = @"(?:\b(?:UnityEngine\.)?(?:Object|GameObject)\.|(?<![\w.]))";

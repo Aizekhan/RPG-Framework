@@ -81,6 +81,9 @@ namespace RPGFramework.GameKit.TestSupport
         [Test]
         public void GA14_GameUsesGameplayModules() => Check(GameArchitectureRules.GameUsesGameplayModules);
 
+        [Test]
+        public void GA15_OutsideAssetsAreRecorded() => Check(GameArchitectureRules.OutsideAssetsAreRecorded);
+
         private void Check(Func<GameCodebase, IEnumerable<ArchitectureViolation>> rule)
         {
             var violations = rule(_codebase).ToList();

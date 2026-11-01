@@ -15,6 +15,7 @@ Record the state of the work so the next session continues without asking.
    `## Resolved`.
 7. Check `THIRD-PARTY-ASSETS.md`: every asset imported from outside since the last hand-off has its row (source page,
    licence, attribution) and a copy of its licence; ask the developer about any file whose origin is unknown.
+   Every attribution text in it appears in `CREDITS.md`, and the game's Credits screen shows what `CREDITS.md` says.
 8. Commit the documents (`docs: status and handoff`), naming the files, never `git add -A` over files you did not
    change.
 9. Report in a few lines: what changed, which commit was verified and how, what is next.
