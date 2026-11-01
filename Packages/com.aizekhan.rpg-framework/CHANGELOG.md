@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-11-01
+
 ### Added
 - Turns: `TurnHost.HoldClock(reason)` / `ReleaseClock(reason)` hold the turn's time while the screens still show what a move did (dice rolling, a card turning). A hold spends no pause bank, and the time left stands until every reason is released, then runs on from there. Questions keep their own time, and `TurnClockRuns` reads false on every seat while the hold lasts. `TurnHost.IsClockHeld` (The Bloodline Hunt, BH-08 follow-up).
 - Turns: `TurnHostOptions.EndPauseWithTurn` ends a pause when the turn passes to another seat, after a move or when the rules move on by themselves. Off by default, so a pause lasts until `ResumeTurn()` or its bank runs out, as in 0.23.0.
