@@ -1,8 +1,8 @@
-# RPG Framework — архітектура (фактичний стан v0.24.0)
+# RPG Framework — архітектура (фактичний стан v0.25.0)
 
-> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.24.0**
-> (тег `v0.24.0` на коміті `293459b`, Unity 6000.0), звірений із кодом пакета 2026-11-01: збірки (`.asmdef`), їхні
-> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.24.0), `Documentation~/networking.md`, рецепти
+> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.25.0**
+> (тег `v0.25.0` на коміті `244e1f0`, Unity 6000.0), звірений із кодом пакета 2026-11-01: збірки (`.asmdef`), їхні
+> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.25.0), `Documentation~/networking.md`, рецепти
 > AI-guidance 01–17.
 > Попередня редакція (стан v0.5.0/v0.5.1) у git не потрапляла; цей файл замінює її повністю. Історію змін між
 > версіями дає `CHANGELOG.md` пакета.
@@ -28,7 +28,7 @@
   правила, стати, прогресія, квести, предмети, лут, збереження, ассети, спавн, сцени, UI-навігація, звук, локалізація,
   налаштування, діагностика, мережа.
 - Гра володіє **контентом, поданням і правилами, які роблять її унікальною**.
-- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.24.0`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
+- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.25.0`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
   1.11.2, Unity Transport 2.5.3, uGUI, вбудованого модуля Audio. Гра живе в окремому репозиторії/проєкті і не редагує
   пакет (`Library/PackageCache` перезаписується).
 - **Конвеєр рендерингу — будь-який.** Пакет не залежить від URP/HDRP і не має шейдерів під конкретний конвеєр:
@@ -217,7 +217,7 @@ GameHost.Start(configure)                               // Bootstrap.Runtime, б
 | Кубики | `IDiceService` (`Roll(sides, purpose)`, `Seed`, `NextSeed`, `Log`, `DieRolledEvent`), `ScriptedDice` для тестів (з v0.13) | `Dice.Runtime` | `System.Random` у правилах |
 | Збереження | `SaveParticipant<T>` (`Version`, `Upgrade`), `SaveGameCoordinator`, `ISaveSystem` (резервна копія `<slot>.previous.sav`, контрольна сума) | `Persistence.Runtime` | `PlayerPrefs`, свої JSON |
 | Редакторські ассети | `Tools.*` (Item Database, Loot Table, Quest, Dialogue, Faction, Skill, Ability, Crafting, Status Effect) — інспектор показує проблеми, конвертація в runtime-дані | `Tools.*` | — |
-| Генератори і правила гри | `GameKit` (New Game, New Feature, Check Architecture, AI guidance, CI workflow, `.gitattributes` для LFS) | `GameKit.*` | — |
+| Генератори і правила гри | `GameKit` (New Game, New Feature, Check Architecture, AI guidance, файли процесу гри, CI workflow, `.gitattributes` для LFS) | `GameKit.*` | — |
 
 Повна таблиця «потреба → сервіс» — рецепт 14; «потреба гри → модуль» — рецепт 16 (обидва в `Docs/RPGFramework/recipes/` гри).
 
@@ -472,7 +472,13 @@ Assets/<Game>/
   PlayTests/      PlayMode-тести сцени
 CLAUDE.md, Docs/RPGFramework/ (architecture.md, recipes 01–17), GAME.md, FRAMEWORK-GAPS.md, DEVLOG.md, CI workflow,
 .gitattributes (Git LFS)
+STATUS.md, Docs/ARCHITECTURE.md, .claude/settings.json, .claude/commands/start.md і handoff.md (з v0.25)
 ```
+
+Файли процесу гри (з v0.25) **[є]**: усе з `Documentation~/AI/project` ставиться за тим самим шляхом один раз і
+більше не перезаписується. `STATUS.md` — де зараз робота й останні перевірені тести з комітом; `Docs/ARCHITECTURE.md` —
+як побудована саме ця гра; `/start` і `/handoff` читають і оновлюють їх; `.claude/settings.json` дозволяє без
+запиту лише читання git і `unity test`/`unity recompile`. `START-NEW-GAME.md` має таблицю «Process files».
 
 New Game також виставляє Player Settings (Run In Background, Linear, назва компанії). Конвеєр рендерингу лишає
 проєктовим (розд. 1).
@@ -517,7 +523,7 @@ New Game також виставляє Player Settings (Run In Background, Linea
 | `.meta` з валідним GUID для кожного файлу | CI-крок «Unity .meta integrity» |
 | Тексти на екрані — ключі, не рядки | тексти кітів через `ILocalization`; `LocalizationChecks` для таблиць гри |
 
-Тестова база: v0.24.0 (код `8989da8`) — EditMode **2009/2010** локально (впав лише нестабільний тест подій, розд. 12 п. 9) і повністю в CI; PlayMode **17/17** на `293459b`; CI run `41266725054` зелений.
+Тестова база: v0.25.0 (код `db04641`) — EditMode **2011/2011**, PlayMode **17/17** на `db04641`; CI run `41304079921` зелений (після перезапуску: перший PlayMode-прогін упав на активації ліцензії Unity, тести не запускались).
 
 ---
 
