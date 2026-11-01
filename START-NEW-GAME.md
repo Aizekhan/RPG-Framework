@@ -341,7 +341,8 @@ When the developer wants a newer version: list the tags (step 4), read that vers
 change the tag in `Packages/manifest.json`, open the project once (or run step 5's import by running the tests),
 run all tests, and reinstall the AI guidance so `CLAUDE.md`'s framework block and `Docs/RPGFramework` match the new
 version (`-executeMethod RPGFramework.GameKit.Editor.AIGuidance.InstallFromCommandLine`; the game's own documents
-are kept). Then go through **every** open gap in `FRAMEWORK-GAPS.md` against the changelog: a gap the new version
+are kept; if the log warns that `.claude/commands/*` differ from the new templates, compare them and bring the
+new steps into the game's copies). Then go through **every** open gap in `FRAMEWORK-GAPS.md` against the changelog: a gap the new version
 covers is replaced with the framework's API, its stand-in and `// framework-gap` marker deleted, and its section moved
 to "Resolved" with the version (`CLAUDE.md`, "After the framework is updated").
 

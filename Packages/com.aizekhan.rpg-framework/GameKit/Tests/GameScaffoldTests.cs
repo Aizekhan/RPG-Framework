@@ -220,6 +220,21 @@ namespace RPGFramework.GameKit.Tests
         }
 
         [Test]
+        public void AIGuidance_ReportsTheCommandsThatDifferFromTheTemplates_WithoutReplacingThem()
+        {
+            AIGuidance.Install(AIGuidance.DocumentationRoot, _project);
+            Assert.That(AIGuidance.CommandsThatDiffer(AIGuidance.DocumentationRoot, _project), Is.Empty, "fresh copies match");
+
+            string start = Path.Combine(_project, ".claude", "commands", "start.md");
+            File.WriteAllText(start, "Our older /start.");
+            AIGuidance.Install(AIGuidance.DocumentationRoot, _project);
+
+            Assert.That(File.ReadAllText(start), Is.EqualTo("Our older /start."), "never replaced");
+            Assert.That(AIGuidance.CommandsThatDiffer(AIGuidance.DocumentationRoot, _project),
+                Is.EqualTo(new[] { ".claude/commands/start.md" }));
+        }
+
+        [Test]
         public void AIGuidance_Reinstall_LeavesClaudePermissionsToTheDeveloper()
         {
             var written = AIGuidance.Install(AIGuidance.DocumentationRoot, _project);

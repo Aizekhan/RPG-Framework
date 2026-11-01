@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -38,9 +39,41 @@ namespace RPGFramework.GameKit.Editor
         {
             var written = Install(DocumentationRoot, PackagePaths.ProjectRoot);
             Debug.Log("[Game Kit] AI guidance installed:\n" + string.Join("\n", written));
+            var outdated = CommandsThatDiffer(DocumentationRoot, PackagePaths.ProjectRoot);
+            if (outdated.Count > 0)
+            {
+                Debug.LogWarning("[Game Kit] These Claude Code commands differ from this framework version's templates " +
+                                 $"(kept as they are; compare with {Path.Combine(DocumentationRoot, ProjectTemplatesFolder)} " +
+                                 "and bring over what is new):\n" + string.Join("\n", outdated));
+            }
         }
 
         public static void InstallFromCommandLine() => InstallFromMenu();
+
+        private const string ProjectTemplatesFolder = "project";
+        private const string CommandsFolder = ".claude/commands/";
+
+        /// <summary>
+        /// The game's Claude Code commands (<c>.claude/commands/*</c>) whose text differs from this framework version's
+        /// templates. A reinstall never replaces them (the game may have adapted them), so it reports them instead.
+        /// </summary>
+        /// <returns>Project-relative paths.</returns>
+        public static List<string> CommandsThatDiffer(string documentationRoot, string projectRoot)
+        {
+            var differ = new List<string>();
+            string templates = Path.Combine(documentationRoot, ProjectTemplatesFolder, ".claude", "commands");
+            if (!Directory.Exists(templates))
+                return differ;
+            foreach (var template in Directory.GetFiles(templates).OrderBy(f => f))
+            {
+                string relative = CommandsFolder + Path.GetFileName(template);
+                string target = Path.Combine(projectRoot, relative);
+                if (File.Exists(target) &&
+                    Normalize(File.ReadAllText(target)).Trim() != Normalize(File.ReadAllText(template)).Trim())
+                    differ.Add(relative);
+            }
+            return differ;
+        }
 
         /// <param name="claudeSettings">Also create <see cref="ClaudeSettingsPath"/> (New Game does; a reinstall does not).</param>
         /// <returns>Project-relative paths written.</returns>
@@ -71,7 +104,7 @@ namespace RPGFramework.GameKit.Editor
 
             // The game's own documents and Claude Code files, at the same paths as in the template folder: created once,
             // never overwritten (they hold the game's records and settings)
-            string projectDocs = Path.Combine(documentationRoot, "project");
+            string projectDocs = Path.Combine(documentationRoot, ProjectTemplatesFolder);
             if (Directory.Exists(projectDocs))
             {
                 foreach (var template in Directory.GetFiles(projectDocs, "*", SearchOption.AllDirectories))
