@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- Game Kit: Install AI Guidance creates `THIRD-PARTY-ASSETS.md`, the ledger of everything the game takes from outside (models, prefabs, textures, sounds, fonts, code): source page, author, licence and a copy of it, commercial use, attribution text. Assets generated with a tool or AI service have their own table: tool, plan when generated, date, input, the rights the terms give. The `CLAUDE.md` block asks for the row before an import and for the developer's say when a licence is missing, non-commercial, no-derivatives or share-alike; `/handoff` checks it; `START-NEW-GAME.md` lists it with the process files.
+
 ## [0.25.0] - 2026-11-01
 
 ### Added

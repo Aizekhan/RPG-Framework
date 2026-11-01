@@ -94,6 +94,11 @@ these files.
 - `Docs/ARCHITECTURE.md`: how this game is built: assemblies, modules, features, events, saves, stand-ins. Update it
   when the structure changes.
 - `FRAMEWORK-GAPS.md`: the gaps above. `DEVLOG.md`: one line per finished step (date, what, commit, tests).
+- `THIRD-PARTY-ASSETS.md`: every model, prefab, texture, sound, font or code taken from outside: source page,
+  author, licence, commercial use, attribution. **Add the row and a copy of the licence before importing**; ask the
+  developer when the licence is missing, non-commercial, no-derivatives or share-alike. Assets generated with a
+  tool or AI service (Meshy, ...) get a row too: tool, plan when generated, date, input, the rights its terms give. Never commit store assets
+  (Asset Store, Fab) to a public repository.
 - `.claude/settings.json`: the commands Claude Code may run without asking (read-only git, `unity test`).
 - A result (tests, CI, a play check) is true only for the commit it was measured on: write the commit next to it.
 

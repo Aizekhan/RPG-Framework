@@ -13,6 +13,8 @@ Record the state of the work so the next session continues without asking.
    `Docs/ARCHITECTURE.md`.
 6. Check `FRAMEWORK-GAPS.md`: every `// framework-gap: <id>` marker has its section, and resolved gaps are under
    `## Resolved`.
-7. Commit the documents (`docs: status and handoff`), naming the files, never `git add -A` over files you did not
+7. Check `THIRD-PARTY-ASSETS.md`: every asset imported from outside since the last hand-off has its row (source page,
+   licence, attribution) and a copy of its licence; ask the developer about any file whose origin is unknown.
+8. Commit the documents (`docs: status and handoff`), naming the files, never `git add -A` over files you did not
    change.
-8. Report in a few lines: what changed, which commit was verified and how, what is next.
+9. Report in a few lines: what changed, which commit was verified and how, what is next.
