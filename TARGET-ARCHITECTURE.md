@@ -1,8 +1,8 @@
-# RPG Framework — архітектура (фактичний стан v0.22.0)
+# RPG Framework — архітектура (фактичний стан v0.23.0)
 
-> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.22.0**
-> (тег `v0.22.0` на коміті `b106c53`, Unity 6000.0), звірений із кодом пакета 2026-10-31: збірки (`.asmdef`), їхні
-> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.22.0), `Documentation~/networking.md`, рецепти
+> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.23.0**
+> (тег `v0.23.0` на коміті `0280e3e`, Unity 6000.0), звірений із кодом пакета 2026-11-01: збірки (`.asmdef`), їхні
+> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.23.0), `Documentation~/networking.md`, рецепти
 > AI-guidance 01–17.
 > Попередня редакція (стан v0.5.0/v0.5.1) у git не потрапляла; цей файл замінює її повністю. Історію змін між
 > версіями дає `CHANGELOG.md` пакета.
@@ -28,7 +28,7 @@
   правила, стати, прогресія, квести, предмети, лут, збереження, ассети, спавн, сцени, UI-навігація, звук, локалізація,
   налаштування, діагностика, мережа.
 - Гра володіє **контентом, поданням і правилами, які роблять її унікальною**.
-- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.22.0`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
+- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.23.0`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
   1.11.2, Unity Transport 2.5.3, uGUI, вбудованого модуля Audio. Гра живе в окремому репозиторії/проєкті і не редагує
   пакет (`Library/PackageCache` перезаписується).
 - **Конвеєр рендерингу — будь-який.** Пакет не залежить від URP/HDRP і не має шейдерів під конкретний конвеєр:
@@ -411,7 +411,14 @@ Feature-модулі для підключення одним рядком ле�
 `OpenPrompt`), `TurnClient`, спільний `ITurnSession`. Правила гри (`ITurnRules`: `CurrentSeat`, `CanAct`, `Apply`,
 `ViewFor(seat)`, `DefaultIntent`) працюють лише на хості; кожне місце отримує свій вид (приховані карти лишаються
 прихованими); `Notify(…, TurnVisibility.All/Seat/Host/Others)`. Тексти — `LocalizedText` (з v0.19). Протокол
-`TurnProtocol` версії 2, id повідомлень 1300–1311, поверх будь-якого `INetworkTransport`. Гра: The Bloodline Hunt.
+`TurnProtocol` версії 3, id повідомлень 1300–1313, поверх будь-якого `INetworkTransport`. Гра: The Bloodline Hunt.
+
+**Таймер ходу** (з v0.23, BH-08) [є]: правила, що реалізують `ITurnClock`, дають кожному кроку свій час
+(`SecondsFor(seat)`; 0 — без ліміту, менше 0 — `TurnHostOptions.TurnSeconds`); запас паузи на місце на весь матч
+(`TurnHostOptions.PauseBankSeconds`, `TurnHost.PauseTurn(seat)` / `ResumeTurn()`; пауза зупиняє і час ходу, і час
+питань); кожне місце бачить годинник (`TurnLength`, `TurnTimeLeft`, `TurnClockRuns`, `PausedBy`, `BankOf(seat)`,
+`ClockChanged` в `ITurnSession`; гравець ставить свою паузу `TurnClient.PauseTurn()`). **Hot-seat** — той самий
+`TurnHost`, відкритий на `LoopbackNetwork`, до якого ніхто не приєднується: `Act(seat, move)`, `PauseTurn(seat)`.
 
 ---
 
@@ -507,7 +514,7 @@ New Game також виставляє Player Settings (Run In Background, Linea
 | `.meta` з валідним GUID для кожного файлу | CI-крок «Unity .meta integrity» |
 | Тексти на екрані — ключі, не рядки | тексти кітів через `ILocalization`; `LocalizationChecks` для таблиць гри |
 
-Тестова база: v0.22.0 (коміт `414581a`, код тегу) — EditMode **2005/2005**, PlayMode **17/17**; CI run `41226271688`.
+Тестова база: v0.23.0 (код `846a68e`) — EditMode **2008/2008**; PlayMode **17/17** на `0280e3e`; CI run `41266080570` зелений.
 
 ---
 
