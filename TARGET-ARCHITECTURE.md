@@ -1,9 +1,9 @@
-# RPG Framework — архітектура (фактичний стан v0.31.1)
+# RPG Framework — архітектура (фактичний стан v0.32.0)
 
-> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.31.1**
-> (тег `v0.31.1` на коміті `20cb6f0`, Unity 6000.0), звірений із кодом пакета 2026-11-01: збірки (`.asmdef`), їхні
-> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.31.1), `Documentation~/networking.md`, рецепти
-> AI-guidance 01–17.
+> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.32.0**
+> (тег `v0.32.0` на коміті `ad5a605`, Unity 6000.0), звірений із кодом пакета 2026-11-02: збірки (`.asmdef`), їхні
+> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.32.0), `Documentation~/networking.md`, рецепти
+> AI-guidance 01–20.
 > Попередня редакція (стан v0.5.0/v0.5.1) у git не потрапляла; цей файл замінює її повністю. Історію змін між
 > версіями дає `CHANGELOG.md` пакета.
 >
@@ -28,7 +28,7 @@
   правила, стати, прогресія, квести, предмети, лут, збереження, ассети, спавн, сцени, UI-навігація, звук, локалізація,
   налаштування, діагностика, мережа.
 - Гра володіє **контентом, поданням і правилами, які роблять її унікальною**.
-- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.31.1`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
+- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.32.0`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
   1.11.2, Unity Transport 2.5.3, uGUI, вбудованого модуля Audio. Гра живе в окремому репозиторії/проєкті і не редагує
   пакет (`Library/PackageCache` перезаписується).
 - **Конвеєр рендерингу — будь-який.** Пакет не залежить від URP/HDRP і не має шейдерів під конкретний конвеєр:
@@ -217,6 +217,9 @@ GameHost.Start(configure)                               // Bootstrap.Runtime, б
 | Кубики | `IDiceService` (`Roll(sides, purpose)`, `Seed`, `NextSeed`, `Log`, `DieRolledEvent`), `ScriptedDice` для тестів (з v0.13) | `Dice.Runtime` | `System.Random` у правилах |
 | Збереження | `SaveParticipant<T>` (`Version`, `Upgrade`), `SaveGameCoordinator`, `ISaveSystem` (резервна копія `<slot>.previous.sav`, контрольна сума) | `Persistence.Runtime` | `PlayerPrefs`, свої JSON |
 | Редакторські ассети | `Tools.*` (Item Database, Loot Table, Quest, Dialogue, Faction, Skill, Ability, Crafting, Status Effect) — інспектор показує проблеми, конвертація в runtime-дані | `Tools.*` | — |
+| Квести й діалоги з інших інструментів (з v0.32) | `ContentImport`: JSON `rpgframework.content/1` → квести, діалоги, ефекти й перелік проблем (`ContentImporter.Read` / `Write`); у кіт — Game Setup **Content Files**, в ассети — меню або `ContentAssetImport.ImportFromCommandLine` (рецепт 20) | `ContentImport.*` | свій парсер JSON |
+| Карта проєкту для інструментів і AI (з v0.32) | `Tools.ProjectIndex`: JSON `rpgframework.project-index/1` (версія Unity, пакети, сцени збірки, git, модулі фреймворку, ассети з GUID і посиланнями, сцени, префаби, скрипти з публічними членами, збірки); лише читає файли. `ProjectIndexCommand.ExportFromCommandLine` | `Tools.ProjectIndex.*` | — |
+| Перевірка даних у CI (з v0.32) | `FrameworkValidation.ValidateFromCommandLine` — код виходу 0 / 1 помилки / 2 збій; перевіряє Quest і Dialogue ассети через `QuestGraph` / `DialogueGraph`. Усі точки `-executeMethod` — рецепт 19 | `Editor` | розбір логу |
 | Генератори і правила гри | `GameKit` (New Game, New Feature, Check Architecture, AI guidance, файли процесу гри, CI workflow, `.gitattributes` для LFS) | `GameKit.*` | — |
 
 Повна таблиця «потреба → сервіс» — рецепт 14; «потреба гри → модуль» — рецепт 16 (обидва в `Docs/RPGFramework/recipes/` гри).
@@ -293,14 +296,14 @@ GameHost.Start(configure)                               // Bootstrap.Runtime, б
 | **StatusEffects** | стаки, тіки (`ProcessTicks` на інтерфейсі з v0.20, наздоганяє пропущені), сила й тривалість застосування, `Reapply`, `UseStatContainers<T>()`, контроль, множник руху | `StatusEffectsModule` | ActionRpg, TurnBased | Status Effect |
 | **Abilities** | вартість (і щосекундна — upkeep), кулдауни (`CooldownClearedEvent`), каст, канал з тіками, заряди з відновленням, toggle, пасивні, `TargetType.AllEnemies/AllAllies` | `AbilitiesModule` | ActionRpg, TurnBased | Ability |
 | **Progression** | досвід, рівні, `LevelUpEvent` | `ProgressionModule` | ActionRpg, TurnBased | — |
-| **Quests** | квести, цілі (Kill, Collect, Explore, Interact…), нагороди, реєстр | `QuestsModule` | ActionRpg, TurnBased | Quest Asset |
+| **Quests** | квести, цілі (Kill, Collect, Explore, Interact…), нагороди, реєстр; з v0.32 етапи (`QuestStageData`: цілі етапу, переходи з умовою, що їх гра «сигналить» через `IQuestStages.Signal`, результат Success / Failure), тип, вимоги (`IQuestRequirements`: рівень, фракція, предмет, прапорець), перезарядка повторних, `WhyNot` (`QuestRefusal`), перевірка графа `QuestGraph` | `QuestsModule` | ActionRpg, TurnBased | Quest Asset |
 | **Items** | предмети, `ItemInstance`, реєстр, ефект споживання; афікси (`AffixPool`, `RolledItems` — предмет з афіксами в id), `RarityTable` з удачею, сети (`ItemSet`) | `ItemsModule` | ActionRpg, TurnBased | Item |
 | **Inventory** | контейнери з місткістю, слоти екіпіровки | — | ActionRpg (рюкзак партії або свій у кожного), TurnBased | — |
 | **Loot** | таблиці з вагою, без дублікатів, `LootGeneratedEvent` / `LootDroppedEvent` | `LootModule` | ActionRpg, TurnBased | Loot Table |
 | **Persistence** | слоти, секції з версіями й апгрейдом, резервна копія, `KeepUnknownSections` | — | ActionRpg, TurnBased | — |
 | **Trading** | магазин: пропозиції по гравцях, оплата з `ICurrencyWallet`, предмети через `ITradeInventory` (все або нічого), ціна гравця `ITradePricing`, коди відмов `TradeError` | `TradingModule` | ActionRpg | — |
 | **Factions** | фракції, стосунки, репутація з поширенням | — | ActionRpg, TurnBased | Faction Database |
-| **Dialogue** | вузли, умови (`IDialogueGameContext`, Custom), вибори, події | — | ActionRpg (`ActorDialogue`) | Dialogue |
+| **Dialogue** | вузли, умови (`IDialogueGameContext`, Custom), вибори, події; з v0.32 тип, квест і етап, учасники, ключі локалізації (`TextKey`, `DialogueText.Of`), репліки-«барки» (`DialogueBarks.Pick`), перевірка графа `DialogueGraph` | — | ActionRpg (`ActorDialogue`) | Dialogue |
 | **Crafting** | рецепти, станції, інструменти, вимоги | — | ActionRpg (`ActorCrafting`) | Crafting Recipe |
 | **Skills** | дерева, пререквізити | — | ActionRpg (`ActorSkills`), TurnBased (`PartySkills`) | Skill, Skill Tree |
 | **Achievements** | критерії, `AchievementTracker` (лічильники, `Capture`/`Restore` як профіль) | — | ActionRpg, TurnBased | — |
@@ -379,7 +382,7 @@ Feature-модулі для підключення одним рядком ле�
   (критичні, множники, ухилення, вампіризм, стихії), `DealDamage`, `Heal`, вороги (`SpawnEnemy`, `StartWave`, рівні
   `EnemyLevels`, еліти `EliteAffixes`), гравці (`AddPlayer`, `RemovePlayer`, `RevivePlayer`), прогрес партії або
   кожного (`ProgressMode`), гаманець і торгівля (`Wallet`, `Trade`, `Traders`), спорядження (`Gear`: слоти, набори на
-  героя, бонуси, сети, афікси), `Interactions`, `GiveLoot`, квести (`AcceptQuest`, `CompleteQuest`), підсистеми:
+  героя, бонуси, сети, афікси), `Interactions`, `GiveLoot`, квести (`AcceptQuest`, `CompleteQuest`; з v0.32 етапи й вимоги: `WhyNotQuest`, `QuestStageOf`, `SignalQuests`, кіт відповідає на вимоги рівнем, репутацією, предметами в рюкзаку і змінними діалогів; етап і час виконання в сейві), підсистеми:
   `ActorEffects`, `ActorAbilities` (`CanUse`, `CooldownFor`, повернення вартості), `Skills`, `Crafting`, `Consumables`,
   `Dialogue`, `Reputation`, `Achievements`; журнал `LogLines` (тексти для перекладу); `ActionRpgModule`,
   `ActionRpgComposition`, `ActionRpgSettings`, `WaveSystem`, `IHostilityRules`, PvP (`PvpMatch`: Duel, TDM, FFA),
@@ -467,7 +470,7 @@ Hit / Blocked / Dodged / Ignored з причиною (`ContactIgnored`). Шко�
 | `LoopbackNetwork` / `LoopbackTransport` (у пам'яті, `GoSilent()` для тестів розриву) | [є] |
 | Сесії: `LanSessionProvider` (IP; `LocalAddresses()` — домашня мережа, далі Tailscale / Radmin / ZeroTier), `LoopbackSessionProvider`, `UnityRelaySessionProvider` (код кімнати; лише з `com.unity.services.multiplayer` 2.4.1+) | LAN [є]; Relay [частково]: **між двома реальними мережами не перевірено** |
 | Пошук ігор у локальній мережі: `LanDiscovery`, `LanDiscoveryResponder` (UDP 47777), `ActionRpgHost.SearchLanGames` | [є] з v0.16 |
-| Кооп ActionRpg (`CoopHost`, `CoopClient`, `RemoteWorld`): хост авторитетний, 2–8 гравців, відбиток білду і контенту, перевірка швидкості, перепідключення (місце тримається 2 хв), таймаут 10 с; **протокол версії 16** | [є], EditMode (loopback) + PlayMode (UDP) |
+| Кооп ActionRpg (`CoopHost`, `CoopClient`, `RemoteWorld`): хост авторитетний, 2–8 гравців, відбиток білду і контенту, перевірка швидкості, перепідключення (місце тримається 2 хв), таймаут 10 с; **протокол версії 17** (з v0.32: етап квесту в прогресі й статусі партії) | [є], EditMode (loopback) + PlayMode (UDP) |
 | **Лобі перед грою** (`CoopHost.UseLobby`: вибір героя, готовність, `Kick`, `StartMatch(countdown)`) | [є] з v0.16 |
 | Власні повідомлення гри: `CoopGameMessages.Add<T>(id ≥ 1200, authority)`; `SendLatestToAll` / `OnLatest<T>` — стан, що змінюється постійно | [є] з v0.5.0 / v0.6 |
 | Захист на машині власника (`DefenseAuthority = Owner`), власний прогрес гостя (`PerPlayer`, `ProfileValidator`), прискорення, точки відродження, зміна сцени (`ChangeScene`) | [є] з v0.5.0–v0.6 |
@@ -503,7 +506,7 @@ Assets/<Game>/
   Editor/         <Game>.Editor
   Tests/          <Game>.Tests: EditMode + <Game>ArchitectureTests
   PlayTests/      PlayMode-тести сцени
-CLAUDE.md, Docs/RPGFramework/ (architecture.md, recipes 01–17), GAME.md, FRAMEWORK-GAPS.md, DEVLOG.md, CI workflow,
+CLAUDE.md, Docs/RPGFramework/ (architecture.md, recipes 01–20), GAME.md, FRAMEWORK-GAPS.md, DEVLOG.md, CI workflow,
 .gitattributes (Git LFS)
 STATUS.md, Docs/ARCHITECTURE.md, .claude/settings.json, .claude/commands/start.md і handoff.md (з v0.25)
 THIRD-PARTY-ASSETS.md (з v0.26), CREDITS.md (з v0.27)
@@ -575,7 +578,7 @@ New Game також виставляє Player Settings (Run In Background, Linea
 | `.meta` з валідним GUID для кожного файлу | CI-крок «Unity .meta integrity» |
 | Тексти на екрані — ключі, не рядки | тексти кітів через `ILocalization`; `LocalizationChecks` для таблиць гри |
 
-Тестова база: v0.31.1 (код `f93a36f`) — EditMode **2061/2061** і PlayMode **21/21** на `f93a36f`; CI run `41351372357` зелений.
+Тестова база: v0.32.0 (код `3c71835`) — EditMode **2094/2094** і PlayMode **21/21** на тому самому дереві; CI run `41360370543` зелений.
 
 ---
 

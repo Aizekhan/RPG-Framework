@@ -1,6 +1,6 @@
 # RPG Framework - Project Status
 
-**Last Updated:** 2026-10-31
+**Last Updated:** 2026-11-02
 **Repository:** https://github.com/Aizekhan/RPG-Framework (public, MIT)
 **Branch:** main (force-push and deletion blocked)
 **Unity:** 6000.0.45f1 · Unity CLI 1.0.0-beta.14
@@ -11,6 +11,7 @@
 
 | Gate | Result | SHA |
 |---|---|---|
+| **Release `v0.32.0`** (tag on `ad5a605`; WhiteWrite requests): quest stages (conditional links, Success/Failure outcomes, `Signal`, requirements via `IQuestRequirements`, repeat cooldowns, `QuestGraph` checks); dialogue type/quest stage/participants, `TextKey` + `DialogueText`, `DialogueBarks`, `DialogueGraph`; new `ContentImport` (`rpgframework.content/1`, `ContentImporter`, `ContentAssetImport` with exit code); new `Tools.ProjectIndex` (`rpgframework.project-index/1`); `FrameworkValidation.ValidateFromCommandLine` (exit 0/1/2) and it now checks Quest/Dialogue assets; kit stage saves, co-op protocol 17, `SignalQuest`/`RaiseEvent` effects, Game Setup Content Files; recipes 19 and 20. Code `3c71835`. EditMode **2094 / 2094**, PlayMode **21 / 21** on the same tree; CI run `41360370543` green | ✅ | `ad5a605` |
 | **Release `v0.31.1`** (tag on `20cb6f0`; MythRunner report): EnemyDirector no longer flips Approach/BackOff when a token holder is in reach with no move ready (gives the token back, circles, asks again when a move is ready; backs off only below every move's MinRange); `EnemyBehaviourAsset.Problems()` + OnValidate warnings. Code `f93a36f`. EditMode **2061 / 2061**, PlayMode **21 / 21** on the same tree; CI run `41351372357` green | ✅ | `20cb6f0` |
 | **Release `v0.31.0`** (tag on `f661ec6`; MythRunner request): ActionCombat enemy combat AI (`EnemyDirector`: perception with cone/LoS/hearing/memory/leash, patrol/chase/approach/circle/back-off, attack tokens per target, moves by range/weight/cooldown with combo links, punish pause, block/dodge chances, death variants, decisions as events and timeline entries, seeded; Unity `EnemyBehaviourAsset`, `CombatEnemyAI`, `EnemyAnimatorBridge`), hit tiers light/heavy/knockdown with knockback, kit `CharacterDefinition.CorpseSeconds` + `ActorView.OnKilled` + `ActorPresenter.CorpseRemoving`. Code `115d254`. EditMode **2058 / 2058**, PlayMode **21 / 21** on the same tree; CI run `41346073594` green (PlayMode rerun after the licence flake) | ✅ | `f661ec6` |
 | **Release `v0.30.0`** (tag on `c8bed74`; MythRunner request, developer chose "add it to the framework"): new module `ActionCombat` - engine-free `CombatRules` (attack phases, contact lands only in the active window once per target per swing, hit reactions with poise, i-frame dodges, held block with `IBlockStock`, hold-to-charge, projectile swings, events with exact time, `CombatTimeline`) and a Unity layer (`CombatArena`, `Combatant`, `Hitbox`/`Hurtbox`, `AttackAsset`, `CombatProjectile`, `ProjectileLauncher`, `CombatAnimatorBridge`, `CombatEnemyBrain`); `EnemyBrain` hooks `IsBusy`/`StrikeAt`; recipe 18. Code `f964692`. EditMode **2043 / 2043**, PlayMode **19 / 19** on the same tree; CI run `41339513152` green (PlayMode rerun after the known licence flake) | ✅ | `c8bed74` |
