@@ -212,6 +212,45 @@ namespace RPGFramework.ActionCombat.Tests
         }
 
         [Test]
+        public void InReach_WithNoMoveReady_ItGivesUpItsTurn_InsteadOfFlipFlopping()
+        {
+            var behaviour = new EnemyBehaviour { NoticeSeconds = 0f, RecoveryPause = 0f };
+            behaviour.Moves.Add(new EnemyMove(new AttackDefinition("slam", 0.1f, 0.1f, 0.1f), 0f, 3f) { Cooldown = 5f });
+            _world.Place(Player, new CombatVector(0f, 0f, 2f), Forward);
+            AddMonster(Monster, CombatVector.Zero, behaviour);
+            var changes = new List<EnemyStateChangedEvent>();
+            var released = new List<AttackTokenReleasedEvent>();
+            _bus.Subscribe<EnemyStateChangedEvent>(e => changes.Add(e));
+            _bus.Subscribe<AttackTokenReleasedEvent>(e => released.Add(e));
+
+            Run(1f);
+            changes.Clear();
+            released.Clear();
+            Run(2f);
+
+            Assert.That(_director.StateOf(Monster), Is.EqualTo(EnemyState.Circle));
+            Assert.That(changes.Where(c => c.To == EnemyState.BackOff || c.To == EnemyState.Approach), Is.Empty, "no flip-flop");
+            Assert.That(released.Count, Is.LessThanOrEqualTo(1), "asks again only when a move is ready");
+            Run(3f);
+            Assert.That(_rules.Timeline.Entries.Count(e => e.Kind == TimelineKind.Decision && e.Note != null && e.Note.StartsWith("chose slam")),
+                Is.EqualTo(2), "attacks again once the cooldown is over");
+        }
+
+        [Test]
+        public void BelowEveryMovesMinimumRange_ItStepsBack()
+        {
+            var behaviour = new EnemyBehaviour { NoticeSeconds = 0f };
+            behaviour.Moves.Add(new EnemyMove(new AttackDefinition("lunge", 0.1f, 0.1f, 0.1f), 2.5f, 5f));
+            _world.Place(Player, new CombatVector(0f, 0f, 1.6f), Forward);
+            AddMonster(Monster, CombatVector.Zero, behaviour);
+
+            Run(0.3f);
+
+            Assert.That(_director.StateOf(Monster), Is.EqualTo(EnemyState.BackOff));
+            Assert.That(_director.IntentOf(Monster).Move.Z, Is.LessThan(-0.5f));
+        }
+
+        [Test]
         public void ItBlocksASwing_WhenItsChanceSaysSo()
         {
             _world.Place(Player, new CombatVector(0f, 0f, 2f), Forward);

@@ -267,16 +267,29 @@ namespace RPGFramework.ActionCombat
                 var move = Choose(brain, d);
                 if (move != null && StartMove(brain, move, d, combo: false))
                     return;
-                if (d > Reach(brain))
+                float reach = Reach(brain);
+                if (reach > 0f && d > reach)
+                {
                     Go(brain, d > behaviour.EngageDistance ? EnemyState.Chase : EnemyState.Approach, "closing in to strike", face,
                         d > behaviour.EngageDistance ? behaviour.ChaseSpeed : behaviour.ApproachSpeed, face);
-                else
+                }
+                else if (reach > 0f && d < Closest(brain))
+                {
                     Go(brain, EnemyState.BackOff, "too close for its moves", Away(face), behaviour.BackOffSpeed, face);
+                }
+                else
+                {
+                    // In reach but nothing to use now (cooldowns, a gap between ranges, no usable move): give the turn to
+                    // another and ask again when a move is ready
+                    ReleaseToken(brain, reach > 0f ? "no move ready" : "no usable move");
+                    brain.WantAfter = reach > 0f ? Math.Max(NextReady(brain), Time + 0.25f) : Time + 1f;
+                    Circle(brain, d, face);
+                }
                 return;
             }
 
             // In fighting range it asks for its turn: nearer and longer waiting go first
-            if (d <= behaviour.EngageDistance)
+            if (d <= behaviour.EngageDistance && Time >= brain.WantAfter)
             {
                 if (brain.WantSince < 0f)
                     brain.WantSince = Time;
@@ -593,12 +606,39 @@ namespace RPGFramework.ActionCombat
 
         private bool Ready(Brain brain, EnemyMove move) => !brain.ReadyAt.TryGetValue(move, out float at) || Time >= at;
 
+        // The longest range of the moves it can choose (weight above 0); 0 when it has none
         private static float Reach(Brain brain)
         {
             float reach = 0f;
             foreach (var move in brain.Behaviour.Moves)
-                reach = Math.Max(reach, move.MaxRange);
+            {
+                if (move.Weight > 0f)
+                    reach = Math.Max(reach, move.MaxRange);
+            }
             return reach;
+        }
+
+        private static float Closest(Brain brain)
+        {
+            float closest = float.MaxValue;
+            foreach (var move in brain.Behaviour.Moves)
+            {
+                if (move.Weight > 0f)
+                    closest = Math.Min(closest, move.MinRange);
+            }
+            return closest;
+        }
+
+        // When the first of its usable moves is off cooldown
+        private float NextReady(Brain brain)
+        {
+            float next = float.MaxValue;
+            foreach (var move in brain.Behaviour.Moves)
+            {
+                if (move.Weight > 0f)
+                    next = Math.Min(next, brain.ReadyAt.TryGetValue(move, out float at) ? at : Time);
+            }
+            return next == float.MaxValue ? Time : next;
         }
 
         private bool TargetDistance(Brain brain, CombatVector position, out float distance)
@@ -648,6 +688,7 @@ namespace RPGFramework.ActionCombat
             public float BlockUntil;
             public bool Blocking;
             public float WantSince = -1f;
+            public float WantAfter;
             public float CircleSign = 1f;
             public float CircleSwitchAt;
             public bool Attacking;

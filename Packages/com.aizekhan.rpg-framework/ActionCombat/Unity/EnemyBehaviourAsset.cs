@@ -94,6 +94,42 @@ namespace RPGFramework.ActionCombat
         public IReadOnlyList<Move> Moves => _moves;
 
         /// <summary>
+        /// What is wrong with the moves (a move without an attack, no opener with a weight, a combo link to itself or
+        /// out of the list). A move added through <c>SerializedProperty</c> (arraySize++) starts at zero, not at the
+        /// field defaults: Weight 0 and Next 0. The inspector logs these as warnings.
+        /// </summary>
+        public List<string> Problems()
+        {
+            var problems = new List<string>();
+            bool anyOpener = false;
+            for (int i = 0; i < _moves.Count; i++)
+            {
+                var move = _moves[i];
+                if (move == null)
+                    continue;
+                if (move.Attack == null)
+                    problems.Add($"Move {i} has no attack");
+                if (move.Next == i)
+                    problems.Add($"Move {i} links its combo to itself (Next = {i}); use -1 for none");
+                else if (move.Next >= _moves.Count || move.Next < -1)
+                    problems.Add($"Move {i} links its combo to move {move.Next}, which is not in the list");
+                if (move.MaxRange < move.MinRange)
+                    problems.Add($"Move {i}: Max Range is below Min Range");
+                if (move.Opener && move.Weight > 0f && move.Attack != null)
+                    anyOpener = true;
+            }
+            if (_moves.Count > 0 && !anyOpener)
+                problems.Add("No move can be chosen: every opener has Weight 0 (or no attack)");
+            return problems;
+        }
+
+        private void OnValidate()
+        {
+            foreach (var problem in Problems())
+                Debug.LogWarning($"[Enemy Behaviour] {name}: {problem}", this);
+        }
+
+        /// <summary>
         /// The rules' behaviour (a new one each call: the patrol points are the enemy's own).
         /// </summary>
         public EnemyBehaviour Build(IReadOnlyList<CombatVector> patrolPoints = null)

@@ -84,11 +84,15 @@ the `Combat` damage calculator); use `ActionCombat` when the timing of a blow ma
   (`TrackDuringWindUp` per move for the wind-up). Enemies keep `PersonalSpace` from each other.
 - **Attack tokens:** at most `Attackers Per Target` (arena, default 2) enemies attack one target at once
   (`AttackTokens`); the others circle. Free slots go to the nearest and longest waiting. A token is given back when
-  the attack or combo ends or the enemy is staggered.
+  the attack or combo ends or the enemy is staggered. A holder in reach with no move ready (cooldowns) gives its
+  turn back ("no move ready"), circles and asks again when a move is ready; it steps back only when the target is
+  closer than every move's `MinRange`.
 - **Moves:** an attack with `MinRange`/`MaxRange` (a lunge is a gap closer from range), `Weight`, `Cooldown`,
   `Next` (a combo link played only when the previous blow hit or was blocked; `Opener` off = only as a link). Picked
   by distance, cooldowns and weights with the arena's `Seed`. After an attack or combo, `RecoveryPause`: the
-  player's punish window.
+  player's punish window. The asset's `Problems()` (logged as warnings in the inspector) catches a move without an
+  attack, a combo link to itself or out of the list, and no opener with a weight. Moves added from code through
+  `SerializedProperty` start at zero (Weight 0, Next 0): set Weight and Next = -1.
 - **Defence:** when its target starts a swing: `BlockChance` (held `BlockSeconds`), else `DodgeChance` (sideways);
   under `BackOffHealthShare` of health a `BackOffChance` to step away.
 - **Hit reactions** by force through the `Combatant`'s hit tiers (light, heavy with push back, knockdown and

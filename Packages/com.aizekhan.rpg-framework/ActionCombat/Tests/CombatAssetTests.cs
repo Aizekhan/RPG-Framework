@@ -68,6 +68,32 @@ namespace RPGFramework.ActionCombat.Tests
             Assert.That(settings.InvulnerableUntil, Is.EqualTo(0.5f).Within(1e-4f));
         }
 
+        [Test]
+        public void AMoveAddedThroughSerializedProperty_IsReportedAsAProblem()
+        {
+            var behaviour = ScriptableObject.CreateInstance<EnemyBehaviourAsset>();
+            try
+            {
+                var serialized = new SerializedObject(behaviour);
+                var moves = serialized.FindProperty("_moves");
+                moves.arraySize++;
+                var move = moves.GetArrayElementAtIndex(0);
+                move.FindPropertyRelative("Weight").floatValue = 0f;
+                move.FindPropertyRelative("Next").intValue = 0;
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+
+                var problems = behaviour.Problems();
+
+                Assert.That(problems, Has.Some.Contains("has no attack"));
+                Assert.That(problems, Has.Some.Contains("to itself"));
+                Assert.That(problems, Has.Some.Contains("No move can be chosen"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(behaviour);
+            }
+        }
+
         private static AnimationClip ClipOf(float length, params (float Time, string Name)[] events)
         {
             var clip = new AnimationClip();
