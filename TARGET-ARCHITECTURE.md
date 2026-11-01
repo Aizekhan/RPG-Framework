@@ -1,8 +1,8 @@
-# RPG Framework — архітектура (фактичний стан v0.32.0)
+# RPG Framework — архітектура (фактичний стан v0.32.1)
 
-> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.32.0**
-> (тег `v0.32.0` на коміті `ad5a605`, Unity 6000.0), звірений із кодом пакета 2026-11-02: збірки (`.asmdef`), їхні
-> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.32.0), `Documentation~/networking.md`, рецепти
+> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.32.1**
+> (тег `v0.32.1` на коміті `667f06f`, Unity 6000.0), звірений із кодом пакета 2026-11-02: збірки (`.asmdef`), їхні
+> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.32.1), `Documentation~/networking.md`, рецепти
 > AI-guidance 01–20.
 > Попередня редакція (стан v0.5.0/v0.5.1) у git не потрапляла; цей файл замінює її повністю. Історію змін між
 > версіями дає `CHANGELOG.md` пакета.
@@ -28,7 +28,7 @@
   правила, стати, прогресія, квести, предмети, лут, збереження, ассети, спавн, сцени, UI-навігація, звук, локалізація,
   налаштування, діагностика, мережа.
 - Гра володіє **контентом, поданням і правилами, які роблять її унікальною**.
-- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.32.0`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
+- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.32.1`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
   1.11.2, Unity Transport 2.5.3, uGUI, вбудованого модуля Audio. Гра живе в окремому репозиторії/проєкті і не редагує
   пакет (`Library/PackageCache` перезаписується).
 - **Конвеєр рендерингу — будь-який.** Пакет не залежить від URP/HDRP і не має шейдерів під конкретний конвеєр:
@@ -303,7 +303,7 @@ GameHost.Start(configure)                               // Bootstrap.Runtime, б
 | **Persistence** | слоти, секції з версіями й апгрейдом, резервна копія, `KeepUnknownSections` | — | ActionRpg, TurnBased | — |
 | **Trading** | магазин: пропозиції по гравцях, оплата з `ICurrencyWallet`, предмети через `ITradeInventory` (все або нічого), ціна гравця `ITradePricing`, коди відмов `TradeError` | `TradingModule` | ActionRpg | — |
 | **Factions** | фракції, стосунки, репутація з поширенням | — | ActionRpg, TurnBased | Faction Database |
-| **Dialogue** | вузли, умови (`IDialogueGameContext`, Custom), вибори, події; з v0.32 тип, квест і етап, учасники, ключі локалізації (`TextKey`, `DialogueText.Of`), репліки-«барки» (`DialogueBarks.Pick`), перевірка графа `DialogueGraph` | — | ActionRpg (`ActorDialogue`) | Dialogue |
+| **Dialogue** | вузли, умови (`IDialogueGameContext`, Custom), вибори, події; з v0.32 тип, квест і етап, учасники, ключі локалізації (`TextKey`, `DialogueText.Of`), репліки-«барки» (`DialogueBarks.Pick`), перевірка графа `DialogueGraph`; з v0.32.1 репліка без продовження завершує розмову (розмова з однієї репліки — один вузол) | — | ActionRpg (`ActorDialogue`) | Dialogue |
 | **Crafting** | рецепти, станції, інструменти, вимоги | — | ActionRpg (`ActorCrafting`) | Crafting Recipe |
 | **Skills** | дерева, пререквізити | — | ActionRpg (`ActorSkills`), TurnBased (`PartySkills`) | Skill, Skill Tree |
 | **Achievements** | критерії, `AchievementTracker` (лічильники, `Capture`/`Restore` як профіль) | — | ActionRpg, TurnBased | — |
@@ -578,7 +578,7 @@ New Game також виставляє Player Settings (Run In Background, Linea
 | `.meta` з валідним GUID для кожного файлу | CI-крок «Unity .meta integrity» |
 | Тексти на екрані — ключі, не рядки | тексти кітів через `ILocalization`; `LocalizationChecks` для таблиць гри |
 
-Тестова база: v0.32.0 (код `3c71835`) — EditMode **2094/2094** і PlayMode **21/21** на тому самому дереві; CI run `41360370543` зелений.
+Тестова база: v0.32.1 (код `2d1c0a6`) — EditMode **2099/2099** і PlayMode **21/21** на тому самому дереві; CI run `41363498562` зелений.
 
 ---
 
