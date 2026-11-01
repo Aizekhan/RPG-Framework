@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.32.1] - 2026-11-02
+
 ### Fixed
 - Dialogue: going on from a line with no way on (no next node, or none whose condition passes) left the conversation open and the player stuck. It now completes the conversation, as an End node does (`DialogueEndedEvent` Completed). A choice still waits for an answer; a branch with no open way still does not move. A one-line conversation is now one line node (WhiteWrite report).
 - `DialogueGraph` no longer warns `deadEnd` for such a line; it still warns for a branch that leads nowhere and for a choice whose answers all have conditions.
