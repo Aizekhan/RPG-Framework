@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-11-01
+
 ### Added
 - Game Kit: architecture rule **GA15**: every asset folder in `Assets/ThirdParty/<Source>/<Asset>/` has its row in `THIRD-PARTY-ASSETS.md` (naming the folder) and a copy of its licence or terms (`LICENSE*`, `TERMS*`, text, PDF or screenshot) in its folder or once in the source's folder; a stray file directly in a source folder fails too. `GameArchitectureTests.GA15_OutsideAssetsAreRecorded`, so every game runs it. A game without `Assets/ThirdParty` passes.
 - Game Kit: Install AI Guidance creates `CREDITS.md`, the text of the game's Credits screen built from `THIRD-PARTY-ASSETS.md`; `/handoff` checks that every attribution text is in it.
