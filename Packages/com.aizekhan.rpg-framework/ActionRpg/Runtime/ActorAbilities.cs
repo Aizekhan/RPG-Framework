@@ -15,11 +15,17 @@ namespace RPGFramework.ActionRpg
     /// for each use (<see cref="CooldownFor"/>), and give back cost and cooldown when an effect found nothing
     /// (<see cref="SetEffect(string, Func{int, int, bool})"/>). A character that leaves is forgotten. Turned on by
     /// <see cref="ActionRpgSettings.UseAbilities"/> or abilities in <see cref="ActionRpgContent.Abilities"/>.
+    /// An ability with delayed hits (<see cref="CastInfo.ImpactDelay"/>, <see cref="CastInfo.ImpactCount"/>: a swing's
+    /// contact, an arrow's flight, a flurry) is paid and its cooldown set when it goes off, and its effect runs at
+    /// each hit, sooner or later by <see cref="ImpactSpeedFor"/>; when none of its hits found anything the cost and
+    /// cooldown come back. A stun, a silence (<see cref="InterruptingControls"/>) or the caster's death stops a cast
+    /// and the hits still to come.
     /// </summary>
     public sealed class ActorAbilities : IUpdateSystem, IDisposable
     {
         private readonly ActorWorld _world;
         private readonly IAbilityExecutor _executor;
+        private readonly IAbilityImpacts _impacts;
         private readonly ICooldownTracker _cooldowns;
         private readonly IAbilityRegistry _registry;
         private readonly Dictionary<string, Func<int, int, bool>> _effects = new Dictionary<string, Func<int, int, bool>>();
@@ -27,10 +33,25 @@ namespace RPGFramework.ActionRpg
         private readonly IEventBus _bus;
         private readonly Action<int, string, float> _consume;
         private readonly Action<int, int, string> _apply;
-        // What the landing ability paid (the executor pays right before the effect)
-        private readonly List<(int Entity, string Type, float Amount)> _paid = new List<(int, string, float)>();
+        // What the landing ability paid (the executor pays right before the effect), by use
+        private readonly List<(int Use, int Entity, string Type, float Amount)> _paid = new List<(int, int, string, float)>();
         // Abilities that landed during an executor call; their cooldowns are fixed up once it returns
         private readonly List<Landing> _landed = new List<Landing>();
+        // Uses whose hits are still to come, by use
+        private readonly Dictionary<int, DelayedUse> _uses = new Dictionary<int, DelayedUse>();
+        // Characters with a cast, a channel or hits still to come: a stun or their death stops them
+        private readonly HashSet<int> _acting = new HashSet<int>();
+        private readonly List<int> _actingNow = new List<int>();
+
+        private sealed class DelayedUse
+        {
+            public int CasterId;
+            public string AbilityId;
+            public int HitsLeft;
+            public bool Found;
+            public bool Stopped;
+            public readonly List<(string Type, float Amount)> Paid = new List<(string, float)>();
+        }
 
         private struct Landing
         {
@@ -50,7 +71,13 @@ namespace RPGFramework.ActionRpg
             _bus = bus ?? throw new ArgumentNullException(nameof(bus));
             _consume = Consume;
             _apply = Apply;
-            bus.Subscribe<ActorDespawnedEvent>(e => _executor.UnregisterEntity(e.EntityId)).AddTo(_subscriptions);
+            _impacts = executor as IAbilityImpacts;
+            if (_impacts != null)
+            {
+                _impacts.UseWentOff += OnUseWentOff;
+                _impacts.ImpactMissed += OnImpactMissed;
+            }
+            bus.Subscribe<ActorDespawnedEvent>(e => Forget(e.EntityId)).AddTo(_subscriptions);
         }
 
         /// <summary>
@@ -62,6 +89,32 @@ namespace RPGFramework.ActionRpg
         /// Controls that stop a character from using abilities.
         /// </summary>
         public HashSet<string> BlockingControls { get; } = new HashSet<string> { "Stun", "Silence" };
+
+        /// <summary>
+        /// Controls that stop a cast under way and the hits still to come (an interruptible cast; hits without
+        /// <see cref="CastInfo.ImpactsSurviveInterrupt"/>).
+        /// </summary>
+        public HashSet<string> InterruptingControls { get; } = new HashSet<string> { "Stun", "Silence" };
+
+        /// <summary>
+        /// How fast the hits of a use come (caster, ability): the hero's attack speed, a haste. 1.5 makes an
+        /// ability's <see cref="CastInfo.ImpactDelay"/> and interval 1/1.5 as long. Null: 1. Needs an executor with
+        /// delayed hits (<see cref="IAbilityImpacts"/>, the framework's own).
+        /// </summary>
+        public Func<int, IAbility, float> ImpactSpeedFor
+        {
+            get => _impacts?.ImpactSpeedFor;
+            set
+            {
+                if (_impacts != null)
+                    _impacts.ImpactSpeedFor = value;
+            }
+        }
+
+        /// <summary>
+        /// Whether a character has hits of an ability still to come.
+        /// </summary>
+        public bool HasPendingHits(int entityId) => _impacts != null && _impacts.HasPendingImpacts(entityId);
 
         /// <summary>
         /// Whether a character can pay an ability's cost (entity, resource type, amount); null: every cost is paid.
@@ -151,12 +204,26 @@ namespace RPGFramework.ActionRpg
             }
             var result = _executor.ExecuteAbility(abilityId, casterId, targetId, Time,
                 ResourceCheck ?? ((_, __, ___) => true), _consume, _apply);
+            if (result.Success && (result.CastStarted || result.ImpactsPending > 0 || _executor.IsChanneling(casterId)))
+                _acting.Add(casterId);
             if (SettleLandings(casterId, abilityId) && result.Success && !result.CastStarted)
             {
                 result.Success = false;
                 result.FailureReason = "The ability found nothing; its cost came back";
             }
             return result;
+        }
+
+        /// <summary>
+        /// Stops a character's cast and the hits still to come, as a stun does (a heavy blow, a knock-back): only
+        /// what was authored as interruptible.
+        /// </summary>
+        /// <returns>True when something was stopped.</returns>
+        public bool Interrupt(int entityId, string reason = AbilityImpactReasons.Interrupted)
+        {
+            bool stopped = _executor.InterruptCast(entityId, Time, reason);
+            SettleLandings(-1, null);
+            return stopped;
         }
 
         public bool IsOnCooldown(int entityId, string abilityId) => _cooldowns.IsOnCooldown(entityId, abilityId, Time);
@@ -192,18 +259,128 @@ namespace RPGFramework.ActionRpg
         public void Update(float deltaTime)
         {
             Time += deltaTime;
+            // Before the clock moves: a swing stopped by a stun does not land this frame
+            StopTheStopped();
             _executor.Update(Time);
             SettleLandings(-1, null);
+        }
+
+        // Casts and hits of characters that are stunned, silenced or dead stop; the idle ones are no longer watched
+        private void StopTheStopped()
+        {
+            if (_acting.Count == 0)
+                return;
+            _actingNow.Clear();
+            foreach (int id in _acting)
+                _actingNow.Add(id);
+            foreach (int id in _actingNow)
+            {
+                var actor = _world.Get(id);
+                if (actor == null || !actor.IsAlive())
+                {
+                    _executor.CancelCast(id, Time);
+                    _impacts?.CancelImpacts(id, Time, AbilityImpactReasons.CasterDied, interruptibleOnly: true);
+                }
+                else if (Interrupted(actor))
+                {
+                    _executor.InterruptCast(id, Time, AbilityImpactReasons.Interrupted);
+                }
+                if (!_executor.IsCasting(id) && !_executor.IsChanneling(id) && !HasPendingHits(id))
+                    _acting.Remove(id);
+            }
+            SettleLandings(-1, null);
+        }
+
+        private bool Interrupted(Actor actor)
+        {
+            foreach (string control in InterruptingControls)
+            {
+                if (actor.HasControl(control))
+                    return true;
+            }
+            return false;
+        }
+
+        private void Forget(int entityId)
+        {
+            _executor.UnregisterEntity(entityId);
+            _acting.Remove(entityId);
+            _actingNow.Clear();
+            foreach (var pair in _uses)
+            {
+                if (pair.Value.CasterId == entityId)
+                    _actingNow.Add(pair.Key);
+            }
+            foreach (int use in _actingNow)
+                _uses.Remove(use);
+            _actingNow.Clear();
         }
 
         private void Consume(int entityId, string resourceType, float amount)
         {
             ResourceConsume?.Invoke(entityId, resourceType, amount);
-            _paid.Add((entityId, resourceType, amount));
+            _paid.Add((_impacts?.Current.UseId ?? 0, entityId, resourceType, amount));
+        }
+
+        // A use with delayed hits went off: what it paid waits with it, and its cooldown is the game's
+        private void OnUseWentOff(AbilityImpact use)
+        {
+            var delayed = new DelayedUse { CasterId = use.CasterEntityId, AbilityId = use.AbilityId, HitsLeft = use.Hits };
+            for (int i = _paid.Count - 1; i >= 0; i--)
+            {
+                if (_paid[i].Use == use.UseId)
+                {
+                    delayed.Paid.Insert(0, (_paid[i].Type, _paid[i].Amount));
+                    _paid.RemoveAt(i);
+                }
+            }
+            _uses[use.UseId] = delayed;
+            _acting.Add(use.CasterEntityId);
+
+            if (CooldownFor != null)
+            {
+                var ability = _registry.GetAbility(use.AbilityId);
+                float cooldown = ability != null ? CooldownFor(use.CasterEntityId, ability) : -1f;
+                if (cooldown >= 0f)
+                    _landed.Add(new Landing { CasterId = use.CasterEntityId, AbilityId = use.AbilityId, Cooldown = cooldown });
+            }
+        }
+
+        private void OnImpactMissed(AbilityImpact impact, string reason)
+        {
+            if (!_uses.TryGetValue(impact.UseId, out var use))
+                return;
+            // A target gone is a hit that found nothing; an interrupt or a death is not the ability's fault
+            if (reason != AbilityImpactReasons.InvalidTarget)
+                use.Stopped = true;
+            HitDone(impact.UseId, use);
+        }
+
+        private void HitDone(int useId, DelayedUse use)
+        {
+            if (--use.HitsLeft > 0)
+                return;
+            _uses.Remove(useId);
+            if (use.Found || use.Stopped)
+                return;
+            if (ResourceRefund != null)
+            {
+                foreach (var paid in use.Paid)
+                    ResourceRefund(use.CasterId, paid.Type, paid.Amount);
+            }
+            _landed.Add(new Landing { CasterId = use.CasterId, AbilityId = use.AbilityId, Refunded = true });
         }
 
         private void Apply(int casterId, int targetId, string abilityId)
         {
+            var current = _impacts?.Current ?? default;
+            if (current.Delayed && _uses.TryGetValue(current.UseId, out var use))
+            {
+                use.Found |= !_effects.TryGetValue(abilityId, out var hit) || hit(casterId, targetId);
+                HitDone(current.UseId, use);
+                return;
+            }
+
             bool found = !_effects.TryGetValue(abilityId, out var effect) || effect(casterId, targetId);
             if (!found && ResourceRefund != null)
             {
@@ -249,6 +426,14 @@ namespace RPGFramework.ActionRpg
             return refunded;
         }
 
-        public void Dispose() => _subscriptions.Dispose();
+        public void Dispose()
+        {
+            if (_impacts != null)
+            {
+                _impacts.UseWentOff -= OnUseWentOff;
+                _impacts.ImpactMissed -= OnImpactMissed;
+            }
+            _subscriptions.Dispose();
+        }
     }
 }

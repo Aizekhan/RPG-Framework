@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### Added
+- Abilities: delayed hits. `CastInfo.ImpactDelay` covers a swing's contact, an arrow's flight or a meteor's fall. `ImpactCount` and `ImpactInterval` make several hits (a flurry, a volley). `ImpactsSurviveInterrupt` lets an arrow already loosed still land. `RecheckTargetOnImpact` makes a hit miss a target that got away. The use is paid, its charge used and its cooldown started when it goes off, and each hit calls the effect when its time comes (`Update`). An ability without these fields hits at once, as before.
+  - `IAbilityImpacts`, implemented by `AbilityExecutor`:
+    - `ImpactSpeedFor (caster, ability)` scales the delay and interval for each use (attack speed, haste).
+    - `Current` tells which use and which hit a payment or an effect call belongs to.
+    - `UseWentOff` and `ImpactMissed` events, `HasPendingImpacts`, `CancelImpacts`.
+  - `AbilityImpactEvent` (landed or missed, the reason, the hit's exact time) and `AbilityImpactReasons`. `AbilityExecutedEvent` and `AbilityExecutionResult` now carry `UseId` and `ImpactAt`; the event also has `Impacts` and the result `ImpactsPending`.
+  - `InterruptCast` also stops the hits still to come, except those that survive an interrupt.
+  - The Ability asset has a Hits section and checks it.
+- Action RPG kit: `ActorAbilities.ImpactSpeedFor`, `HasPendingHits`, `Interrupt(id)` and `InterruptingControls` ("Stun" and "Silence" by default). `CooldownFor` applies when a delayed use goes off. A use whose hits all found nothing gives its cost and cooldown back after its last hit; a use stopped by an interrupt does not. Recipe 16.
+
+### Fixed
+- Action RPG kit: a stun or silence did not stop a cast already under way, although the Ability asset says "being hit or stunned can stop the cast". Now an interruptible cast stops, and it also stops when the caster dies.
+
 ## [0.33.0] - 2026-11-02
 
 ### Added

@@ -60,6 +60,25 @@ namespace RPGFramework.Tools.AbilityEditor
         [Tooltip("Whether the caster may walk while casting")]
         public bool canMoveWhileCasting = false;
 
+        [Header("Hits")]
+        [Tooltip("Seconds from going off (paid, cooldown started) to the first hit: the swing's contact, the arrow's flight. 0 means it hits at once. The game's attack speed can make it shorter or longer")]
+        [Min(0f)]
+        public float impactDelay = 0f;
+
+        [Tooltip("Hits one use makes (a flurry of stabs, a volley); 0 or 1 means one")]
+        [Min(0)]
+        public int impactCount = 0;
+
+        [Tooltip("Seconds between the hits of one use")]
+        [Min(0f)]
+        public float impactInterval = 0f;
+
+        [Tooltip("The hits still to come land even when the caster is stunned or dies (an arrow already loosed). Off: a stun stops them, as it stops a swing before contact")]
+        public bool impactsSurviveInterrupt = false;
+
+        [Tooltip("Each hit checks the target again (still there, in range) and misses when it is not")]
+        public bool recheckTargetOnImpact = false;
+
         [Tooltip("How many times it can be used before it runs out; 0 means no limit")]
         [Min(0)]
         public int maxCharges = 0;
@@ -112,7 +131,12 @@ namespace RPGFramework.Tools.AbilityEditor
 
             var castInfo = new CastInfo(castTime, channelDuration, isInterruptible, canMoveWhileCasting)
             {
-                ChannelTickInterval = channelTickInterval
+                ChannelTickInterval = channelTickInterval,
+                ImpactDelay = impactDelay,
+                ImpactCount = impactCount,
+                ImpactInterval = impactInterval,
+                ImpactsSurviveInterrupt = impactsSurviveInterrupt,
+                RecheckTargetOnImpact = recheckTargetOnImpact
             };
 
             return new Ability(metadata, resourceCosts, castInfo, targetType);
@@ -151,6 +175,18 @@ namespace RPGFramework.Tools.AbilityEditor
 
             if (chargeRechargeTime < 0f)
                 errors.Add("Charge Recharge Time cannot be negative");
+
+            if (impactDelay < 0f)
+                errors.Add("Impact Delay cannot be negative");
+
+            if (impactCount < 0)
+                errors.Add("Impact Count cannot be negative (0 or 1 means one hit)");
+
+            if (impactInterval < 0f)
+                errors.Add("Impact Interval cannot be negative");
+
+            if (abilityType == AbilityType.Passive && (impactDelay > 0f || impactCount > 1))
+                errors.Add("A passive ability is never used, so it has no hits to delay");
 
             if (range < 0f)
                 errors.Add("Range cannot be negative");

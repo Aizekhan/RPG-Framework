@@ -39,7 +39,8 @@ namespace RPGFramework.Abilities
 
         /// <summary>
         /// Interrupt active cast or channel (stun, silence, knockback). Casts authored as not interruptible keep going.
-        /// Returns true when something was interrupted.
+        /// The executor's delayed hits still to come stop too, unless authored to survive it
+        /// (<see cref="CastInfo.ImpactsSurviveInterrupt"/>). Returns true when something was interrupted.
         /// </summary>
         bool InterruptCast(int entityId, float currentTime, string reason = "interrupted");
 

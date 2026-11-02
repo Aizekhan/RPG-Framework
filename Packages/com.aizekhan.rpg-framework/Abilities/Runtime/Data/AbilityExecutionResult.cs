@@ -30,6 +30,15 @@ namespace RPGFramework.Abilities
         /// <summary>True when this use switched a toggle ability off (nothing paid, nothing applied)</summary>
         public bool ToggledOff;
 
+        /// <summary>The use, when it went off (several hits share it); 0 otherwise</summary>
+        public int UseId;
+
+        /// <summary>When its first hit lands, when it went off (<see cref="Timestamp"/> for one that hits at once)</summary>
+        public float ImpactAt;
+
+        /// <summary>Hits still to come after this call (0 when it hit at once or did not go off yet)</summary>
+        public int ImpactsPending;
+
         public static AbilityExecutionResult CreateSuccess(string abilityId, int casterEntityId, int targetEntityId, float timestamp)
         {
             return new AbilityExecutionResult

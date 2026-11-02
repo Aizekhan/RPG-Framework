@@ -339,6 +339,114 @@ namespace RPGFramework.ActionRpg.Tests
         }
 
         [Test]
+        public void ADelayedStrike_HitsAtItsContact_SoonerWithAttackSpeed_AndTheGameSetsItsCooldown()
+        {
+            _content.Abilities.Add(new Ability(new AbilityMetadata("stab", "Stab", cooldown: 3f),
+                castInfo: new CastInfo(0f) { ImpactDelay = 0.6f }, targetType: TargetType.Enemy));
+            StartGame();
+            int goblin = World.SpawnEnemy(Goblin);
+            var hits = new List<int>();
+            World.Abilities.SetEffect("stab", (caster, target) => hits.Add(target));
+            World.Abilities.ImpactSpeedFor = (caster, ability) => 2f;
+            World.Abilities.CooldownFor = (caster, ability) => 1f;
+
+            Assert.That(World.UseAbility("stab", goblin), Is.True);
+            Assert.That(hits, Is.Empty, "the dagger has not reached it");
+            Assert.That(World.CooldownLeft("stab"), Is.EqualTo(1f).Within(0.01f), "the game's cooldown, from the use");
+            Assert.That(World.Abilities.HasPendingHits(World.PlayerId), Is.True);
+            Tick(0.2f);
+            Assert.That(hits, Is.Empty);
+            Tick(0.2f);
+
+            Assert.That(hits, Is.EqualTo(new[] { goblin }), "contact at 0.3 with double speed");
+            Assert.That(World.Abilities.HasPendingHits(World.PlayerId), Is.False);
+        }
+
+        [Test]
+        public void AFlurryThatHitNothing_GivesTheCostAndTheCooldownBack_AfterItsLastHit()
+        {
+            _content.Abilities.Add(new Ability(new AbilityMetadata("flurry", "Flurry", cooldown: 5f),
+                new List<ResourceCost> { new ResourceCost("Stamina", 15f) },
+                new CastInfo(0f) { ImpactDelay = 0.2f, ImpactCount = 3, ImpactInterval = 0.2f }));
+            StartGame();
+            float stamina = 50f;
+            var refunded = new List<AbilityRefundedEvent>();
+            _host.Container.Resolve<IEventBus>().Subscribe<AbilityRefundedEvent>(refunded.Add);
+            World.Abilities.ResourceConsume = (entity, type, amount) => stamina -= amount;
+            World.Abilities.ResourceRefund = (entity, type, amount) => stamina += amount;
+            int found = 0;
+            World.Abilities.SetEffect("flurry", (caster, target) => found-- > 0);
+
+            Assert.That(World.UseAbility("flurry"), Is.True);
+            Assert.That(stamina, Is.EqualTo(35f));
+            Tick(0.5f);
+            Assert.That(refunded, Is.Empty, "the last stab is still to come");
+            Tick(0.2f);
+            Assert.That(stamina, Is.EqualTo(50f), "three misses: the cost came back");
+            Assert.That(World.CooldownLeft("flurry"), Is.Zero);
+            Assert.That(refunded, Has.Count.EqualTo(1));
+
+            found = 1;
+            Assert.That(World.UseAbility("flurry"), Is.True);
+            Tick(1f);
+            Assert.That(stamina, Is.EqualTo(35f), "one stab landed: it is paid");
+            Assert.That(World.CooldownLeft("flurry"), Is.GreaterThan(3f));
+        }
+
+        [Test]
+        public void AStun_StopsACast_AndASwingBeforeContact_WithoutARefund()
+        {
+            _content.Abilities.Add(new Ability(new AbilityMetadata("fireball", "Fireball", cooldown: 2f),
+                castInfo: new CastInfo(1f, 0f, true), targetType: TargetType.Enemy));
+            _content.Abilities.Add(new Ability(new AbilityMetadata("cleave", "Cleave", cooldown: 2f),
+                new List<ResourceCost> { new ResourceCost("Stamina", 10f) },
+                new CastInfo(0f) { ImpactDelay = 0.5f }, TargetType.Enemy));
+            StartGame();
+            int goblin = World.SpawnEnemy(Goblin);
+            float stamina = 50f;
+            World.Abilities.ResourceConsume = (entity, type, amount) => stamina -= amount;
+            World.Abilities.ResourceRefund = (entity, type, amount) => stamina += amount;
+            var landed = new List<string>();
+            World.Abilities.SetEffect("fireball", (caster, target) => landed.Add("fireball"));
+            World.Abilities.SetEffect("cleave", (caster, target) => landed.Add("cleave"));
+            var canceled = new List<AbilityCanceledEvent>();
+            _host.Container.Resolve<IEventBus>().Subscribe<AbilityCanceledEvent>(canceled.Add);
+
+            Assert.That(World.Abilities.Use(World.PlayerId, "fireball", goblin).CastStarted, Is.True);
+            Tick(0.3f);
+            World.Effects.Apply(World.PlayerId, Stun, goblin);
+            Tick(1.5f);
+            Assert.That(landed, Is.Empty, "the stun broke the cast");
+            Assert.That(canceled.Select(c => c.AbilityId), Is.EqualTo(new[] { "fireball" }));
+
+            Tick(0.5f); // the stun is over
+            Assert.That(World.UseAbility("cleave", goblin), Is.True);
+            Tick(0.2f);
+            World.Effects.Apply(World.PlayerId, Stun, goblin);
+            Tick(1f);
+            Assert.That(landed, Is.Empty, "stunned before contact");
+            Assert.That(stamina, Is.EqualTo(40f), "an interrupted swing is not given back");
+            Assert.That(World.Abilities.HasPendingHits(World.PlayerId), Is.False);
+        }
+
+        [Test]
+        public void ADeadCaster_LosesItsSwing()
+        {
+            _content.Abilities.Add(new Ability(new AbilityMetadata("bite", "Bite", cooldown: 1f),
+                castInfo: new CastInfo(0f) { ImpactDelay = 0.5f }, targetType: TargetType.Enemy));
+            StartGame();
+            int goblin = World.SpawnEnemy(Goblin);
+            int bites = 0;
+            World.Abilities.SetEffect("bite", (caster, target) => bites++);
+
+            Assert.That(World.Abilities.Use(goblin, "bite", World.PlayerId).Success, Is.True);
+            World.DealDamage(World.PlayerId, goblin, 1000f, AttackContext.Effect(1));
+            Tick(1f);
+
+            Assert.That(bites, Is.Zero);
+        }
+
+        [Test]
         public void ClearingCooldowns_IsAnnounced()
         {
             StartGame();

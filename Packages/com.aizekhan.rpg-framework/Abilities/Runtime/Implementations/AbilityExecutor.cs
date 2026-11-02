@@ -29,10 +29,14 @@ namespace RPGFramework.Abilities
     /// - A toggle ability switches on like an Active one (target, costs, cooldown) and the next use switches it off
     ///   for free, even during its cooldown.
     /// - A caster does one cast or channel at a time; other abilities are refused until it ends.
+    /// - An ability with delayed hits (<see cref="CastInfo.ImpactDelay"/>, <see cref="CastInfo.ImpactCount"/>) goes
+    ///   off as any other (paid, charge, cooldown, AbilityExecuted), and each hit calls the effect when its time
+    ///   comes (<see cref="Update"/>, AbilityImpact), sped up or slowed down by <see cref="ImpactSpeedFor"/>. An
+    ///   interrupt stops the hits still to come unless <see cref="CastInfo.ImpactsSurviveInterrupt"/>.
     /// With an event publisher, raises AbilityExecuted (also for failed attempts, Success = false), CooldownStarted
     /// (unless the cooldown tracker already raises it on the same publisher), AbilityToggled and AbilityCanceled.
     /// </summary>
-    public class AbilityExecutor : IAbilityExecutor
+    public class AbilityExecutor : IAbilityExecutor, IAbilityImpacts
     {
         private readonly IAbilityRegistry _registry;
         private readonly ICooldownTracker _cooldownTracker;
@@ -52,6 +56,11 @@ namespace RPGFramework.Abilities
         private readonly Dictionary<(int Entity, string Ability), Upkeep> _upkeeps = new Dictionary<(int, string), Upkeep>();
         private readonly List<(int Entity, string Ability)> _unpaid = new List<(int, string)>();
         private readonly List<int> _due = new List<int>();
+        private readonly List<PendingImpact> _pending = new List<PendingImpact>();
+        private readonly List<PendingImpact> _stopped = new List<PendingImpact>();
+        private int _lastUse;
+        private long _lastImpact;
+        private AbilityImpact _current;
 
         // Latest game time the executor was given; stamps CancelCast calls made without a time
         private float _lastTime;
@@ -71,6 +80,16 @@ namespace RPGFramework.Abilities
             public Action<int, string, float> ResourceConsume;
             public Action<int, int, string> ApplyEffect;
             public float UpkeepPaidUntil;
+            public int UseId;
+        }
+
+        // A hit still to come of a use that went off
+        private sealed class PendingImpact
+        {
+            public AbilityImpact Impact;
+            public IAbility Ability;
+            public Action<int, int, string> ApplyEffect;
+            public long Order;
         }
 
         // What a toggle that is on keeps paying for
@@ -101,6 +120,44 @@ namespace RPGFramework.Abilities
             _distanceCheck = distanceCheck;
             _relationshipCheck = relationshipCheck;
             _resourceMaximum = resourceMaximum;
+        }
+
+        public Func<int, IAbility, float> ImpactSpeedFor { get; set; }
+
+        public AbilityImpact Current => _current;
+
+        public event Action<AbilityImpact> UseWentOff;
+
+        public event Action<AbilityImpact, string> ImpactMissed;
+
+        public bool HasPendingImpacts(int entityId)
+        {
+            foreach (var pending in _pending)
+            {
+                if (pending.Impact.CasterEntityId == entityId)
+                    return true;
+            }
+            return false;
+        }
+
+        public int CancelImpacts(int entityId, float currentTime, string reason, bool interruptibleOnly = false)
+        {
+            _lastTime = currentTime;
+            _stopped.Clear();
+            for (int i = 0; i < _pending.Count; i++)
+            {
+                var pending = _pending[i];
+                if (pending.Impact.CasterEntityId == entityId &&
+                    (!interruptibleOnly || !pending.Ability.CastInfo.ImpactsSurviveInterrupt))
+                    _stopped.Add(pending);
+            }
+            foreach (var pending in _stopped)
+                _pending.Remove(pending);
+            foreach (var pending in _stopped)
+                Miss(pending, reason ?? AbilityImpactReasons.Canceled, currentTime);
+            int count = _stopped.Count;
+            _stopped.Clear();
+            return count;
         }
 
         public AbilityExecutionResult ExecuteAbility(
@@ -254,6 +311,8 @@ namespace RPGFramework.Abilities
                 }
                 finished++;
             }
+
+            LandImpacts(currentTime);
             return finished;
         }
 
@@ -275,11 +334,16 @@ namespace RPGFramework.Abilities
         public bool InterruptCast(int entityId, float currentTime, string reason = "interrupted")
         {
             _lastTime = currentTime;
-            if (!_casts.TryGetValue(entityId, out var cast) || !cast.Ability.CastInfo.IsInterruptible)
-                return false;
-
-            EndCast(entityId, cast, currentTime, reason);
-            return true;
+            bool interrupted = false;
+            if (_casts.TryGetValue(entityId, out var cast) && cast.Ability.CastInfo.IsInterruptible)
+            {
+                EndCast(entityId, cast, currentTime, reason);
+                interrupted = true;
+            }
+            // A swing stopped before its contact; an arrow already loosed flies on
+            if (CancelImpacts(entityId, currentTime, reason, interruptibleOnly: true) > 0)
+                interrupted = true;
+            return interrupted;
         }
 
         public bool IsCasting(int entityId)
@@ -302,6 +366,11 @@ namespace RPGFramework.Abilities
             _abilityInstances.Remove(entityId);
             _casts.Remove(entityId);
             _toggledOn.Remove(entityId);
+            for (int i = _pending.Count - 1; i >= 0; i--)
+            {
+                if (_pending[i].Impact.CasterEntityId == entityId)
+                    _pending.RemoveAt(i);
+            }
             _unpaid.Clear();
             foreach (var key in _upkeeps.Keys)
             {
@@ -314,17 +383,49 @@ namespace RPGFramework.Abilities
             _cooldownTracker?.ClearAllCooldowns(entityId);
         }
 
-        // Pays, applies, starts the cooldown and raises the events; then begins the channel if the ability has one.
+        // Pays, applies (or queues its delayed hits), starts the cooldown and raises the events; then begins the
+        // channel if the ability has one.
         private AbilityExecutionResult Land(ActiveCast cast, int casterEntityId, float currentTime)
         {
             IAbility ability = cast.Ability;
             string abilityId = ability.AbilityId;
+            var info = ability.CastInfo;
+            int useId = ++_lastUse;
+            cast.UseId = useId;
+            bool delayed = info.HasDelayedImpacts;
+            int hits = delayed ? Math.Max(1, info.ImpactCount) : 1;
+            float speed = delayed ? SpeedOf(casterEntityId, ability) : 1f;
+            float firstAt = delayed ? currentTime + Math.Max(0f, info.ImpactDelay) / speed : currentTime;
+            var use = new AbilityImpact(useId, abilityId, casterEntityId, cast.TargetEntityId, 0, hits, currentTime, delayed);
 
+            _current = use;
             PayCosts(ability, casterEntityId, cast.ResourceConsume);
-            cast.ApplyEffect?.Invoke(casterEntityId, cast.TargetEntityId, abilityId);
+            if (!delayed)
+            {
+                _current = new AbilityImpact(useId, abilityId, casterEntityId, cast.TargetEntityId, 1, 1, currentTime, false);
+                cast.ApplyEffect?.Invoke(casterEntityId, cast.TargetEntityId, abilityId);
+            }
+            _current = default;
 
             // Ends the cast and uses a charge
             cast.Instance.CompleteCast(currentTime);
+
+            if (delayed)
+            {
+                float interval = Math.Max(0f, info.ImpactInterval) / speed;
+                for (int i = 0; i < hits; i++)
+                {
+                    _pending.Add(new PendingImpact
+                    {
+                        Impact = new AbilityImpact(useId, abilityId, casterEntityId, cast.TargetEntityId, i + 1, hits,
+                            firstAt + i * interval, true),
+                        Ability = ability,
+                        ApplyEffect = cast.ApplyEffect,
+                        Order = ++_lastImpact
+                    });
+                }
+                UseWentOff?.Invoke(use);
+            }
 
             _events?.Publish(new AbilityExecutedEvent
             {
@@ -332,7 +433,10 @@ namespace RPGFramework.Abilities
                 CasterEntityId = casterEntityId,
                 TargetEntityId = cast.TargetEntityId,
                 Timestamp = currentTime,
-                Success = true
+                Success = true,
+                UseId = useId,
+                ImpactAt = firstAt,
+                Impacts = hits
             });
 
             if (ability.Cooldown > 0f)
@@ -382,7 +486,91 @@ namespace RPGFramework.Abilities
                 _casts[casterEntityId] = cast;
             }
 
-            return AbilityExecutionResult.CreateSuccess(abilityId, casterEntityId, cast.TargetEntityId, currentTime);
+            // A first hit without a delay lands now
+            if (delayed)
+                LandImpacts(currentTime);
+
+            var result = AbilityExecutionResult.CreateSuccess(abilityId, casterEntityId, cast.TargetEntityId, currentTime);
+            result.UseId = useId;
+            result.ImpactAt = firstAt;
+            result.ImpactsPending = delayed ? PendingOf(useId) : 0;
+            return result;
+        }
+
+        // The hits due by now, earliest first (the effect may stop or add others)
+        private void LandImpacts(float currentTime)
+        {
+            while (true)
+            {
+                int next = -1;
+                for (int i = 0; i < _pending.Count; i++)
+                {
+                    var pending = _pending[i];
+                    if (pending.Impact.Time > currentTime + 1e-5f)
+                        continue;
+                    if (next < 0 || pending.Impact.Time < _pending[next].Impact.Time ||
+                        pending.Impact.Time == _pending[next].Impact.Time && pending.Order < _pending[next].Order)
+                        next = i;
+                }
+                if (next < 0)
+                    return;
+
+                var due = _pending[next];
+                _pending.RemoveAt(next);
+                var impact = due.Impact;
+                if (due.Ability.CastInfo.RecheckTargetOnImpact &&
+                    !TargetIsValid(due.Ability, impact.CasterEntityId, impact.TargetEntityId))
+                {
+                    Miss(due, AbilityImpactReasons.InvalidTarget, impact.Time);
+                    continue;
+                }
+                _current = impact;
+                due.ApplyEffect?.Invoke(impact.CasterEntityId, impact.TargetEntityId, impact.AbilityId);
+                _current = default;
+                PublishImpact(impact, true, null, impact.Time);
+            }
+        }
+
+        private void Miss(PendingImpact pending, string reason, float time)
+        {
+            ImpactMissed?.Invoke(pending.Impact, reason);
+            PublishImpact(pending.Impact, false, reason, time);
+        }
+
+        private void PublishImpact(AbilityImpact impact, bool landed, string reason, float time)
+        {
+            _events?.Publish(new AbilityImpactEvent
+            {
+                AbilityId = impact.AbilityId,
+                CasterEntityId = impact.CasterEntityId,
+                TargetEntityId = impact.TargetEntityId,
+                UseId = impact.UseId,
+                Hit = impact.Hit,
+                Hits = impact.Hits,
+                Landed = landed,
+                Reason = reason,
+                Timestamp = time
+            });
+        }
+
+        private int PendingOf(int useId)
+        {
+            int count = 0;
+            foreach (var pending in _pending)
+            {
+                if (pending.Impact.UseId == useId)
+                    count++;
+            }
+            return count;
+        }
+
+        private float SpeedOf(int casterEntityId, IAbility ability)
+        {
+            var speedFor = ImpactSpeedFor;
+            if (speedFor == null)
+                return 1f;
+            float speed = speedFor(casterEntityId, ability);
+            return float.IsNaN(speed) || float.IsInfinity(speed) || speed <= 0f ? 1f : speed;
         }
 
         private AbilityExecutionResult SwitchOff(IAbility ability, int casterEntityId, int targetEntityId, float currentTime)
@@ -434,7 +622,9 @@ namespace RPGFramework.Abilities
                 float at = cast.NextTick;
                 cast.Ticks++;
                 cast.NextTick += interval;
+                _current = new AbilityImpact(cast.UseId, cast.Ability.AbilityId, entityId, cast.TargetEntityId, 0, 0, at, false);
                 cast.ApplyEffect?.Invoke(entityId, cast.TargetEntityId, cast.Ability.AbilityId);
+                _current = default;
                 _events?.Publish(new AbilityChannelTickEvent
                 {
                     AbilityId = cast.Ability.AbilityId,

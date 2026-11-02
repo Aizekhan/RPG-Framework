@@ -21,5 +21,14 @@ namespace RPGFramework.Abilities
 
         /// <summary>Whether execution succeeded</summary>
         public bool Success;
+
+        /// <summary>The use (several hits share it); 0 for a failed attempt</summary>
+        public int UseId;
+
+        /// <summary>When its first hit lands: <see cref="Timestamp"/> for one that hits at once</summary>
+        public float ImpactAt;
+
+        /// <summary>Hits it makes (1 for most)</summary>
+        public int Impacts;
     }
 }
