@@ -1,8 +1,8 @@
-# RPG Framework — архітектура (фактичний стан v0.33.0)
+# RPG Framework — архітектура (фактичний стан v0.34.0)
 
-> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.33.0**
-> (тег `v0.33.0` на коміті `3ccd264`, Unity 6000.0), звірений із кодом пакета 2026-11-02: збірки (`.asmdef`), їхні
-> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.33.0), `Documentation~/networking.md`, рецепти
+> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.34.0**
+> (тег `v0.34.0` на коміті `1ec97cd`, Unity 6000.0), звірений із кодом пакета 2026-11-02: збірки (`.asmdef`), їхні
+> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.34.0), `Documentation~/networking.md`, рецепти
 > AI-guidance 01–20.
 > Попередня редакція (стан v0.5.0/v0.5.1) у git не потрапляла; цей файл замінює її повністю. Історію змін між
 > версіями дає `CHANGELOG.md` пакета.
@@ -28,7 +28,7 @@
   правила, стати, прогресія, квести, предмети, лут, збереження, ассети, спавн, сцени, UI-навігація, звук, локалізація,
   налаштування, діагностика, мережа.
 - Гра володіє **контентом, поданням і правилами, які роблять її унікальною**.
-- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.33.0`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
+- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.34.0`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
   1.11.2, Unity Transport 2.5.3, uGUI, вбудованого модуля Audio. Гра живе в окремому репозиторії/проєкті і не редагує
   пакет (`Library/PackageCache` перезаписується).
 - **Конвеєр рендерингу — будь-який.** Пакет не залежить від URP/HDRP і не має шейдерів під конкретний конвеєр:
@@ -294,7 +294,7 @@ GameHost.Start(configure)                               // Bootstrap.Runtime, б
 | **Stats** | `StatContainer`, модифікатори з пріоритетом, ріст за рівнем (`IStatGrowthFormula`) | — (через кіти) | ActionRpg, TurnBased | — |
 | **Combat** | `LifeState`, шкода (`IDamageCalculator`, `IContextualDamageCalculator` + `AttackContext`: теги, джерело, `AsCritical`, `WithMultiplier`), стихії `DamageResistances` (опір, слабкість, імунітет, змішана шкода; з v0.19), `DeathEvent` | `CombatModule` | ActionRpg, TurnBased | — |
 | **StatusEffects** | стаки, тіки (`ProcessTicks` на інтерфейсі з v0.20, наздоганяє пропущені), сила й тривалість застосування, `Reapply`, `UseStatContainers<T>()`, контроль, множник руху | `StatusEffectsModule` | ActionRpg, TurnBased | Status Effect |
-| **Abilities** | вартість (і щосекундна — upkeep), кулдауни (`CooldownClearedEvent`), каст, канал з тіками, заряди з відновленням, toggle, пасивні, `TargetType.AllEnemies/AllAllies` | `AbilitiesModule` | ActionRpg, TurnBased | Ability |
+| **Abilities** | вартість (і щосекундна — upkeep), кулдауни (`CooldownClearedEvent`), каст, канал з тіками, заряди з відновленням, toggle, пасивні, `TargetType.AllEnemies/AllAllies`; з v0.34 відкладені влучання (`CastInfo.ImpactDelay`, серія `ImpactCount`/`ImpactInterval`, `ImpactsSurviveInterrupt`, `RecheckTargetOnImpact`; `IAbilityImpacts.ImpactSpeedFor` для швидкості атаки, `AbilityImpactEvent`), переривання зупиняє ще не влучені удари | `AbilitiesModule` | ActionRpg, TurnBased | Ability |
 | **Progression** | досвід, рівні, `LevelUpEvent` | `ProgressionModule` | ActionRpg, TurnBased | — |
 | **Quests** | квести, цілі (Kill, Collect, Explore, Interact…), нагороди, реєстр; з v0.32 етапи (`QuestStageData`: цілі етапу, переходи з умовою, що їх гра «сигналить» через `IQuestStages.Signal`, результат Success / Failure), тип, вимоги (`IQuestRequirements`: рівень, фракція, предмет, прапорець), перезарядка повторних, `WhyNot` (`QuestRefusal`), перевірка графа `QuestGraph` | `QuestsModule` | ActionRpg, TurnBased | Quest Asset |
 | **Items** | предмети, `ItemInstance`, реєстр, ефект споживання; афікси (`AffixPool`, `RolledItems` — предмет з афіксами в id), `RarityTable` з удачею, сети (`ItemSet`) | `ItemsModule` | ActionRpg, TurnBased | Item |
@@ -586,7 +586,7 @@ New Game також виставляє Player Settings (Run In Background, Linea
 | `.meta` з валідним GUID для кожного файлу | CI-крок «Unity .meta integrity» |
 | Тексти на екрані — ключі, не рядки | тексти кітів через `ILocalization`; `LocalizationChecks` для таблиць гри |
 
-Тестова база: v0.33.0 (код `e275c81`) — EditMode **2106/2106** локально; CI run `41447339805` зелений (EditMode і PlayMode).
+Тестова база: v0.34.0 (код `a6a75e7`) — EditMode **2117/2117** локально; на тегу CI run `41452198765` впав на тесті сміття `EnemyDirectorTests` (32 тіки проти 31, одне стороннє виділення), тест виправлено в `a875000`, CI run `41452934626` зелений (EditMode і PlayMode).
 
 ---
 
