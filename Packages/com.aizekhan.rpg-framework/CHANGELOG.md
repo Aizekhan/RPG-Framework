@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.38.0] - 2026-11-02
+
 ### Added
 - ActionCombat: parry, stamina for attacks and motion warping (WhiteWrite, for the UMCF combat templates; asked by the owner).
   - Parry: `CombatRules.Parry` opens a parry (`CombatState.Parrying`) for `CombatantSettings.ParryWindow`, then a `ParryRecovery`. A blow from the front inside the window is parried (`ContactResult.Parried`, `ParriedEvent`): no damage, and a melee attacker's attack breaks, leaving it opened for `ParryStunSeconds` (`CombatRules.IsOpened`). A blow in the recovery is a failed parry and deals `ParryFailDamageMultiplier` of its damage. `ParryOnBlockRaise` makes the first `ParryWindow` of a raised block parry too (a perfect block). `ParryCost` is the share of the blow's `BlockCost` a parry spends from the block stock. `AttackDefinition.Parryable` off makes an attack unparryable. `CombatRules.IsParrying`, `ParryStartedEvent`, timeline `ParryStarted` / `ParryEnded` / `Parried`.

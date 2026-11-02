@@ -1,7 +1,7 @@
 # RPG Framework - Project Status
 
 **Last Updated:** 2026-11-02
-**Release:** `v0.37.0` (2026-11-02; proof in `Docs/RELEASES.md`)
+**Release:** `v0.38.0` (2026-11-02; proof in `Docs/RELEASES.md`)
 **Repository:** https://github.com/Aizekhan/RPG-Framework (public, MIT)
 **Branch:** main (force-push and deletion blocked)
 **Unity:** 6000.0.45f1 (`ProjectSettings/ProjectVersion.txt`; the Unity CLI version is kept in `CLAUDE.md` only)
@@ -30,7 +30,7 @@ A version bump goes through `python .github/scripts/release.py X.Y.Z`, which wri
 ## Codebase (committed, from `git ls-files`)
 
 - The framework is the embedded UPM package `Packages/com.aizekhan.rpg-framework`; install in other projects by git URL (see its README).
-- **60 module folders**, **179 asmdef**, **1074 .cs files** in the package
+- **60 module folders**, **179 asmdef**, **1075 .cs files** in the package
 - `Assets/ReferenceGame`: sample game (Goblin Valley) built only on framework assemblies
 - `Assets/_Tests/Editor/FrameworkArchitectureTests.cs`: framework-wide rules (no game references, no editor code in player builds, no assembly cycles, `RPGFramework.*` namespaces, every MonoBehaviour/ScriptableObject in a file of its own name)
 - No AI, Economy or Objectives modules exist (enemy AI lives in `ActionCombat`, plus the `BehaviorTree` module).

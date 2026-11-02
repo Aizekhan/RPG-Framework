@@ -1,8 +1,8 @@
-# RPG Framework — архітектура (фактичний стан v0.37.0)
+# RPG Framework — архітектура (фактичний стан v0.38.0)
 
-> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.37.0**
-> (тег `v0.37.0`; SHA і докази — у `Docs/RELEASES.md`; Unity 6000.0), звірений із кодом пакета 2026-11-02: збірки (`.asmdef`), їхні
-> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.37.0), `Documentation~/networking.md`, рецепти
+> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.38.0**
+> (тег `v0.38.0`; SHA і докази — у `Docs/RELEASES.md`; Unity 6000.0), звірений із кодом пакета 2026-11-02: збірки (`.asmdef`), їхні
+> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.38.0), `Documentation~/networking.md`, рецепти
 > AI-guidance 01–20.
 > Попередня редакція (стан v0.5.0/v0.5.1) у git не потрапляла; цей файл замінює її повністю. Історію змін між
 > версіями дає `CHANGELOG.md` пакета.
@@ -29,7 +29,7 @@
   правила, стати, прогресія, квести, предмети, лут, збереження, ассети, спавн, сцени, UI-навігація, звук, локалізація,
   налаштування, діагностика, мережа.
 - Гра володіє **контентом, поданням і правилами, які роблять її унікальною**.
-- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.37.0`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
+- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.38.0`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
   1.11.2, Unity Transport 2.5.3, uGUI, вбудованого модуля Audio. Гра живе в окремому репозиторії/проєкті і не редагує
   пакет (`Library/PackageCache` перезаписується).
 - **Конвеєр рендерингу — будь-який.** Пакет не залежить від URP/HDRP і не має шейдерів під конкретний конвеєр:
@@ -494,6 +494,18 @@ rules)`, тік після руху тіл) — без колайдерів, т�
 фізики; `EnemyDirector.SweepAttacks` б'є ними ворогами. Ассет `WeaponMoveSet` тримає ходи одного виду зброї з комбо;
 `EnemyBehaviourAsset.Weapon` бере ходи з нього. Ваги ходів гравця проти ходів монстра [немає] (KI-23).
 
+**Парирування, витривалість атак, motion warping** (з v0.38, запит WhiteWrite для шаблонів UMCF) [є]:
+`CombatRules.Parry` відкриває парирування (`CombatState.Parrying`) на `CombatantSettings.ParryWindow`, далі йде
+`ParryRecovery`. Удар спереду у вікні парирується (`ContactResult.Parried`, `ParriedEvent`): шкоди немає, атака
+ближнього нападника ламається, і він відкритий на `ParryStunSeconds` (`CombatRules.IsOpened`). Удар у відновленні —
+невдале парирування: проходить `ParryFailDamageMultiplier` шкоди. `ParryOnBlockRaise` — ідеальний блок (перше
+`ParryWindow` піднятого блоку теж парирує). `ParryCost` — частка `BlockCost`, яку парирування бере із запасу блоку.
+`AttackDefinition.Parryable` вимикає парирування для атаки. `AttackDefinition.StaminaCost` платиться з
+`CombatRules.AttackStock` (`CombatArena.UseAttackStock`) на старті атаки; хто не може заплатити, атаку не почне.
+`AttackDefinition.Warp` (`AttackWarp`: фаза, частина фази, `MaxDistance`, `MaxAngle`, `StopDistance`) з
+`CombatRules.WarpOf` підтягує атакувальника до цілі й повертає його до неї в межах лімітів; режисер ворогів
+застосовує це сам. Парирування ворогами [немає] (KI-24): `EnemyBehaviour` уміє лише блок і ухилення.
+
 Unity: `EnemyBehaviourAsset`, `CombatEnemyAI` (замість `EnemyBrain`), `EnemyAnimatorBridge`. Кіт отримав
 час трупа (`CharacterDefinition.CorpseSeconds`, `ActorView.OnKilled`, `ActorPresenter.CorpseRemoving`). Пошуку
 шляху в AI [немає]: вороги рухаються прямо з розведенням.
@@ -629,7 +641,7 @@ New Game також виставляє Player Settings (Run In Background, Linea
 | `.meta` з валідним GUID для кожного файлу | CI-крок «Unity .meta integrity» |
 | Тексти на екрані — ключі, не рядки | тексти кітів через `ILocalization`; `LocalizationChecks` для таблиць гри |
 
-Тестова база: v0.37.0 — EditMode **2137/2138** локально в повному прогоні (одна відмова — тест v0.28 про відсутній settings.json, переписаний під новий контракт; GameKit **40/40** після цього); PlayMode — у CI (докази в `Docs/RELEASES.md`).
+Тестова база: v0.38.0 (код `56169ba`) — EditMode **2147/2147** локально; PlayMode — у CI (докази в `Docs/RELEASES.md`).
 
 ---
 
