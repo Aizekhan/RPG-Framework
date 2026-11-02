@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-11-02
+
 ### Added
 - ActionCombat attack speed (MythRunner FG-29). `CombatRules.SetAttackSpeed(id, k)` and `AttackSpeedOf(id)`: an attack's wind-up, active window and recovery last their own seconds divided by `k`. If it is set mid-swing, the phase keeps its progress and only the rest goes faster or slower. A charge's hold, dodges and staggers do not change. `AnimationPaceOf(id)` is `k` during an attack's phases and 1 otherwise. The timeline records `AttackSpeedChanged`.
 - `Combatant.AttackSpeed` (kept when the combatant leaves and joins the fight again). `CombatAnimatorBridge` sets the float `AttackPace` from `AnimationPaceOf`: use it as the attack states' speed multiplier, so the clip's contact stays on the active window at any speed. Recipe 18.
