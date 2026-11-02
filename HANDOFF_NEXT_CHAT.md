@@ -11,6 +11,8 @@
 This section holds only the latest session's notes; the release itself is in `STATUS.md` and `Docs/RELEASES.md`,
 older notes move to `Docs/archive/SESSION-LOG.md`.
 
+- 2026-11-02: released `v0.38.1`: reinstall replaced MythRunner's own CI workflow; now a workflow that fails without
+  the licence secrets is kept, with a warning when it differs from the template.
 - 2026-11-02: released `v0.38.0` (WhiteWrite for UMCF, asked by the owner): ActionCombat parry, attack stamina cost,
   motion warping; KI-24 (enemies do not parry) opened. Field names sent to whitewrite-67.
 - 2026-11-02: released `v0.37.0` (the owner: games' agents must hear about framework updates): release feed
