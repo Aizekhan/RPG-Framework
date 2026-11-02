@@ -52,6 +52,25 @@ namespace RPGFramework.ActionCombat
         [Tooltip("Share of a blocked blow's damage that still gets through")]
         [SerializeField, Range(0f, 1f)] private float _blockDamageMultiplier;
 
+        [Header("Parry")]
+        [Tooltip("Seconds a parry is open (Parry(), or after the block rises with Parry On Block Raise); 0: cannot parry")]
+        [SerializeField, Min(0f)] private float _parryWindow;
+
+        [Tooltip("Seconds after the window before the parry ends; a blow then is a failed parry")]
+        [SerializeField, Min(0f)] private float _parryRecovery = 0.3f;
+
+        [Tooltip("Seconds a parried melee attacker stays opened (its attack broken)")]
+        [SerializeField, Min(0f)] private float _parryStunSeconds = 1f;
+
+        [Tooltip("Share of the blow's Block Cost a parry spends from the block stock (0: free)")]
+        [SerializeField, Min(0f)] private float _parryCost;
+
+        [Tooltip("Share of the damage a blow deals in the parry's recovery (a failed parry)")]
+        [SerializeField, Min(0f)] private float _parryFailDamageMultiplier = 1f;
+
+        [Tooltip("Raising the block parries too, for the parry window (a perfect block)")]
+        [SerializeField] private bool _parryOnBlockRaise;
+
         [Header("Hit tiers (by the attack's Stagger)")]
         [Tooltip("Stagger from which a hit is heavy (a longer stagger, a push back); 0: every reaction is light")]
         [SerializeField, Min(0f)] private float _heavyStagger;
@@ -148,6 +167,11 @@ namespace RPGFramework.ActionCombat
         /// </summary>
         public bool Dodge(Vector3 direction) => CanAct() && Arena.Rules.Dodge(Id, ToCombat(direction));
 
+        /// <summary>
+        /// Parries (needs a Parry Window): a blow from the front inside the window is parried and its attacker opened.
+        /// </summary>
+        public bool Parry() => CanAct() && Arena.Rules.Parry(Id);
+
         public void SetBlocking(bool held)
         {
             if (Arena != null && Id >= 0)
@@ -169,6 +193,12 @@ namespace RPGFramework.ActionCombat
                 InvulnerableUntil = _invulnerableUntil,
                 BlockAngle = _blockAngle,
                 BlockDamageMultiplier = _blockDamageMultiplier,
+                ParryWindow = _parryWindow,
+                ParryRecovery = _parryRecovery,
+                ParryStunSeconds = _parryStunSeconds,
+                ParryCost = _parryCost,
+                ParryFailDamageMultiplier = _parryFailDamageMultiplier,
+                ParryOnBlockRaise = _parryOnBlockRaise,
                 HeavyStagger = _heavyStagger,
                 HeavyHitReactSeconds = _heavyHitReactSeconds,
                 HeavyKnockback = _heavyKnockback,

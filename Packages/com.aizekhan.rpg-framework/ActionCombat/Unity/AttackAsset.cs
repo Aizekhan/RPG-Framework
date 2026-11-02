@@ -73,6 +73,17 @@ namespace RPGFramework.ActionCombat
 
         [SerializeField, Min(0f)] private float _projectileLifetime = 5f;
 
+        [Header("Cost and parry")]
+        [Tooltip("Stamina starting the attack costs (CombatArena.UseAttackStock); an attacker that cannot pay does not start it. 0: free")]
+        [SerializeField, Min(0f)] private float _staminaCost;
+
+        [Tooltip("Off: it cannot be parried")]
+        [SerializeField] private bool _parryable = true;
+
+        [Header("Warp (pulls the attacker to its target and turns it to face it; Max Distance and Max Angle 0: none)")]
+        [Tooltip("The phase and its part (From/Until; Until 0: to its end), how far it may pull and turn, the gap it keeps (0: the caller's)")]
+        [SerializeField] private AttackWarp _warp = new AttackWarp(AttackPhase.WindUp, 0f, 0f);
+
         [Header("Hold (an enemy's wide swing waits raised while it closes in)")]
         [Tooltip("Where a held wind-up waits, as a share of the wind-up: 1 = just before the blow")]
         [SerializeField, Range(0f, 1f)] private float _holdPoint = 1f;
@@ -158,8 +169,12 @@ namespace RPGFramework.ActionCombat
                 ChargeCurve = curve != null && curve.length > 0 ? share => curve.Evaluate(share) : (System.Func<float, float>)null,
                 Projectile = _projectile,
                 ProjectileLifetime = _projectileLifetime,
-                HoldPoint = _holdPoint
+                HoldPoint = _holdPoint,
+                StaminaCost = _staminaCost,
+                Parryable = _parryable
             };
+            if (_warp.Problem() == null)
+                definition.Warp = _warp;
             // A broken row is left out (Problems names it) rather than failing the whole attack
             definition.Motions = _motions.FindAll(motion => motion.Problem() == null);
             definition.Sweep = _sweep.FindAll(segment => segment.Problem() == null);
@@ -170,12 +185,15 @@ namespace RPGFramework.ActionCombat
         }
 
         /// <summary>
-        /// What is wrong with its motions and sweep segments (the rows are left out of the attack). The inspector logs
+        /// What is wrong with its warp, motions and sweep segments (they are left out of the attack). The inspector logs
         /// these as warnings.
         /// </summary>
         public System.Collections.Generic.List<string> Problems()
         {
             var problems = new System.Collections.Generic.List<string>();
+            string warp = _warp.Problem();
+            if (warp != null)
+                problems.Add("Warp: " + warp);
             for (int i = 0; i < _motions.Count; i++)
             {
                 string wrong = _motions[i].Problem();

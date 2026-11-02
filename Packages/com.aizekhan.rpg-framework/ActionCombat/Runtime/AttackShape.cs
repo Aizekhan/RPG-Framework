@@ -145,6 +145,103 @@ namespace RPGFramework.ActionCombat
     }
 
     /// <summary>
+    /// Motion warping: during [<see cref="From"/>, <see cref="Until"/>) of a phase the attack pulls its attacker
+    /// towards its target, up to <see cref="StopDistance"/> from it, and turns it to face it, so a blow started a little
+    /// off still meets the target (<see cref="AttackDefinition.Warp"/>, <see cref="CombatRules.WarpOf"/>). Over its part
+    /// of the phase it covers at most <see cref="MaxDistance"/> metres and turns at most <see cref="MaxAngle"/> degrees;
+    /// a target farther or further round is met as far as those allow. Both 0: no warp.
+    /// </summary>
+    [Serializable]
+    public struct AttackWarp
+    {
+        public AttackPhase Phase;
+
+        /// <summary>
+        /// Where in the phase it starts (0..1 of the phase).
+        /// </summary>
+        public float From;
+
+        /// <summary>
+        /// Where in the phase it ends (0..1); at or below <see cref="From"/>: the end of the phase.
+        /// </summary>
+        public float Until;
+
+        /// <summary>
+        /// Metres it may pull the attacker over its part of the phase; 0 = it only turns.
+        /// </summary>
+        public float MaxDistance;
+
+        /// <summary>
+        /// Degrees it may turn the attacker over its part of the phase (up to 180); 0 = it only pulls.
+        /// </summary>
+        public float MaxAngle;
+
+        /// <summary>
+        /// The gap it keeps to the target, centre to centre, metres; 0 = the caller's (the enemy director passes
+        /// <see cref="EnemyBehaviour.ContactDistance"/>).
+        /// </summary>
+        public float StopDistance;
+
+        public AttackWarp(AttackPhase phase, float maxDistance, float maxAngle, float from = 0f, float until = 1f, float stopDistance = 0f)
+        {
+            Phase = phase;
+            MaxDistance = maxDistance;
+            MaxAngle = maxAngle;
+            From = from;
+            Until = until;
+            StopDistance = stopDistance;
+        }
+
+        public bool IsSet => MaxDistance > 0f || MaxAngle > 0f;
+
+        internal float End => Until > From ? Math.Min(1f, Until) : 1f;
+
+        /// <summary>
+        /// What is wrong with it, or null.
+        /// </summary>
+        public string Problem()
+        {
+            if (!Finite(MaxDistance) || MaxDistance < 0f)
+                return "Max Distance is a finite number, 0 or more";
+            if (!Finite(MaxAngle) || MaxAngle < 0f || MaxAngle > 180f)
+                return "Max Angle is 0 up to 180 degrees";
+            if (!Finite(StopDistance) || StopDistance < 0f)
+                return "Stop Distance is a finite number, 0 or more";
+            if (!Finite(From) || From < 0f || From >= 1f)
+                return "From is a share of the phase, 0 up to 1";
+            if (!Finite(Until))
+                return "Until is a share of the phase";
+            return null;
+        }
+
+        private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
+    }
+
+    /// <summary>
+    /// How an attack's warp moves its attacker right now (<see cref="CombatRules.WarpOf"/>), in the world.
+    /// </summary>
+    public readonly struct AttackWarpSample
+    {
+        public AttackWarpSample(CombatVector velocity, float turnSpeed)
+        {
+            Velocity = velocity;
+            TurnSpeed = turnSpeed;
+        }
+
+        /// <summary>
+        /// Metres per second towards the target, on the ground.
+        /// </summary>
+        public CombatVector Velocity { get; }
+
+        /// <summary>
+        /// Degrees per second the attacker turns, positive to the right.
+        /// </summary>
+        public float TurnSpeed { get; }
+
+        public bool IsWarping => Velocity.X != 0f || Velocity.Z != 0f || TurnSpeed != 0f;
+    }
+
+    /// <summary>
     /// A part of the volume an attack's weapon sweeps, in the attacker's space and in time: during
     /// [<see cref="From"/>, <see cref="Until"/>) of the active window, a slice of a ring around the attacker
     /// (<see cref="ArcFrom"/>..<see cref="ArcTo"/> degrees from its forward, positive to the right;

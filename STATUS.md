@@ -40,7 +40,7 @@ A version bump goes through `python .github/scripts/release.py X.Y.Z`, which wri
 
 The register of everything known to be open, missing or limited. One `KI-NN` per bullet; ids are never reused.
 When a change closes one, its CHANGELOG line names the KI and the bullet is deleted here in the same commit.
-Next id: **KI-24**.
+Next id: **KI-25**.
 
 **Medium**
 - **KI-01** TurnBased: no content assets (the game fills `ConfigureGame` in code); items only in battle; no auto-battle setting for the party
@@ -68,6 +68,7 @@ Next id: **KI-24**.
 - **KI-21** Assets imported outside `Assets/ThirdParty/<Source>/<Asset>/` are not detected by GA15
 - **KI-22** MythHunter's parallel system registry is not ported (Unity API is main-thread only; no proven need)
 - **KI-23** ActionCombat: no weights of the player's moves against a monster's moves for the enemy brain (the later part of MythRunner FG-31)
+- **KI-24** ActionCombat: enemies do not parry (`EnemyBehaviour` has only `BlockChance` and `DodgeChance`; parry is for the player and the game's own AI)
 
 ## Next steps
 

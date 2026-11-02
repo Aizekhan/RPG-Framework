@@ -165,6 +165,12 @@ namespace RPGFramework.ActionCombat
         /// </summary>
         public void UseBlockStock(IBlockStock stock) => Rules.BlockStock = stock;
 
+        /// <summary>
+        /// What starting an attack costs (<see cref="AttackDefinition.StaminaCost"/>), often the same stock as the
+        /// block's; null: attacking is free.
+        /// </summary>
+        public void UseAttackStock(IBlockStock stock) => Rules.AttackStock = stock;
+
         private void Awake()
         {
             // One arena per scene; a newer one (the next scene's) takes over

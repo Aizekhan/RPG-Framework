@@ -360,6 +360,7 @@ namespace RPGFramework.ActionCombat
             var motion = _rules.MotionOf(id);
             var way = CombatVector.Zero;
             float pace = 0f;
+            var velocity = CombatVector.Zero;
             if (motion.IsMoving)
             {
                 float ahead = motion.Forward;
@@ -367,11 +368,20 @@ namespace RPGFramework.ActionCombat
                 if (ahead > 0f && known && distance <= Math.Max(move.MinRange, behaviour.ContactDistance))
                     ahead = 0f;
                 var body = forward.Flat.Length > 1e-4f ? forward : face;
-                var velocity = new AttackMotionSample(ahead, motion.Side, motion.Height).InWorld(body);
-                pace = velocity.Length;
-                if (pace > 1e-5f)
-                    way = Steer(brain, new CombatVector(velocity.X / pace, 0f, velocity.Z / pace));
+                velocity = new AttackMotionSample(ahead, motion.Side, motion.Height).InWorld(body);
             }
+            // Motion warping pulls it on to the target and turns it to face it
+            if (known && move.Attack.Warp.IsSet && _world.TryGetPose(brain.Target, out var aim, out _))
+            {
+                _rules.SetPose(id, position, forward);
+                var warp = _rules.WarpOf(id, aim, behaviour.ContactDistance);
+                velocity += warp.Velocity;
+                if (warp.TurnSpeed != 0f)
+                    turn = Math.Max(turn, Math.Abs(warp.TurnSpeed));
+            }
+            pace = velocity.Length;
+            if (pace > 1e-5f)
+                way = Steer(brain, new CombatVector(velocity.X / pace, 0f, velocity.Z / pace));
             brain.Intent = new EnemyIntent(EnemyState.Attacking, brain.Target, way, pace, face, turn, motion.Height);
 
             if (SweepAttacks && combat == CombatState.Active)

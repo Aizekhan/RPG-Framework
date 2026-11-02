@@ -31,6 +31,65 @@ namespace RPGFramework.ActionCombat
     /// (<see cref="CombatRules.HoldWindUp"/>). The animation stands still while it is held
     /// (<see cref="CombatRules.AnimationPaceOf"/> is 0 there).
     /// </summary>
+    /// <summary>
+    /// A parry began (<see cref="CombatRules.Parry"/>).
+    /// </summary>
+    public readonly struct ParryStartedEvent : IEvent
+    {
+        public ParryStartedEvent(int entityId, float window, float seconds, float time)
+        {
+            EntityId = entityId;
+            Window = window;
+            Seconds = seconds;
+            Time = time;
+        }
+
+        public int EntityId { get; }
+
+        /// <summary>
+        /// Seconds the parry is open.
+        /// </summary>
+        public float Window { get; }
+
+        /// <summary>
+        /// Seconds the whole parry lasts, its recovery included.
+        /// </summary>
+        public float Seconds { get; }
+
+        public float Time { get; }
+    }
+
+    /// <summary>
+    /// A blow was parried: no damage; a melee attacker's attack is broken and it is opened for
+    /// <see cref="StunSeconds"/> (0 for a projectile, or when the parrier's settings open no one).
+    /// </summary>
+    public readonly struct ParriedEvent : IEvent
+    {
+        public ParriedEvent(int defenderId, int attackerId, int swingId, string attackId, float stunSeconds, bool onBlockRaise, float time)
+        {
+            DefenderId = defenderId;
+            AttackerId = attackerId;
+            SwingId = swingId;
+            AttackId = attackId;
+            StunSeconds = stunSeconds;
+            OnBlockRaise = onBlockRaise;
+            Time = time;
+        }
+
+        public int DefenderId { get; }
+        public int AttackerId { get; }
+        public int SwingId { get; }
+        public string AttackId { get; }
+        public float StunSeconds { get; }
+
+        /// <summary>
+        /// The block had just risen (<see cref="CombatantSettings.ParryOnBlockRaise"/>), not a parry of its own.
+        /// </summary>
+        public bool OnBlockRaise { get; }
+
+        public float Time { get; }
+    }
+
     public readonly struct WindUpHeldEvent : IEvent
     {
         public WindUpHeldEvent(int entityId, int swingId, string attackId, bool held, float time)

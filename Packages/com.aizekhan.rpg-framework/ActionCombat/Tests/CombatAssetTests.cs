@@ -153,6 +153,42 @@ namespace RPGFramework.ActionCombat.Tests
             }
         }
 
+        // WhiteWrite: stamina, parry and warp come from the inspector; a broken warp is left out and named
+        [Test]
+        public void AnAttacksCostParryAndWarp_AndACombatantsParry_ComeFromTheInspector()
+        {
+            _attack = ScriptableObject.CreateInstance<AttackAsset>();
+            _attack.name = "heavy";
+            var attack = new SerializedObject(_attack);
+            attack.FindProperty("_staminaCost").floatValue = 12f;
+            attack.FindProperty("_parryable").boolValue = false;
+            var warp = attack.FindProperty("_warp");
+            warp.FindPropertyRelative("MaxDistance").floatValue = 1.5f;
+            warp.FindPropertyRelative("MaxAngle").floatValue = 40f;
+            attack.ApplyModifiedPropertiesWithoutUndo();
+
+            var definition = _attack.Definition;
+            Assert.That(definition.StaminaCost, Is.EqualTo(12f));
+            Assert.That(definition.Parryable, Is.False);
+            Assert.That(definition.Warp.MaxDistance, Is.EqualTo(1.5f));
+            Assert.That(definition.Warp.Until, Is.EqualTo(1f), "to the end of the phase");
+
+            warp.FindPropertyRelative("MaxAngle").floatValue = 270f;
+            attack.ApplyModifiedPropertiesWithoutUndo();
+            Assert.That(_attack.Problems(), Has.Some.Contains("Warp"));
+
+            _object = new GameObject("knight");
+            var combatant = _object.AddComponent<Combatant>();
+            var serialized = new SerializedObject(combatant);
+            serialized.FindProperty("_parryWindow").floatValue = 0.2f;
+            serialized.FindProperty("_parryOnBlockRaise").boolValue = true;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            var settings = combatant.BuildSettings();
+            Assert.That(settings.ParryWindow, Is.EqualTo(0.2f).Within(1e-5f));
+            Assert.That(settings.ParryOnBlockRaise, Is.True);
+            Assert.That(settings.ParryFailDamageMultiplier, Is.EqualTo(1f));
+        }
+
         private static AnimationClip ClipOf(float length, params (float Time, string Name)[] events)
         {
             var clip = new AnimationClip();

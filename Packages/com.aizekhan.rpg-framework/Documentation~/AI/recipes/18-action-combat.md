@@ -13,11 +13,11 @@ the `Combat` damage calculator); use `ActionCombat` when the timing of a blow ma
 ## What it does
 
 - **Attack phases** (`AttackDefinition` / `AttackAsset`): `WindUp` → `Active` → `Recovery` seconds, a damage
-  multiplier, `Stagger` (poise damage), `Interruptible` (off = hyper armour), `BlockCost`, `Tags`/`SourceId` for the
-  damage rules. A combatant's state (`CombatState`): Idle, Charging, WindUp, Active, Recovery, Dodging, Blocking,
-  HitReact.
+  multiplier, `Stagger` (poise damage), `Interruptible` (off = hyper armour), `BlockCost`, `StaminaCost`,
+  `Parryable`, `Tags`/`SourceId` for the damage rules. A combatant's state (`CombatState`): Idle, Charging, WindUp,
+  Active, Recovery, Dodging, Blocking, HitReact, Parrying.
 - **Contact decides the hit:** `rules.ReportContact(attacker, target, swingId, point)` lands **only in the
-  attacker's active window, once per target per swing**. Result (`ContactResult`): Hit, Blocked, Dodged, or Ignored
+  attacker's active window, once per target per swing**. Result (`ContactResult`): Hit, Blocked, Dodged, Parried, or Ignored
   with a reason (`ContactIgnored`: outside the window, already hit, not hostile, unknown swing, self). A hit deals
   damage through `ICombatDamage`: in a kit game that is `IActorWorld.Attack` with the attack's multiplier
   (`ActorWorldDamage`), so crits, evasion, resistances and life steal still apply.
@@ -35,6 +35,16 @@ the `Combat` damage calculator); use `ActionCombat` when the timing of a blow ma
   `BlockAngle` cone in front; each blocked blow costs `BlockCost` from an `IBlockStock` (stamina; none = free). When
   the stock cannot pay, the guard breaks: the blow lands and staggers. `BlockDamageMultiplier` lets a share through.
   Held during an attack, the block rises when it ends.
+- **Parry:** `Parry(entity)` (a combatant with a `ParryWindow`): for the window a blow from the block's cone is
+  parried (`ContactResult.Parried`, `ParriedEvent`): no damage, and a melee attacker's attack breaks and it is opened
+  for the parrier's `ParryStunSeconds` (`IsOpened`, the moment for a riposte). After the window comes
+  `ParryRecovery`: a blow then is a failed parry (`ParryFailDamageMultiplier` of its damage, and it staggers).
+  `ParryOnBlockRaise` makes a raised block parry in its first `ParryWindow` (a perfect block). `ParryCost` spends a
+  share of the blow's `BlockCost` from the block stock (one it cannot pay is not a parry). An attack with
+  `Parryable` off is never parried.
+- **Stamina for attacks:** `StaminaCost` is paid from `rules.AttackStock` (`arena.UseAttackStock(stock)`, an
+  `IBlockStock`, often the same one as the block's) when the attack or charge starts; an attacker that cannot pay is
+  refused. Exhaustion rules (attack weaker, attack anyway) are the stock's: return true and apply them.
 - **Hold to charge:** `BeginCharge(entity, attack)` (an attack with `MaxCharge` > 0), `Release(entity)`. The hold is
   clamped to [`MinCharge`, `MaxCharge`]; damage scales from 1 to `MaxChargeMultiplier` along `ChargeCurve`. A release
   under `MinCharge` is the quick attack (`QuickAttack`, or the same attack uncharged). A bow is the same thing: draw =
@@ -55,6 +65,12 @@ the `Combat` damage calculator); use `ActionCombat` when the timing of a blow ma
     `Radius`; `HeightMin`..`HeightMax` above its feet, both 0 = any). `Sweep(attacker, target, position, radius)`
     reports a contact only when the body is inside the segment active at that moment: weapon contact without
     physics. `TryGetSweepSegment` gives it to draw (a `Hitbox` draws its owner's in the scene view).
+- **Motion warping** (an `AttackAsset`'s Warp section, `AttackDefinition.Warp`): during part of a phase
+  (`From`/`Until`) the attack pulls its attacker to its target, up to `StopDistance` from it (0 = the caller's gap),
+  and turns it to face it, so a blow started a little off still meets the target. Over that part it covers at most
+  `MaxDistance` and turns at most `MaxAngle`. `WarpOf(entity, targetPosition)` is the velocity and turn speed now
+  (from the attacker's pose); apply it every frame on top of `MotionOf`. The enemy director does this for its
+  bodies, keeping `ContactDistance`. Max Distance and Max Angle 0 = no warp.
 - **Events** (readonly structs on the arena's bus, every one with `Time`): `AttackStartedEvent` (`Charging`),
   `AttackReleasedEvent`, `AttackActiveStartedEvent` / `AttackActiveEndedEvent`, `AttackEndedEvent` (`Interrupted`),
   `ContactResolvedEvent`, `HitReactStartedEvent` / `HitReactEndedEvent`, `DodgeStartedEvent` (with the
@@ -75,7 +91,8 @@ the `Combat` damage calculator); use `ActionCombat` when the timing of a blow ma
 5. Attacks: **Create > RPG Framework > Action Combat > Attack**. Seconds, or a clip: its length split at
    `Active Start`/`Active End` (shares of the clip) or at `ActiveStart`/`ActiveEnd` animation events.
 6. **`CombatAnimatorBridge`**: sets the animator's `Attack` (or the attack's own trigger), `ChargeHold`,
-   `ChargeRelease`, `Dodge`, `HitReact`, `Block`; missing parameters are skipped.
+   `ChargeRelease`, `Dodge`, `HitReact`, `Block`, `Parry`, `ParrySuccess` (the parrier) and `Opened` (the parried
+   attacker); missing parameters are skipped.
    Attack speed: set `combatant.AttackSpeed` (or `rules.SetAttackSpeed(id, k)`) from the game's stats. 1.5
    makes wind-up, active window and recovery last 1/1.5 as long; set mid-swing, the phase keeps its progress.
    Add a float `AttackPace` to the controller and tick **Multiplier** on the attack states with it: the bridge

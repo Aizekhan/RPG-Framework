@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+- ActionCombat: parry, stamina for attacks and motion warping (WhiteWrite, for the UMCF combat templates; asked by the owner).
+  - Parry: `CombatRules.Parry` opens a parry (`CombatState.Parrying`) for `CombatantSettings.ParryWindow`, then a `ParryRecovery`. A blow from the front inside the window is parried (`ContactResult.Parried`, `ParriedEvent`): no damage, and a melee attacker's attack breaks, leaving it opened for `ParryStunSeconds` (`CombatRules.IsOpened`). A blow in the recovery is a failed parry and deals `ParryFailDamageMultiplier` of its damage. `ParryOnBlockRaise` makes the first `ParryWindow` of a raised block parry too (a perfect block). `ParryCost` is the share of the blow's `BlockCost` a parry spends from the block stock. `AttackDefinition.Parryable` off makes an attack unparryable. `CombatRules.IsParrying`, `ParryStartedEvent`, timeline `ParryStarted` / `ParryEnded` / `Parried`.
+  - Stamina: `AttackDefinition.StaminaCost` is paid from `CombatRules.AttackStock` (an `IBlockStock`, often the block's own; `CombatArena.UseAttackStock`) when an attack or a charge starts. An attacker that cannot pay is refused (timeline "cannot pay"). The game's policy lives in its stock.
+  - Motion warping: `AttackDefinition.Warp` (`AttackWarp`: phase, `From`/`Until`, `MaxDistance`, `MaxAngle`, `StopDistance`) and `CombatRules.WarpOf(entity, target)` (`AttackWarpSample`: velocity, turn speed). The warp pulls the attacker to the target and turns it to face it, arriving when its part of the phase ends, within its limits. The enemy director applies it to its bodies.
+  - Unity: `AttackAsset` Cost and parry (Stamina Cost, Parryable) and Warp sections; `Combatant` Parry section and `Parry()`; `CombatAnimatorBridge` triggers `Parry`, `ParrySuccess`, `Opened`.
+  - The defaults change nothing: no parry window, no stamina cost, no warp. Recipe 18.
+
 ## [0.37.0] - 2026-11-02
 
 ### Added

@@ -64,7 +64,22 @@ namespace RPGFramework.ActionCombat
         /// <summary>
         /// Its held wind-up was let go: the wind-up goes on to the blow.
         /// </summary>
-        WindUpReleased = 19
+        WindUpReleased = 19,
+
+        /// <summary>
+        /// A parry began (<see cref="CombatRules.Parry"/>); <see cref="TimelineEntry.Value"/> is its window.
+        /// </summary>
+        ParryStarted = 20,
+
+        /// <summary>
+        /// A parry ended (its time ran out, or a blow broke it).
+        /// </summary>
+        ParryEnded = 21,
+
+        /// <summary>
+        /// A blow was parried; the entity is the defender, the other the attacker, the value the attacker's stun.
+        /// </summary>
+        Parried = 22
     }
 
     /// <summary>

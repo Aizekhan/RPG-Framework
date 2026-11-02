@@ -17,6 +17,8 @@ namespace RPGFramework.ActionCombat
         private float _maxChargeMultiplier = 1f;
         private float _projectileLifetime = 5f;
         private float _holdPoint = 1f;
+        private float _staminaCost;
+        private AttackWarp _warp;
         private AttackMotion[] _motions = Array.Empty<AttackMotion>();
         private SweepSegment[] _sweep = Array.Empty<SweepSegment>();
 
@@ -74,6 +76,37 @@ namespace RPGFramework.ActionCombat
         {
             get => _blockCost;
             set => _blockCost = NotNegative(value, nameof(BlockCost));
+        }
+
+        /// <summary>
+        /// What starting the attack costs the attacker (stamina) from <see cref="CombatRules.AttackStock"/>; an attacker
+        /// that cannot pay does not start it. 0 = free.
+        /// </summary>
+        public float StaminaCost
+        {
+            get => _staminaCost;
+            set => _staminaCost = NotNegative(value, nameof(StaminaCost));
+        }
+
+        /// <summary>
+        /// False: it cannot be parried (a parry meets it as a block would, or as a failed parry).
+        /// </summary>
+        public bool Parryable { get; set; } = true;
+
+        /// <summary>
+        /// Motion warping: during part of a phase the attack pulls its attacker to its target and turns it to face it
+        /// (<see cref="AttackWarp"/>, <see cref="CombatRules.WarpOf"/>); default: none.
+        /// </summary>
+        public AttackWarp Warp
+        {
+            get => _warp;
+            set
+            {
+                string wrong = value.Problem();
+                if (wrong != null)
+                    throw new ArgumentException("Warp: " + wrong, nameof(Warp));
+                _warp = value;
+            }
         }
 
         /// <summary>
@@ -292,6 +325,40 @@ namespace RPGFramework.ActionCombat
         public float BlockDamageMultiplier { get; set; }
 
         /// <summary>
+        /// Seconds a parry is open (<see cref="CombatRules.Parry"/>, or after the block rises with
+        /// <see cref="ParryOnBlockRaise"/>); 0 = this combatant cannot parry.
+        /// </summary>
+        public float ParryWindow { get; set; }
+
+        /// <summary>
+        /// Seconds after the window before a parry ends; a blow then is a failed parry.
+        /// </summary>
+        public float ParryRecovery { get; set; } = 0.3f;
+
+        /// <summary>
+        /// Seconds a parried melee attacker stays opened (its attack broken, <see cref="CombatRules.IsOpened"/>);
+        /// 0 = a parry only stops the blow.
+        /// </summary>
+        public float ParryStunSeconds { get; set; } = 1f;
+
+        /// <summary>
+        /// Share of the blow's <see cref="AttackDefinition.BlockCost"/> a parry spends from the block stock (0 = free).
+        /// One it cannot pay is not a parry.
+        /// </summary>
+        public float ParryCost { get; set; }
+
+        /// <summary>
+        /// Share of the damage a blow deals in a parry's recovery (a failed parry); 1 = a plain hit.
+        /// </summary>
+        public float ParryFailDamageMultiplier { get; set; } = 1f;
+
+        /// <summary>
+        /// Raising the block parries too: a blow inside <see cref="ParryWindow"/> after the block rose is parried
+        /// (a perfect block); later it is blocked as usual.
+        /// </summary>
+        public bool ParryOnBlockRaise { get; set; }
+
+        /// <summary>
         /// The reaction to a staggering blow of this force.
         /// </summary>
         public HitTier TierOf(float stagger) =>
@@ -324,11 +391,13 @@ namespace RPGFramework.ActionCombat
     }
 
     /// <summary>
-    /// What a block spends per blow (stamina, a shield's durability). Without one, blocking is free.
+    /// What a block spends per blow (stamina, a shield's durability); as <see cref="CombatRules.AttackStock"/>, what
+    /// an attack costs to start. Without one, it is free. The game's policy lives here: a stock may let an exhausted
+    /// fighter act anyway (return true) and weaken it its own way.
     /// </summary>
     public interface IBlockStock
     {
-        /// <returns>False when the defender cannot pay: the guard breaks and the blow lands.</returns>
+        /// <returns>False when it cannot pay: a block's guard breaks and the blow lands; an attack does not start.</returns>
         bool TrySpend(int entityId, float amount);
     }
 }

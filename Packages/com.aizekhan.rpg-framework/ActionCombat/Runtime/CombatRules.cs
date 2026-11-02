@@ -45,6 +45,12 @@ namespace RPGFramework.ActionCombat
         /// </summary>
         public IBlockStock BlockStock { get; set; }
 
+        /// <summary>
+        /// What starting an attack costs (<see cref="AttackDefinition.StaminaCost"/>), often the same stock as
+        /// <see cref="BlockStock"/>; null: attacking is free. An attacker that cannot pay is refused.
+        /// </summary>
+        public IBlockStock AttackStock { get; set; }
+
         public IEventPublisher Events { get; }
         public CombatTimeline Timeline { get; }
 
@@ -228,8 +234,7 @@ namespace RPGFramework.ActionCombat
             var motions = fighter.Attack.MotionArray;
             if (motions.Length == 0)
                 return default;
-            var phase = fighter.State == CombatState.WindUp ? AttackPhase.WindUp
-                : fighter.State == CombatState.Active ? AttackPhase.Active : AttackPhase.Recovery;
+            var phase = PhaseOf(fighter.State);
             float share = fighter.Elapsed / fighter.Length;
             float forward = 0f, side = 0f, height = 0f;
             for (int i = 0; i < motions.Length; i++)
@@ -262,6 +267,53 @@ namespace RPGFramework.ActionCombat
                 }
             }
             return new AttackMotionSample(forward, side, height);
+        }
+
+        /// <summary>
+        /// How its attack's warp (<see cref="AttackDefinition.Warp"/>) moves it now towards <paramref name="target"/>,
+        /// from where it stands (<see cref="SetPose"/>): a velocity on the ground and a turn speed. The speed spreads
+        /// what is left over what is left of the warp's part of the phase, so it arrives
+        /// <see cref="AttackWarp.StopDistance"/> (or <paramref name="keepDistance"/>) from the target, facing it, when
+        /// that part ends, but never covers more than <see cref="AttackWarp.MaxDistance"/> or turns more than
+        /// <see cref="AttackWarp.MaxAngle"/>. Nothing outside it, without a pose, and while a held wind-up waits.
+        /// Call it every frame with the target's position and apply it on top of <see cref="MotionOf"/>.
+        /// </summary>
+        public AttackWarpSample WarpOf(int entityId, CombatVector target, float keepDistance = 0f)
+        {
+            var fighter = Find(entityId);
+            if (fighter == null || !fighter.HasPose || !IsTimedAttackPhase(fighter.State) || fighter.Length <= 0f ||
+                WaitsAtHold(fighter))
+                return default;
+            var warp = fighter.Attack.Warp;
+            if (!warp.IsSet || warp.Phase != PhaseOf(fighter.State))
+                return default;
+            float share = fighter.Elapsed / fighter.Length;
+            float end = warp.End;
+            if (share < warp.From || share >= end)
+                return default;
+            float window = (end - warp.From) * fighter.Length;
+            float left = Math.Max((end - share) * fighter.Length, 1e-4f);
+            var offset = (target - fighter.Position).Flat;
+            float distance = offset.Length;
+
+            var velocity = CombatVector.Zero;
+            float stop = warp.StopDistance > 0f ? warp.StopDistance : Math.Max(0f, keepDistance);
+            if (warp.MaxDistance > 0f && distance > stop + 1e-4f)
+            {
+                float speed = Math.Min(warp.MaxDistance / window, (distance - stop) / left);
+                velocity = new CombatVector(offset.X / distance * speed, 0f, offset.Z / distance * speed);
+            }
+            float turn = 0f;
+            var facing = fighter.Forward.Flat;
+            if (warp.MaxAngle > 0f && distance > 1e-4f && facing.Length > 1e-5f)
+            {
+                // Signed angle to the target, positive to the right (as a sweep's arcs)
+                float angle = (float)(Math.Atan2(offset.X * facing.Z - offset.Z * facing.X,
+                    offset.X * facing.X + offset.Z * facing.Z) * 180.0 / Math.PI);
+                float limit = warp.MaxAngle / window;
+                turn = Math.Max(-limit, Math.Min(limit, angle / left));
+            }
+            return new AttackWarpSample(velocity, turn);
         }
 
         /// <summary>
@@ -331,6 +383,26 @@ namespace RPGFramework.ActionCombat
             position = fighter?.Position ?? CombatVector.Zero;
             forward = fighter?.Forward ?? CombatVector.Zero;
             return fighter != null && fighter.HasPose;
+        }
+
+        /// <summary>
+        /// A blow from the front now would be parried (inside a parry's window, or just after the block rose with
+        /// <see cref="CombatantSettings.ParryOnBlockRaise"/>).
+        /// </summary>
+        public bool IsParrying(int entityId)
+        {
+            var fighter = Find(entityId);
+            return fighter != null && InParryWindow(fighter);
+        }
+
+        /// <summary>
+        /// Opened by a parry: its attack was broken and it reacts for the parrier's
+        /// <see cref="CombatantSettings.ParryStunSeconds"/> (a riposte's moment).
+        /// </summary>
+        public bool IsOpened(int entityId)
+        {
+            var fighter = Find(entityId);
+            return fighter != null && fighter.State == CombatState.HitReact && fighter.Opened;
         }
 
         /// <summary>
@@ -457,6 +529,31 @@ namespace RPGFramework.ActionCombat
         }
 
         /// <summary>
+        /// Parries: for <see cref="CombatantSettings.ParryWindow"/> a blow from the front (within the block's cone) of a
+        /// <see cref="AttackDefinition.Parryable"/> attack is parried, then it recovers for
+        /// <see cref="CombatantSettings.ParryRecovery"/>, when a blow lands as a failed parry
+        /// (<see cref="CombatantSettings.ParryFailDamageMultiplier"/>). From Idle or Blocking; a held block rises again
+        /// after it.
+        /// </summary>
+        /// <returns>False when refused (busy, or the combatant cannot parry: no window).</returns>
+        public bool Parry(int entityId)
+        {
+            var fighter = Find(entityId);
+            if (fighter == null || fighter.Settings.ParryWindow <= 0f ||
+                (fighter.State != CombatState.Idle && fighter.State != CombatState.Blocking))
+                return Refuse(fighter, entityId, "parry");
+            if (fighter.State == CombatState.Blocking)
+                Raise(new BlockLoweredEvent(entityId, Time), new TimelineEntry(Time, TimelineKind.BlockLowered, entityId));
+            var settings = fighter.Settings;
+            float seconds = settings.ParryWindow + Math.Max(0f, settings.ParryRecovery);
+            Enter(fighter, CombatState.Parrying, seconds);
+            Raise(new ParryStartedEvent(entityId, settings.ParryWindow, seconds, Time),
+                new TimelineEntry(Time, TimelineKind.ParryStarted, entityId, value: settings.ParryWindow));
+            Advance(fighter, 0f);
+            return true;
+        }
+
+        /// <summary>
         /// Holds or lets go of the block. Held while busy (attacking, dodging, staggered), it rises once that ends.
         /// </summary>
         public void SetBlocking(int entityId, bool held)
@@ -468,6 +565,7 @@ namespace RPGFramework.ActionCombat
             if (held && fighter.State == CombatState.Idle)
             {
                 fighter.State = CombatState.Blocking;
+                fighter.BlockSince = Time;
                 Raise(new BlockRaisedEvent(entityId, Time), new TimelineEntry(Time, TimelineKind.BlockRaised, entityId));
             }
             else if (!held && fighter.State == CombatState.Blocking)
@@ -503,6 +601,17 @@ namespace RPGFramework.ActionCombat
             if (target != null && IsInvulnerable(target))
                 return Resolve(attackerId, targetId, swingId, attackId, ContactResult.Dodged, ContactIgnored.None, 0f, false, point);
 
+            if (target != null && swing.Attack.Parryable && InParryWindow(target) && Faces(target, attackerId, point) &&
+                (BlockStock == null || target.Settings.ParryCost <= 0f ||
+                 BlockStock.TrySpend(targetId, swing.Attack.BlockCost * target.Settings.ParryCost)))
+            {
+                var parried = Resolve(attackerId, targetId, swingId, attackId, ContactResult.Parried, ContactIgnored.None, 0f, false, point);
+                Parried(target, attackerId, swing);
+                return parried;
+            }
+            // A blow in a parry's recovery, or one it could not parry
+            float share = target != null && target.State == CombatState.Parrying ? target.Settings.ParryFailDamageMultiplier : 1f;
+
             bool guardBroken = false;
             if (target != null && target.State == CombatState.Blocking && Faces(target, attackerId, point))
             {
@@ -515,7 +624,7 @@ namespace RPGFramework.ActionCombat
                 guardBroken = true;
             }
 
-            float dealt = Deal(swing, targetId, 1f);
+            float dealt = Deal(swing, targetId, share);
             var result = Resolve(attackerId, targetId, swingId, attackId, ContactResult.Hit, ContactIgnored.None, dealt, guardBroken, point);
             if (target != null && !target.Removed)
                 React(target, attackerId, swing.Attack, guardBroken);
@@ -567,6 +676,12 @@ namespace RPGFramework.ActionCombat
             var fighter = Find(entityId);
             if (fighter == null || (fighter.State != CombatState.Idle && fighter.State != CombatState.Blocking))
                 return Refuse(fighter, entityId, (charging ? "charge " : "attack ") + attack.Id);
+            if (attack.StaminaCost > 0f && AttackStock != null && !AttackStock.TrySpend(entityId, attack.StaminaCost))
+            {
+                Timeline?.Record(new TimelineEntry(Time, TimelineKind.Refused, entityId, attackId: attack.Id,
+                    value: attack.StaminaCost, note: $"{(charging ? "charge " : "attack ")}{attack.Id}: cannot pay {attack.StaminaCost:0.##}"));
+                return false;
+            }
             if (fighter.State == CombatState.Blocking)
                 Raise(new BlockLoweredEvent(entityId, Time), new TimelineEntry(Time, TimelineKind.BlockLowered, entityId));
 
@@ -656,7 +771,12 @@ namespace RPGFramework.ActionCombat
                     Rest(fighter, at);
                     break;
                 case CombatState.HitReact:
+                    fighter.Opened = false;
                     Raise(new HitReactEndedEvent(id, at), new TimelineEntry(at, TimelineKind.HitReactEnded, id));
+                    Rest(fighter, at);
+                    break;
+                case CombatState.Parrying:
+                    Timeline?.Record(new TimelineEntry(at, TimelineKind.ParryEnded, id));
                     Rest(fighter, at);
                     break;
             }
@@ -688,6 +808,7 @@ namespace RPGFramework.ActionCombat
         {
             fighter.Attack = null;
             Enter(fighter, fighter.BlockHeld ? CombatState.Blocking : CombatState.Idle, 0f);
+            fighter.BlockSince = at;
             if (fighter.State == CombatState.Blocking)
                 Raise(new BlockRaisedEvent(fighter.Id, at), new TimelineEntry(at, TimelineKind.BlockRaised, fighter.Id));
         }
@@ -734,12 +855,47 @@ namespace RPGFramework.ActionCombat
                 case CombatState.Blocking:
                     Raise(new BlockLoweredEvent(target.Id, Time), new TimelineEntry(Time, TimelineKind.BlockLowered, target.Id));
                     break;
+                case CombatState.Parrying:
+                    Timeline?.Record(new TimelineEntry(Time, TimelineKind.ParryEnded, target.Id, note: "interrupted"));
+                    break;
             }
             Enter(target, CombatState.HitReact, seconds);
             target.Tier = tier;
+            target.Opened = false;
             Raise(new HitReactStartedEvent(target.Id, attackerId, seconds, Time, tier, settings.KnockbackOf(tier), Away(target, attackerId)),
                 new TimelineEntry(Time, TimelineKind.HitReactStarted, target.Id, attackerId, value: seconds,
                     note: tier != HitTier.Light ? tier + (force ? ", guard broken" : "") : force ? "guard broken" : null));
+        }
+
+        // The parrier stopped the blow: a melee attacker's attack breaks and it is opened
+        private void Parried(Fighter defender, int attackerId, Swing swing)
+        {
+            var attacker = Find(attackerId);
+            bool opens = !swing.Projectile && attacker != null && !attacker.Removed && IsAttacking(attacker.State) &&
+                         attacker.Swing == swing.Id;
+            float stun = opens ? Math.Max(0f, defender.Settings.ParryStunSeconds) : 0f;
+            bool onBlockRaise = defender.State == CombatState.Blocking;
+            Raise(new ParriedEvent(defender.Id, attackerId, swing.Id, swing.Attack.Id, stun, onBlockRaise, Time),
+                new TimelineEntry(Time, TimelineKind.Parried, defender.Id, attackerId, swing.Id, swing.Attack.Id, value: stun,
+                    note: onBlockRaise ? "on block raise" : null));
+            if (stun <= 0f)
+                return;
+            EndAttack(attacker, true, Time);
+            Enter(attacker, CombatState.HitReact, stun);
+            attacker.Tier = HitTier.Light;
+            attacker.Opened = true;
+            Raise(new HitReactStartedEvent(attacker.Id, defender.Id, stun, Time, HitTier.Light, 0f, CombatVector.Zero),
+                new TimelineEntry(Time, TimelineKind.HitReactStarted, attacker.Id, defender.Id, value: stun, note: "parried"));
+        }
+
+        private bool InParryWindow(Fighter fighter)
+        {
+            var settings = fighter.Settings;
+            if (settings.ParryWindow <= 0f)
+                return false;
+            if (fighter.State == CombatState.Parrying)
+                return fighter.Elapsed < settings.ParryWindow;
+            return settings.ParryOnBlockRaise && fighter.State == CombatState.Blocking && Time - fighter.BlockSince < settings.ParryWindow;
         }
 
         // Unit direction from the attacker to the target on the ground, or zero
@@ -823,6 +979,9 @@ namespace RPGFramework.ActionCombat
             fighter.State == CombatState.WindUp && fighter.HoldWindUp &&
             fighter.Elapsed >= fighter.Length * fighter.Attack.HoldPoint - 1e-6f;
 
+        private static AttackPhase PhaseOf(CombatState state) =>
+            state == CombatState.WindUp ? AttackPhase.WindUp : state == CombatState.Active ? AttackPhase.Active : AttackPhase.Recovery;
+
         private static bool IsTimedAttackPhase(CombatState state) =>
             state == CombatState.WindUp || state == CombatState.Active || state == CombatState.Recovery;
 
@@ -861,6 +1020,8 @@ namespace RPGFramework.ActionCombat
             public bool HoldWindUp;
             public int Swing;
             public bool BlockHeld;
+            public float BlockSince;
+            public bool Opened;
             public float PoiseLeft;
             public float LastHitAt = float.NegativeInfinity;
             public CombatVector Position;

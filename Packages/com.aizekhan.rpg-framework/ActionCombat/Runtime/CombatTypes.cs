@@ -42,9 +42,15 @@ namespace RPGFramework.ActionCombat
         Blocking = 6,
 
         /// <summary>
-        /// Staggered by a hit.
+        /// Staggered by a hit (or opened by a parry: <see cref="CombatRules.IsOpened"/>).
         /// </summary>
-        HitReact = 7
+        HitReact = 7,
+
+        /// <summary>
+        /// Parrying (<see cref="CombatRules.Parry"/>): a blow from the front inside the parry window is parried; after
+        /// the window it recovers, and a blow then lands as a failed parry.
+        /// </summary>
+        Parrying = 8
     }
 
     /// <summary>
@@ -70,7 +76,12 @@ namespace RPGFramework.ActionCombat
 
         Hit = 1,
         Blocked = 2,
-        Dodged = 3
+        Dodged = 3,
+
+        /// <summary>
+        /// Parried: no damage, and a melee attacker is opened (<see cref="ParriedEvent"/>).
+        /// </summary>
+        Parried = 4
     }
 
     /// <summary>

@@ -39,6 +39,15 @@ namespace RPGFramework.ActionCombat
         [SerializeField] private string _hitHeavy = "HitHeavy";
         [SerializeField] private string _knockdown = "Knockdown";
 
+        [Tooltip("Trigger when a parry starts")]
+        [SerializeField] private string _parry = "Parry";
+
+        [Tooltip("Trigger on the parrier when it parries a blow")]
+        [SerializeField] private string _parrySuccess = "ParrySuccess";
+
+        [Tooltip("Trigger on an attacker whose blow was parried (it is opened)")]
+        [SerializeField] private string _opened = "Opened";
+
         [Tooltip("Bool, true while the block is up")]
         [SerializeField] private string _block = "Block";
 
@@ -67,6 +76,13 @@ namespace RPGFramework.ActionCombat
                 Trigger(_hitReact);
                 Trigger(e.Tier == HitTier.Knockdown ? _knockdown : e.Tier == HitTier.Heavy ? _hitHeavy : _hitLight);
             })));
+            _subscriptions.Add(events.Subscribe<ParryStartedEvent>(e => Mine(e.EntityId, () => Trigger(_parry))));
+            _subscriptions.Add(events.Subscribe<ParriedEvent>(e =>
+            {
+                Mine(e.DefenderId, () => Trigger(_parrySuccess));
+                if (e.StunSeconds > 0f)
+                    Mine(e.AttackerId, () => Trigger(_opened));
+            }));
             _subscriptions.Add(events.Subscribe<BlockRaisedEvent>(e => Mine(e.EntityId, () => SetBool(_block, true))));
             _subscriptions.Add(events.Subscribe<BlockLoweredEvent>(e => Mine(e.EntityId, () => SetBool(_block, false))));
         }

@@ -563,6 +563,27 @@ namespace RPGFramework.ActionCombat.Tests
             Assert.That(_director.IntentOf(Monster).Speed, Is.EqualTo(0f), "at the target it stops");
         }
 
+        // WhiteWrite: motion warping moves and turns the enemy onto its target in the warp's part of the attack
+        [Test]
+        public void AnAttacksWarp_PullsTheBodyOntoTheTarget_AndTurnsIt()
+        {
+            var behaviour = new EnemyBehaviour { NoticeSeconds = 0f };
+            var lunge = new AttackDefinition("lunge", 0.4f, 0.2f, 0.3f)
+            {
+                Warp = new AttackWarp(AttackPhase.WindUp, maxDistance: 1f, maxAngle: 60f)
+            };
+            behaviour.Moves.Add(new EnemyMove(lunge, 0f, 2.5f) { TrackDuringWindUp = false });
+            AddMonster(Monster, CombatVector.Zero, behaviour);
+            _world.Place(Player, new CombatVector(0.5f, 0f, 1.8f), Forward);
+
+            Run(0.15f);
+            var intent = _director.IntentOf(Monster);
+            Assert.That(_rules.StateOf(Monster), Is.EqualTo(CombatState.WindUp));
+            Assert.That(intent.Speed, Is.GreaterThan(0f), "pulled on to the target");
+            Assert.That(intent.Move.X, Is.GreaterThan(0f), "towards it, a little to the right");
+            Assert.That(intent.TurnSpeed, Is.GreaterThan(0f), "turned to face it, though the move does not track");
+        }
+
         [Test]
         public void WithSweepAttacks_ABlowLandsByItsSegment_WithoutHitboxes()
         {
