@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.35.0] - 2026-11-02
+
 ### Added
 - ActionCombat `CombatProjectiles`: projectiles in the rules without physics (MythRunner FG-30, goblin archers on the track).
   - `Launch(ProjectileLaunch)` flies a projectile straight at its velocity, ticked with the fight (`Tick`). `Landing` mode (an arrow in an arc) strikes the shooter's `IEnemyWorld.TargetsOf` within its radius where it comes down, on the ground plane. `Contact` mode (a bolt) strikes the first body on its path, and `Pierce` lets it fly through more.
