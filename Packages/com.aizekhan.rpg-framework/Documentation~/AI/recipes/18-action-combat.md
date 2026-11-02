@@ -42,6 +42,19 @@ the `Combat` damage calculator); use `ActionCombat` when the timing of a blow ma
 - **Projectiles:** an attack with `Projectile` opens its window when the active phase starts and keeps it for the
   flight: `CombatProjectile` reports what it meets with that swing and ends it (`EndSwing`), or
   `ProjectileLifetime` runs out. The archer recovers while the arrow flies.
+- **The attack's shape** (an `AttackAsset`'s Hold, Motion and Sweep sections):
+  - `HoldWindUp(entity, true/false)` holds a wind-up at its `HoldPoint` (share of the wind-up; 1 = just before the
+    blow) until let go: a wide swing waits raised. `AnimationPaceOf` is 0 meanwhile, so the clip stands too;
+    `WindUpHeldEvent`.
+  - `Motions`: per phase an `AttackMotion` (`Approach`, `Retreat`, `StrafeLeft`/`StrafeRight`, `Leap` with a
+    `Height`) covers its `Distance` over a part of the phase (`From`/`Until`). `MotionOf(entity)` is the speed now
+    in the attacker's space (`InWorld(forward)` for a velocity); the enemy director moves its bodies by it, a player
+    controller may too. It follows the attack speed.
+  - `Sweep`: the weapon's volume over the active window as `SweepSegment`s in time (`From`/`Until` of the window),
+    each an arc around the attacker (`ArcFrom`..`ArcTo` degrees from its forward, right positive; `InnerRadius`..
+    `Radius`; `HeightMin`..`HeightMax` above its feet, both 0 = any). `Sweep(attacker, target, position, radius)`
+    reports a contact only when the body is inside the segment active at that moment: weapon contact without
+    physics. `TryGetSweepSegment` gives it to draw (a `Hitbox` draws its owner's in the scene view).
 - **Events** (readonly structs on the arena's bus, every one with `Time`): `AttackStartedEvent` (`Charging`),
   `AttackReleasedEvent`, `AttackActiveStartedEvent` / `AttackActiveEndedEvent`, `AttackEndedEvent` (`Interrupted`),
   `ContactResolvedEvent`, `HitReactStartedEvent` / `HitReactEndedEvent`, `DodgeStartedEvent` (with the
@@ -103,7 +116,17 @@ the `Combat` damage calculator); use `ActionCombat` when the timing of a blow ma
   closer than every move's `MinRange`.
 - **Moves:** an attack with `MinRange`/`MaxRange` (a lunge is a gap closer from range), `Weight`, `Cooldown`,
   `Next` (a combo link played only when the previous blow hit or was blocked; `Opener` off = only as a link). Picked
-  by distance, cooldowns and weights with the arena's `Seed`. After an attack or combo, `RecoveryPause`: the
+  by distance, cooldowns and weights with the arena's `Seed`. A move starts only within `CommitRange` (`MaxRange` x
+  `CommitShare`; 0.75 makes a dagger close to three quarters of its reach first, so a target that keeps moving is
+  still in reach when the blow lands). `HoldUntilInRange` (a wide swing) may start anywhere in `MaxRange` and holds
+  its wind-up, tracking and closing in at `HoldSpeed` (0 = `ApproachSpeed`), until the target is within the commit
+  range or `MaxHold` runs out. The attack's `Motions` move the body during its phases (an approach stops at
+  `ContactDistance` from the target); a leap's `EnemyIntent.Height` raises `CombatEnemyAI`'s `Leap Root`.
+  `arena.Enemies.SweepAttacks = true` lands the blows by their `Sweep` segments (`SweepRadius` for the target's
+  body), for a world without colliders.
+- **Weapon move sets:** a **Weapon Move Set** asset (Create > RPG Framework > Action Combat > Weapon Move Set) holds
+  a kind of weapon's moves (each strike clip with its motion, sweep, ranges, commit, hold and combo links). An Enemy
+  Behaviour's `Weapon` takes its moves from it; its own list adds the monster's. After an attack or combo, `RecoveryPause`: the
   player's punish window. The asset's `Problems()` (logged as warnings in the inspector) catches a move without an
   attack, a combo link to itself or out of the list, and no opener with a weight. Moves added from code through
   `SerializedProperty` start at zero (Weight 0, Next 0): set Weight and Next = -1.

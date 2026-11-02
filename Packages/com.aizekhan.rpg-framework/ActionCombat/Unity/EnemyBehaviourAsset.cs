@@ -6,8 +6,9 @@ namespace RPGFramework.ActionCombat
 {
     /// <summary>
     /// How a kind of monster notices, moves and fights (<see cref="EnemyBehaviour"/>), tuned in the inspector:
-    /// Create > RPG Framework > Action Combat > Enemy Behaviour. Its moves are attacks with ranges, weights, cooldowns
-    /// and combo links.
+    /// Create > RPG Framework > Action Combat > Enemy Behaviour. Its moves are attacks with ranges, commit shares,
+    /// holds, weights, cooldowns and combo links; they can come from its weapon (<see cref="WeaponMoveSet"/>), with the
+    /// monster's own added.
     /// </summary>
     [CreateAssetMenu(menuName = "RPG Framework/Action Combat/Enemy Behaviour", fileName = "EnemyBehaviour")]
     public sealed class EnemyBehaviourAsset : ScriptableObject
@@ -36,6 +37,18 @@ namespace RPGFramework.ActionCombat
 
             [Tooltip("Turns towards the target during the wind-up (never in the hit window)")]
             public bool TrackDuringWindUp = true;
+
+            [Tooltip("Commits to the blow only this deep in its reach (Max Range x this): 0.75 closes to three quarters first; 1: at the edge")]
+            [Range(0f, 1f)] public float CommitShare = 1f;
+
+            [Tooltip("Starts anywhere in Max Range and holds the wind-up, closing in, until the target is within the commit range (a wide swing)")]
+            public bool HoldUntilInRange;
+
+            [Tooltip("The longest hold, seconds; then it swings")]
+            [Min(0f)] public float MaxHold = 1.5f;
+
+            [Tooltip("Closing-in speed while holding, m/s; 0: the Approach Speed")]
+            [Min(0f)] public float HoldSpeed;
         }
 
         [Header("Perception")]
@@ -74,6 +87,8 @@ namespace RPGFramework.ActionCombat
         [SerializeField, Min(0.1f)] private float _circleSwitchSeconds = 2.5f;
 
         [Header("Fighting")]
+        [Tooltip("Moves of the weapon it fights with (combos in the set); the list below adds the monster's own")]
+        [SerializeField] private WeaponMoveSet _weapon;
         [SerializeField] private List<Move> _moves = new List<Move>();
         [Tooltip("The pause after an attack or a combo: the player's punish window")]
         [SerializeField, Min(0f)] private float _recoveryPause = 0.6f;
@@ -94,33 +109,61 @@ namespace RPGFramework.ActionCombat
         public IReadOnlyList<Move> Moves => _moves;
 
         /// <summary>
+        /// The weapon whose moves it fights with, or null.
+        /// </summary>
+        public WeaponMoveSet Weapon
+        {
+            get => _weapon;
+            set => _weapon = value;
+        }
+
+        /// <summary>
         /// What is wrong with the moves (a move without an attack, no opener with a weight, a combo link to itself or
         /// out of the list). A move added through <c>SerializedProperty</c> (arraySize++) starts at zero, not at the
-        /// field defaults: Weight 0 and Next 0. The inspector logs these as warnings.
+        /// field defaults: Weight 0, Next 0 and Commit Share 0 (built as 1). The inspector logs these as warnings.
         /// </summary>
         public List<string> Problems()
         {
+            var problems = MoveProblems(_moves, "Move");
+            bool anyOpener = HasOpener(_moves) || (_weapon != null && HasOpener(_weapon.Moves));
+            if ((_moves.Count > 0 || _weapon != null) && !anyOpener)
+                problems.Add("No move can be chosen: every opener has Weight 0 (or no attack)");
+            return problems;
+        }
+
+        /// <summary>
+        /// What is wrong with a list of moves; <paramref name="label"/> names a move in the messages.
+        /// </summary>
+        public static List<string> MoveProblems(IReadOnlyList<Move> moves, string label)
+        {
             var problems = new List<string>();
-            bool anyOpener = false;
-            for (int i = 0; i < _moves.Count; i++)
+            for (int i = 0; i < moves.Count; i++)
             {
-                var move = _moves[i];
+                var move = moves[i];
                 if (move == null)
                     continue;
                 if (move.Attack == null)
-                    problems.Add($"Move {i} has no attack");
+                    problems.Add($"{label} {i} has no attack");
                 if (move.Next == i)
-                    problems.Add($"Move {i} links its combo to itself (Next = {i}); use -1 for none");
-                else if (move.Next >= _moves.Count || move.Next < -1)
-                    problems.Add($"Move {i} links its combo to move {move.Next}, which is not in the list");
+                    problems.Add($"{label} {i} links its combo to itself (Next = {i}); use -1 for none");
+                else if (move.Next >= moves.Count || move.Next < -1)
+                    problems.Add($"{label} {i} links its combo to move {move.Next}, which is not in the list");
                 if (move.MaxRange < move.MinRange)
-                    problems.Add($"Move {i}: Max Range is below Min Range");
-                if (move.Opener && move.Weight > 0f && move.Attack != null)
-                    anyOpener = true;
+                    problems.Add($"{label} {i}: Max Range is below Min Range");
+                if (move.HoldUntilInRange && move.MaxHold <= 0f)
+                    problems.Add($"{label} {i}: holds until in range but Max Hold is 0 (it never holds)");
             }
-            if (_moves.Count > 0 && !anyOpener)
-                problems.Add("No move can be chosen: every opener has Weight 0 (or no attack)");
             return problems;
+        }
+
+        private static bool HasOpener(IReadOnlyList<Move> moves)
+        {
+            foreach (var move in moves)
+            {
+                if (move != null && move.Opener && move.Weight > 0f && move.Attack != null)
+                    return true;
+            }
+            return false;
         }
 
         private void OnValidate()
@@ -167,30 +210,44 @@ namespace RPGFramework.ActionCombat
                 DeathVariants = _deathVariants
             };
 
-            var built = new EnemyMove[_moves.Count];
-            for (int i = 0; i < _moves.Count; i++)
+            if (_weapon != null)
+                BuildMoves(_weapon.Moves, behaviour.Moves);
+            BuildMoves(_moves, behaviour.Moves);
+            return behaviour;
+        }
+
+        /// <summary>
+        /// Builds a list of moves (combo links by index within it) and adds the openers to <paramref name="into"/>.
+        /// </summary>
+        public static void BuildMoves(IReadOnlyList<Move> moves, IList<EnemyMove> into)
+        {
+            var built = new EnemyMove[moves.Count];
+            for (int i = 0; i < moves.Count; i++)
             {
-                var move = _moves[i];
+                var move = moves[i];
                 if (move?.Attack == null)
                     continue;
                 built[i] = new EnemyMove(move.Attack.Definition, move.MinRange, Mathf.Max(move.MinRange, move.MaxRange))
                 {
                     Weight = move.Weight,
                     Cooldown = move.Cooldown,
-                    TrackDuringWindUp = move.TrackDuringWindUp
+                    TrackDuringWindUp = move.TrackDuringWindUp,
+                    CommitShare = move.CommitShare > 0f ? Mathf.Min(1f, move.CommitShare) : 1f,
+                    HoldUntilInRange = move.HoldUntilInRange,
+                    MaxHold = Mathf.Max(0f, move.MaxHold),
+                    HoldSpeed = Mathf.Max(0f, move.HoldSpeed)
                 };
             }
-            for (int i = 0; i < _moves.Count; i++)
+            for (int i = 0; i < moves.Count; i++)
             {
-                var move = _moves[i];
+                var move = moves[i];
                 if (built[i] == null)
                     continue;
                 if (move.Next >= 0 && move.Next < built.Length && move.Next != i)
                     built[i].Next = built[move.Next];
                 if (move.Opener)
-                    behaviour.Moves.Add(built[i]);
+                    into.Add(built[i]);
             }
-            return behaviour;
         }
     }
 }

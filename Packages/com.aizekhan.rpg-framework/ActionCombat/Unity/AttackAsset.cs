@@ -73,6 +73,18 @@ namespace RPGFramework.ActionCombat
 
         [SerializeField, Min(0f)] private float _projectileLifetime = 5f;
 
+        [Header("Hold (an enemy's wide swing waits raised while it closes in)")]
+        [Tooltip("Where a held wind-up waits, as a share of the wind-up: 1 = just before the blow")]
+        [SerializeField, Range(0f, 1f)] private float _holdPoint = 1f;
+
+        [Header("Motion (how the attack moves its attacker)")]
+        [Tooltip("Per phase: approach, retreat, strafe or leap, the distance over a part of the phase (Until 0: to its end)")]
+        [SerializeField] private System.Collections.Generic.List<AttackMotion> _motions = new System.Collections.Generic.List<AttackMotion>();
+
+        [Header("Sweep (the weapon's volume over the active window, for contact without physics)")]
+        [Tooltip("Segments in time (From/Until of the window; Until 0: to its end), each an arc around the attacker: degrees from its forward (right +), radii, height above its feet (both 0: any)")]
+        [SerializeField] private System.Collections.Generic.List<SweepSegment> _sweep = new System.Collections.Generic.List<SweepSegment>();
+
         [Header("Animator")]
         [Tooltip("Trigger set when the attack starts (CombatAnimatorBridge); empty: the bridge's default")]
         [SerializeField] private string _animatorTrigger = "";
@@ -145,14 +157,45 @@ namespace RPGFramework.ActionCombat
                 MaxChargeMultiplier = _maxChargeMultiplier,
                 ChargeCurve = curve != null && curve.length > 0 ? share => curve.Evaluate(share) : (System.Func<float, float>)null,
                 Projectile = _projectile,
-                ProjectileLifetime = _projectileLifetime
+                ProjectileLifetime = _projectileLifetime,
+                HoldPoint = _holdPoint
             };
+            // A broken row is left out (Problems names it) rather than failing the whole attack
+            definition.Motions = _motions.FindAll(motion => motion.Problem() == null);
+            definition.Sweep = _sweep.FindAll(segment => segment.Problem() == null);
             // A quick attack that leads back here would never end
             if (_quickAttack != null && !building.Contains(_quickAttack))
                 definition.QuickAttack = _quickAttack._definition ?? _quickAttack.Build(building);
             return definition;
         }
 
-        private void OnValidate() => _definition = null;
+        /// <summary>
+        /// What is wrong with its motions and sweep segments (the rows are left out of the attack). The inspector logs
+        /// these as warnings.
+        /// </summary>
+        public System.Collections.Generic.List<string> Problems()
+        {
+            var problems = new System.Collections.Generic.List<string>();
+            for (int i = 0; i < _motions.Count; i++)
+            {
+                string wrong = _motions[i].Problem();
+                if (wrong != null)
+                    problems.Add($"Motion {i}: {wrong}");
+            }
+            for (int i = 0; i < _sweep.Count; i++)
+            {
+                string wrong = _sweep[i].Problem();
+                if (wrong != null)
+                    problems.Add($"Sweep segment {i}: {wrong}");
+            }
+            return problems;
+        }
+
+        private void OnValidate()
+        {
+            _definition = null;
+            foreach (var problem in Problems())
+                Debug.LogWarning($"[Attack] {name}: {problem}", this);
+        }
     }
 }

@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Added
+- ActionCombat: enemy moves that land the blows they choose, and attacks with a shape (MythRunner FG-31: "a goblin with a dagger that attacks us should hit in most cases").
+  - `EnemyMove.CommitShare` / `CommitRange`: a move starts only this deep in its reach (`MaxRange` x the share), so the target is still in reach when the blow lands. The director closes in until then.
+  - `EnemyMove.HoldUntilInRange`, `MaxHold`, `HoldSpeed`: a wide swing may start at its reach and holds its wind-up, tracking and closing in, until the target is within the commit range or the hold runs out.
+  - `CombatRules.HoldWindUp` / `IsWindUpHeld` and `AttackDefinition.HoldPoint`: a held wind-up waits at its hold point; `AnimationPaceOf` is 0 there, so the clip stands too. `WindUpHeldEvent`; timeline `WindUpHeld` / `WindUpReleased`.
+  - `AttackDefinition.Motions` (`AttackMotion`: approach, retreat, strafe left or right, leap with a height, a distance over a part of a phase) and `CombatRules.MotionOf` (`AttackMotionSample`, `InWorld`). The director moves its bodies by it (`EnemyBehaviour.ContactDistance` stops an approach at the target), and `EnemyIntent.Height` carries a leap's arc (`CombatEnemyAI` Leap Root).
+  - `AttackDefinition.Sweep` (`SweepSegment`: arcs around the attacker, timed over the active window) with `CombatRules.Sweep` and `TryGetSweepSegment`: weapon contact without physics. `EnemyDirector.SweepAttacks` / `SweepRadius` land enemy blows by it. `Hitbox` draws the active segment in the scene view.
+  - `WeaponMoveSet` asset: a kind of weapon's moves with their combos; `EnemyBehaviourAsset.Weapon` takes its moves from it (`BuildMoves`, `MoveProblems`). `AttackAsset` has Hold, Motion and Sweep sections and `Problems()`.
+  - The defaults change nothing: commit share 1, no hold, no motions, no sweep. Recipe 18.
+
 ## [0.35.0] - 2026-11-02
 
 ### Added

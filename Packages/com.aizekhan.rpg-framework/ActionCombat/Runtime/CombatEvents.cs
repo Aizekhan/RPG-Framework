@@ -27,6 +27,29 @@ namespace RPGFramework.ActionCombat
     }
 
     /// <summary>
+    /// A wind-up was held at its attack's hold point (<see cref="Held"/>), or let go on to the blow
+    /// (<see cref="CombatRules.HoldWindUp"/>). The animation stands still while it is held
+    /// (<see cref="CombatRules.AnimationPaceOf"/> is 0 there).
+    /// </summary>
+    public readonly struct WindUpHeldEvent : IEvent
+    {
+        public WindUpHeldEvent(int entityId, int swingId, string attackId, bool held, float time)
+        {
+            EntityId = entityId;
+            SwingId = swingId;
+            AttackId = attackId;
+            Held = held;
+            Time = time;
+        }
+
+        public int EntityId { get; }
+        public int SwingId { get; }
+        public string AttackId { get; }
+        public bool Held { get; }
+        public float Time { get; }
+    }
+
+    /// <summary>
     /// A charged attack was let go: what it became (<see cref="AttackId"/>, the quick attack when
     /// <see cref="Quick"/>), how long it was held (clamped) and what it multiplies the damage by.
     /// </summary>

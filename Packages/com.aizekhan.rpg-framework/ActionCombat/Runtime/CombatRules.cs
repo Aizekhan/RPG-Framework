@@ -177,7 +177,131 @@ namespace RPGFramework.ActionCombat
         public float AnimationPaceOf(int entityId)
         {
             var fighter = Find(entityId);
-            return fighter != null && IsTimedAttackPhase(fighter.State) ? fighter.AttackSpeed : 1f;
+            if (fighter == null || !IsTimedAttackPhase(fighter.State))
+                return 1f;
+            return WaitsAtHold(fighter) ? 0f : fighter.AttackSpeed;
+        }
+
+        /// <summary>
+        /// Holds its wind-up at the attack's hold point (<see cref="AttackDefinition.HoldPoint"/>; where it is, when
+        /// already past it), or lets it go on to the blow. A wide swing waits raised while the attacker closes in; the
+        /// enemy director holds a move's wind-up until the target is in range
+        /// (<see cref="EnemyMove.HoldUntilInRange"/>). The hold ends with the wind-up.
+        /// </summary>
+        /// <returns>False when it is not in a wind-up.</returns>
+        public bool HoldWindUp(int entityId, bool hold)
+        {
+            var fighter = Find(entityId);
+            if (fighter == null || fighter.State != CombatState.WindUp)
+                return false;
+            if (fighter.HoldWindUp == hold)
+                return true;
+            fighter.HoldWindUp = hold;
+            var attack = fighter.Attack;
+            Raise(new WindUpHeldEvent(entityId, fighter.Swing, attack.Id, hold, Time),
+                new TimelineEntry(Time, hold ? TimelineKind.WindUpHeld : TimelineKind.WindUpReleased, entityId,
+                    swingId: fighter.Swing, attackId: attack.Id, value: fighter.Length > 0f ? fighter.Elapsed / fighter.Length : 1f));
+            if (!hold)
+                Advance(fighter, 0f);
+            return true;
+        }
+
+        /// <summary>
+        /// Its wind-up is held (<see cref="HoldWindUp"/>).
+        /// </summary>
+        public bool IsWindUpHeld(int entityId)
+        {
+            var fighter = Find(entityId);
+            return fighter != null && fighter.State == CombatState.WindUp && fighter.HoldWindUp;
+        }
+
+        /// <summary>
+        /// How its attack moves it now (<see cref="AttackDefinition.Motions"/>), in its own space; nothing outside an
+        /// attack's timed phases and while a held wind-up waits. <see cref="AttackMotionSample.InWorld"/> turns it into a
+        /// velocity.
+        /// </summary>
+        public AttackMotionSample MotionOf(int entityId)
+        {
+            var fighter = Find(entityId);
+            if (fighter == null || !IsTimedAttackPhase(fighter.State) || fighter.Length <= 0f || WaitsAtHold(fighter))
+                return default;
+            var motions = fighter.Attack.MotionArray;
+            if (motions.Length == 0)
+                return default;
+            var phase = fighter.State == CombatState.WindUp ? AttackPhase.WindUp
+                : fighter.State == CombatState.Active ? AttackPhase.Active : AttackPhase.Recovery;
+            float share = fighter.Elapsed / fighter.Length;
+            float forward = 0f, side = 0f, height = 0f;
+            for (int i = 0; i < motions.Length; i++)
+            {
+                var motion = motions[i];
+                float end = motion.End;
+                if (motion.Phase != phase || share < motion.From || share >= end)
+                    continue;
+                float span = end - motion.From;
+                float speed = motion.Distance / (span * fighter.Length);
+                switch (motion.Kind)
+                {
+                    case AttackMotionKind.Approach:
+                        forward += speed;
+                        break;
+                    case AttackMotionKind.Retreat:
+                        forward -= speed;
+                        break;
+                    case AttackMotionKind.StrafeLeft:
+                        side -= speed;
+                        break;
+                    case AttackMotionKind.StrafeRight:
+                        side += speed;
+                        break;
+                    case AttackMotionKind.Leap:
+                        forward += speed;
+                        float along = (share - motion.From) / span;
+                        height += 4f * motion.Height * along * (1f - along);
+                        break;
+                }
+            }
+            return new AttackMotionSample(forward, side, height);
+        }
+
+        /// <summary>
+        /// The segment of its weapon's sweep active now (<see cref="AttackDefinition.Sweep"/>), in its active window.
+        /// </summary>
+        public bool TryGetSweepSegment(int entityId, out SweepSegment segment)
+        {
+            segment = default;
+            var fighter = Find(entityId);
+            if (fighter == null || fighter.State != CombatState.Active || fighter.Attack.Projectile)
+                return false;
+            var sweep = fighter.Attack.SweepArray;
+            float share = fighter.Length > 0f ? fighter.Elapsed / fighter.Length : 0f;
+            for (int i = 0; i < sweep.Length; i++)
+            {
+                if (sweep[i].ActiveAt(share))
+                {
+                    segment = sweep[i];
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Contact without physics: a body of <paramref name="radius"/> at <paramref name="position"/> inside the
+        /// attacker's active sweep segment (<see cref="TryGetSweepSegment"/>, from where it stands: <see cref="SetPose"/>)
+        /// is reported as a contact (<see cref="ReportContact"/>). Outside it, or already met by this swing, nothing is
+        /// reported, so it can be called every frame for every body near.
+        /// </summary>
+        public ContactResult Sweep(int attackerId, int targetId, CombatVector position, float radius = 0f)
+        {
+            var fighter = Find(attackerId);
+            if (fighter == null || !fighter.HasPose || !TryGetSweepSegment(attackerId, out var segment))
+                return ContactResult.Ignored;
+            if (!_swings.TryGetValue(fighter.Swing, out var swing) || !swing.Live || swing.Met.Contains(targetId))
+                return ContactResult.Ignored;
+            if (!segment.Contains(fighter.Position, fighter.Forward, position, radius))
+                return ContactResult.Ignored;
+            return ReportContact(attackerId, targetId, fighter.Swing, position);
         }
 
         /// <summary>
@@ -451,6 +575,7 @@ namespace RPGFramework.ActionCombat
             _swings.Add(swing.Id, swing);
             fighter.Swing = swing.Id;
             fighter.Attack = attack;
+            fighter.HoldWindUp = false;
 
             Enter(fighter, charging ? CombatState.Charging : CombatState.WindUp, charging ? 0f : attack.WindUp / fighter.AttackSpeed);
             Raise(new AttackStartedEvent(entityId, swing.Id, attack.Id, charging, Time),
@@ -475,6 +600,15 @@ namespace RPGFramework.ActionCombat
                         return;
                 }
 
+                if (fighter.State == CombatState.WindUp && fighter.HoldWindUp)
+                {
+                    float hold = fighter.Length * fighter.Attack.HoldPoint;
+                    if (fighter.Elapsed + left >= hold)
+                    {
+                        fighter.Elapsed = Math.Max(fighter.Elapsed, hold);
+                        return;
+                    }
+                }
                 float need = fighter.Length - fighter.Elapsed;
                 if (left < need)
                 {
@@ -495,6 +629,7 @@ namespace RPGFramework.ActionCombat
             {
                 case CombatState.WindUp:
                 {
+                    fighter.HoldWindUp = false;
                     var swing = _swings[fighter.Swing];
                     swing.Live = true;
                     if (attack.Projectile)
@@ -537,6 +672,7 @@ namespace RPGFramework.ActionCombat
 
         private void EndAttack(Fighter fighter, bool interrupted, float at)
         {
+            fighter.HoldWindUp = false;
             if (fighter.State == CombatState.Active)
                 CloseActive(fighter, at);
             if (_swings.TryGetValue(fighter.Swing, out var swing) && !swing.Projectile)
@@ -682,6 +818,11 @@ namespace RPGFramework.ActionCombat
             Events?.Publish(combatEvent);
         }
 
+        // A held wind-up that reached its hold point
+        private static bool WaitsAtHold(Fighter fighter) =>
+            fighter.State == CombatState.WindUp && fighter.HoldWindUp &&
+            fighter.Elapsed >= fighter.Length * fighter.Attack.HoldPoint - 1e-6f;
+
         private static bool IsTimedAttackPhase(CombatState state) =>
             state == CombatState.WindUp || state == CombatState.Active || state == CombatState.Recovery;
 
@@ -717,6 +858,7 @@ namespace RPGFramework.ActionCombat
             public float Length;
             public float AttackSpeed = 1f;
             public AttackDefinition Attack;
+            public bool HoldWindUp;
             public int Swing;
             public bool BlockHeld;
             public float PoiseLeft;

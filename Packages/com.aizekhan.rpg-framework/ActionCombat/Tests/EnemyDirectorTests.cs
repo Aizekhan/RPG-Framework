@@ -481,6 +481,120 @@ namespace RPGFramework.ActionCombat.Tests
             Assert.That(Fight(3), Has.Count.GreaterThan(2));
         }
 
+        // FG-31: a goblin with a dagger closes to three quarters of its reach before a quick blow
+        [Test]
+        public void AQuickBlow_StartsOnlyInsideItsCommitRange()
+        {
+            var chosen = new List<AttackChosenEvent>();
+            _bus.Subscribe<AttackChosenEvent>(chosen.Add);
+            var behaviour = new EnemyBehaviour { NoticeSeconds = 0f };
+            behaviour.Moves.Add(new EnemyMove(Jab, 0f, 2.5f) { CommitShare = 0.75f });
+            AddMonster(Monster, CombatVector.Zero, behaviour);
+            _world.Place(Player, new CombatVector(0f, 0f, 2.2f), Forward);
+
+            Run(0.3f);
+            Assert.That(chosen, Is.Empty, "2.2 m is in its reach but not its commit range (1.875 m)");
+            Assert.That(_director.StateOf(Monster), Is.EqualTo(EnemyState.Approach));
+            Assert.That(_director.IntentOf(Monster).Move.Z, Is.GreaterThan(0.9f), "closes in");
+
+            _world.Place(Monster, new CombatVector(0f, 0f, 0.5f), Forward);
+            Step();
+            Assert.That(chosen.Single().Distance, Is.EqualTo(1.7f).Within(1e-3f), "strikes from inside");
+        }
+
+        [Test]
+        public void AWideSwing_StartsAtItsReach_AndHoldsTheWindUpWhileClosingIn()
+        {
+            var behaviour = new EnemyBehaviour { NoticeSeconds = 0f };
+            var swing = new AttackDefinition("swing", 0.3f, 0.2f, 0.3f);
+            behaviour.Moves.Add(new EnemyMove(swing, 0f, 3f) { CommitShare = 0.5f, HoldUntilInRange = true, MaxHold = 2f });
+            AddMonster(Monster, CombatVector.Zero, behaviour);
+            _world.Place(Player, new CombatVector(0f, 0f, 2.8f), Forward);
+
+            Run(1f);
+            Assert.That(_rules.StateOf(Monster), Is.EqualTo(CombatState.WindUp), "raised, waiting");
+            Assert.That(_rules.IsWindUpHeld(Monster), Is.True);
+            var intent = _director.IntentOf(Monster);
+            Assert.That(intent.State, Is.EqualTo(EnemyState.Attacking));
+            Assert.That(intent.Move.Z, Is.GreaterThan(0.9f), "closing in with the swing raised");
+            Assert.That(intent.Speed, Is.EqualTo(behaviour.ApproachSpeed));
+
+            _world.Place(Monster, new CombatVector(0f, 0f, 1.5f), Forward);
+            Step();
+            Assert.That(_rules.IsWindUpHeld(Monster), Is.False, "1.3 m: in range, let go");
+            Run(0.1f);
+            Assert.That(_rules.StateOf(Monster), Is.EqualTo(CombatState.Active), "the blow");
+        }
+
+        [Test]
+        public void AHeldSwing_GoesOnWhenItsHoldRunsOut()
+        {
+            var behaviour = new EnemyBehaviour { NoticeSeconds = 0f };
+            var swing = new AttackDefinition("swing", 0.3f, 0.2f, 0.3f);
+            behaviour.Moves.Add(new EnemyMove(swing, 0f, 3f) { CommitShare = 0.5f, HoldUntilInRange = true, MaxHold = 0.5f });
+            AddMonster(Monster, CombatVector.Zero, behaviour);
+            _world.Place(Player, new CombatVector(0f, 0f, 2.8f), Forward);
+
+            Run(1f);
+            Assert.That(_rules.Timeline.For(Monster).Select(e => e.Kind), Has.Member(TimelineKind.WindUpReleased));
+            Assert.That(_rules.Timeline.For(Monster).Select(e => e.Note).Where(n => n != null), Has.Some.Contains("held too long"));
+        }
+
+        [Test]
+        public void AnAttacksMotion_MovesItsBody_AndStopsAtTheTarget()
+        {
+            var behaviour = new EnemyBehaviour { NoticeSeconds = 0f };
+            var lunge = new AttackDefinition("lunge", 0.4f, 0.2f, 0.3f)
+            {
+                Motions = new[] { new AttackMotion(AttackPhase.WindUp, AttackMotionKind.Approach, 1f) }
+            };
+            behaviour.Moves.Add(new EnemyMove(lunge, 0f, 2.5f));
+            AddMonster(Monster, CombatVector.Zero, behaviour);
+            _world.Place(Player, new CombatVector(0f, 0f, 2f), Forward);
+
+            Run(0.15f);
+            var intent = _director.IntentOf(Monster);
+            Assert.That(_rules.StateOf(Monster), Is.EqualTo(CombatState.WindUp));
+            Assert.That(intent.Move.Z, Is.GreaterThan(0.9f), "steps into the blow");
+            Assert.That(intent.Speed, Is.EqualTo(2.5f).Within(1e-3f), "1 m over the 0.4 s wind-up");
+
+            _world.Place(Monster, new CombatVector(0f, 0f, 1.5f), Forward);
+            Step(0.05f);
+            Assert.That(_director.IntentOf(Monster).Speed, Is.EqualTo(0f), "at the target it stops");
+        }
+
+        [Test]
+        public void WithSweepAttacks_ABlowLandsByItsSegment_WithoutHitboxes()
+        {
+            var hits = new List<ContactResolvedEvent>();
+            _bus.Subscribe<ContactResolvedEvent>(e =>
+            {
+                if (e.Result == ContactResult.Hit)
+                    hits.Add(e);
+            });
+            _director.SweepAttacks = true;
+            var behaviour = new EnemyBehaviour { NoticeSeconds = 0f };
+            var thrust = new AttackDefinition("thrust", 0.2f, 0.2f, 0.3f)
+            {
+                Sweep = new[] { new SweepSegment(0f, 1f, -20f, 20f, 2f) }
+            };
+            behaviour.Moves.Add(new EnemyMove(thrust, 0f, 2f));
+            AddMonster(Monster, CombatVector.Zero, behaviour);
+            _rules.SetPose(Monster, CombatVector.Zero, Forward);
+            _world.Place(Player, new CombatVector(0f, 0f, 1.5f), Forward);
+
+            Run(0.6f);
+            Assert.That(hits.Single().TargetId, Is.EqualTo(Player), "landed by the sweep, once");
+
+            // The same blow at a target beside it (the body still facing ahead) misses
+            _world.Place(Player, new CombatVector(1.4f, 0f, 0.4f), Forward);
+            Run(1.5f);
+            hits.Clear();
+            Run(1.5f);
+            Assert.That(_rules.Timeline.For(Monster).Count(e => e.Kind == TimelineKind.AttackStarted), Is.GreaterThan(1));
+            Assert.That(hits, Is.Empty, "outside the segment's arc");
+        }
+
         private sealed class FakeWorld : IEnemyWorld
         {
             private readonly Dictionary<int, (CombatVector Position, CombatVector Forward)> _poses =

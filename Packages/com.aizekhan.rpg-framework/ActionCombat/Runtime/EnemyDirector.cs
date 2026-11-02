@@ -9,8 +9,10 @@ namespace RPGFramework.ActionCombat
     /// cone, line of sight, hearing, being struck; it remembers a lost target for a while, then goes home), moves
     /// (patrol, chase, approach, circle, back off; separated from the others) and fights: at most
     /// <see cref="AttackTokens.MaxPerTarget"/> enemies attack one target at once, the others circle; an enemy with a
-    /// token picks a move by distance, cooldowns and weights (seeded), chains combos while they land, then pauses (the
-    /// player's punish window). It may block or dodge a swing aimed at it. The body follows its
+    /// token picks a move by distance, cooldowns and weights (seeded), commits to it only inside the move's commit range
+    /// (a held move starts at its reach and holds the wind-up while it closes in), moves as the attack's motions say,
+    /// chains combos while they land, then pauses (the player's punish window). It may block or dodge a swing aimed at
+    /// it. With <see cref="SweepAttacks"/> its blows land by their sweep segments, without physics. The body follows its
     /// <see cref="EnemyIntent"/>; the attacks, stagger and dodges go through <see cref="CombatRules"/>. Every decision is
     /// an event and a timeline entry, so a panel can show why a monster did what it did.
     /// </summary>
@@ -45,6 +47,18 @@ namespace RPGFramework.ActionCombat
         }
 
         public AttackTokens Tokens { get; }
+
+        /// <summary>
+        /// Contact without physics: in an attack's active window each enemy's sweep segment
+        /// (<see cref="AttackDefinition.Sweep"/>) is tested against its targets every tick (<see cref="CombatRules.Sweep"/>).
+        /// For a world without colliders (a runner's road, a server); with weapon hitboxes leave it off.
+        /// </summary>
+        public bool SweepAttacks { get; set; }
+
+        /// <summary>
+        /// The radius of a target's body for <see cref="SweepAttacks"/>, metres.
+        /// </summary>
+        public float SweepRadius { get; set; } = 0.4f;
 
         /// <summary>
         /// The rules' clock.
@@ -206,15 +220,13 @@ namespace RPGFramework.ActionCombat
                 if (combat == CombatState.Charging || combat == CombatState.WindUp || combat == CombatState.Active ||
                     combat == CombatState.Recovery)
                 {
-                    float turn = combat == CombatState.WindUp && brain.Move.TrackDuringWindUp ? behaviour.TurnSpeed : 0f;
-                    brain.Intent = new EnemyIntent(EnemyState.Attacking, brain.Target, CombatVector.Zero, 0f,
-                        ToTarget(brain, position), turn);
+                    Strike(brain, combat, position, forward);
                     return;
                 }
                 brain.Attacking = false;
                 var next = brain.Move.Next;
                 if (next != null && brain.ComboLanded && TargetDistance(brain, position, out float distance) &&
-                    next.InRange(distance) && Ready(brain, next) && StartMove(brain, next, distance, combo: true))
+                    next.CanStart(distance) && Ready(brain, next) && StartMove(brain, next, distance, combo: true))
                     return;
                 EndAttacks(brain, next != null && !brain.ComboLanded ? "combo missed" : "attack over", pause: true);
             }
@@ -313,6 +325,65 @@ namespace RPGFramework.ActionCombat
                 Go(brain, EnemyState.BackOff, "too close while waiting", Away(face), behaviour.BackOffSpeed, face);
             else
                 Circle(brain, d, face);
+        }
+
+        // In an attack: a held wind-up closes in until the target is in range; otherwise the attack's motions move it
+        private void Strike(Brain brain, CombatState combat, CombatVector position, CombatVector forward)
+        {
+            int id = brain.Id;
+            var behaviour = brain.Behaviour;
+            var move = brain.Move;
+            var face = ToTarget(brain, position);
+            bool known = TargetDistance(brain, position, out float distance);
+
+            if (combat == CombatState.WindUp && _rules.IsWindUpHeld(id))
+            {
+                bool inRange = known && distance <= move.CommitRange;
+                if (inRange || Time >= brain.HoldUntil)
+                {
+                    _rules.HoldWindUp(id, false);
+                    if (_rules.Timeline != null)
+                        Note(id, brain.Target, inRange ? $"releases {move.Attack.Id} at {distance:0.0}m" : $"releases {move.Attack.Id}: held too long");
+                }
+                else
+                {
+                    float speed = known && distance > behaviour.ContactDistance
+                        ? (move.HoldSpeed > 0f ? move.HoldSpeed : behaviour.ApproachSpeed)
+                        : 0f;
+                    brain.Intent = new EnemyIntent(EnemyState.Attacking, brain.Target, speed > 0f ? Steer(brain, face) : CombatVector.Zero,
+                        speed, face, behaviour.TurnSpeed);
+                    return;
+                }
+            }
+
+            float turn = combat == CombatState.WindUp && move.TrackDuringWindUp ? behaviour.TurnSpeed : 0f;
+            var motion = _rules.MotionOf(id);
+            var way = CombatVector.Zero;
+            float pace = 0f;
+            if (motion.IsMoving)
+            {
+                float ahead = motion.Forward;
+                // An approach stops at the target instead of running through it
+                if (ahead > 0f && known && distance <= Math.Max(move.MinRange, behaviour.ContactDistance))
+                    ahead = 0f;
+                var body = forward.Flat.Length > 1e-4f ? forward : face;
+                var velocity = new AttackMotionSample(ahead, motion.Side, motion.Height).InWorld(body);
+                pace = velocity.Length;
+                if (pace > 1e-5f)
+                    way = Steer(brain, new CombatVector(velocity.X / pace, 0f, velocity.Z / pace));
+            }
+            brain.Intent = new EnemyIntent(EnemyState.Attacking, brain.Target, way, pace, face, turn, motion.Height);
+
+            if (SweepAttacks && combat == CombatState.Active)
+            {
+                // _targets still holds this enemy's targets from Perceive
+                for (int i = 0; i < _targets.Count; i++)
+                {
+                    int target = _targets[i];
+                    if (target != id && _world.TryGetPose(target, out var where, out _))
+                        _rules.Sweep(id, target, where, SweepRadius);
+                }
+            }
         }
 
         private void Perceive(Brain brain, CombatVector position, CombatVector forward)
@@ -515,7 +586,7 @@ namespace RPGFramework.ActionCombat
             for (int i = 0; i < moves.Count; i++)
             {
                 var move = moves[i];
-                if (move.InRange(distance) && Ready(brain, move))
+                if (move.CanStart(distance) && Ready(brain, move))
                     total += Math.Max(0f, move.Weight);
             }
             if (total <= 0f)
@@ -525,7 +596,7 @@ namespace RPGFramework.ActionCombat
             for (int i = 0; i < moves.Count; i++)
             {
                 var move = moves[i];
-                if (!move.InRange(distance) || !Ready(brain, move) || move.Weight <= 0f)
+                if (!move.CanStart(distance) || !Ready(brain, move) || move.Weight <= 0f)
                     continue;
                 last = move;
                 roll -= move.Weight;
@@ -548,6 +619,13 @@ namespace RPGFramework.ActionCombat
             if (_rules.Timeline != null)
                 Note(brain.Id, brain.Target, $"{(combo ? "combo " : "chose ")}{move.Attack.Id} at {distance:0.0}m");
             _events?.Publish(new AttackChosenEvent(brain.Id, brain.Target, move.Attack.Id, distance, combo, Time));
+            // A wide swing started at the edge of its reach waits raised while it closes in
+            if (move.HoldUntilInRange && move.MaxHold > 0f && distance > move.CommitRange && _rules.HoldWindUp(brain.Id, true))
+            {
+                brain.HoldUntil = Time + move.MaxHold;
+                if (_rules.Timeline != null)
+                    Note(brain.Id, brain.Target, $"holds {move.Attack.Id} until within {move.CommitRange:0.0}m");
+            }
             brain.Intent = new EnemyIntent(EnemyState.Attacking, brain.Target, CombatVector.Zero, 0f, CombatVector.Zero,
                 move.TrackDuringWindUp ? brain.Behaviour.TurnSpeed : 0f);
             return true;
@@ -636,7 +714,7 @@ namespace RPGFramework.ActionCombat
 
         private bool Ready(Brain brain, EnemyMove move) => !brain.ReadyAt.TryGetValue(move, out float at) || Time >= at;
 
-        // The longest range of the moves it can choose (weight above 0); 0 when it has none
+        // The longest distance it may start one of its moves from (weight above 0); 0 when it has none
         private static float Reach(Brain brain)
         {
             float reach = 0f;
@@ -645,7 +723,7 @@ namespace RPGFramework.ActionCombat
             {
                 var move = moves[i];
                 if (move.Weight > 0f)
-                    reach = Math.Max(reach, move.MaxRange);
+                    reach = Math.Max(reach, move.StartRange);
             }
             return reach;
         }
@@ -732,6 +810,7 @@ namespace RPGFramework.ActionCombat
             public EnemyMove Move;
             public int Swing;
             public bool ComboLanded;
+            public float HoldUntil;
             public readonly Dictionary<EnemyMove, float> ReadyAt = new Dictionary<EnemyMove, float>();
             public CombatVector? Goal;
             public int PatrolIndex;

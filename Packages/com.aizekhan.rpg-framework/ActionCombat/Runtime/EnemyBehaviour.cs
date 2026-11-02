@@ -73,11 +73,17 @@ namespace RPGFramework.ActionCombat
     }
 
     /// <summary>
-    /// One move in an enemy's set: an attack, the distances it is used from, how often (weight), how soon again
-    /// (cooldown) and what may follow it in a combo (only when this one hit or was blocked).
+    /// One move in an enemy's set: an attack, the distances it is used from, how close it commits to it, how often
+    /// (weight), how soon again (cooldown) and what may follow it in a combo (only when this one hit or was blocked).
+    /// A quick blow starts only well inside its reach (<see cref="CommitShare"/>); a wide swing may start at the edge
+    /// and hold its wind-up while it closes in (<see cref="HoldUntilInRange"/>).
     /// </summary>
     public sealed class EnemyMove
     {
+        private float _commitShare = 1f;
+        private float _maxHold = 1.5f;
+        private float _holdSpeed;
+
         public EnemyMove(AttackDefinition attack, float minRange, float maxRange)
         {
             Attack = attack ?? throw new ArgumentNullException(nameof(attack));
@@ -117,7 +123,72 @@ namespace RPGFramework.ActionCombat
         /// </summary>
         public bool TrackDuringWindUp { get; set; } = true;
 
+        /// <summary>
+        /// It commits to the blow only this deep in its reach: within <see cref="CommitRange"/> =
+        /// <see cref="MaxRange"/> x this (no nearer than <see cref="MinRange"/>). 0.75 makes a dagger close to three
+        /// quarters of its reach first, so a target that keeps moving is still in reach when the blow lands. 1 = at
+        /// the edge.
+        /// </summary>
+        public float CommitShare
+        {
+            get => _commitShare;
+            set
+            {
+                if (float.IsNaN(value) || value <= 0f || value > 1f)
+                    throw new ArgumentOutOfRangeException(nameof(CommitShare), value, "A share of the reach, above 0 up to 1");
+                _commitShare = value;
+            }
+        }
+
+        /// <summary>
+        /// The distance it commits to the blow from.
+        /// </summary>
+        public float CommitRange => Math.Max(MinRange, MaxRange * _commitShare);
+
+        /// <summary>
+        /// It may start anywhere in <see cref="MaxRange"/> and holds the wind-up (<see cref="CombatRules.HoldWindUp"/>,
+        /// at the attack's <see cref="AttackDefinition.HoldPoint"/>), tracking and closing in, until the target is
+        /// within <see cref="CommitRange"/> or <see cref="MaxHold"/> runs out; then the blow goes on. For a wide swing.
+        /// </summary>
+        public bool HoldUntilInRange { get; set; }
+
+        /// <summary>
+        /// The longest hold, in seconds; then it swings wherever the target is.
+        /// </summary>
+        public float MaxHold
+        {
+            get => _maxHold;
+            set => _maxHold = NotNegative(value, nameof(MaxHold));
+        }
+
+        /// <summary>
+        /// Metres per second it closes in while holding; 0 = the behaviour's <see cref="EnemyBehaviour.ApproachSpeed"/>.
+        /// </summary>
+        public float HoldSpeed
+        {
+            get => _holdSpeed;
+            set => _holdSpeed = NotNegative(value, nameof(HoldSpeed));
+        }
+
+        /// <summary>
+        /// The longest distance it starts from: <see cref="MaxRange"/> for a held move, <see cref="CommitRange"/>
+        /// otherwise.
+        /// </summary>
+        public float StartRange => HoldUntilInRange ? MaxRange : CommitRange;
+
         public bool InRange(float distance) => distance >= MinRange && distance <= MaxRange;
+
+        /// <summary>
+        /// It may start from this distance (<see cref="MinRange"/> to <see cref="StartRange"/>).
+        /// </summary>
+        public bool CanStart(float distance) => distance >= MinRange && distance <= StartRange;
+
+        private static float NotNegative(float value, string name)
+        {
+            if (float.IsNaN(value) || float.IsInfinity(value) || value < 0f)
+                throw new ArgumentOutOfRangeException(name, value, "A finite number, 0 or more");
+            return value;
+        }
     }
 
     /// <summary>
@@ -193,6 +264,12 @@ namespace RPGFramework.ActionCombat
         /// It keeps this far from other enemies (they push apart).
         /// </summary>
         public float PersonalSpace { get; set; } = 1.1f;
+
+        /// <summary>
+        /// It closes no nearer to its target than this (centre to centre): a move's approach motion and a held
+        /// wind-up's closing in stop here.
+        /// </summary>
+        public float ContactDistance { get; set; } = 0.6f;
 
         // Speeds
         public float PatrolSpeed { get; set; } = 1.5f;
@@ -398,6 +475,12 @@ namespace RPGFramework.ActionCombat
     public readonly struct EnemyIntent
     {
         public EnemyIntent(EnemyState state, int targetId, CombatVector move, float speed, CombatVector face, float turnSpeed)
+            : this(state, targetId, move, speed, face, turnSpeed, 0f)
+        {
+        }
+
+        public EnemyIntent(EnemyState state, int targetId, CombatVector move, float speed, CombatVector face, float turnSpeed,
+            float height)
         {
             State = state;
             TargetId = targetId;
@@ -405,6 +488,7 @@ namespace RPGFramework.ActionCombat
             Speed = speed;
             Face = face;
             TurnSpeed = turnSpeed;
+            Height = height;
         }
 
         public EnemyState State { get; }
@@ -433,6 +517,12 @@ namespace RPGFramework.ActionCombat
         /// Degrees per second it may turn now (0: it may not, as in an attack's active window).
         /// </summary>
         public float TurnSpeed { get; }
+
+        /// <summary>
+        /// Metres above the ground on a leap attack's arc (<see cref="AttackMotionKind.Leap"/>); the Unity side raises
+        /// the model by it.
+        /// </summary>
+        public float Height { get; }
 
         public static EnemyIntent Still(EnemyState state, int target) =>
             new EnemyIntent(state, target, CombatVector.Zero, 0f, CombatVector.Zero, 0f);

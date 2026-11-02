@@ -54,7 +54,17 @@ namespace RPGFramework.ActionCombat
         /// Its attack speed changed (<see cref="CombatRules.SetAttackSpeed"/>; <see cref="TimelineEntry.Value"/> is the
         /// new one).
         /// </summary>
-        AttackSpeedChanged = 17
+        AttackSpeedChanged = 17,
+
+        /// <summary>
+        /// Its wind-up is held (<see cref="CombatRules.HoldWindUp"/>): it waits at the attack's hold point.
+        /// </summary>
+        WindUpHeld = 18,
+
+        /// <summary>
+        /// Its held wind-up was let go: the wind-up goes on to the blow.
+        /// </summary>
+        WindUpReleased = 19
     }
 
     /// <summary>

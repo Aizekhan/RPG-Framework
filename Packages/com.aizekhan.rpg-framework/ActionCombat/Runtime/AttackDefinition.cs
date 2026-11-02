@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using RPGFramework.Combat;
 
 namespace RPGFramework.ActionCombat
@@ -15,6 +16,9 @@ namespace RPGFramework.ActionCombat
         private float _blockCost = 1f;
         private float _maxChargeMultiplier = 1f;
         private float _projectileLifetime = 5f;
+        private float _holdPoint = 1f;
+        private AttackMotion[] _motions = Array.Empty<AttackMotion>();
+        private SweepSegment[] _sweep = Array.Empty<SweepSegment>();
 
         /// <param name="id">The game's name for the attack ("slash", "heavy", "bow").</param>
         /// <param name="windUp">Seconds before the hit window opens.</param>
@@ -127,6 +131,45 @@ namespace RPGFramework.ActionCombat
         }
 
         /// <summary>
+        /// Where a held wind-up waits (<see cref="CombatRules.HoldWindUp"/>), as a share of the wind-up: 1 = just
+        /// before the blow (a raised axe), 0.5 = halfway.
+        /// </summary>
+        public float HoldPoint
+        {
+            get => _holdPoint;
+            set
+            {
+                if (float.IsNaN(value) || value < 0f || value > 1f)
+                    throw new ArgumentOutOfRangeException(nameof(HoldPoint), value, "A share of the wind-up, 0..1");
+                _holdPoint = value;
+            }
+        }
+
+        /// <summary>
+        /// How the attack moves its attacker in its phases (a step in, a lunge, a leap, a step back); empty: it stands.
+        /// <see cref="CombatRules.MotionOf"/> gives the speed now.
+        /// </summary>
+        public IReadOnlyList<AttackMotion> Motions
+        {
+            get => _motions;
+            set => _motions = Checked(value, motion => motion.Problem(), nameof(Motions));
+        }
+
+        /// <summary>
+        /// The volume the weapon sweeps over the active window, segment by segment (<see cref="SweepSegment"/>); empty:
+        /// the game's hitboxes decide contact. <see cref="CombatRules.Sweep"/> tests a body against the segment active
+        /// at that moment, so a world without physics (a runner's road) can have weapon contact too.
+        /// </summary>
+        public IReadOnlyList<SweepSegment> Sweep
+        {
+            get => _sweep;
+            set => _sweep = Checked(value, segment => segment.Problem(), nameof(Sweep));
+        }
+
+        internal AttackMotion[] MotionArray => _motions;
+        internal SweepSegment[] SweepArray => _sweep;
+
+        /// <summary>
         /// The damage multiplier of a charge held this long (clamped to [<see cref="MinCharge"/>,
         /// <see cref="MaxCharge"/>]); 1 for an attack that cannot be charged.
         /// </summary>
@@ -156,6 +199,21 @@ namespace RPGFramework.ActionCombat
             if (float.IsNaN(value) || float.IsInfinity(value) || value < 0f)
                 throw new ArgumentOutOfRangeException(name, value, "A finite number, 0 or more");
             return value;
+        }
+
+        private static T[] Checked<T>(IReadOnlyList<T> items, Func<T, string> problem, string name)
+        {
+            if (items == null || items.Count == 0)
+                return Array.Empty<T>();
+            var copy = new T[items.Count];
+            for (int i = 0; i < copy.Length; i++)
+            {
+                string wrong = problem(items[i]);
+                if (wrong != null)
+                    throw new ArgumentException($"{name}[{i}]: {wrong}", name);
+                copy[i] = items[i];
+            }
+            return copy;
         }
     }
 

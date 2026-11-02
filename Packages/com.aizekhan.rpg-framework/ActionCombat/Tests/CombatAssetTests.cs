@@ -1,3 +1,4 @@
+using System.Linq;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -91,6 +92,64 @@ namespace RPGFramework.ActionCombat.Tests
             finally
             {
                 Object.DestroyImmediate(behaviour);
+            }
+        }
+
+        // FG-31: moves come from the weapon (clip, motion, sweep, commit, hold), the monster adds its own
+        [Test]
+        public void AMonster_TakesItsWeaponsMoves_WithTheirMotionSweepCommitAndHold()
+        {
+            _attack = ScriptableObject.CreateInstance<AttackAsset>();
+            _attack.name = "dagger stab";
+            var attack = new SerializedObject(_attack);
+            attack.FindProperty("_holdPoint").floatValue = 0.6f;
+            var motions = attack.FindProperty("_motions");
+            motions.arraySize = 1;
+            motions.GetArrayElementAtIndex(0).FindPropertyRelative("Distance").floatValue = 0.8f;
+            var sweep = attack.FindProperty("_sweep");
+            sweep.arraySize = 2;
+            var segment = sweep.GetArrayElementAtIndex(0);
+            segment.FindPropertyRelative("ArcFrom").floatValue = -15f;
+            segment.FindPropertyRelative("ArcTo").floatValue = 15f;
+            segment.FindPropertyRelative("Radius").floatValue = 1.2f;
+            attack.ApplyModifiedPropertiesWithoutUndo();
+
+            var dagger = ScriptableObject.CreateInstance<WeaponMoveSet>();
+            var goblin = ScriptableObject.CreateInstance<EnemyBehaviourAsset>();
+            try
+            {
+                var set = new SerializedObject(dagger);
+                set.FindProperty("_weaponKind").stringValue = "dagger";
+                var moves = set.FindProperty("_moves");
+                moves.arraySize = 1;
+                var move = moves.GetArrayElementAtIndex(0);
+                move.FindPropertyRelative("Attack").objectReferenceValue = _attack;
+                move.FindPropertyRelative("MaxRange").floatValue = 1.4f;
+                move.FindPropertyRelative("Weight").floatValue = 1f;
+                move.FindPropertyRelative("Next").intValue = -1;
+                move.FindPropertyRelative("Opener").boolValue = true;
+                move.FindPropertyRelative("CommitShare").floatValue = 0.75f;
+                move.FindPropertyRelative("HoldUntilInRange").boolValue = true;
+                move.FindPropertyRelative("MaxHold").floatValue = 1f;
+                set.ApplyModifiedPropertiesWithoutUndo();
+                goblin.Weapon = dagger;
+
+                var built = goblin.Build().Moves.Single();
+
+                Assert.That(dagger.WeaponKind, Is.EqualTo("dagger"));
+                Assert.That(built.Attack.Id, Is.EqualTo("dagger stab"));
+                Assert.That(built.CommitRange, Is.EqualTo(1.05f).Within(1e-4f));
+                Assert.That(built.HoldUntilInRange, Is.True);
+                Assert.That(built.Attack.HoldPoint, Is.EqualTo(0.6f).Within(1e-4f));
+                Assert.That(built.Attack.Motions.Single().Distance, Is.EqualTo(0.8f).Within(1e-4f));
+                Assert.That(built.Attack.Sweep.Count, Is.EqualTo(1), "the segment without a radius is left out");
+                Assert.That(_attack.Problems(), Has.Some.Contains("Sweep segment 1"));
+                Assert.That(goblin.Problems(), Is.Empty, "the weapon's opener counts");
+            }
+            finally
+            {
+                Object.DestroyImmediate(dagger);
+                Object.DestroyImmediate(goblin);
             }
         }
 

@@ -22,6 +22,9 @@ namespace RPGFramework.ActionCombat
         [Tooltip("Waypoints to patrol in a loop; empty: wander or stand at home")]
         [SerializeField] private Transform[] _patrolPoints = new Transform[0];
 
+        [Tooltip("The model raised along a leap attack's arc (a child of the body); empty: the body stays on the ground")]
+        [SerializeField] private Transform _leapRoot;
+
         private readonly List<IDisposable> _subscriptions = new List<IDisposable>();
         private EnemyBehaviour _built;
         private Combatant _combatant;
@@ -30,6 +33,7 @@ namespace RPGFramework.ActionCombat
         private int _joined = -1;
         private Vector3 _push;
         private float _pushLeft;
+        private float _leapBase;
 
         public EnemyBehaviourAsset Behaviour
         {
@@ -65,6 +69,8 @@ namespace RPGFramework.ActionCombat
         {
             base.Awake();
             _body = GetComponent<CharacterController>();
+            if (_leapRoot != null)
+                _leapBase = _leapRoot.localPosition.y;
         }
 
         protected virtual void OnEnable() => Join();
@@ -121,6 +127,11 @@ namespace RPGFramework.ActionCombat
             else
                 transform.position += velocity * Time.deltaTime;
             Velocity = velocity;
+            if (_leapRoot != null)
+            {
+                var local = _leapRoot.localPosition;
+                _leapRoot.localPosition = new Vector3(local.x, _leapBase + intent.Height, local.z);
+            }
         }
 
         private void Join()
