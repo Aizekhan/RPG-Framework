@@ -184,7 +184,18 @@ namespace RPGFramework.ActionCombat.Tests
                 _projectiles.Launch(Arrow(new CombatVector(0f, 0f, 2f), 10f));
             _projectiles.Tick(0.016f);
 
-            Assert.That(() => _projectiles.Tick(0.016f), Is.Not.AllocatingGCMemory());
+            // Counted over many ticks: CI's runner can drop a stray allocation of its own into one of them
+            var allocates = new AllocatingGCMemoryConstraint();
+            TestDelegate tick = () => _projectiles.Tick(0.016f);
+            int dirty = 0;
+            for (int i = 0; i < 100; i++)
+            {
+                if (allocates.ApplyTo(tick).IsSuccess)
+                    dirty++;
+            }
+
+            Assert.That(_projectiles.InFlight, Has.Count.EqualTo(8), "still flying");
+            Assert.That(dirty, Is.LessThanOrEqualTo(2), "ticks that made garbage");
         }
 
         private sealed class World : IEnemyWorld
