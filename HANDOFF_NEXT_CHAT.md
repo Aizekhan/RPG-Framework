@@ -11,6 +11,10 @@
 This section holds only the latest session's notes; the release itself is in `STATUS.md` and `Docs/RELEASES.md`,
 older notes move to `Docs/archive/SESSION-LOG.md`.
 
+- 2026-11-02: released `v0.37.0` (the owner: games' agents must hear about framework updates): release feed
+  `releases.json` from the CHANGELOG, SessionStart hook `framework-update-check.sh` merged into the game's settings,
+  `### Breaking` CHANGELOG sections. Checked live against the GitHub tag from a fake game. WhiteWrite (whitewrite-67)
+  will not import combat data; its notes on 0.36.0 combat were confirmed with three refinements.
 - 2026-11-02: released `v0.36.0` (MythRunner FG-31: commit range, held wind-up, attack motions, timed sweep,
   `WeaponMoveSet`; see `Docs/RELEASES.md`). The first release through `release.py`. KI-23 is the later part (player
   moves against monster moves).
