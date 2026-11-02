@@ -19,4 +19,4 @@ Example: when a quest completes, the shop unlocks a new item.
 3. Do **not** reference the other feature's rules class to call it. If it must be asked something, depend on an
    interface registered in the container.
 4. Test: cause the event through the game and assert the reaction. Goblin Valley's
-   `ClearingTheValley_RunsTheWholeEventChain` test is a full example.
+   `GoblinValleyTests.ThreeKillsInARow_GiveBonusLoot` test (with the `KillStreak` rule) is a full example.

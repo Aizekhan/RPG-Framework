@@ -1,7 +1,7 @@
 # RPG Framework — архітектура (фактичний стан v0.35.0)
 
 > **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.35.0**
-> (тег `v0.35.0` на коміті `d647ec5`, Unity 6000.0), звірений із кодом пакета 2026-11-02: збірки (`.asmdef`), їхні
+> (тег `v0.35.0`; SHA і докази — у `Docs/RELEASES.md`; Unity 6000.0), звірений із кодом пакета 2026-11-02: збірки (`.asmdef`), їхні
 > посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.35.0), `Documentation~/networking.md`, рецепти
 > AI-guidance 01–20.
 > Попередня редакція (стан v0.5.0/v0.5.1) у git не потрапляла; цей файл замінює її повністю. Історію змін між
@@ -15,8 +15,9 @@
 > **Чого тут немає.** Архітектури конкретної гри (її контент, арт, конвеєр рендерингу, бюджети, Game Bible). Це живе в
 > репозиторії гри; приклад — `D:\HuntersRunner\Docs\ARCHITECTURE.md` (MythRunner).
 >
-> **Правило змін.** Документ описує конкретну версію. Під час оновлення фреймворку (новий тег) документ
-> звіряється з `CHANGELOG.md` нової версії й оновлюється окремим комітом.
+> **Правило змін.** Документ описує конкретну версію. Версію в шапці пише `.github/scripts/release.py`; текст
+> звіряється з `CHANGELOG.md` нової версії й оновлюється в тому ж релізному коміті. `check_docs.py` (CI) перевіряє,
+> що шапка, рядок «Тестова база» і назви типів у бектиках відповідають пакету.
 
 ---
 
@@ -57,6 +58,7 @@
 │ GENRE KITS                                                               │
 │   ActionRpg (.Runtime pure C# + .Unity + .Editor)                        │
 │   TurnBased (.Runtime pure C# + .Unity)  ·  Turns (.Runtime, сесія ходів)│
+│   ActionCombat (.Runtime pure C# + .Unity, бій у реальному часі, v0.30)  │
 ├──────────────────────────────────────────────────────────────────────────┤
 │ COMPOSITION OF GAMEPLAY                                                  │
 │   Bootstrap.Gameplay (готові feature-модулі) · Bootstrap.UnityServices   │
@@ -68,7 +70,7 @@
 │   Items · Inventory · Loot · Persistence · Dialogue · Crafting · Skills ·│
 │   Trading · Factions · Achievements · Interaction · Pathfinding ·        │
 │   BehaviorTree · Characters · Dice · Cards · Guilds · Housing ·          │
-│   Companions · DynamicEvents · Environment                               │
+│   Companions · DynamicEvents · Environment · ContentImport (з v0.32)     │
 ├──────────────────────────────────────────────────────────────────────────┤
 │ NETWORKING:  Networking (pure C#) · Networking.UnityTransport ·          │
 │              Networking.UnityRelay (опційно) · DeltaCompression          │
@@ -92,8 +94,8 @@
 2. Модуль говорить з іншим модулем лише через контракти чи події. Прямі посилання між L2 — лише ті, що в п. 5.3.
 3. Логіка, незалежна від рушія, — у `Runtime`; Unity-код — у `Unity`; тести — у `Tests`.
 4. У player-білді немає `UnityEditor` поза `#if UNITY_EDITOR` і editor-збірками.
-5. Жанровий кіт — єдине місце фреймворку, яке знає багато модулів одразу і з'єднує їх (`ActionRpg.Runtime`
-   посилається на 29 збірок, `TurnBased.Runtime` — на 23).
+5. Жанровий кіт — головне місце фреймворку, яке знає багато модулів одразу і з'єднує їх (`ActionRpg.Runtime`
+   посилається на 29 збірок фреймворку, `TurnBased.Runtime` — на 22; плюс UniTask).
 
 ### 2.2 Імена збірок і namespace
 
@@ -112,10 +114,10 @@
 |---|---|---|---|---|
 | **Logging** | `Logging.Runtime` (noEngine) + `Logging.Unity` | Логер | `ILogger`, `LogSeverity`, `Logger`, `CategoryLogger`, sinks `FileLogSink` / `MemoryLogSink` / `ILogSink`, `NullLogger` | [є] |
 | **DI** | `DI.Runtime` | Контейнер, scopes, ін'єкція, валідація графа | `IDIContainer` (`Register*`, `RegisterFactory`, `RegisterLazySingleton`, `RegisterScoped`, `Resolve`, `Validate`, `CreateScope`), `[Inject]`, `DIInstaller`, `LazyDependency<T>`, `DIValidationResult` | [є] |
-| **Core** | `Core.Runtime` | Композиція модулів, транзакція ініціалізації, async-трекер, пауза, гаманець | `IFeatureModule`, `BaseFeatureModule`, `IGameCompositionBuilder`, `GameCompositionBuilder`, `IGameComposition`, `InitializationTransaction`, `AsyncTaskTracker`, `AsyncSerialQueue`, `Ensure`; `IGamePause` (`Pause(reason)`, `Resume(reason)`, `ResumeAll`, з v0.8); `ICurrencyWallet` / `CurrencyWallet` (з v0.6) | [є] |
+| **Core** | `Core.Runtime` | Композиція модулів, транзакція ініціалізації, async-трекер | `IFeatureModule`, `BaseFeatureModule`, `IGameCompositionBuilder`, `GameCompositionBuilder`, `IGameComposition`, `InitializationTransaction`, `AsyncTaskTracker`, `AsyncSerialQueue`, `Ensure`. Гаманець `ICurrencyWallet` / `CurrencyWallet` (з v0.6) — у модулі Trading (розд. 5.1), не в Core | [є] |
 | **Events** | `Events.Runtime` | Шина подій | `IEvent`, `IEventPublisher`, `IEventBus`, `EventPriority`, `EventBus`, `SubscriptionBag`, `EventThrottler`, `EventBatcher`, `EventRecorder` | [є] |
 | **ECS** | `ECS.Runtime` (noEngine) | Сутності, компоненти, архетипи | `IEntityManager` (у т.ч. `GetEntitiesWith<T1,T2>(List<int>)` без алокацій), `IComponent`, `ArchetypeCatalog`, `ArchetypeBuilder`, `EntityArchetype` | [є] |
-| **Systems** | `Systems.Runtime` | Світ, реєстр і стадії систем, фази | `IWorld` / `World` (опційний `IGamePause`: на паузі системи отримують delta 0), `ISystem`, `SystemBase`, `IUpdateSystem` / `IFixedUpdateSystem` / `ILateUpdateSystem`, `ISystemRegistry`, `SystemGroup`, `PhaseSystemGroup`, `IPhaseProvider`, `IPhaseFilteredSystem`, `PhaseTracker`, `PhaseChangedEvent`, `SystemPriorities`, `EventPumpSystem`, `SystemProfiler` | [є] |
+| **Systems** | `Systems.Runtime` | Світ, реєстр і стадії систем, фази | `IWorld` / `World` (опційний `IGamePause`: на паузі системи отримують delta 0), `ISystem`, `SystemBase`, `IUpdateSystem` / `IFixedUpdateSystem` / `ILateUpdateSystem`, `ISystemRegistry`, `SystemGroup`, `PhaseSystemGroup`, `IPhaseProvider`, `IPhaseFilteredSystem`, `PhaseTracker`, `PhaseChangedEvent`, `SystemPriorities`, `EventPumpSystem`, `SystemProfiler`; `IGamePause` / `GamePause` (`Pause(reason)`, `Resume(reason)`, `ResumeAll`, з v0.8) | [є] |
 | **Timers** | `Timers.Runtime` + `Timers.Unity` | Відкладені й повторювані виклики, масштаб часу | `ITimerService` (`Schedule`, `Repeat`, `Cancel`, `Pause/Resume`, категорії, `DelayAsync`), `TimerHandle`, `ITimeScaleController` | [є] |
 | **StateMachine** | `StateMachine.Runtime` | FSM (sync і async) | `IState<TStateId>`, `StateMachine<TStateId>`, `IAsyncState<TStateId>`, `AsyncState<TStateId>`, `AsyncStateMachine<TStateId>`, `StateTransition<TStateId>` | [є] |
 | **Serialization** | `Serialization.Runtime` (noEngine) | Версійна серіалізація, міграції | `VersionedSerializer`, `IComponentSerializerRegistry`, `ComponentSerializerBase<T>`, `IMigrationRegistry`, `IMigrator<TFrom,TTo>`, `TypeRegistry` | [є] |
@@ -189,7 +191,7 @@ GameHost.Start(configure)                               // Bootstrap.Runtime, б
 
 - `GameFeatureModule` (база для модулів гри): `Dependencies` = `FrameworkCoreModule`, `Container`,
   `AddSystem<T>()`, `OnInitialize` / `OnShutdown`; при Shutdown знімає свої системи у зворотному порядку.
-- **Асинхронної ініціалізації модулів немає** (немає `IAsyncInitializable`); async — через UniTask у сервісах
+- **Асинхронної ініціалізації модулів немає** (немає async-аналога `OnInitialize`); async — через UniTask у сервісах
   (`IAssetManager.LoadAsync`, `ISceneDispatcher`, `ITimerService.DelayAsync`, `AsyncStateMachine`).
 
 ---
@@ -219,7 +221,7 @@ GameHost.Start(configure)                               // Bootstrap.Runtime, б
 | Редакторські ассети | `Tools.*` (Item Database, Loot Table, Quest, Dialogue, Faction, Skill, Ability, Crafting, Status Effect) — інспектор показує проблеми, конвертація в runtime-дані | `Tools.*` | — |
 | Квести й діалоги з інших інструментів (з v0.32) | `ContentImport`: JSON `rpgframework.content/1` → квести, діалоги, ефекти й перелік проблем (`ContentImporter.Read` / `Write`); у кіт — Game Setup **Content Files**, в ассети — меню або `ContentAssetImport.ImportFromCommandLine` (рецепт 20) | `ContentImport.*` | свій парсер JSON |
 | Карта проєкту для інструментів і AI (з v0.32) | `Tools.ProjectIndex`: JSON `rpgframework.project-index/1` (версія Unity, пакети, сцени збірки, git, модулі фреймворку, ассети з GUID і посиланнями, сцени, префаби, скрипти з публічними членами, збірки); лише читає файли. `ProjectIndexCommand.ExportFromCommandLine` | `Tools.ProjectIndex.*` | — |
-| Перевірка даних у CI (з v0.32) | `FrameworkValidation.ValidateFromCommandLine` — код виходу 0 / 1 помилки / 2 збій; перевіряє Quest і Dialogue ассети через `QuestGraph` / `DialogueGraph`. Усі точки `-executeMethod` — рецепт 19 | `Editor` | розбір логу |
+| Перевірка даних у CI (з v0.32) | `FrameworkValidation.ValidateFromCommandLine` — код виходу 0 / 1 помилки / 2 збій; перевіряє Quest і Dialogue ассети через `QuestGraph` / `DialogueGraph`, а також предмети, лут-таблиці й рецепти крафту. Усі точки `-executeMethod` — рецепт 19 | `Editor` | розбір логу |
 | Генератори і правила гри | `GameKit` (New Game, New Feature, Check Architecture, AI guidance, файли процесу гри, CI workflow, `.gitattributes` для LFS) | `GameKit.*` | — |
 
 Повна таблиця «потреба → сервіс» — рецепт 14; «потреба гри → модуль» — рецепт 16 (обидва в `Docs/RPGFramework/recipes/` гри).
@@ -270,7 +272,8 @@ GameHost.Start(configure)                               // Bootstrap.Runtime, б
 ### 4.4 Diagnostics
 
 - `DiagnosticsModule` → `DiagnosticsHub` із секціями `IDiagnosticsSection` (системи, події, кадри, пули, таймери);
-  `DiagnosticsOverlay` показує їх; не потрапляє в релізний білд.
+  `DiagnosticsOverlay` показує їх; `ActionRpgHost` не вмикає діагностику в релізному білді (`Debug.isDebugBuild`), гра
+  без кіта вирішує це сама.
 - **Render** (з v0.21): `RenderSection` рахує трикутники й меші в полі зору камери на CPU (працює без графіки, у тестах),
   по моделях від найважчої (`Heaviest`, `RenderModel`, `ModelOf`), і там, де працюють лічильники профайлера (Editor,
   development build), — GPU-трикутники, draw calls, set-pass, batches. `Measure()` → `RenderSample` для тестів бюджету;
@@ -325,7 +328,7 @@ GameHost.Start(configure)                               // Bootstrap.Runtime, б
 |---|---|
 | Імунітети, слабкості, стихії | [є] з v0.19: `DamageResistances` (Combat), `ActionRpgSettings.ElementTags`, `CharacterData.Resistances`, "resist:<element>" з предметів, ефектів, навичок; TurnBased — `AbilityEffectData.Element`, `CombatantData.Resistances` |
 | Особистий інвентар кожного гравця в коопі | [є] з v0.5.0: `ProgressMode.PerPlayer` |
-| Здібність по області (AoE) | [частково]: `TargetType.AllEnemies/AllAllies`; по радіусу — у колбеку ефекту (`ActorAbilities.SetEffect`) гра сама обирає цілі |
+| Здібність по області (AoE) | [частково]: `TargetType.AllEnemies/AllAllies`; по радіусу — у колбеку ефекту (`ActorAbilities.SetEffect`) гра сама обирає цілі; в ActionCombat снаряд `Landing` б'є всіх у радіусі (з v0.35) |
 | Розподіл очок характеристик | [немає], належить грі (модифікатори `StatContainer`); очки навичок — [є] (Skills) |
 | Карта відстаней / flow field | [є] з v0.18: `DistanceMap` |
 | Фізика 2D (Rigidbody2D, Tilemap) у жанровому кіті | [немає]; ActionRpg — 3D. 2D-вигляд = 3D-сцена з ортографічною камерою зверху |
@@ -342,7 +345,9 @@ ECS ← Combat, StatusEffects, Inventory, Quests, Dialogue, Crafting, Skills, Fa
 Factions ← Guilds          Inventory ← Housing          Events ← майже всі
 Localization ← Turns, TurnBased (з v0.19/v0.20)
 Abilities, Loot, Progression, Trading — лише Events (без ECS)
-Pathfinding, BehaviorTree, Dice, Cards — без залежностей від інших L2
+Pathfinding, BehaviorTree, Dice — без залежностей від інших L2; Dice ← Cards (`Deck<T>.Shuffle(IDiceService)`)
+Combat ← ActionCombat (з v0.30; `AttackContext`)
+Quests, Dialogue, Persistence ← ContentImport (з v0.32)
 ```
 
 Немає прямого зв'язку Stats ← Combat, Stats ← StatusEffects, Combat ← Abilities, Items ← Loot, Items ← Inventory:
@@ -358,7 +363,9 @@ Pathfinding, BehaviorTree, Dice, Cards — без залежностей від 
 ```
 
 Feature-модулі для підключення одним рядком лежать централізовано в `Bootstrap.Gameplay`, а не в папці модуля
-(виняток — модулі зі своїм Unity-шаром: `AudioModule`, `LocalizationModule`, `SettingsModule` у `<Module>.Unity`).
+(винятки — модулі зі своїм Unity-шаром: `AudioModule`, `LocalizationModule`, `SettingsModule` у `<Module>.Unity`;
+`DiagnosticsModule` у `Diagnostics.Runtime`; модулі кітів `ActionRpgModule`, `TurnBasedModule` і `UnityServicesModule` —
+у своїх збірках).
 
 ---
 
@@ -366,7 +373,7 @@ Feature-модулі для підключення одним рядком ле�
 
 | Міст | Що робить | Стан |
 |---|---|---|
-| `Integration.CombatQuests` (`KillObjectiveBridge`, `CombatQuestsModule`) | смерть → прогрес цілі «вбити» | [є] |
+| `Integration.CombatQuests` (`KillObjectiveBridge`; модуль `CombatQuestsModule` — у `Bootstrap.Gameplay`) | смерть → прогрес цілі «вбити» | [є] |
 | `Integration.StatusEffectsStats` (`StatContainerEffectTarget<TStatType>`) | модифікатори ефектів → `StatContainer` (з v0.18 — `UseStatContainers<T>()` без ручного з'єднання) | [є] |
 
 Інших мостів окремими збірками **немає**. У кітах досвід, лут, квести, досягнення, репутацію за вбивство роздає сам
@@ -438,7 +445,8 @@ Hit / Blocked / Dodged / Ignored з причиною (`ContactIgnored`). Шко�
 нього (окремого таймера захисту немає); блок утримується, діє в конусі спереду й коштує `IBlockStock` за удар (немає
 запасу — захист пробито). Утримання заряду обмежене [min, max], коротке відпускання — швидка атака; лук — те саме.
 Снаряд тримає вікно свого замаху весь політ (`EndSwing`, `ProjectileLifetime`). Події — readonly struct з точним часом;
-`CombatTimeline` записує фази, контакти, шкоду, ухилення, блоки й відмовлені дії для панелі діагностики.
+`CombatTimeline` (`arena.Timeline`) записує фази, контакти, шкоду, ухилення, блоки й відмовлені дії; тестову панель гра
+малює з нього сама (секції в `DiagnosticsHub` немає).
 **Unity (`ActionCombat.Unity`):** `CombatArena` (одна на сцену, тікає правила, стоїть на паузі світу), `Combatant`
 (нащадок `ActorView`), `Hurtbox`, `Hitbox` (тригер зброї), `AttackAsset` (фази в секундах або з кліпа: мітки чи події
 `ActiveStart`/`ActiveEnd`), `CombatProjectile` (sphere cast, без пролітання крізь тіло), `ProjectileLauncher`,
@@ -519,12 +527,12 @@ Client-повідомлення (id від 1200).
 
 ```
 Assets/<Game>/
+  Scenes/         <Game>.unity
   Scripts/Core/   <Game>.Core (noEngineReferences): правила, стан, події, модулі, системи
-  Content/        Game Setup, Characters, предмети, лут, квести, тексти (ScriptableObject)
   Scripts/        <Game>: хост (ActionRpgHost, TurnBasedHost або GameHostBehaviour), view, input, HUD
-  Editor/         <Game>.Editor
-  Tests/          <Game>.Tests: EditMode + <Game>ArchitectureTests
-  PlayTests/      PlayMode-тести сцени
+  Content/        Game Setup, Characters, предмети, лут, квест, матеріал (ScriptableObject)
+  Tests/          <Game>.Tests: EditMode + <Game>ArchitectureTests, тест сцени
+(<Game>.Editor і PlayMode-тести гра додає сама)
 CLAUDE.md, Docs/RPGFramework/ (architecture.md, recipes 01–20), GAME.md, FRAMEWORK-GAPS.md, DEVLOG.md, CI workflow,
 .gitattributes (Git LFS)
 STATUS.md, Docs/ARCHITECTURE.md, .claude/settings.json, .claude/commands/start.md і handoff.md (з v0.25)
@@ -560,6 +568,7 @@ New Game також виставляє Player Settings (Run In Background, Linea
 
 | Правило | Суть |
 |---|---|
+| GA00 | код гри знайдено (інакше решта правил перевіряє порожнечу) |
 | GA01 | увесь код гри в `.asmdef` |
 | GA02 | є збірка `<Game>.Core` |
 | GA03 | `<Game>.Core` без UnityEngine |
@@ -624,7 +633,7 @@ New Game також виставляє Player Settings (Run In Background, Linea
    Achievements, Housing; `RPGFramework.Core.Composition` замість `RPGFramework.Core`.
 2. **`noEngineReferences` не виставлено** в низці збірок без Unity-коду за змістом (Combat, Progression, Quests,
    Inventory, Factions, Abilities, Events, DI, Core, Systems…). Для гри це неважливо (її `Core` перевіряє GA03).
-3. **Дублікати імен типів між модулями:** `RewardType` (Achievements і Quests), `ConditionType` (Dialogue і Trading).
+3. **Дублікати імен типів між модулями:** `RewardType` (Achievements і Quests), `ConditionType` (Dialogue і Trading), `Combatant` (ActionCombat і TurnBased, з v0.30).
 4. **Дві моделі реплікації:** протоколи кітів (робочі) і стара `ReplicationSystem` / `DeltaCompression`.
 5. **Шарові архітектурні тести самого фреймворку в пакеті відсутні.**
 6. `UI.Runtime` залежить від шести L2-модулів (Items, Inventory, Quests, Loot, Stats, Characters) — панелі під RPG.

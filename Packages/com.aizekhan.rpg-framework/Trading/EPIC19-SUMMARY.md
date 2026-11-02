@@ -1,5 +1,8 @@
 # EPIC 19: Complete Trading System for RPGFramework
 
+> **History.** The summary written when the module was first built (2026-10). The API has changed since; the module
+> as it is now is described in the package `README.md`, `TARGET-ARCHITECTURE.md` and recipe 16.
+
 ## Project Completion Summary
 
 ### Overview

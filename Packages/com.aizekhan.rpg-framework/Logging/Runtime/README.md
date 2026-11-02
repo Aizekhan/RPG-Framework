@@ -1,12 +1,13 @@
-# RPGFramework Logging Contract
+# RPGFramework Logging
 
-This assembly defines only the framework-facing logging abstraction and severity values.
+The framework's logger, without UnityEngine.
 
 ## Public API
-- `ILogger.Log(LogSeverity, string, string, Exception)`
+- `ILogger.Log(LogSeverity, string, string, Exception)` and `LoggerExtensions` (`LogError`, ...; needs `using RPGFramework.Logging;`)
 - `LogSeverity`: Trace, Debug, Information, Warning, Error, Critical
+- `Logger` (per-category levels, context, enrichers, sinks isolated from each other), `CategoryLogger`, `NullLogger`, `LogEntry`
+- Sinks: `ILogSink`, `MemoryLogSink` (tests), `FileLogSink` (rotation)
 
 ## Boundary
-- No Unity, MythHunter, DI container, file system, or provider dependencies.
-- Concrete sinks/formatting and MythHunter-specific features remain in the Game Layer/adapters.
-- Existing `IMythLogger` remains a compatibility facade; it can extend `ILogger` while preserving its established methods.
+- No Unity, DI container or provider dependencies.
+- The Unity console sink, `UnityConsoleLogSink`, is in `RPGFramework.Logging.Unity`.

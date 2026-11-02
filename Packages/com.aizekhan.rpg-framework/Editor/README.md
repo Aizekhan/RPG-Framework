@@ -9,7 +9,7 @@ Editor-only helpers shared by the framework (`RPGFramework.Editor`, never in pla
 | `EditorWindows/` | **Framework Manager** (Ctrl+Shift+F, module overview), **Item Database** and **Loot Table Editor** windows |
 | `PropertyDrawers/` | `QuestIdDrawer`, `ItemRarityDrawer`, `FactionStandingDrawer`, `ProgressBarDrawer` |
 | `Gizmos/` | `FrameworkGizmos`: scene markers (quest, interaction radius, loot spawn, station, dialogue trigger, territory, ranges, paths, zones) |
-| `Utilities/` | Menu items (**Tools > RPG Framework**), `FrameworkValidation`, `FrameworkEditorUtility` |
+| `Utilities/` | Menu items (**RPG Framework > Tools**), `FrameworkValidation`, `FrameworkEditorUtility` |
 
 ## Designing content
 
@@ -28,6 +28,6 @@ Play, and a conversion to the module's runtime data. They live in `Tools/`, one 
 | Crafting Recipe, Crafting Recipe Database | Crafting | `CraftingRecipeData` (ingredients and results are `ItemAsset`s) |
 | Status Effect, Status Effect Database | StatusEffects | `StatusEffectData` (the inspector says what the effect does in one line) |
 
-**Tools > RPG Framework > Create** makes the same assets through a save dialog.
+**RPG Framework > Tools > Create** makes the same assets through a save dialog.
 
 The action RPG's own assets (`Character`, `Game Setup`) are in `ActionRpg/Unity`.

@@ -17,7 +17,8 @@ Automated tests enforce the architecture, so a change that breaks it fails.
 - Real-time action RPG: `ActionRpg` (the New Game template; recipes 01-13). Combat where the timing of a blow
   matters (attack phases, weapon hitboxes, dodge, block, charge, projectiles): `ActionCombat` (recipe 18).
 - Turn-based party RPG: `TurnBased` (turn order, actions, abilities, status effects, enemy AI, rewards, levels, saves;
-  recipe 15). It has no battle screen: build the views on `ITurnBasedWorld` / `Battle`, never your own battle rules.
+  recipe 15). A ready host and battle screen (`TurnBasedHost`, `BattleScreen`), or your own views on `ITurnBasedWorld` /
+  `Battle` / `BattleMenu`; never your own battle rules.
 
 ## Core services — always use these
 Read `Docs/RPGFramework/recipes/14-core-services.md` before writing gameplay plumbing. The framework's services are in

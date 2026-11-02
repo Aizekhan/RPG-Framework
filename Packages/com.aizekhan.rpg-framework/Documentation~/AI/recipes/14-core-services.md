@@ -10,7 +10,8 @@ a path search or a logger, find it here.** Architecture rule GA13 fails on the u
 `GameHost` builds a DI container. Two modules fill it with shared singletons:
 
 - `FrameworkCoreModule` (always): `ILogger`, `IEventBus`/`IEventPublisher`, `ITimerService`, `IEntityManager`,
-  `ISystemRegistry`, `IWorld`, `PhaseTracker`/`IPhaseProvider`.
+  `ISystemRegistry`, `IWorld`, `PhaseTracker`/`IPhaseProvider`, `IDiceService` (seeded by `FrameworkCoreOptions.DiceSeed`),
+  `IGamePause`.
 - `UnityServicesModule` (`ActionRpgHost` adds it; a plain `GameHostBehaviour` adds it with
   `builder.UseModule(new UnityServicesModule())`): `IPoolManager`, `IAssetManager` (Resources), `IPrefabSpawner`,
   `ISceneDispatcher`. On shutdown it releases pools and unloads assets.

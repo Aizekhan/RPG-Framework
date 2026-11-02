@@ -1,6 +1,6 @@
 # Networking: where it stands
 
-Status on 2026-10-26. **Action RPGs made with this package can be played in co-op by 2-8 players on one network** (4 by default, `Max Players` on `ActionRpgHost`; 8 tested over UDP)
+Status at the package version in `package.json`; co-op protocol `CoopProtocol.Version`. **Action RPGs made with this package can be played in co-op by 2-8 players on one network** (4 by default, `Max Players` on `ActionRpgHost`; 8 tested over UDP)
 (LAN, or a VPN such as Tailscale or ZeroTier between homes).
 
 ## What exists
@@ -15,7 +15,8 @@ Status on 2026-10-26. **Action RPGs made with this package can be played in co-o
 | `ActionRpgHost` co-op: F2 panel, `-host` / `-join`, smooth movement of others (`RemoteMotion`) | done, PlayMode test with two hosts |
 | `ReplicationSystem`, `NetworkEntity`, `NetworkTransform`, `DeltaCompression` (generic entity replication) | older, tested on a mock transport; the action RPG does not use them |
 | Internet play without a VPN: `RPGFramework.Networking.UnityRelay` (compiled only with the Multiplayer Services SDK) | **built and tested against a fake room service; not yet proven between two real networks** |
-| Lobby browser / matchmaking, host migration, client-side prediction | missing |
+| Co-op lobby (`CoopHost.UseLobby`, `StartMatch`, `Kick`) and LAN game search (`LanDiscovery`) | done, tested |
+| Online matchmaking, host migration, client-side prediction | missing |
 
 ## How the action RPG co-op works
 
@@ -31,12 +32,13 @@ Status on 2026-10-26. **Action RPGs made with this package can be played in co-o
    changed numbers (health, stats, alive) and the party's progress, each measured against what that player last saw
    (a late joiner gets everything at once). Unreliable, 20 times a second: positions (host → everyone; each player →
    host, their own character only).
-4. **Messages** (ids 1100-1108): `CoopHello` (game fingerprint, brought progress), `CoopWelcome` (accepted with a
-   player id, or the reason), `CoopWorld`, `CoopMotion`, `CoopIntent`, `CoopIncomingAttack` / `CoopDefenseResult`
+4. **Messages** (ids 1100-1110): `CoopHelloMessage` (game fingerprint, brought progress), `CoopWelcomeMessage` (accepted
+   with a player id, or the reason), `CoopWorldMessage`, `CoopMotionMessage`, `CoopCorrectionMessage` (1105),
+   `CoopIntentMessage`, `CoopIncomingAttackMessage` / `CoopDefenseResultMessage`
    (defence decided on the owner's machine, `CoopHost.DefenseAuthority = Owner`). Hello and Intent are client-only,
    Welcome and World host-only (`NetworkAuthority`). A game's own messages take ids from 1200
    (`CoopProtocol.FirstGameMessageId`, `CoopGameMessages`; `CoopHost.On/Send/SendToAll`, `CoopClient.On/Send`).
-   Status effects start and end, and cooldown starts, travel reliably with the world. `CoopScene` (1108, host-only)
+   Status effects start and end, and cooldown starts, travel reliably with the world. `CoopSceneMessage` (1108, host-only)
    tells joined machines which scene the game is in (`ActionRpgHost.ChangeScene`).
 5. **Refusals in plain words:** a different build ("The host plays a different version of the game"), a full party,
    nobody at that address (after about 5 seconds), the host leaving. The joined player is then back in a game of
@@ -181,8 +183,8 @@ Sources: [Network connection management (Multiplayer Services)](https://docs.uni
 
 ## Limits worth knowing
 
-- Positions are trusted from each player for their own character (the host checks reach for attacks). Fine among
-  friends; a competitive game would need server-side movement.
+- Each player sends their own position; the host limits it to the character's Move Speed (`CoopHost.MoveSpeedTolerance`,
+  `MoveSlack`; horizontal only) and corrects them, and checks reach for attacks.
 - No client-side prediction: a joined player's hits show after one round trip (a few milliseconds on a LAN).
 - With shared progress, a friend who joins brings nothing and takes nothing home. With `PerPlayer` the host trusts
   the progress a friend brings (fine among friends).
@@ -195,4 +197,4 @@ Sources: [Network connection management (Multiplayer Services)](https://docs.uni
 
 ## Next, if wanted
 
-- A Unity Relay session provider for playing over the internet without a VPN (see the comparison above).
+- Steam / EOS session providers, online matchmaking.

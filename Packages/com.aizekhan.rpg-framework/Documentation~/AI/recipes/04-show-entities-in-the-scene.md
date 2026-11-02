@@ -12,6 +12,6 @@ The rules say *what exists*; the scene shows it. The pattern the framework's act
    then hand the view components their entity id and the rules API. On despawn: `views.Unbind(entityId)`, then
    `spawner.Despawn(instance)`. Copy `ActorPresenter`.
 4. **View components** on the prefab read state every frame and call the rules API on input.
-   They never change state themselves. See `CombatantView`, `HealthBarView`, `GoblinBrain`.
+   They never change state themselves. See `HealthBarView`, `EnemyBrain`, `StrikeAnimator` (`ActionRpg/Unity`).
 5. **Find what is under a click or a collider:** `views.TryGetEntity(hit.collider.gameObject, out int entityId)`.
 6. Test it with a PlayMode test that loads the scene and waits for the views (`GoblinValleyPlayTests`).

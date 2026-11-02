@@ -21,6 +21,16 @@ jobs:
           python-version: "3.12"
       - run: python -I .github/scripts/check_meta.py .
 
+  docs-check:
+    name: Docs agree with their sources
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python -I .github/scripts/check_docs.py .
+
   unity-tests:
     name: ${{ matrix.mode }} tests (Unity 6000.0.45f1)
     runs-on: ubuntu-latest

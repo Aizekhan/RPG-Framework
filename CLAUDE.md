@@ -31,8 +31,8 @@ Build a **universal RPG Framework** that is reusable across any RPG game.
 - Never merge or delete without explicit user confirmation
 
 ## Unity environment
-**Unity Editor:** 6000.0.45f1
-**Unity CLI:** 1.0.0-beta.13
+**Unity Editor:** 6000.0.45f1 (owner: `ProjectSettings/ProjectVersion.txt`)
+**Unity CLI:** 1.0.0-beta.15 (this line is the only place that names it; `check_docs.py --local` compares it with `unity --version`)
 
 **Standard commands:**
 ```bash
@@ -65,6 +65,21 @@ unity test "<path>" --mode EditMode --output "<xml>" --verbose --timeout <second
 3. Framework independence validation (no game dependencies)
 4. Performance benchmarks
 
+## Single source of truth for documents
+Every fact has one owner; every copy is checked against it by `.github/scripts/check_docs.py`, which runs in CI
+(job "Docs agree with their sources") and locally with `python -I .github/scripts/check_docs.py . --local`.
+The owners are listed in `STATUS.md` ("Single sources of truth"). The rules:
+- `STATUS.md` holds the **current state only**; history goes to `Docs/RELEASES.md` (proof of each release, append-only)
+  and `Docs/archive/SESSION-LOG.md` (session notes). Never leave a "not done" claim in a current document after the
+  change that does it.
+- Everything open, missing or limited is a `KI-NN` bullet in STATUS "Open issues", and nowhere else as a current claim.
+  A change that closes one names the KI in its CHANGELOG line and deletes the bullet in the same commit.
+- A new version is written only by `python .github/scripts/release.py X.Y.Z` (package.json, CHANGELOG heading, install
+  tags, TARGET-ARCHITECTURE header, STATUS release line, `Docs/RELEASES.md` row, codebase counts).
+- Docs name real code: a backticked `Type` or `Type.Member` that is not in the code fails the check (made-up example
+  names go in `EXAMPLE_NAMES`, outside APIs in `EXTERNAL_NAMES`).
+- Run the check before every commit that touches documents, versions or modules; a red check is fixed, never bypassed.
+
 ## Session process
 **On session start:**
 1. Read `STATUS.md` and `HANDOFF_NEXT_CHAT.md` from project root (`D:\RPG-Framework\`)
@@ -93,11 +108,14 @@ unity test "<path>" --mode EditMode --output "<xml>" --verbose --timeout <second
 - Maintain exactly ONE in_progress todo at a time.
 
 **At milestone completion:**
-1. Update `STATUS.md` and `HANDOFF_NEXT_CHAT.md` with actual state (exact SHAs, proof, open gates).
-   On every release tag, also update `TARGET-ARCHITECTURE.md` from the new version's `CHANGELOG.md` (version and tag in
-   the header, [є]/[частково]/[немає] marks, test results), in Ukrainian, describing the framework only.
-2. Open/update PR in roadmap repository.
-3. Short report: what changed, which SHAs verified, what passed, what merged, next step.
+1. Release commit (`chore: release X.Y.Z`), all in one commit: `release.py X.Y.Z`; the `Docs/RELEASES.md` row (what,
+   who asked, local test counts); `TARGET-ARCHITECTURE.md` text from the new version's `CHANGELOG.md`
+   ([є]/[частково]/[немає] marks, test base line), in Ukrainian, describing the framework only; STATUS open issues the
+   version closes or opens; `check_docs.py` green. Then tag and push.
+2. After CI on the tag: a `docs:` commit fills the proof only (tag SHA, CI run) in `Docs/RELEASES.md`, and the latest
+   session notes in `HANDOFF_NEXT_CHAT.md` (older notes move to `Docs/archive/SESSION-LOG.md`).
+3. Open/update PR in roadmap repository.
+4. Short report: what changed, which SHAs verified, what passed, what merged, next step.
 
 ## Execution discipline
 - Use `/start` command at session beginning.

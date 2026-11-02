@@ -215,8 +215,8 @@ Skim the recipe titles in `Docs/RPGFramework/recipes/`. Tick step 5.
 
 (No `-quit` with `-runTests`; Unity exits by itself, with code 2 if a test failed.) Read the NUnit XML: the root
 `test-run` element has `total`, `passed`, `failed`. Proof: failed = 0 in both, and the EditMode total is not 0 (a
-test assembly that failed to compile shows up as missing tests, not as a failure). A fresh game has about 14
-EditMode tests and no PlayMode tests yet; PlayMode tests come with the first scene features. Write the counts into
+test assembly that failed to compile shows up as missing tests, not as a failure). A fresh game has EditMode tests only (one per
+architecture rule, plus start and scene tests) and no PlayMode tests yet; PlayMode tests come with the first scene features. Write the counts into
 `SETUP.md`; later runs must never have fewer tests than the last recorded count without a reason. Tick step 6.
 
 ## Step 7. The developer plays it
@@ -235,7 +235,7 @@ sensible default they can accept or change:
 1. The pitch in one or two sentences.
 2. Genre and view; single player or co-op (how many); PvP or not. A real-time action RPG starts from the generated
    game (`ActionRpg`); a turn-based party RPG uses the `TurnBased` rules (recipe 15: turns, abilities, effects, enemy
-   AI, rewards and saves are done; the battle screen is the game's to build); other genres use the modules and the
+   AI, rewards and saves are done; `TurnBasedHost` runs it with a battle screen built from code, or the game builds its own views); other genres use the modules and the
    core services (recipe 14).
 3. The core loop: what the player does every 30 seconds, every 10 minutes, every session.
 4. Features in priority order. Push for a **small first milestone** that is playable on its own (a "vertical

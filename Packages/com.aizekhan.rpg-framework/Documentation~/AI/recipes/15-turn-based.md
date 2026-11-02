@@ -73,7 +73,7 @@ status effect.
 `command.With(target)` and pass that to `battle.Perform`. By hand:
 
 ```csharp
-var world = host.Game.World;               // ITurnBasedWorld for views
+var world = host.World;               // ITurnBasedWorld for views
 if (world.WhyCannotStartBattle() == null)
     world.StartBattle();
 
