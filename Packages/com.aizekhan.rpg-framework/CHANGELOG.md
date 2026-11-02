@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-11-02
+
 ### Added
 - Abilities: delayed hits. `CastInfo.ImpactDelay` covers a swing's contact, an arrow's flight or a meteor's fall. `ImpactCount` and `ImpactInterval` make several hits (a flurry, a volley). `ImpactsSurviveInterrupt` lets an arrow already loosed still land. `RecheckTargetOnImpact` makes a hit miss a target that got away. The use is paid, its charge used and its cooldown started when it goes off, and each hit calls the effect when its time comes (`Update`). An ability without these fields hits at once, as before.
   - `IAbilityImpacts`, implemented by `AbilityExecutor`:
