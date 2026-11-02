@@ -60,6 +60,71 @@ namespace RPGFramework.ActionCombat.Tests
         }
 
         [Test]
+        public void AttackSpeed_ScalesEveryPhase_AndTheAnimationPace()
+        {
+            var phases = new List<string>();
+            _bus.Subscribe<AttackActiveStartedEvent>(e => phases.Add(At("active", e.Time)));
+            _bus.Subscribe<AttackActiveEndedEvent>(e => phases.Add(At("inactive", e.Time)));
+            _bus.Subscribe<AttackEndedEvent>(e => phases.Add(At("ended", e.Time)));
+            Assert.That(_rules.AttackSpeedOf(Hero), Is.EqualTo(1f));
+            Assert.That(_rules.SetAttackSpeed(Hero, 2f), Is.True);
+
+            _rules.Attack(Hero, Slash);
+            Assert.That(_rules.PhaseLength(Hero), Is.EqualTo(0.1f).Within(1e-5f));
+            Assert.That(_rules.AnimationPaceOf(Hero), Is.EqualTo(2f), "the clip plays twice as fast");
+            _rules.Tick(1f);
+
+            Assert.That(phases, Is.EqualTo(new[] { "active 0.10", "inactive 0.15", "ended 0.30" }), "each phase half as long");
+            Assert.That(_rules.AnimationPaceOf(Hero), Is.EqualTo(1f), "idle plays at its own pace");
+            Assert.That(_timeline.For(Hero).First().Kind, Is.EqualTo(TimelineKind.AttackSpeedChanged));
+        }
+
+        [Test]
+        public void ASlowedAttack_LastsLonger_AndItsWindowOpensLater()
+        {
+            _rules.SetAttackSpeed(Hero, 0.5f);
+            _rules.Attack(Hero, Slash);
+            int swing = _rules.SwingOf(Hero);
+
+            _rules.Tick(0.3f);
+            Assert.That(_rules.ReportContact(Hero, Monster, swing), Is.EqualTo(ContactResult.Ignored), "still winding up at 0.3");
+            _rules.Tick(0.15f);
+            Assert.That(_rules.ReportContact(Hero, Monster, swing), Is.EqualTo(ContactResult.Hit), "the window is 0.4-0.6");
+            _rules.Tick(0.7f);
+            Assert.That(_rules.StateOf(Hero), Is.EqualTo(CombatState.Recovery), "recovery lasts 0.6");
+            _rules.Tick(0.1f);
+            Assert.That(_rules.StateOf(Hero), Is.EqualTo(CombatState.Idle));
+        }
+
+        [Test]
+        public void AttackSpeed_ChangedMidSwing_KeepsThePhasesProgress()
+        {
+            _rules.Attack(Hero, Slash);
+            _rules.Tick(0.1f); // half of the 0.2 wind-up
+
+            _rules.SetAttackSpeed(Hero, 2f);
+
+            Assert.That(_rules.PhaseLength(Hero), Is.EqualTo(0.1f).Within(1e-5f));
+            Assert.That(_rules.PhaseElapsed(Hero), Is.EqualTo(0.05f).Within(1e-5f), "still half way");
+            _rules.Tick(0.05f);
+            Assert.That(_rules.StateOf(Hero), Is.EqualTo(CombatState.Active), "the rest of the wind-up went twice as fast");
+        }
+
+        [Test]
+        public void AttackSpeed_LeavesDodgesAndChargesAlone_AndMustBeAboveZero()
+        {
+            _rules.SetAttackSpeed(Hero, 3f);
+            _rules.Dodge(Hero, new CombatVector(1f, 0f, 0f));
+            Assert.That(_rules.PhaseLength(Hero), Is.EqualTo(_rules.SettingsOf(Hero).DodgeSeconds));
+            Assert.That(_rules.AnimationPaceOf(Hero), Is.EqualTo(1f));
+
+            Assert.That(() => _rules.SetAttackSpeed(Hero, 0f), Throws.TypeOf<System.ArgumentOutOfRangeException>());
+            Assert.That(() => _rules.SetAttackSpeed(Hero, float.NaN), Throws.TypeOf<System.ArgumentOutOfRangeException>());
+            Assert.That(_rules.SetAttackSpeed(99, 2f), Is.False, "not in the fight");
+            Assert.That(_rules.AttackSpeedOf(99), Is.EqualTo(1f));
+        }
+
+        [Test]
         public void OneLongTick_RunsEveryPhaseItCovers()
         {
             _rules.Attack(Hero, Slash);

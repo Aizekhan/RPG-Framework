@@ -8,7 +8,10 @@ namespace RPGFramework.ActionCombat
     /// Plays its <see cref="Combatant"/>'s combat on an <see cref="Animator"/>: an attack's start fires its trigger
     /// (the attack's own, or Attack), a charge holds a bool and its release fires a trigger, a dodge and a stagger fire
     /// triggers, a raised block holds a bool. A parameter the controller does not have is skipped. The rules keep the
-    /// time; make the clips match it (an <see cref="AttackAsset"/> with a clip takes its phases from the clip).
+    /// time; make the clips match it (an <see cref="AttackAsset"/> with a clip takes its phases from the clip). With
+    /// an attack speed (<see cref="Combatant.AttackSpeed"/>) the pace float follows
+    /// <see cref="CombatRules.AnimationPaceOf"/>: use it as the attack states' speed multiplier, and the clip's
+    /// contact stays on the rules' active window however fast or slow the attack is.
     /// </summary>
     public class CombatAnimatorBridge : MonoBehaviour
     {
@@ -39,6 +42,9 @@ namespace RPGFramework.ActionCombat
         [Tooltip("Bool, true while the block is up")]
         [SerializeField] private string _block = "Block";
 
+        [Tooltip("Float, the attack's pace (its attack speed during an attack, 1 otherwise): the attack states' speed multiplier")]
+        [SerializeField] private string _attackPace = "AttackPace";
+
         private readonly List<IDisposable> _subscriptions = new List<IDisposable>();
         private readonly HashSet<int> _parameters = new HashSet<int>();
         private RuntimeAnimatorController _known;
@@ -63,6 +69,14 @@ namespace RPGFramework.ActionCombat
             })));
             _subscriptions.Add(events.Subscribe<BlockRaisedEvent>(e => Mine(e.EntityId, () => SetBool(_block, true))));
             _subscriptions.Add(events.Subscribe<BlockLoweredEvent>(e => Mine(e.EntityId, () => SetBool(_block, false))));
+        }
+
+        protected virtual void Update()
+        {
+            var arena = Owner != null ? Owner.Arena : null;
+            if (arena == null || Animator == null || !Has(_attackPace))
+                return;
+            Animator.SetFloat(_attackPace, arena.Rules.AnimationPaceOf(Owner.Id));
         }
 
         protected virtual void OnDisable()

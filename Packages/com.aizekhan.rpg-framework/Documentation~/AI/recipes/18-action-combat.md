@@ -63,6 +63,10 @@ the `Combat` damage calculator); use `ActionCombat` when the timing of a blow ma
    `Active Start`/`Active End` (shares of the clip) or at `ActiveStart`/`ActiveEnd` animation events.
 6. **`CombatAnimatorBridge`**: sets the animator's `Attack` (or the attack's own trigger), `ChargeHold`,
    `ChargeRelease`, `Dodge`, `HitReact`, `Block`; missing parameters are skipped.
+   Attack speed: set `combatant.AttackSpeed` (or `rules.SetAttackSpeed(id, k)`) from the game's stats. 1.5
+   makes wind-up, active window and recovery last 1/1.5 as long; set mid-swing, the phase keeps its progress.
+   Add a float `AttackPace` to the controller and tick **Multiplier** on the attack states with it: the bridge
+   feeds it `rules.AnimationPaceOf(id)`, so the clip's contact frame stays on the rules' active window at any speed.
 7. Ranged: **`ProjectileLauncher`** (muzzle, a `CombatProjectile` prefab, speed) fires on the projectile attack's
    active phase along `Aim` (set it from the camera) or the muzzle's forward.
 8. Enemies: **`CombatEnemyAI`** (below) for monsters that fight like in an action RPG; the simple

@@ -48,7 +48,13 @@ namespace RPGFramework.ActionCombat
         /// An enemy's decision (<c>EnemyDirector</c>): a state change, a token, a chosen attack, a defence, and why
         /// (<see cref="TimelineEntry.Note"/>).
         /// </summary>
-        Decision = 16
+        Decision = 16,
+
+        /// <summary>
+        /// Its attack speed changed (<see cref="CombatRules.SetAttackSpeed"/>; <see cref="TimelineEntry.Value"/> is the
+        /// new one).
+        /// </summary>
+        AttackSpeedChanged = 17
     }
 
     /// <summary>

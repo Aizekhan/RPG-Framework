@@ -136,6 +136,51 @@ namespace RPGFramework.ActionCombat
         public float PhaseLength(int entityId) => Find(entityId)?.Length ?? 0f;
 
         /// <summary>
+        /// How fast it attacks: 1 is the attacks' own timing, 1.5 is half again as fast (each phase lasts 1/1.5),
+        /// 0.5 is twice as slow. The game sets it from its stats (attack speed, haste, a slowing curse).
+        /// </summary>
+        public float AttackSpeedOf(int entityId) => Find(entityId)?.AttackSpeed ?? 1f;
+
+        /// <summary>
+        /// Sets how fast it attacks (above 0; see <see cref="AttackSpeedOf"/>). The wind-up, active window and
+        /// recovery of its attacks last their own seconds divided by it. Set during an attack, the phase under way
+        /// keeps its progress and only its rest speeds up or slows down. A charge's hold, dodges and staggers do not
+        /// change.
+        /// </summary>
+        /// <returns>False when it is not in the fight.</returns>
+        public bool SetAttackSpeed(int entityId, float multiplier)
+        {
+            if (float.IsNaN(multiplier) || float.IsInfinity(multiplier) || multiplier <= 0f)
+                throw new ArgumentOutOfRangeException(nameof(multiplier), multiplier, "Attack speed is above 0");
+            var fighter = Find(entityId);
+            if (fighter == null)
+                return false;
+            if (fighter.AttackSpeed == multiplier)
+                return true;
+            if (IsTimedAttackPhase(fighter.State) && fighter.Length > 0f)
+            {
+                float progress = fighter.Elapsed / fighter.Length;
+                fighter.Length = fighter.Length * fighter.AttackSpeed / multiplier;
+                fighter.Elapsed = progress * fighter.Length;
+            }
+            fighter.AttackSpeed = multiplier;
+            if (Timeline != null)
+                Timeline.Record(new TimelineEntry(Time, TimelineKind.AttackSpeedChanged, entityId, value: multiplier));
+            return true;
+        }
+
+        /// <summary>
+        /// How fast its animation should play now: its attack speed in a wind-up, active window or recovery (an
+        /// attack's clip made at the attack's own timing then meets the rules' contact), 1 otherwise. Feed it to an
+        /// animator state's speed multiplier (<c>CombatAnimatorBridge</c> does).
+        /// </summary>
+        public float AnimationPaceOf(int entityId)
+        {
+            var fighter = Find(entityId);
+            return fighter != null && IsTimedAttackPhase(fighter.State) ? fighter.AttackSpeed : 1f;
+        }
+
+        /// <summary>
         /// Seconds the current charge has been held (0 when not charging).
         /// </summary>
         public float ChargeHeld(int entityId)
@@ -245,7 +290,7 @@ namespace RPGFramework.ActionCombat
             Raise(new AttackReleasedEvent(entityId, fighter.Swing, played.Id, counted, multiplier, quick, Time),
                 new TimelineEntry(Time, TimelineKind.AttackReleased, entityId, swingId: fighter.Swing, attackId: played.Id,
                     value: multiplier, note: quick ? $"quick after {held:0.###}s" : $"held {counted:0.###}s"));
-            Enter(fighter, CombatState.WindUp, played.WindUp);
+            Enter(fighter, CombatState.WindUp, played.WindUp / fighter.AttackSpeed);
             Advance(fighter, 0f);
             return true;
         }
@@ -407,7 +452,7 @@ namespace RPGFramework.ActionCombat
             fighter.Swing = swing.Id;
             fighter.Attack = attack;
 
-            Enter(fighter, charging ? CombatState.Charging : CombatState.WindUp, charging ? 0f : attack.WindUp);
+            Enter(fighter, charging ? CombatState.Charging : CombatState.WindUp, charging ? 0f : attack.WindUp / fighter.AttackSpeed);
             Raise(new AttackStartedEvent(entityId, swing.Id, attack.Id, charging, Time),
                 new TimelineEntry(Time, charging ? TimelineKind.ChargeStarted : TimelineKind.AttackStarted, entityId,
                     swingId: swing.Id, attackId: attack.Id));
@@ -457,7 +502,7 @@ namespace RPGFramework.ActionCombat
                         swing.Projectile = true;
                         swing.ExpiresAt = at + attack.ProjectileLifetime;
                     }
-                    Enter(fighter, CombatState.Active, attack.Active);
+                    Enter(fighter, CombatState.Active, attack.Active / fighter.AttackSpeed);
                     Raise(new AttackActiveStartedEvent(id, swing.Id, attack.Id, attack.Projectile, at),
                         new TimelineEntry(at, TimelineKind.ActiveStarted, id, swingId: swing.Id, attackId: attack.Id,
                             note: attack.Projectile ? "projectile" : null));
@@ -465,7 +510,7 @@ namespace RPGFramework.ActionCombat
                 }
                 case CombatState.Active:
                     CloseActive(fighter, at);
-                    Enter(fighter, CombatState.Recovery, attack.Recovery);
+                    Enter(fighter, CombatState.Recovery, attack.Recovery / fighter.AttackSpeed);
                     break;
                 case CombatState.Recovery:
                     EndAttack(fighter, false, at);
@@ -637,6 +682,9 @@ namespace RPGFramework.ActionCombat
             Events?.Publish(combatEvent);
         }
 
+        private static bool IsTimedAttackPhase(CombatState state) =>
+            state == CombatState.WindUp || state == CombatState.Active || state == CombatState.Recovery;
+
         private static void Enter(Fighter fighter, CombatState state, float length)
         {
             fighter.State = state;
@@ -667,6 +715,7 @@ namespace RPGFramework.ActionCombat
             public CombatState State;
             public float Elapsed;
             public float Length;
+            public float AttackSpeed = 1f;
             public AttackDefinition Attack;
             public int Swing;
             public bool BlockHeld;

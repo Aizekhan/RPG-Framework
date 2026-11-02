@@ -66,6 +66,7 @@ namespace RPGFramework.ActionCombat
 
         private CombatArena _arena;
         private int _joined = -1;
+        private float _attackSpeed = 1f;
 
         /// <summary>
         /// Its entity id in the fight (-1 when it has none yet).
@@ -82,6 +83,23 @@ namespace RPGFramework.ActionCombat
         /// The swing of its current attack (what its hitboxes report), or 0.
         /// </summary>
         public int Swing => Arena != null ? Arena.Rules.SwingOf(Id) : 0;
+
+        /// <summary>
+        /// How fast it attacks (1: the attacks' own timing; <see cref="CombatRules.SetAttackSpeed"/>). The game sets
+        /// it from its stats; it is kept while the combatant leaves and joins the fight again.
+        /// </summary>
+        public float AttackSpeed
+        {
+            get => _attackSpeed;
+            set
+            {
+                if (float.IsNaN(value) || float.IsInfinity(value) || value <= 0f)
+                    throw new System.ArgumentOutOfRangeException(nameof(value), value, "Attack speed is above 0");
+                _attackSpeed = value;
+                if (_joined >= 0 && Arena != null)
+                    Arena.Rules.SetAttackSpeed(_joined, value);
+            }
+        }
 
         /// <summary>
         /// Sets the entity id of a combatant that is not an action RPG kit character (it joins the fight under it).
@@ -207,6 +225,7 @@ namespace RPGFramework.ActionCombat
                 return;
             Leave();
             Arena.Rules.Add(id, BuildSettings());
+            Arena.Rules.SetAttackSpeed(id, _attackSpeed);
             Arena.RegisterBody(id, transform);
             _joined = id;
         }
