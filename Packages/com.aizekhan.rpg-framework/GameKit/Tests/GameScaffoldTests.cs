@@ -219,6 +219,60 @@ namespace RPGFramework.GameKit.Tests
             Assert.That(AIGuidance.Install(AIGuidance.DocumentationRoot, _project), Has.Member("Docs/ARCHITECTURE.md"));
         }
 
+        [Serializable]
+        private sealed class AnyJson
+        {
+        }
+
+        private static void AssertJson(string text) =>
+            Assert.DoesNotThrow(() => UnityEngine.JsonUtility.FromJson<AnyJson>(text), text);
+
+        [Test]
+        public void AIGuidance_InstallsTheUpdateCheck_AndAddsItsHookToTheGamesSettingsOnce()
+        {
+            string settings = Path.Combine(_project, ".claude", "settings.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(settings));
+            File.WriteAllText(settings, "{\n  \"permissions\": { \"allow\": [\"Bash(git status:*)\"] },\n" +
+                                        "  \"hooks\": { \"PreToolUse\": [] }\n}\n");
+
+            var written = AIGuidance.Install(AIGuidance.DocumentationRoot, _project);
+            AIGuidance.Install(AIGuidance.DocumentationRoot, _project);
+
+            string script = File.ReadAllText(Path.Combine(_project, AIGuidance.UpdateCheckPath));
+            string merged = File.ReadAllText(settings);
+            Assert.That(written, Has.Member(AIGuidance.UpdateCheckPath));
+            Assert.That(script, Does.StartWith("#!/usr/bin/env bash").And.Contain("releases.json").And.Not.Contain("\r"));
+            Assert.That(Regex.Matches(merged, "framework-update-check").Count, Is.EqualTo(1), "added once");
+            Assert.That(merged, Does.Contain("Bash(git status:*)").And.Contain("PreToolUse").And.Contain("\"SessionStart\""));
+            AssertJson(merged);
+        }
+
+        [Test]
+        public void AIGuidance_UpdateCheckHook_MergesIntoEveryShapeOfSettings_AndRefusesBrokenOnes()
+        {
+            string[] shapes =
+            {
+                "{\n}\n",
+                "{ \"permissions\": { \"allow\": [] } }",
+                "{ \"env\": { \"A\": \"hooks\" }, \"hooks\": { \"Stop\": [ { \"hooks\": [] } ] } }",
+                "{ \"hooks\": { \"SessionStart\": [] } }",
+                "{ \"hooks\": { \"SessionStart\": [ { \"matcher\": \"resume\", \"hooks\": [] } ] } }",
+            };
+            foreach (var shape in shapes)
+            {
+                string merged = AIGuidance.WithUpdateCheckHook(shape);
+                Assert.That(merged, Is.Not.Null, shape);
+                Assert.That(Regex.Matches(merged, "\"SessionStart\"").Count, Is.EqualTo(1), merged);
+                Assert.That(merged, Does.Contain(AIGuidance.UpdateCheckPath));
+                Assert.That(AIGuidance.WithUpdateCheckHook(merged), Is.EqualTo(merged), "already there");
+                AssertJson(merged);
+            }
+            Assert.That(AIGuidance.WithUpdateCheckHook("{ \"hooks\": [] }"), Is.Null);
+            Assert.That(AIGuidance.WithUpdateCheckHook("{ \"hooks\": { \"SessionStart\": {} } }"), Is.Null);
+            Assert.That(AIGuidance.WithUpdateCheckHook("{ \"permissions\": "), Is.Null);
+            Assert.That(AIGuidance.WithUpdateCheckHook("[]"), Is.Null);
+        }
+
         [Test]
         public void AIGuidance_ReportsTheCommandsThatDifferFromTheTemplates_WithoutReplacingThem()
         {
@@ -239,8 +293,11 @@ namespace RPGFramework.GameKit.Tests
         {
             var written = AIGuidance.Install(AIGuidance.DocumentationRoot, _project);
 
+            // Only the update check hook comes: no permission is granted by a reinstall
+            string settings = File.ReadAllText(Path.Combine(_project, ".claude", "settings.json"));
             Assert.That(written, Has.No.Member(AIGuidance.ClaudeSettingsPath));
-            Assert.That(File.Exists(Path.Combine(_project, ".claude", "settings.json")), Is.False);
+            Assert.That(settings, Does.Contain("framework-update-check").And.Not.Contain("permissions"));
+            AssertJson(settings);
             Assert.That(written, Has.Member(".claude/commands/start.md"), "the commands still come");
         }
 

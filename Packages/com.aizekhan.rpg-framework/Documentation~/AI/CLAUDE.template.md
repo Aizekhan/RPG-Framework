@@ -78,8 +78,15 @@ Assets/<Game>/
    above it, with tests. GA11 fails on rebuilt framework types; GA12 fails on a marker with no section.
 5. If the gap is big (a whole system), stop and ask whether to add it to the framework first.
 
+## Before updating the framework
+The update check hook prints, at the start of a session, the newer versions with their summaries and whether each is
+breaking. Read every `CHANGELOG.md` entry between the game's tag and the new one (the package's `releases.json` holds
+the same list as data): a `### Breaking` section is work the game must do, in the order given. Tell the developer what
+the update brings and which open gaps it may close (request ids in the feed are the asking game's own: match by what a
+gap needs).
+
 ## After the framework is updated (the tag in `Packages/manifest.json` changed)
-1. Read the new version's `CHANGELOG.md` in the package, then reinstall the AI guidance
+1. Read the new version's `CHANGELOG.md` in the package, do every step of its `### Breaking` sections, then reinstall the AI guidance
    (`-executeMethod RPGFramework.GameKit.Editor.AIGuidance.InstallFromCommandLine`).
 2. **Go through every `## Open` section of `FRAMEWORK-GAPS.md`** against the changelog and the package source. A gap
    the new version covers is not done until its stand-in is gone: replace the code marked `// framework-gap: <id>`
@@ -107,7 +114,9 @@ these files.
 - `CREDITS.md`: the text of the game's Credits screen, built from `THIRD-PARTY-ASSETS.md` (every attribution text
   there appears here). The Credits screen shows it; copy it next to the executable in builds. Never commit store assets
   (Asset Store, Fab) to a public repository.
-- `.claude/settings.json`: the commands Claude Code may run without asking (read-only git, `unity test`).
+- `.claude/settings.json`: the commands Claude Code may run without asking (read-only git, `unity test`), and the
+  framework update check hook (`.claude/hooks/framework-update-check.sh`, the framework's file; turned off with
+  `"env": { "RPG_FRAMEWORK_UPDATE_CHECK": "off" }`).
 - A result (tests, CI, a play check) is true only for the commit it was measured on: write the commit next to it.
 
 ## Workflow

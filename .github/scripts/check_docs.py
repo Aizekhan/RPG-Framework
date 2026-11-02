@@ -14,6 +14,8 @@ Each fact has one owner; every other mention must match it, or the check fails:
 - modules: a top-level package folder with an .asmdef and no Tests folder must be named in an open issue, or listed
   in TESTED_ELSEWHERE with the folder that tests it.
 - package README: every module folder with an .asmdef is named in its "## Modules" table.
+- release feed: Packages/<package>/releases.json is generated from the CHANGELOG (`release.py` writes it); a feed that
+  differs from what the CHANGELOG gives fails. Games' Claude Code agents read it before updating.
 - code names: every `TypeName` or `Type.Member` written in backticks in a current document must exist in the code,
   so a renamed or removed API cannot stay in the docs. Made-up names in examples are listed in EXAMPLE_NAMES, outside APIs in EXTERNAL_NAMES.
 
@@ -59,6 +61,50 @@ KI = re.compile(r"\bKI-\d+\b")
 TICKED = re.compile(r"`([^`\n]+)`")
 CODE_NAME = re.compile(r"^[A-Z][A-Za-z0-9_]*(?:<[^>`]*>)?(?:\.[A-Za-z_][A-Za-z0-9_]*)*(?:\(.*\))?$")
 FILE_LIKE = re.compile(r"\.(md|cs|json|asset|asmdef|txt|yml|py|unity|prefab|xml)$")
+
+
+FEED = PACKAGE + "/releases.json"
+FEED_FORMAT = "rpgframework.releases/1"
+# A "### Breaking" section in the CHANGELOG marks a version a game must react to; before this version none was written,
+# so the feed says null (unknown: read the CHANGELOG) for older ones
+BREAKING_FROM = (0, 37, 0)
+REFS = re.compile(r"\b(?:FG|BH|KI|WW)-\d+\b")
+BULLET = re.compile(r"^- (.+(?:\n  .+)*)", re.MULTILINE)
+
+
+def plain(text):
+    """Markdown bullet text as plain text for the feed."""
+    return re.sub(r"\s+", " ", text.replace("**", "")).strip()
+
+
+def releases_feed(changelog, unity):
+    """The machine-readable release feed, generated from the CHANGELOG: newest first, one release per line so a shell
+    script can read it without a JSON parser (each line ends with the summary)."""
+    lines = []
+    for match in re.finditer(r"^## \[(\d+\.\d+\.\d+)\] - (\S+)\s*$(.*?)(?=^## |\Z)", changelog, re.MULTILINE | re.DOTALL):
+        version, date, body = match.groups()
+        sections = {m.group(1): m.group(2) for m in
+                    re.finditer(r"^### (.+?)\s*$(.*?)(?=^### |\Z)", body, re.MULTILINE | re.DOTALL)}
+        breaking_section = sections.get("Breaking")
+        if breaking_section is not None:
+            breaking = True
+        elif tuple(map(int, version.split("."))) >= BREAKING_FROM:
+            breaking = False
+        else:
+            breaking = None
+        bullets = BULLET.findall(body)
+        summary = plain(bullets[0].split("\n")[0]) if bullets else ""
+        if len(summary) > 300:
+            summary = summary[:297].rstrip() + "..."
+        release = {"version": version, "date": date, "breaking": breaking,
+                   "refs": sorted(set(REFS.findall(body)), key=lambda r: (r[:2], int(r[3:]))),
+                   "upgrade": [plain(b) for b in BULLET.findall(breaking_section or "")], "summary": summary}
+        lines.append("    " + json.dumps(release, ensure_ascii=False))
+    head = {"format": FEED_FORMAT, "package": PACKAGE.split("/")[-1], "unity": unity,
+            "newest": json.loads(lines[0])["version"] if lines else None}
+    out = ["{"] + ["  " + json.dumps(k) + ": " + json.dumps(v) + "," for k, v in head.items()]
+    out += ['  "releases": [', ",\n".join(lines), "  ]", "}"]
+    return "\n".join(out) + "\n"
 
 
 def read(root, path):
@@ -125,6 +171,11 @@ def main(root, local):
     top = re.search(r"^\| \*\*Release `v(\d+\.\d+\.\d+)`\*\*", releases, re.MULTILINE)
     if not top or top.group(1) != version:
         errors.append(f"Docs/RELEASES.md: top row is {top and top.group(1)}, the package is {version}")
+
+    # Release feed
+    feed = releases_feed(changelog, json.loads(read(root, PACKAGE + "/package.json")).get("unity", ""))
+    if FEED not in files or read(root, FEED) != feed:
+        errors.append(f"{FEED}: differs from the CHANGELOG; run `python .github/scripts/release.py --feed`")
 
     # Unity Editor version
     unity = re.search(r"m_EditorVersion:\s*(\S+)", read(root, "ProjectSettings/ProjectVersion.txt")).group(1)

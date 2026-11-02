@@ -8,11 +8,13 @@ The version's owner is package.json; this script is the only writer of its copie
 - STATUS.md "**Release:** `vX.Y.Z`" line
 - a new top row in Docs/RELEASES.md with the proof still to fill in (CI run, test counts)
 - the STATUS.md codebase counts (module folders, asmdef, .cs files)
+- the release feed releases.json, generated from the CHANGELOG (`--feed` rewrites only the feed)
 
 What changed in this version (TARGET-ARCHITECTURE text, the release row's summary, STATUS open issues) is still written
 by hand in the same release commit; check_docs fails on whatever was left behind.
 
 Usage: python release.py X.Y.Z [project_root]
+       python release.py --feed [project_root]
 """
 import datetime
 import json
@@ -36,6 +38,16 @@ def edit(root, path, change):
         with open(full, "w", encoding="utf-8", newline="") as f:
             f.write(new)
         print("updated", path)
+
+
+def write_feed(root):
+    unity = json.loads(check_docs.read(root, PACKAGE + "/package.json")).get("unity", "")
+    feed = check_docs.releases_feed(check_docs.read(root, PACKAGE + "/CHANGELOG.md"), unity)
+    full = os.path.join(root, check_docs.FEED)
+    if not os.path.isfile(full) or check_docs.read(root, check_docs.FEED) != feed:
+        with open(full, "w", encoding="utf-8", newline="") as f:
+            f.write(feed)
+        print("updated", check_docs.FEED)
 
 
 def main(version, root):
@@ -83,6 +95,7 @@ def main(version, root):
                       f"**{modules} module folders**, **{asmdefs} asmdef**, **{sources} .cs files**", text, count=1)
 
     edit(root, "STATUS.md", status)
+    write_feed(root)
 
     def releases(text):
         row = (f"| **Release `v{version}`** (tag on `TODO`; TODO: who asked): TODO: what it brings. Code `TODO`. "
@@ -100,4 +113,7 @@ def main(version, root):
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         sys.exit(__doc__)
+    if sys.argv[1] == "--feed":
+        write_feed(sys.argv[2] if len(sys.argv) > 2 else ".")
+        sys.exit(0)
     sys.exit(main(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else "."))

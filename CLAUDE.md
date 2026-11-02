@@ -76,6 +76,10 @@ The owners are listed in `STATUS.md` ("Single sources of truth"). The rules:
   A change that closes one names the KI in its CHANGELOG line and deletes the bullet in the same commit.
 - A new version is written only by `python .github/scripts/release.py X.Y.Z` (package.json, CHANGELOG heading, install
   tags, TARGET-ARCHITECTURE header, STATUS release line, `Docs/RELEASES.md` row, codebase counts).
+- A change a game must react to (renamed or removed API, changed default, new required step) goes under
+  `### Breaking` in its CHANGELOG version, one bullet per thing the game does. The release feed
+  (`Packages/com.aizekhan.rpg-framework/releases.json`, which games' agents read before updating) is generated from the
+  CHANGELOG by `release.py` and checked; never edit it by hand.
 - Docs name real code: a backticked `Type` or `Type.Member` that is not in the code fails the check (made-up example
   names go in `EXAMPLE_NAMES`, outside APIs in `EXTERNAL_NAMES`).
 - Run the check before every commit that touches documents, versions or modules; a red check is fixed, never bypassed.

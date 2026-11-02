@@ -1,7 +1,7 @@
 # RPG Framework - Project Status
 
 **Last Updated:** 2026-11-02
-**Release:** `v0.36.0` (2026-11-02; proof in `Docs/RELEASES.md`)
+**Release:** `v0.37.0` (2026-11-02; proof in `Docs/RELEASES.md`)
 **Repository:** https://github.com/Aizekhan/RPG-Framework (public, MIT)
 **Branch:** main (force-push and deletion blocked)
 **Unity:** 6000.0.45f1 (`ProjectSettings/ProjectVersion.txt`; the Unity CLI version is kept in `CLAUDE.md` only)
@@ -16,7 +16,7 @@ Each fact has one owner. Every other mention repeats it and is checked against i
 | Fact | Owner | Repeated in (checked) |
 |---|---|---|
 | Package version | `Packages/com.aizekhan.rpg-framework/package.json` | CHANGELOG heading, `#vX.Y.Z` install tags, TARGET-ARCHITECTURE header, the Release line above, top row of `Docs/RELEASES.md` |
-| What each version changed | package `CHANGELOG.md` | TARGET-ARCHITECTURE (by hand, in the release commit) |
+| What each version changed | package `CHANGELOG.md` | TARGET-ARCHITECTURE (by hand, in the release commit); the release feed `releases.json` (generated, checked) |
 | Proof of each release (SHAs, tests, CI) | `Docs/RELEASES.md` (append-only) | nowhere else |
 | Unity Editor version | `ProjectSettings/ProjectVersion.txt` | CLAUDE.md, this file, CI workflow |
 | Unity CLI version | `CLAUDE.md` | nowhere else (`--local` compares it with `unity --version`) |

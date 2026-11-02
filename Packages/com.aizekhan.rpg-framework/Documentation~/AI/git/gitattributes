@@ -7,6 +7,9 @@
 
 * text=auto
 
+# Shell scripts run by Claude Code hooks keep LF endings on every machine
+*.sh text eol=lf
+
 # Unity YAML is text
 *.unity text
 *.prefab text

@@ -293,7 +293,8 @@ a session that cannot trust them has to ask the developer again what is going on
 | `CREDITS.md` | the text of the Credits screen (and a copy for builds), built from `THIRD-PARTY-ASSETS.md` | you, in the same commit as an asset added or removed; checked at every `/handoff` | when building the Credits screen or a release |
 | `PLAN.md` (optional) | the plan of the current milestone, if the developer prefers it outside `GAME.md` | with the developer | when planning |
 | `.claude/commands/start.md`, `handoff.md` | the `/start` and `/handoff` commands that read and update the files above | adapt them to the game if needed | — |
-| `.claude/settings.json` | commands allowed without asking: read-only git, `unity test`, `unity recompile`; created with a new game only (a reinstall in an existing project leaves permissions to the developer) | the developer decides what to add | — |
+| `.claude/settings.json` | commands allowed without asking: read-only git, `unity test`, `unity recompile`; created with a new game only (a reinstall in an existing project leaves permissions to the developer). Every install adds the framework update check hook to it once, keeping the rest | the developer decides what to add | — |
+| `.claude/hooks/framework-update-check.sh` | the framework's update check: at the start of a session it tells the agent about newer framework versions (from `releases.json`), once a day, silent offline; off with `"env": { "RPG_FRAMEWORK_UPDATE_CHECK": "off" }` | the framework (replaced on every install) | at session start, by Claude Code |
 | `<Game>ArchitectureTests` | the rules GA01–GA15 as tests: they fail when code breaks the architecture | never weaken them | on every test run |
 
 Rules for all of them: a result is true only for the commit it was measured on, so write the commit next to it;
@@ -337,7 +338,10 @@ with the developer before changing code.
 
 ## Updating the framework
 
-When the developer wants a newer version: list the tags (step 4), read that version's `CHANGELOG.md` on GitHub,
+The update check hook tells the agent at the start of a session when a newer version exists, with each version's
+summary and whether it is breaking (the package's `releases.json`, generated from the CHANGELOG).
+When the developer wants a newer version: list the tags (step 4), read the `CHANGELOG.md` entries in between on GitHub
+(a `### Breaking` section lists what the game must do),
 change the tag in `Packages/manifest.json`, open the project once (or run step 5's import by running the tests),
 run all tests, and reinstall the AI guidance so `CLAUDE.md`'s framework block and `Docs/RPGFramework` match the new
 version (`-executeMethod RPGFramework.GameKit.Editor.AIGuidance.InstallFromCommandLine`; the game's own documents

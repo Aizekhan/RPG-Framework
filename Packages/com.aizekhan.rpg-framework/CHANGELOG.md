@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.37.0] - 2026-11-02
+
+### Added
+- Framework update notices for games' Claude Code agents.
+  - Release feed `releases.json` in the package (`rpgframework.releases/1`): every version newest first with its date, `breaking` (true, false, or null for versions before 0.37.0: read the CHANGELOG), the request ids it answers, the upgrade steps of a breaking version and a summary. It is generated from the CHANGELOG by `release.py` and checked in CI.
+  - A Claude Code SessionStart hook, `.claude/hooks/framework-update-check.sh`: at the start of a session it compares the tag in `Packages/manifest.json` with the repository's tags and tells the agent which newer versions exist, from the feed at the newest tag. It checks once a day (cache in `Library/RPGFramework`), never asks for credentials, stays silent offline, and is turned off with `"env": { "RPG_FRAMEWORK_UPDATE_CHECK": "off" }`.
+  - Install AI Guidance writes the script on every install and adds the hook to `.claude/settings.json` once, keeping everything else in the file (`AIGuidance.WithUpdateCheckHook`). A project without the file gets one holding only the hook (no permissions); one that cannot be read gets a warning with the line to add.
+  - `/start` and the CLAUDE.md block tell the agent to read the CHANGELOG entries in between before updating, and to check them against the open gaps.
+  - CHANGELOG: a version a game must react to has a `### Breaking` section with one bullet per step. The `.gitattributes` template keeps `*.sh` with LF endings.
+
 ## [0.36.0] - 2026-11-02
 
 ### Added
