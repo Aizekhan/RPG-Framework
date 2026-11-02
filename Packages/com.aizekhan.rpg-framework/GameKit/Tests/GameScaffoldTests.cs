@@ -164,6 +164,33 @@ namespace RPGFramework.GameKit.Tests
             Assert.That(File.ReadAllText(workflow), Is.EqualTo(template.Replace("\r\n", "\n")));
         }
 
+        // MythRunner 2026-11-02: its own workflow (installer header, available=false then exit 1, extra steps) was
+        // replaced by a reinstall; one that fails without the secrets is the game's and is kept, with a warning
+        [Test]
+        public void AIGuidance_KeepsAWorkflowThatFailsWithoutSecrets_AndWarnsThatItDiffers()
+        {
+            string ours = AIGuidance.WorkflowHeader + " (only when this file did not exist).\n" +
+                          "      - name: Free disk space\n" +
+                          "          if [ -z \"$UNITY_LICENSE\" ]; then\n" +
+                          "            echo \"available=false\" >> \"$GITHUB_OUTPUT\"\n" +
+                          "            exit 1\n" +
+                          "          else\n" +
+                          "            echo \"available=true\" >> \"$GITHUB_OUTPUT\"\n" +
+                          "          fi\n";
+            Assert.That(AIGuidance.IsGreenWhenSkippedWorkflow(ours), Is.False);
+            Assert.That(AIGuidance.IsGreenWhenSkippedWorkflow(ours.Replace("\n", "\r\n")), Is.False, "Windows line ends");
+            string workflow = Path.Combine(_project, AIGuidance.WorkflowPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(workflow));
+            File.WriteAllText(workflow, ours);
+
+            var warnings = new System.Collections.Generic.List<string>();
+            var written = AIGuidance.Install(AIGuidance.DocumentationRoot, _project, warnings: warnings);
+
+            Assert.That(written, Has.No.Member(AIGuidance.WorkflowPath));
+            Assert.That(File.ReadAllText(workflow), Is.EqualTo(ours));
+            Assert.That(warnings, Has.Some.Contains(AIGuidance.WorkflowPath));
+        }
+
         [Test]
         public void AIGuidance_PutsBinaryAssetsInGitLfs_OnlyWhenTheProjectHasNoGitAttributes()
         {

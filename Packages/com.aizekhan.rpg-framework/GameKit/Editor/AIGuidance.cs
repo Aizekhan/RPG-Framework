@@ -162,10 +162,18 @@ namespace RPGFramework.GameKit.Editor
 
             string workflow = Path.Combine(projectRoot, WorkflowPath);
             string workflowTemplate = Path.Combine(documentationRoot, "ci", "unity-tests.yml");
-            if (File.Exists(workflowTemplate) && (!File.Exists(workflow) || IsGreenWhenSkippedWorkflow(File.ReadAllText(workflow))))
+            if (File.Exists(workflowTemplate))
             {
-                Copy(workflowTemplate, workflow);
-                written.Add(WorkflowPath);
+                if (!File.Exists(workflow) || IsGreenWhenSkippedWorkflow(File.ReadAllText(workflow)))
+                {
+                    Copy(workflowTemplate, workflow);
+                    written.Add(WorkflowPath);
+                }
+                else if (Normalize(File.ReadAllText(workflow)).Trim() != Normalize(File.ReadAllText(workflowTemplate)).Trim())
+                {
+                    warnings?.Add($"{WorkflowPath} differs from this framework version's template (kept as it is; compare " +
+                                  $"with {workflowTemplate} and bring over what is new)");
+                }
             }
 
             string attributes = Path.Combine(projectRoot, GitAttributesPath);
@@ -180,11 +188,27 @@ namespace RPGFramework.GameKit.Editor
 
         /// <summary>
         /// The workflow installed before 0.5.2 passed when the licence secrets were missing, without running a test.
-        /// It is replaced on reinstall; a workflow the game wrote or changed is kept.
+        /// It is replaced on reinstall; a workflow the game wrote or changed is kept, and so is one that already fails
+        /// without the secrets (an <c>exit 1</c> after its <c>available=false</c>), whatever else it has.
         /// </summary>
-        public static bool IsGreenWhenSkippedWorkflow(string workflow) =>
-            workflow.StartsWith(WorkflowHeader, StringComparison.Ordinal) &&
-            workflow.Contains("echo \"available=false\" >> \"$GITHUB_OUTPUT\"");
+        public static bool IsGreenWhenSkippedWorkflow(string workflow)
+        {
+            const string skipped = "echo \"available=false\" >> \"$GITHUB_OUTPUT\"";
+            workflow = Normalize(workflow);
+            int at = workflow.IndexOf(skipped, StringComparison.Ordinal);
+            if (!workflow.StartsWith(WorkflowHeader, StringComparison.Ordinal) || at < 0)
+                return false;
+            // What follows in the same branch of the secrets check (up to its else / fi)
+            string rest = workflow.Substring(at + skipped.Length);
+            int end = rest.Length;
+            foreach (var close in new[] { "\n          else", "\n          fi", "\nelse", "\nfi" })
+            {
+                int found = rest.IndexOf(close, StringComparison.Ordinal);
+                if (found >= 0 && found < end)
+                    end = found;
+            }
+            return !System.Text.RegularExpressions.Regex.IsMatch(rest.Substring(0, end), @"^\s*exit\s+[1-9]", System.Text.RegularExpressions.RegexOptions.Multiline);
+        }
 
         /// <summary>
         /// Claude Code settings with the framework's SessionStart update check added: unchanged when it is already

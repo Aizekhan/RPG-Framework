@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- Install AI Guidance replaced a game's own CI workflow (MythRunner). `AIGuidance.IsGreenWhenSkippedWorkflow` took any workflow with the installer's header and an `available=false` line for the old one that passed without the licence secrets, even when the game's workflow fails right after (`exit 1`) and has steps of its own. Now only a workflow that does not fail there is replaced. A kept workflow that differs from the template gets a warning to compare, as the commands do.
+
 ## [0.38.0] - 2026-11-02
 
 ### Added
