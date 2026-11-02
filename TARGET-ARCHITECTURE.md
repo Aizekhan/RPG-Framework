@@ -1,8 +1,8 @@
-# RPG Framework — архітектура (фактичний стан v0.35.0)
+# RPG Framework — архітектура (фактичний стан v0.36.0)
 
-> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.35.0**
-> (тег `v0.35.0`; SHA і докази — у `Docs/RELEASES.md`; Unity 6000.0), звірений із кодом пакета 2026-11-02: збірки (`.asmdef`), їхні
-> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.35.0), `Documentation~/networking.md`, рецепти
+> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.36.0**
+> (тег `v0.36.0`; SHA і докази — у `Docs/RELEASES.md`; Unity 6000.0), звірений із кодом пакета 2026-11-02: збірки (`.asmdef`), їхні
+> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.36.0), `Documentation~/networking.md`, рецепти
 > AI-guidance 01–20.
 > Попередня редакція (стан v0.5.0/v0.5.1) у git не потрапляла; цей файл замінює її повністю. Історію змін між
 > версіями дає `CHANGELOG.md` пакета.
@@ -29,7 +29,7 @@
   правила, стати, прогресія, квести, предмети, лут, збереження, ассети, спавн, сцени, UI-навігація, звук, локалізація,
   налаштування, діагностика, мережа.
 - Гра володіє **контентом, поданням і правилами, які роблять її унікальною**.
-- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.35.0`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
+- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.36.0`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
   1.11.2, Unity Transport 2.5.3, uGUI, вбудованого модуля Audio. Гра живе в окремому репозиторії/проєкті і не редагує
   пакет (`Library/PackageCache` перезаписується).
 - **Конвеєр рендерингу — будь-який.** Пакет не залежить від URP/HDRP і не має шейдерів під конкретний конвеєр:
@@ -482,6 +482,18 @@ rules)`, тік після руху тіл) — без колайдерів, т�
 `MissedItsTarget`, `Voided`); вигляд читає `InFlight`; у коопі клієнт запускає копії `Mirror` під `Id` хоста. Політ
 сміття не створює.
 
+**Форма атаки і ходи, що влучають** (з v0.36) [є]: хід ворога починається лише всередині своєї досяжності
+(`EnemyMove.CommitShare` → `CommitRange` = `MaxRange` × частка; кинджал 0.75 спершу підходить на три чверті), тож ціль,
+що рухається, ще в досяжності, коли удар падає. Широкий замах (`HoldUntilInRange`) починається на краю досяжності й
+тримає замах (`CombatRules.HoldWindUp`, точка `AttackDefinition.HoldPoint`; кліп стоїть: `AnimationPaceOf` = 0,
+`WindUpHeldEvent`), стежачи й підходячи (`HoldSpeed`), доки ціль не в `CommitRange` або не мине `MaxHold`.
+`AttackDefinition.Motions` (`AttackMotion`: підхід, відступ, крок убік, стрибок із висотою; відстань за частину фази)
+рухають атакувальника: `CombatRules.MotionOf` дає швидкість зараз, режисер рухає нею тіла (`ContactDistance` зупиняє
+підхід біля цілі, `EnemyIntent.Height` — дуга стрибка для `Leap Root` у `CombatEnemyAI`). `AttackDefinition.Sweep`
+(`SweepSegment`: дуги навколо атакувальника, розкладені в часі вікна удару) з `CombatRules.Sweep` вирішують контакт без
+фізики; `EnemyDirector.SweepAttacks` б'є ними ворогами. Ассет `WeaponMoveSet` тримає ходи одного виду зброї з комбо;
+`EnemyBehaviourAsset.Weapon` бере ходи з нього. Ваги ходів гравця проти ходів монстра [немає] (KI-23).
+
 Unity: `EnemyBehaviourAsset`, `CombatEnemyAI` (замість `EnemyBrain`), `EnemyAnimatorBridge`. Кіт отримав
 час трупа (`CharacterDefinition.CorpseSeconds`, `ActorView.OnKilled`, `ActorPresenter.CorpseRemoving`). Пошуку
 шляху в AI [немає]: вороги рухаються прямо з розведенням.
@@ -606,7 +618,7 @@ New Game також виставляє Player Settings (Run In Background, Linea
 | `.meta` з валідним GUID для кожного файлу | CI-крок «Unity .meta integrity» |
 | Тексти на екрані — ключі, не рядки | тексти кітів через `ILocalization`; `LocalizationChecks` для таблиць гри |
 
-Тестова база: v0.35.0 (код `f6f45ae`) — EditMode **2125/2125** локально; на тегу CI run `41457273587` впав на тесті сміття `ProjectilesInFlight_MakeNoGarbage` (стороннє виділення раннера), тест тепер рахує 100 тіків і допускає 2 брудні (`5b83aa6`), CI run `41458139230` зелений (PlayMode після перезапуску через збій ліцензії Unity).
+Тестова база: v0.36.0 (код `9fd67bd`) — EditMode **2136/2136** локально; PlayMode — у CI (докази в `Docs/RELEASES.md`).
 
 ---
 

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.36.0] - 2026-11-02
+
 ### Added
 - ActionCombat: enemy moves that land the blows they choose, and attacks with a shape (MythRunner FG-31: "a goblin with a dagger that attacks us should hit in most cases").
   - `EnemyMove.CommitShare` / `CommitRange`: a move starts only this deep in its reach (`MaxRange` x the share), so the target is still in reach when the blow lands. The director closes in until then.

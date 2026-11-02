@@ -206,5 +206,8 @@ def main(root, local):
 
 
 if __name__ == "__main__":
+    # Windows consoles print the Ukrainian document names in their own code page otherwise
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     sys.exit(main(args[0] if args else ".", "--local" in sys.argv))
