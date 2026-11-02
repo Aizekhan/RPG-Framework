@@ -23,6 +23,8 @@ namespace RPGFramework.ActionCombat
         private readonly Dictionary<int, Brain> _brains = new Dictionary<int, Brain>();
         private readonly List<Brain> _order = new List<Brain>();
         private readonly List<int> _targets = new List<int>();
+        private readonly List<Brain> _ticking = new List<Brain>();
+        private readonly List<(int Enemy, int Target)> _granted = new List<(int, int)>();
         private readonly List<IDisposable> _subscriptions = new List<IDisposable>();
 
         /// <param name="events">The arena's bus: decisions are published there, and the director reads the combat
@@ -114,6 +116,9 @@ namespace RPGFramework.ActionCombat
             }
             if (brain.Target >= 0)
                 return;
+            // Leashed and still out of bounds: it ignores the blow and keeps going home
+            if (brain.GivingUp && OutsideLeash(brain, brain.Position))
+                return;
             Engage(brain, targetId, struck: true);
         }
 
@@ -139,7 +144,10 @@ namespace RPGFramework.ActionCombat
         /// </summary>
         public void Tick()
         {
-            foreach (var brain in _order.ToArray())
+            // A reused snapshot (no garbage per tick): a death's events may add or remove enemies meanwhile
+            _ticking.Clear();
+            _ticking.AddRange(_order);
+            foreach (var brain in _ticking)
             {
                 if (brain.State == EnemyState.Dead || !_brains.ContainsKey(brain.Id))
                     continue;
@@ -150,8 +158,10 @@ namespace RPGFramework.ActionCombat
                 }
                 Think(brain);
             }
+            _ticking.Clear();
 
-            foreach (var (enemy, target) in Tokens.Grant())
+            Tokens.Grant(_granted);
+            foreach (var (enemy, target) in _granted)
             {
                 var brain = Find(enemy);
                 if (brain != null)
@@ -185,7 +195,8 @@ namespace RPGFramework.ActionCombat
             {
                 if (brain.Attacking)
                     EndAttacks(brain, "interrupted", pause: false);
-                Set(brain, EnemyState.Reacting, _rules.HitTierOf(id) + " hit");
+                if (brain.State != EnemyState.Reacting)
+                    Set(brain, EnemyState.Reacting, _rules.HitTierOf(id) + " hit");
                 brain.Intent = EnemyIntent.Still(EnemyState.Reacting, brain.Target);
                 return;
             }
@@ -322,11 +333,15 @@ namespace RPGFramework.ActionCombat
                         brain.LastSeenAt = Time;
                     if (Time - brain.LastSeenAt > behaviour.MemorySeconds)
                         Lose(brain, "lost sight");
-                    else if (behaviour.LeashRadius > 0f && (position - brain.Home).Flat.Length > behaviour.LeashRadius)
+                    else if (OutsideLeash(brain, position))
+                    {
                         Lose(brain, "too far from home");
+                        brain.GivingUp = true;
+                    }
                 }
             }
-            if (brain.Target >= 0)
+            // Leashed: it notices nobody until it is home again, or the same target would pull it back at once
+            if (brain.Target >= 0 || brain.GivingUp)
                 return;
 
             int best = -1;
@@ -362,8 +377,12 @@ namespace RPGFramework.ActionCombat
             return _world.CanSee(brain.Id, target);
         }
 
+        private bool OutsideLeash(Brain brain, CombatVector position) =>
+            brain.Behaviour.LeashRadius > 0f && (position - brain.Home).Flat.Length > brain.Behaviour.LeashRadius;
+
         private void Engage(Brain brain, int target, bool struck)
         {
+            brain.GivingUp = false;
             brain.Target = target;
             brain.LastSeenAt = Time;
             brain.WantSince = -1f;
@@ -391,6 +410,9 @@ namespace RPGFramework.ActionCombat
         private void Wander(Brain brain, CombatVector position)
         {
             var behaviour = brain.Behaviour;
+            // A hit or a dodge on the way home interrupted the walk: go on
+            if (brain.GivingUp && brain.State != EnemyState.Returning)
+                Set(brain, EnemyState.Returning, "going home");
             if (brain.State == EnemyState.Returning)
             {
                 var home = (brain.Home - position).Flat;
@@ -401,6 +423,7 @@ namespace RPGFramework.ActionCombat
                     return;
                 }
                 brain.Goal = null;
+                brain.GivingUp = false;
                 Set(brain, behaviour.PatrolPoints.Count > 0 || behaviour.WanderRadius > 0f ? EnemyState.Patrol : EnemyState.Idle, "home");
             }
 
@@ -488,8 +511,10 @@ namespace RPGFramework.ActionCombat
         private EnemyMove Choose(Brain brain, float distance)
         {
             float total = 0f;
-            foreach (var move in brain.Behaviour.Moves)
+            var moves = brain.Behaviour.Moves;
+            for (int i = 0; i < moves.Count; i++)
             {
+                var move = moves[i];
                 if (move.InRange(distance) && Ready(brain, move))
                     total += Math.Max(0f, move.Weight);
             }
@@ -497,8 +522,9 @@ namespace RPGFramework.ActionCombat
                 return null;
             double roll = _random.NextDouble() * total;
             EnemyMove last = null;
-            foreach (var move in brain.Behaviour.Moves)
+            for (int i = 0; i < moves.Count; i++)
             {
+                var move = moves[i];
                 if (!move.InRange(distance) || !Ready(brain, move) || move.Weight <= 0f)
                     continue;
                 last = move;
@@ -519,7 +545,8 @@ namespace RPGFramework.ActionCombat
             brain.ComboLanded = false;
             brain.ReadyAt[move] = Time + move.Cooldown;
             Set(brain, EnemyState.Attacking, combo ? "combo: " + move.Attack.Id : move.Attack.Id);
-            Note(brain.Id, brain.Target, $"{(combo ? "combo " : "chose ")}{move.Attack.Id} at {distance:0.0}m");
+            if (_rules.Timeline != null)
+                Note(brain.Id, brain.Target, $"{(combo ? "combo " : "chose ")}{move.Attack.Id} at {distance:0.0}m");
             _events?.Publish(new AttackChosenEvent(brain.Id, brain.Target, move.Attack.Id, distance, combo, Time));
             brain.Intent = new EnemyIntent(EnemyState.Attacking, brain.Target, CombatVector.Zero, 0f, CombatVector.Zero,
                 move.TrackDuringWindUp ? brain.Behaviour.TurnSpeed : 0f);
@@ -570,13 +597,14 @@ namespace RPGFramework.ActionCombat
                     _rules.SetBlocking(brain.Id, true);
                     brain.Blocking = true;
                     brain.BlockUntil = Time + behaviour.BlockSeconds;
-                    Note(brain.Id, started.EntityId, "blocks " + started.AttackId);
+                    if (_rules.Timeline != null)
+                        Note(brain.Id, started.EntityId, "blocks " + started.AttackId);
                 }
                 else if (behaviour.DodgeChance > 0f && _random.NextDouble() < behaviour.DodgeChance)
                 {
                     var face = ToTarget(brain, position);
                     float side = _random.Next(2) == 0 ? -1f : 1f;
-                    if (_rules.Dodge(brain.Id, new CombatVector(-face.Z * side, 0f, face.X * side)))
+                    if (_rules.Dodge(brain.Id, new CombatVector(-face.Z * side, 0f, face.X * side)) && _rules.Timeline != null)
                         Note(brain.Id, started.EntityId, "dodges " + started.AttackId);
                 }
             }
@@ -587,7 +615,8 @@ namespace RPGFramework.ActionCombat
             int target = Tokens.TargetOf(brain.Id);
             if (!Tokens.Release(brain.Id))
                 return;
-            Note(brain.Id, target, "token released: " + reason);
+            if (_rules.Timeline != null)
+                Note(brain.Id, target, "token released: " + reason);
             _events?.Publish(new AttackTokenReleasedEvent(brain.Id, target, reason, Time));
         }
 
@@ -597,7 +626,8 @@ namespace RPGFramework.ActionCombat
                 return;
             var from = brain.State;
             brain.State = state;
-            Note(brain.Id, brain.Target, $"{from} -> {state}: {reason}");
+            if (_rules.Timeline != null)
+                Note(brain.Id, brain.Target, $"{from} -> {state}: {reason}");
             _events?.Publish(new EnemyStateChangedEvent(brain.Id, from, state, reason, Time));
         }
 
@@ -610,8 +640,10 @@ namespace RPGFramework.ActionCombat
         private static float Reach(Brain brain)
         {
             float reach = 0f;
-            foreach (var move in brain.Behaviour.Moves)
+            var moves = brain.Behaviour.Moves;
+            for (int i = 0; i < moves.Count; i++)
             {
+                var move = moves[i];
                 if (move.Weight > 0f)
                     reach = Math.Max(reach, move.MaxRange);
             }
@@ -621,8 +653,10 @@ namespace RPGFramework.ActionCombat
         private static float Closest(Brain brain)
         {
             float closest = float.MaxValue;
-            foreach (var move in brain.Behaviour.Moves)
+            var moves = brain.Behaviour.Moves;
+            for (int i = 0; i < moves.Count; i++)
             {
+                var move = moves[i];
                 if (move.Weight > 0f)
                     closest = Math.Min(closest, move.MinRange);
             }
@@ -633,8 +667,10 @@ namespace RPGFramework.ActionCombat
         private float NextReady(Brain brain)
         {
             float next = float.MaxValue;
-            foreach (var move in brain.Behaviour.Moves)
+            var moves = brain.Behaviour.Moves;
+            for (int i = 0; i < moves.Count; i++)
             {
+                var move = moves[i];
                 if (move.Weight > 0f)
                     next = Math.Min(next, brain.ReadyAt.TryGetValue(move, out float at) ? at : Time);
             }
@@ -681,6 +717,7 @@ namespace RPGFramework.ActionCombat
             public EnemyIntent Intent;
             public int Target = -1;
             public float LastSeenAt;
+            public bool GivingUp;
             public float NoticeUntil;
             public float RecoverUntil;
             public float BackOffUntil;

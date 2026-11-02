@@ -152,7 +152,8 @@ namespace RPGFramework.ActionCombat
         public float NoticeSeconds { get; set; } = 0.8f;
 
         /// <summary>
-        /// It gives up when the chase takes it this far from home; 0 = never.
+        /// It gives up when the chase takes it this far from home and walks back, noticing nobody until it is home (a
+        /// blow on the way is ignored while it is still beyond this radius); 0 = never.
         /// </summary>
         public float LeashRadius { get; set; } = 30f;
 
@@ -308,13 +309,26 @@ namespace RPGFramework.ActionCombat
         /// <returns>The enemies that got one.</returns>
         public List<(int Enemy, int Target)> Grant()
         {
-            var granted = new List<(int, int)>();
+            var granted = new List<(int Enemy, int Target)>();
+            Grant(granted);
+            return granted;
+        }
+
+        /// <summary>
+        /// Hands out the free slots of this round's requests without garbage: <paramref name="granted"/> is cleared and
+        /// filled with the enemies that got one.
+        /// </summary>
+        public void Grant(List<(int Enemy, int Target)> granted)
+        {
+            if (granted == null)
+                throw new ArgumentNullException(nameof(granted));
+            granted.Clear();
             _targets.Clear();
             _targets.AddRange(_wanted.Keys);
             foreach (int target in _targets)
             {
                 var list = _wanted[target];
-                list.Sort((a, b) => b.Priority != a.Priority ? b.Priority.CompareTo(a.Priority) : a.Enemy.CompareTo(b.Enemy));
+                SortByPriority(list);
                 int free = MaxPerTarget <= 0 ? int.MaxValue : MaxPerTarget - HoldersOf(target);
                 for (int i = 0; i < list.Count && free > 0; i++)
                 {
@@ -326,11 +340,30 @@ namespace RPGFramework.ActionCombat
                 }
                 list.Clear();
             }
-            return granted;
         }
 
         /// <returns>True when it held one.</returns>
         public bool Release(int enemyId) => _holders.Remove(enemyId);
+
+        // Highest priority first, then the lower id. An insertion sort in place: List.Sort makes garbage under Unity's
+        // Mono even with a cached comparer, and a target has only a handful of enemies waiting
+        private static void SortByPriority(List<(int Enemy, float Priority)> list)
+        {
+            for (int i = 1; i < list.Count; i++)
+            {
+                var item = list[i];
+                int j = i - 1;
+                while (j >= 0 && Before(item, list[j]))
+                {
+                    list[j + 1] = list[j];
+                    j--;
+                }
+                list[j + 1] = item;
+            }
+        }
+
+        private static bool Before((int Enemy, float Priority) a, (int Enemy, float Priority) b) =>
+            a.Priority != b.Priority ? a.Priority > b.Priority : a.Enemy < b.Enemy;
     }
 
     /// <summary>

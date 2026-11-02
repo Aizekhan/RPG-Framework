@@ -3,6 +3,8 @@ using System.Linq;
 using NUnit.Framework;
 using RPGFramework.Combat;
 using RPGFramework.Events;
+using UnityEngine.TestTools.Constraints;
+using Is = NUnit.Framework.Is;
 
 namespace RPGFramework.ActionCombat.Tests
 {
@@ -114,6 +116,108 @@ namespace RPGFramework.ActionCombat.Tests
             _world.Place(Monster, CombatVector.Zero, Forward);
             Step();
             Assert.That(_director.StateOf(Monster), Is.EqualTo(EnemyState.Idle));
+        }
+
+        [Test]
+        public void Leashed_ItGoesHome_EvenWithTheTargetInSight_AndNoticesAgainOnlyAtHome()
+        {
+            AddMonster(Monster, CombatVector.Zero, new EnemyBehaviour { NoticeSeconds = 0f, LeashRadius = 10f, ViewAngle = 360f });
+            Step();
+            Assert.That(_director.TargetOf(Monster), Is.EqualTo(Player));
+
+            // The chase takes it past the leash, the target running beside it
+            _world.Place(Monster, new CombatVector(0f, 0f, 11f), Forward);
+            _world.Place(Player, new CombatVector(0f, 0f, 13f), Forward);
+            for (int i = 0; i < 10; i++)
+            {
+                Step();
+                Assert.That(_director.TargetOf(Monster), Is.EqualTo(-1), $"tick {i}: no re-engage");
+                Assert.That(_director.StateOf(Monster), Is.EqualTo(EnemyState.Returning));
+            }
+
+            // Struck while still out of bounds: ignored
+            _rules.Attack(Player, new AttackDefinition("arrow", 0f, 0.1f, 0f));
+            _rules.ReportContact(Player, Monster, _rules.SwingOf(Player));
+            Run(2f);
+            Assert.That(_director.TargetOf(Monster), Is.EqualTo(-1), "struck out of bounds");
+            Assert.That(_director.StateOf(Monster), Is.EqualTo(EnemyState.Returning), "goes on home after the hit");
+
+            // Inside the leash but not home: still ignores what it sees
+            _world.Place(Monster, new CombatVector(0f, 0f, 5f), Forward);
+            _world.Place(Player, new CombatVector(0f, 0f, 7f), Forward);
+            Step();
+            Assert.That(_director.TargetOf(Monster), Is.EqualTo(-1), "on the way home");
+
+            _world.Place(Monster, CombatVector.Zero, Forward);
+            Step();
+            Step();
+            Assert.That(_director.TargetOf(Monster), Is.EqualTo(Player), "home: notices again");
+        }
+
+        [Test]
+        public void ATick_MakesNoGarbage_ExceptTheRulesNewSwing()
+        {
+            var world = new StillWorld();
+            var rules = new CombatRules(new AnyDamage());
+            var director = new EnemyDirector(rules, world, seed: 5);
+            rules.Add(Player);
+            world.Place(Player, CombatVector.Zero);
+            for (int i = 0; i < 6; i++)
+            {
+                int id = Monster + i;
+                rules.Add(id);
+                var at = new CombatVector(i % 2 == 0 ? 1.8f : -1.8f, 0f, (i - 2.5f) * 0.6f);
+                world.Place(id, at);
+                var behaviour = new EnemyBehaviour { NoticeSeconds = 0f, ViewAngle = 360f, RecoveryPause = 0.2f };
+                behaviour.Moves.Add(new EnemyMove(new AttackDefinition("jab", 0.1f, 0.1f, 0.1f), 0f, 3f) { Cooldown = 0.5f });
+                director.Add(id, behaviour, at);
+            }
+            for (int i = 0; i < 100; i++)
+            {
+                rules.Tick(1f / 60f);
+                director.Tick();
+            }
+
+            var allocates = new AllocatingGCMemoryConstraint();
+            Assert.That(allocates.ApplyTo(new TestDelegate(() => new int[16].GetHashCode())).IsSuccess, Is.True,
+                "the check sees garbage");
+
+            // Only a new swing in the rules (CombatRules.Attack) may make garbage: none of the director's own
+            const int Frames = 600;
+            int allocating = 0, otherGarbage = 0, attacksStarted = 0;
+            for (int i = 0; i < Frames; i++)
+            {
+                rules.Tick(1f / 60f);
+                int wasAttacking = Enumerable.Range(Monster, 6).Count(id => director.StateOf(id) == EnemyState.Attacking);
+                bool garbage = allocates.ApplyTo(new TestDelegate(director.Tick)).IsSuccess;
+                int started = System.Math.Max(0,
+                    Enumerable.Range(Monster, 6).Count(id => director.StateOf(id) == EnemyState.Attacking) - wasAttacking);
+                attacksStarted += started;
+                if (garbage)
+                    allocating++;
+                if (garbage && started == 0)
+                    otherGarbage++;
+            }
+            director.Dispose();
+
+            TestContext.WriteLine($"{allocating} of {Frames} director ticks made garbage, {attacksStarted} attacks started");
+            Assert.That(attacksStarted, Is.GreaterThan(10), "the pack fights while measured");
+            Assert.That(otherGarbage, Is.EqualTo(0), "garbage on a tick that started no attack");
+        }
+
+        [Test]
+        public void Grant_FillsTheGivenList()
+        {
+            var tokens = new AttackTokens(1);
+            var granted = new List<(int Enemy, int Target)> { (99, 99) };
+            tokens.Want(10, Player, 1f);
+            tokens.Want(11, Player, 2f);
+
+            tokens.Grant(granted);
+
+            Assert.That(granted, Is.EqualTo(new[] { (11, Player) }));
+            tokens.Grant(granted);
+            Assert.That(granted, Is.Empty, "cleared each round");
         }
 
         [Test]
@@ -401,6 +505,29 @@ namespace RPGFramework.ActionCombat.Tests
             public float HealthShare(int entityId) => 1f;
 
             public bool IsAlive(int entityId) => !Dead.Contains(entityId);
+        }
+
+        // A world with no garbage of its own, so the director's is measured
+        private sealed class StillWorld : IEnemyWorld
+        {
+            private readonly Dictionary<int, CombatVector> _positions = new Dictionary<int, CombatVector>();
+            private readonly List<int> _targets = new List<int> { Player };
+
+            public void Place(int id, CombatVector position) => _positions[id] = position;
+
+            public IEnumerable<int> TargetsOf(int enemyId) => _targets;
+
+            public bool TryGetPose(int entityId, out CombatVector position, out CombatVector forward)
+            {
+                forward = Forward;
+                return _positions.TryGetValue(entityId, out position);
+            }
+
+            public bool CanSee(int fromId, int toId) => true;
+
+            public float HealthShare(int entityId) => 1f;
+
+            public bool IsAlive(int entityId) => true;
         }
 
         private sealed class AnyDamage : ICombatDamage

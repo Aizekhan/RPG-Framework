@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Fixed
+- ActionCombat `EnemyDirector`: a leash never ended a chase while the target was in sight. The enemy lost the target for being too far from home, then noticed it again in the same tick. Now a leashed enemy walks home, notices nobody until it gets there, and ignores blows while it is still beyond `LeashRadius`. If a hit interrupts the walk home, it carries on afterwards (MythRunner FG-27).
+- ActionCombat `EnemyDirector.Tick` no longer makes garbage every tick: the enemy snapshot and the granted tokens use reused lists; the move loops no longer box an enumerator; `AttackTokens` sorts the waiting enemies in place, because `List.Sort` makes garbage under Unity's Mono; and timeline notes are only built when there is a timeline. The only garbage left is the rules' new swing when an attack starts (MythRunner FG-28).
+
+### Added
+- `AttackTokens.Grant(List<(int Enemy, int Target)> granted)`: hands out the tokens into a list you pass in, which is cleared first. `Grant()` still returns a new list.
+
 ## [0.32.1] - 2026-11-02
 
 ### Fixed
