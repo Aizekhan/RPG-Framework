@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+- ActionCombat `CombatProjectiles`: projectiles in the rules without physics (MythRunner FG-30, goblin archers on the track).
+  - `Launch(ProjectileLaunch)` flies a projectile straight at its velocity, ticked with the fight (`Tick`). `Landing` mode (an arrow in an arc) strikes the shooter's `IEnemyWorld.TargetsOf` within its radius where it comes down, on the ground plane. `Contact` mode (a bolt) strikes the first body on its path, and `Pierce` lets it fly through more.
+  - `CombatProjectiles.Lead` gives the exact velocity and flight time to meet a moving target.
+  - `VoidIfShooterDies` makes a fallen archer's arrow strike no one. `SwingId` sends each strike through `CombatRules.ReportContact`, so dodges, blocks and damage apply, and ends the swing when the projectile lands.
+  - Events: `ProjectileLaunchedEvent`, `ProjectileStruckEvent` and `ProjectileLandedEvent` (`Struck`, `Landed`, `MissedItsTarget`, `Voided`, the exact landing time).
+  - `InFlight`, `Find` and `FlyingProjectile.EndsAt` serve views. `Mirror` copies under the host's `Id` serve co-op: they fly, and the host decides their strikes. `Remove` and `Clear` take projectiles out.
+  - Projectiles in flight make no garbage. Recipe 18.
+
 ## [0.34.0] - 2026-11-02
 
 ### Added

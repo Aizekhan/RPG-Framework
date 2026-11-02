@@ -69,6 +69,16 @@ the `Combat` damage calculator); use `ActionCombat` when the timing of a blow ma
    feeds it `rules.AnimationPaceOf(id)`, so the clip's contact frame stays on the rules' active window at any speed.
 7. Ranged: **`ProjectileLauncher`** (muzzle, a `CombatProjectile` prefab, speed) fires on the projectile attack's
    active phase along `Aim` (set it from the camera) or the muzzle's forward.
+   Without physics (no colliders: a runner's road, a server): **`CombatProjectiles`** beside the rules,
+   `new CombatProjectiles(enemyWorld, bus, rules)`, ticked after the bodies move. `Launch(new ProjectileLaunch { ShooterId,
+   TargetId, From, Velocity, Radius, Seconds, Mode })`: `Landing` (an arrow in an arc) strikes everyone of
+   `IEnemyWorld.TargetsOf(shooter)` within its radius where it comes down, `Contact` (a bolt) the first on its path
+   (`Pierce` for more). `CombatProjectiles.Lead(from, target, targetVelocity, speed, out velocity, out seconds)`
+   aims where a moving target will be. `VoidIfShooterDies` drops a fallen archer's arrow harmless; `SwingId` (an
+   attack with `Projectile`) sends each strike through `ReportContact`, so dodges and blocks count. Events:
+   `ProjectileLaunchedEvent`, `ProjectileStruckEvent`, `ProjectileLandedEvent` (`Struck`, `Landed`,
+   `MissedItsTarget`, `Voided`). Views read `InFlight`; a co-op friend launches `Mirror = true` copies under the
+   host's `Id` (they fly, the host decides the strikes).
 8. Enemies: **`CombatEnemyAI`** (below) for monsters that fight like in an action RPG; the simple
    **`CombatEnemyBrain`** chases as `EnemyBrain` does and starts its attack in reach. Your own AI calls the same
    `Combatant` API.
