@@ -5,6 +5,10 @@ state when they were written. The current state is in `STATUS.md`, releases and 
 
 ## Sessions
 
+- 2026-11-02: docs made single-source. The release history moved from STATUS to `Docs/RELEASES.md`, the session log
+  from here to `Docs/archive/SESSION-LOG.md`; STATUS open issues became a `KI-NN` register; `check_docs.py` runs in CI
+  and `release.py` writes every copy of a new version. MythRunner is on v0.35.0 (`1e9d21f`); its next step is
+  `ImpactDelay` for the track strike.
 - **2026-11-02 (latest): released `v0.35.0`** (tag on `d647ec5`, code `f6f45ae`, EditMode 2125/2125 locally): ActionCombat `CombatProjectiles` for MythRunner FG-30 (see STATUS). The CI run on the tag failed `ProjectilesInFlight_MakeNoGarbage` on a stray runner allocation; the test now counts 100 ticks with at most 2 dirty (`5b83aa6`, CI `41458139230` green after a PlayMode licence rerun). huntersrunner-9e wired it in (MythRunner `1e9d21f`, FG-30 resolved); their next step is v0.34 `ImpactDelay` for the track strike.
 - 2026-11-02: released `v0.34.0` (tag on `1ec97cd`, code `a6a75e7`, EditMode 2117/2117 locally): delayed ability hits (see STATUS) plus the kit fix: a stun now stops a cast. The CI run on the tag failed `ATick_MakesNoGarbage_ExceptTheRulesNewSwing` with one stray allocation; the test now allows 2 (`a875000`, CI `41452934626` green). The tag itself still has the stricter test; main is green. huntersrunner-9e was told how to put Shaya's track strike on `ImpactDelay` + `ImpactSpeedFor`, and about the stun behaviour change.
 - **2026-11-02: released `v0.33.0`** (tag on `3ccd264`, code `e275c81`, CI run `41447339805` green, EditMode 2106/2106 locally): FG-29 attack speed in ActionCombat (`SetAttackSpeed`, `AnimationPaceOf`, `Combatant.AttackSpeed`, bridge float `AttackPace`). The developer will wire it into MythRunner's Arena. huntersrunner-9e was told; it was also told that the track strike's early damage is game-side (`RunSession.StrikeAhead` deals at the press, `RunnerLook.PaceFor` clamps to 3x). Not done: a delayed landing for kit abilities (`ActorAbilities`); propose it only if a game asks.

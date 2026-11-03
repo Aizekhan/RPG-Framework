@@ -1,6 +1,6 @@
 # Handoff for Next Session
 
-**Date:** 2026-11-03
+**Date:** 2026-11-04
 **Project:** RPG Framework (`D:\RPG-Framework`, https://github.com/Aizekhan/RPG-Framework)
 **Read first:** `STATUS.md` (current state, single sources of truth, open issues `KI-NN`, next steps), `TARGET-ARCHITECTURE.md`, `Docs/RELEASES.md` (proof of each release). Session history: `Docs/archive/SESSION-LOG.md`
 
@@ -11,6 +11,10 @@
 This section holds only the latest session's notes; the release itself is in `STATUS.md` and `Docs/RELEASES.md`,
 older notes move to `Docs/archive/SESSION-LOG.md`.
 
+- 2026-11-04: released `v0.40.0` (WhiteWrite whitewrite-fc, approved by the owner): capabilities manifest
+  `capabilities.json` (`rpgframework.capabilities/1`, 81 capabilities, 10 missing) for WhiteWrite's gap check;
+  `check_docs.py` checks it, `release.py` writes its version. Every release now updates it by hand. The path, schema
+  and ids were sent to whitewrite-fc. Its ask for a CLAUDE.md line was left to the owner.
 - 2026-11-03: released `v0.39.0` (MythRunner FG-32/FG-33, closes KI-23): move weights by the target's state
   (`EnemyMove.SetWeightAgainst`, `IEnemyTargetStates`), pressed guard chances, `RepositionChance` (fall back to a
   rush's range); `HealthBarView` hides its bar on a corpse. The game dropped its BreaksGuard ask before release.
@@ -25,10 +29,6 @@ older notes move to `Docs/archive/SESSION-LOG.md`.
 - 2026-11-02: released `v0.36.0` (MythRunner FG-31: commit range, held wind-up, attack motions, timed sweep,
   `WeaponMoveSet`; see `Docs/RELEASES.md`). The first release through `release.py`. KI-23 is the later part (player
   moves against monster moves).
-- 2026-11-02: docs made single-source. The release history moved from STATUS to `Docs/RELEASES.md`, the session log
-  from here to `Docs/archive/SESSION-LOG.md`; STATUS open issues became a `KI-NN` register; `check_docs.py` runs in CI
-  and `release.py` writes every copy of a new version. MythRunner is on v0.35.0 (`1e9d21f`); its next step is
-  `ImpactDelay` for the track strike.
 
 ## Conventions for new work
 
