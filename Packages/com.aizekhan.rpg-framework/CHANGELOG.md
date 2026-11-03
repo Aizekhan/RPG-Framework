@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.39.0] - 2026-11-03
+
 ### Added
 - ActionCombat: enemies that answer what their target does (MythRunner FG-33; closes KI-23).
   - `EnemyMove.SetWeightAgainst(CombatState, factor)` / `FactorAgainst`: a move's weight times the factor while the target is in that state (a heavy blow x3 against `Blocking`, 0 = never against it). The director asks the world first when it implements the new `IEnemyTargetStates` (a target its rules do not drive), then the rules. `EnemyBehaviourAsset.Move` has an `Against` list.

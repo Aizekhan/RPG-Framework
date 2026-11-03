@@ -1,8 +1,8 @@
-# RPG Framework — архітектура (фактичний стан v0.38.1)
+# RPG Framework — архітектура (фактичний стан v0.39.0)
 
-> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.38.1**
-> (тег `v0.38.1`; SHA і докази — у `Docs/RELEASES.md`; Unity 6000.0), звірений із кодом пакета 2026-11-02: збірки (`.asmdef`), їхні
-> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.38.1), `Documentation~/networking.md`, рецепти
+> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.39.0**
+> (тег `v0.39.0`; SHA і докази — у `Docs/RELEASES.md`; Unity 6000.0), звірений із кодом пакета 2026-11-02: збірки (`.asmdef`), їхні
+> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.39.0), `Documentation~/networking.md`, рецепти
 > AI-guidance 01–20.
 > Попередня редакція (стан v0.5.0/v0.5.1) у git не потрапляла; цей файл замінює її повністю. Історію змін між
 > версіями дає `CHANGELOG.md` пакета.
@@ -29,7 +29,7 @@
   правила, стати, прогресія, квести, предмети, лут, збереження, ассети, спавн, сцени, UI-навігація, звук, локалізація,
   налаштування, діагностика, мережа.
 - Гра володіє **контентом, поданням і правилами, які роблять її унікальною**.
-- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.38.1`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
+- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.39.0`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
   1.11.2, Unity Transport 2.5.3, uGUI, вбудованого модуля Audio. Гра живе в окремому репозиторії/проєкті і не редагує
   пакет (`Library/PackageCache` перезаписується).
 - **Конвеєр рендерингу — будь-який.** Пакет не залежить від URP/HDRP і не має шейдерів під конкретний конвеєр:
@@ -492,7 +492,15 @@ rules)`, тік після руху тіл) — без колайдерів, т�
 підхід біля цілі, `EnemyIntent.Height` — дуга стрибка для `Leap Root` у `CombatEnemyAI`). `AttackDefinition.Sweep`
 (`SweepSegment`: дуги навколо атакувальника, розкладені в часі вікна удару) з `CombatRules.Sweep` вирішують контакт без
 фізики; `EnemyDirector.SweepAttacks` б'є ними ворогами. Ассет `WeaponMoveSet` тримає ходи одного виду зброї з комбо;
-`EnemyBehaviourAsset.Weapon` бере ходи з нього. Ваги ходів гравця проти ходів монстра [немає] (KI-23).
+`EnemyBehaviourAsset.Weapon` бере ходи з нього.
+
+**Вороги відповідають на дії цілі** (з v0.39) [є]: `EnemyMove.SetWeightAgainst(CombatState, factor)` множить вагу ходу,
+поки ціль у цьому стані (важкий удар ×3 проти `Blocking`, 0 — ніколи проти нього); в ассеті це список `Against` ходу.
+Стан цілі режисер бере зі світу, якщо той реалізує `IEnemyTargetStates` (ціль поза правилами), інакше з правил.
+`EnemyBehaviour.PressedSwings` за `PressedSeconds`: ціль, що б'є так часто, зустрічає `PressedBlockChance` /
+`PressedDodgeChance` замість звичайних шансів; режисер рахує `AttackStartedEvent` цілі на шині (гра може публікувати їх
+для цілі поза правилами). `EnemyBehaviour.RepositionChance`: після атаки ворог віддає токен, відходить по колу до
+дальності `RepositionMove` (типово ходу з найбільшою `MinRange`, ривка) і відкриває ним наступну атаку.
 
 **Парирування, витривалість атак, motion warping** (з v0.38, запит WhiteWrite для шаблонів UMCF) [є]:
 `CombatRules.Parry` відкриває парирування (`CombatState.Parrying`) на `CombatantSettings.ParryWindow`, далі йде
@@ -507,7 +515,8 @@ rules)`, тік після руху тіл) — без колайдерів, т�
 застосовує це сам. Парирування ворогами [немає] (KI-24): `EnemyBehaviour` уміє лише блок і ухилення.
 
 Unity: `EnemyBehaviourAsset`, `CombatEnemyAI` (замість `EnemyBrain`), `EnemyAnimatorBridge`. Кіт отримав
-час трупа (`CharacterDefinition.CorpseSeconds`, `ActorView.OnKilled`, `ActorPresenter.CorpseRemoving`). Пошуку
+час трупа (`CharacterDefinition.CorpseSeconds`, `ActorView.OnKilled`, `ActorPresenter.CorpseRemoving`);
+`HealthBarView` ховає смугу здоров'я над трупом (з v0.39). Пошуку
 шляху в AI [немає]: вороги рухаються прямо з розведенням.
 
 ---
@@ -641,7 +650,7 @@ New Game також виставляє Player Settings (Run In Background, Linea
 | `.meta` з валідним GUID для кожного файлу | CI-крок «Unity .meta integrity» |
 | Тексти на екрані — ключі, не рядки | тексти кітів через `ILocalization`; `LocalizationChecks` для таблиць гри |
 
-Тестова база: v0.38.1 (код `7c3a595`) — EditMode **2147/2147** локально на v0.38.0 і GameKit **41/41** на v0.38.1; PlayMode — у CI (докази в `Docs/RELEASES.md`).
+Тестова база: v0.39.0 (код `bf119ea`) — EditMode **2153/2153** локально; PlayMode — у CI (докази в `Docs/RELEASES.md`).
 
 ---
 

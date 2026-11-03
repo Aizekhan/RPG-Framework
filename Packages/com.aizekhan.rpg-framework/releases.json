@@ -2,8 +2,9 @@
   "format": "rpgframework.releases/1",
   "package": "com.aizekhan.rpg-framework",
   "unity": "6000.0",
-  "newest": "0.38.1",
+  "newest": "0.39.0",
   "releases": [
+    {"version": "0.39.0", "date": "2026-11-03", "breaking": false, "refs": ["FG-32", "FG-33", "KI-23"], "upgrade": [], "summary": "ActionCombat: enemies that answer what their target does (MythRunner FG-33; closes KI-23)."},
     {"version": "0.38.1", "date": "2026-11-02", "breaking": false, "refs": [], "upgrade": [], "summary": "Install AI Guidance replaced a game's own CI workflow (MythRunner). `AIGuidance.IsGreenWhenSkippedWorkflow` took any workflow with the installer's header and an `available=false` line for the old one that passed without the licence secrets, even when the game's workflow fails right after (`exit 1..."},
     {"version": "0.38.0", "date": "2026-11-02", "breaking": false, "refs": [], "upgrade": [], "summary": "ActionCombat: parry, stamina for attacks and motion warping (WhiteWrite, for the UMCF combat templates; asked by the owner)."},
     {"version": "0.37.0", "date": "2026-11-02", "breaking": false, "refs": [], "upgrade": [], "summary": "Framework update notices for games' Claude Code agents."},
