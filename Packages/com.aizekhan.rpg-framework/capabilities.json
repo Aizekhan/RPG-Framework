@@ -1,7 +1,7 @@
 {
   "format": "rpgframework.capabilities/1",
-  "version": "0.39.0",
-  "released": "2026-11-03",
+  "version": "0.40.0",
+  "released": "2026-11-04",
   "modules": [
     {
       "id": "combat",
