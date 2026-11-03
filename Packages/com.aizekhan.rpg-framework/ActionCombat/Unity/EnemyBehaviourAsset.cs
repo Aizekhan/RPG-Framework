@@ -13,6 +13,18 @@ namespace RPGFramework.ActionCombat
     [CreateAssetMenu(menuName = "RPG Framework/Action Combat/Enemy Behaviour", fileName = "EnemyBehaviour")]
     public sealed class EnemyBehaviourAsset : ScriptableObject
     {
+        /// <summary>
+        /// A move is chosen <see cref="Factor"/> times as often against a target doing <see cref="TargetState"/>
+        /// (<see cref="EnemyMove.SetWeightAgainst"/>).
+        /// </summary>
+        [Serializable]
+        public sealed class WeightAgainst
+        {
+            public CombatState TargetState = CombatState.Blocking;
+
+            [Min(0f)] public float Factor = 1f;
+        }
+
         [Serializable]
         public sealed class Move
         {
@@ -25,6 +37,9 @@ namespace RPGFramework.ActionCombat
             [Min(0f)] public float MaxRange = 2f;
 
             [Min(0f)] public float Weight = 1f;
+
+            [Tooltip("Weight x Factor against a target doing this: 3 against Blocking for a heavy blow, 0: never against it")]
+            public List<WeightAgainst> Against = new List<WeightAgainst>();
 
             [Tooltip("Seconds before it is chosen again")]
             [Min(0f)] public float Cooldown;
@@ -92,11 +107,21 @@ namespace RPGFramework.ActionCombat
         [SerializeField] private List<Move> _moves = new List<Move>();
         [Tooltip("The pause after an attack or a combo: the player's punish window")]
         [SerializeField, Min(0f)] private float _recoveryPause = 0.6f;
+        [Tooltip("Chance that after an attack it falls back (circling out) to the range of the Reposition Move before its next turn")]
+        [SerializeField, Range(0f, 1f)] private float _repositionChance;
+        [Tooltip("Index in the list above of the move it falls back for (a rush); -1: the one with the longest Min Range")]
+        [SerializeField] private int _repositionMove = -1;
+        [SerializeField, Min(0f)] private float _repositionSeconds = 2f;
 
         [Header("Defence (when the target swings at it)")]
         [SerializeField, Range(0f, 1f)] private float _blockChance;
         [SerializeField, Min(0f)] private float _blockSeconds = 0.8f;
         [SerializeField, Range(0f, 1f)] private float _dodgeChance;
+        [Tooltip("Pressed: after this many swings of the target within Pressed Seconds the pressed chances are rolled instead; 0: never")]
+        [SerializeField, Range(0, EnemyBehaviour.MaxPressedSwings)] private int _pressedSwings;
+        [SerializeField, Min(0f)] private float _pressedSeconds = 3f;
+        [SerializeField, Range(0f, 1f)] private float _pressedBlockChance;
+        [SerializeField, Range(0f, 1f)] private float _pressedDodgeChance;
         [Tooltip("Below this share of health it may back off")]
         [SerializeField, Range(0f, 1f)] private float _backOffHealthShare;
         [SerializeField, Range(0f, 1f)] private float _backOffChance = 0.3f;
@@ -150,6 +175,8 @@ namespace RPGFramework.ActionCombat
                     problems.Add($"{label} {i} links its combo to move {move.Next}, which is not in the list");
                 if (move.MaxRange < move.MinRange)
                     problems.Add($"{label} {i}: Max Range is below Min Range");
+                if (move.Against != null && move.Against.Exists(a => a != null && a.Factor < 0f))
+                    problems.Add($"{label} {i}: a weight factor below 0");
                 if (move.HoldUntilInRange && move.MaxHold <= 0f)
                     problems.Add($"{label} {i}: holds until in range but Max Hold is 0 (it never holds)");
             }
@@ -201,9 +228,15 @@ namespace RPGFramework.ActionCombat
                 TurnSpeed = _turnSpeed,
                 CircleSwitchSeconds = _circleSwitchSeconds,
                 RecoveryPause = _recoveryPause,
+                RepositionChance = _repositionChance,
+                RepositionSeconds = _repositionSeconds,
                 BlockChance = _blockChance,
                 BlockSeconds = _blockSeconds,
                 DodgeChance = _dodgeChance,
+                PressedSwings = Mathf.Clamp(_pressedSwings, 0, EnemyBehaviour.MaxPressedSwings),
+                PressedSeconds = _pressedSeconds,
+                PressedBlockChance = _pressedBlockChance,
+                PressedDodgeChance = _pressedDodgeChance,
                 BackOffHealthShare = _backOffHealthShare,
                 BackOffChance = _backOffChance,
                 BackOffSeconds = _backOffSeconds,
@@ -212,14 +245,17 @@ namespace RPGFramework.ActionCombat
 
             if (_weapon != null)
                 BuildMoves(_weapon.Moves, behaviour.Moves);
-            BuildMoves(_moves, behaviour.Moves);
+            var own = BuildMoves(_moves, behaviour.Moves);
+            if (_repositionMove >= 0 && _repositionMove < own.Length)
+                behaviour.RepositionMove = own[_repositionMove];
             return behaviour;
         }
 
         /// <summary>
         /// Builds a list of moves (combo links by index within it) and adds the openers to <paramref name="into"/>.
         /// </summary>
-        public static void BuildMoves(IReadOnlyList<Move> moves, IList<EnemyMove> into)
+        /// <returns>Every move built, by its index in <paramref name="moves"/> (null for one without an attack).</returns>
+        public static EnemyMove[] BuildMoves(IReadOnlyList<Move> moves, IList<EnemyMove> into)
         {
             var built = new EnemyMove[moves.Count];
             for (int i = 0; i < moves.Count; i++)
@@ -237,6 +273,14 @@ namespace RPGFramework.ActionCombat
                     MaxHold = Mathf.Max(0f, move.MaxHold),
                     HoldSpeed = Mathf.Max(0f, move.HoldSpeed)
                 };
+                if (move.Against != null)
+                {
+                    foreach (var against in move.Against)
+                    {
+                        if (against != null)
+                            built[i].SetWeightAgainst(against.TargetState, Mathf.Max(0f, against.Factor));
+                    }
+                }
             }
             for (int i = 0; i < moves.Count; i++)
             {
@@ -248,6 +292,7 @@ namespace RPGFramework.ActionCombat
                 if (move.Opener)
                     into.Add(built[i]);
             }
+            return built;
         }
     }
 }

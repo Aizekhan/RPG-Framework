@@ -140,12 +140,16 @@ namespace RPGFramework.ActionRpg.PlayTests
             int enemy = world.LivingEnemies.First();
             _host.Views.TryGetView(enemy, out var view);
             var body = view.gameObject;
+            var bar = body.GetComponentInChildren<HealthBarView>(true).transform.Find("HealthBar");
+            Assert.That(bar.gameObject.activeSelf, Is.True, "a living enemy shows its bar");
 
             _host.Host.Container.Resolve<ILifeStateManager>().Kill(enemy, world.PlayerId, "test");
             yield return null;
 
             Assert.That(_host.Views.TryGetView(enemy, out _), Is.False, "no longer the enemy's view");
             Assert.That(body != null && body.activeInHierarchy, Is.True, "the body stays");
+            // MythRunner FG-32: the bar froze over the corpse at its last frame
+            Assert.That(bar.gameObject.activeSelf, Is.False, "without its health bar");
             yield return new WaitForSeconds(0.9f);
             Assert.That(body == null || !body.activeInHierarchy, Is.True, "then it goes");
         }

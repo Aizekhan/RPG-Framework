@@ -12,7 +12,9 @@ namespace RPGFramework.ActionCombat
     /// token picks a move by distance, cooldowns and weights (seeded), commits to it only inside the move's commit range
     /// (a held move starts at its reach and holds the wind-up while it closes in), moves as the attack's motions say,
     /// chains combos while they land, then pauses (the player's punish window). It may block or dodge a swing aimed at
-    /// it. With <see cref="SweepAttacks"/> its blows land by their sweep segments, without physics. The body follows its
+    /// it, more readily when the target presses it (<see cref="EnemyBehaviour.PressedSwings"/>); its moves may be weighed
+    /// by what the target is doing (<see cref="EnemyMove.SetWeightAgainst"/>), and after a move it may fall back to the
+    /// range of its rush (<see cref="EnemyBehaviour.RepositionChance"/>). With <see cref="SweepAttacks"/> its blows land by their sweep segments, without physics. The body follows its
     /// <see cref="EnemyIntent"/>; the attacks, stagger and dodges go through <see cref="CombatRules"/>. Every decision is
     /// an event and a timeline entry, so a panel can show why a monster did what it did.
     /// </summary>
@@ -28,9 +30,11 @@ namespace RPGFramework.ActionCombat
         private readonly List<Brain> _ticking = new List<Brain>();
         private readonly List<(int Enemy, int Target)> _granted = new List<(int, int)>();
         private readonly List<IDisposable> _subscriptions = new List<IDisposable>();
+        private readonly Dictionary<int, SwingLog> _swingsOf = new Dictionary<int, SwingLog>();
 
         /// <param name="events">The arena's bus: decisions are published there, and the director reads the combat
-        /// events (contacts, swings) from it. Null: no events, no reactions to swings.</param>
+        /// events (contacts, swings) from it. Null: no events, no reactions to swings. A target outside the rules is
+        /// defended against when the game publishes its <see cref="AttackStartedEvent"/>s there.</param>
         /// <param name="seed">Seeds every roll (moves, defences, wandering) so a fight can be replayed.</param>
         public EnemyDirector(CombatRules rules, IEnemyWorld world, IEventBus events = null, int seed = 0, AttackTokens tokens = null)
         {
@@ -283,6 +287,23 @@ namespace RPGFramework.ActionCombat
                     Go(brain, EnemyState.BackOff, "hurt", Away(face), behaviour.BackOffSpeed, face);
                     return;
                 }
+            }
+
+            if (brain.RepositionFor != null)
+            {
+                var goal = brain.RepositionFor;
+                if (d < goal.MinRange + 0.25f * (goal.StartRange - goal.MinRange) && Time < brain.RepositionUntil)
+                {
+                    // Out and around, never asking for a turn meanwhile
+                    var side = new CombatVector(-face.Z * brain.CircleSign, 0f, face.X * brain.CircleSign);
+                    var away = Away(face);
+                    Go(brain, EnemyState.BackOff, "repositioning for " + goal.Attack.Id,
+                        Unit(new CombatVector(away.X + side.X * 0.5f, 0f, away.Z + side.Z * 0.5f)), behaviour.BackOffSpeed, face);
+                    return;
+                }
+                brain.RepositionFor = null;
+                brain.Opener = goal;
+                brain.WantAfter = Time;
             }
 
             if (Tokens.Holds(id))
@@ -591,13 +612,17 @@ namespace RPGFramework.ActionCombat
 
         private EnemyMove Choose(Brain brain, float distance)
         {
+            // It fell back for this one
+            if (brain.Opener != null && brain.Opener.CanStart(distance) && Ready(brain, brain.Opener))
+                return brain.Opener;
+            bool known = TryGetTargetState(brain.Target, out var against);
             float total = 0f;
             var moves = brain.Behaviour.Moves;
             for (int i = 0; i < moves.Count; i++)
             {
                 var move = moves[i];
                 if (move.CanStart(distance) && Ready(brain, move))
-                    total += Math.Max(0f, move.Weight);
+                    total += WeightOf(move, known, against);
             }
             if (total <= 0f)
                 return null;
@@ -606,14 +631,32 @@ namespace RPGFramework.ActionCombat
             for (int i = 0; i < moves.Count; i++)
             {
                 var move = moves[i];
-                if (!move.CanStart(distance) || !Ready(brain, move) || move.Weight <= 0f)
+                float weight = WeightOf(move, known, against);
+                if (!move.CanStart(distance) || !Ready(brain, move) || weight <= 0f)
                     continue;
                 last = move;
-                roll -= move.Weight;
+                roll -= weight;
                 if (roll < 0)
                     return move;
             }
             return last;
+        }
+
+        private static float WeightOf(EnemyMove move, bool known, CombatState against) =>
+            Math.Max(0f, move.Weight) * (known ? move.FactorAgainst(against) : 1f);
+
+        // What the target is doing: the world says first (a target outside the rules), then the rules
+        private bool TryGetTargetState(int target, out CombatState state)
+        {
+            if (target >= 0 && _world is IEnemyTargetStates states && states.TryGetState(target, out state))
+                return true;
+            if (target >= 0 && _rules.Contains(target))
+            {
+                state = _rules.StateOf(target);
+                return true;
+            }
+            state = CombatState.Idle;
+            return false;
         }
 
         private bool StartMove(Brain brain, EnemyMove move, float distance, bool combo)
@@ -622,6 +665,7 @@ namespace RPGFramework.ActionCombat
                 return false;
             brain.Attacking = true;
             brain.Move = move;
+            brain.Opener = null;
             brain.Swing = _rules.SwingOf(brain.Id);
             brain.ComboLanded = false;
             brain.ReadyAt[move] = Time + move.Cooldown;
@@ -651,6 +695,18 @@ namespace RPGFramework.ActionCombat
                 brain.RecoverUntil = Time + brain.Behaviour.RecoveryPause;
                 Set(brain, EnemyState.Recovering, reason);
             }
+            var behaviour = brain.Behaviour;
+            if (pause && behaviour.RepositionChance > 0f && _random.NextDouble() < behaviour.RepositionChance)
+            {
+                var goal = behaviour.RepositionMove ?? Farthest(brain);
+                if (goal != null && goal.MinRange > 0f)
+                {
+                    brain.RepositionFor = goal;
+                    brain.RepositionUntil = Math.Max(Time, brain.RecoverUntil) + behaviour.RepositionSeconds;
+                    if (_rules.Timeline != null)
+                        Note(brain.Id, brain.Target, "falls back for " + goal.Attack.Id);
+                }
+            }
         }
 
         private void OnContact(ContactResolvedEvent contact)
@@ -668,6 +724,7 @@ namespace RPGFramework.ActionCombat
         // A target starts a swing: the enemies it fights may block or dodge
         private void OnSwingStarted(AttackStartedEvent started)
         {
+            SwingLog swings = null;
             foreach (var brain in _order)
             {
                 if (brain.Target != started.EntityId || brain.State == EnemyState.Dead || brain.Attacking || brain.Blocking)
@@ -680,22 +737,39 @@ namespace RPGFramework.ActionCombat
                     continue;
 
                 var behaviour = brain.Behaviour;
-                if (behaviour.BlockChance > 0f && _random.NextDouble() < behaviour.BlockChance)
+                // The swing is counted once, by the first enemy that fights the swinger
+                if (swings == null)
+                    swings = LogSwing(started.EntityId);
+                bool pressed = behaviour.PressedSwings > 0 && swings.Within(Time, behaviour.PressedSeconds) >= behaviour.PressedSwings;
+                float block = pressed ? behaviour.PressedBlockChance : behaviour.BlockChance;
+                float dodge = pressed ? behaviour.PressedDodgeChance : behaviour.DodgeChance;
+                if (block > 0f && _random.NextDouble() < block)
                 {
                     _rules.SetBlocking(brain.Id, true);
                     brain.Blocking = true;
                     brain.BlockUntil = Time + behaviour.BlockSeconds;
                     if (_rules.Timeline != null)
-                        Note(brain.Id, started.EntityId, "blocks " + started.AttackId);
+                        Note(brain.Id, started.EntityId, (pressed ? "pressed, blocks " : "blocks ") + started.AttackId);
                 }
-                else if (behaviour.DodgeChance > 0f && _random.NextDouble() < behaviour.DodgeChance)
+                else if (dodge > 0f && _random.NextDouble() < dodge)
                 {
                     var face = ToTarget(brain, position);
                     float side = _random.Next(2) == 0 ? -1f : 1f;
                     if (_rules.Dodge(brain.Id, new CombatVector(-face.Z * side, 0f, face.X * side)) && _rules.Timeline != null)
-                        Note(brain.Id, started.EntityId, "dodges " + started.AttackId);
+                        Note(brain.Id, started.EntityId, (pressed ? "pressed, dodges " : "dodges ") + started.AttackId);
                 }
             }
+        }
+
+        private SwingLog LogSwing(int swingerId)
+        {
+            if (!_swingsOf.TryGetValue(swingerId, out var log))
+            {
+                log = new SwingLog();
+                _swingsOf.Add(swingerId, log);
+            }
+            log.Add(Time);
+            return log;
         }
 
         private void ReleaseToken(Brain brain, string reason)
@@ -736,6 +810,20 @@ namespace RPGFramework.ActionCombat
                     reach = Math.Max(reach, move.StartRange);
             }
             return reach;
+        }
+
+        // The move with the longest minimum range (weight above 0), or null
+        private static EnemyMove Farthest(Brain brain)
+        {
+            EnemyMove farthest = null;
+            var moves = brain.Behaviour.Moves;
+            for (int i = 0; i < moves.Count; i++)
+            {
+                var move = moves[i];
+                if (move.Weight > 0f && (farthest == null || move.MinRange > farthest.MinRange))
+                    farthest = move;
+            }
+            return farthest;
         }
 
         private static float Closest(Brain brain)
@@ -787,6 +875,32 @@ namespace RPGFramework.ActionCombat
 
         private Brain Find(int enemyId) => _brains.TryGetValue(enemyId, out var brain) ? brain : null;
 
+        // The last swings a target started, for the pressed guard chances (a ring; no garbage after the first)
+        private sealed class SwingLog
+        {
+            private readonly float[] _times = new float[EnemyBehaviour.MaxPressedSwings];
+            private int _next;
+            private int _count;
+
+            public void Add(float time)
+            {
+                _times[_next] = time;
+                _next = (_next + 1) % _times.Length;
+                _count = Math.Min(_count + 1, _times.Length);
+            }
+
+            public int Within(float now, float seconds)
+            {
+                int within = 0;
+                for (int i = 0; i < _count; i++)
+                {
+                    if (now - _times[i] <= seconds)
+                        within++;
+                }
+                return within;
+            }
+        }
+
         private sealed class Brain
         {
             public Brain(int id, EnemyBehaviour behaviour, CombatVector home)
@@ -821,6 +935,9 @@ namespace RPGFramework.ActionCombat
             public int Swing;
             public bool ComboLanded;
             public float HoldUntil;
+            public EnemyMove RepositionFor;
+            public float RepositionUntil;
+            public EnemyMove Opener;
             public readonly Dictionary<EnemyMove, float> ReadyAt = new Dictionary<EnemyMove, float>();
             public CombatVector? Goal;
             public int PatrolIndex;

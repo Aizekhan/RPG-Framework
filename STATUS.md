@@ -67,7 +67,6 @@ Next id: **KI-25**.
 - **KI-20** Release extras missing: API reference, tutorials, CONTRIBUTING, issue templates, Asset Store submission
 - **KI-21** Assets imported outside `Assets/ThirdParty/<Source>/<Asset>/` are not detected by GA15
 - **KI-22** MythHunter's parallel system registry is not ported (Unity API is main-thread only; no proven need)
-- **KI-23** ActionCombat: no weights of the player's moves against a monster's moves for the enemy brain (the later part of MythRunner FG-31)
 - **KI-24** ActionCombat: enemies do not parry (`EnemyBehaviour` has only `BlockChance` and `DodgeChance`; parry is for the player and the game's own AI)
 
 ## Next steps

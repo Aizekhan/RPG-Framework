@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Added
+- ActionCombat: enemies that answer what their target does (MythRunner FG-33; closes KI-23).
+  - `EnemyMove.SetWeightAgainst(CombatState, factor)` / `FactorAgainst`: a move's weight times the factor while the target is in that state (a heavy blow x3 against `Blocking`, 0 = never against it). The director asks the world first when it implements the new `IEnemyTargetStates` (a target its rules do not drive), then the rules. `EnemyBehaviourAsset.Move` has an `Against` list.
+  - `EnemyBehaviour.RepositionChance`, rolled when an attack or combo ends: the enemy gives up its token and circles out until the target is in `RepositionMove`'s range (default: the move with the longest `MinRange`, such as a rush) or `RepositionSeconds` run out, then asks again and opens with that move. A lone monster no longer stays at arm's length. On the asset: Reposition Chance / Move (an index in its list) / Seconds; `EnemyBehaviourAsset.BuildMoves` returns the built moves.
+  - `EnemyBehaviour.PressedSwings` within `PressedSeconds` (up to `MaxPressedSwings`): a target that swings that often meets `PressedBlockChance` / `PressedDodgeChance` instead of the plain chances. The director counts the target's `AttackStartedEvent`s on the bus, which a game may publish for a target outside the rules. Same fields on the asset.
+  - The defaults change nothing. Recipe 18.
+
+### Fixed
+- `HealthBarView` left its bar over a killed character's corpse, frozen at its last frame (MythRunner FG-32). It hides the bar on `OnKilled` (`Hide On Death`, on by default) and shows it again when bound to the next character.
+
 ## [0.38.1] - 2026-11-02
 
 ### Fixed

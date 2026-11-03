@@ -139,21 +139,32 @@ the `Combat` damage calculator); use `ActionCombat` when the timing of a blow ma
   its wind-up, tracking and closing in at `HoldSpeed` (0 = `ApproachSpeed`), until the target is within the commit
   range or `MaxHold` runs out. The attack's `Motions` move the body during its phases (an approach stops at
   `ContactDistance` from the target); a leap's `EnemyIntent.Height` raises `CombatEnemyAI`'s `Leap Root`.
+  **Against what the target does:** `SetWeightAgainst(CombatState, factor)` (the asset move's `Against` list)
+  multiplies a move's weight while the target is in that state: a heavy blow x3 against `Blocking`, a jab x0
+  against it. The director reads the target's state from the world when it implements `IEnemyTargetStates` (a target
+  the rules do not drive, like a runner the game resolves itself), otherwise from the rules.
   `arena.Enemies.SweepAttacks = true` lands the blows by their `Sweep` segments (`SweepRadius` for the target's
   body), for a world without colliders.
 - **Weapon move sets:** a **Weapon Move Set** asset (Create > RPG Framework > Action Combat > Weapon Move Set) holds
   a kind of weapon's moves (each strike clip with its motion, sweep, ranges, commit, hold and combo links). An Enemy
   Behaviour's `Weapon` takes its moves from it; its own list adds the monster's. After an attack or combo, `RecoveryPause`: the
-  player's punish window. The asset's `Problems()` (logged as warnings in the inspector) catches a move without an
+  player's punish window. Then, with `RepositionChance`, it falls back: it gives up its token and circles out until
+  the target is in `RepositionMove`'s range (default: the move with the longest `MinRange`, a rush), at most
+  `RepositionSeconds`, then asks again and opens with that move (a lone monster rushes in again instead of staying
+  at arm's length). The asset's `Problems()` (logged as warnings in the inspector) catches a move without an
   attack, a combo link to itself or out of the list, and no opener with a weight. Moves added from code through
   `SerializedProperty` start at zero (Weight 0, Next 0): set Weight and Next = -1.
 - **Defence:** when its target starts a swing: `BlockChance` (held `BlockSeconds`), else `DodgeChance` (sideways);
-  under `BackOffHealthShare` of health a `BackOffChance` to step away.
+  under `BackOffHealthShare` of health a `BackOffChance` to step away. Pressed: when the target has started
+  `PressedSwings` swings within `PressedSeconds` (the one now counted), `PressedBlockChance` and `PressedDodgeChance`
+  are rolled instead (the timeline says "pressed, blocks"). A target outside the rules is defended against when the
+  game publishes its `AttackStartedEvent`s on the arena's bus.
 - **Hit reactions** by force through the `Combatant`'s hit tiers (light, heavy with push back, knockdown and
   get-up); big moves with `Interruptible` off keep going (hyper armour).
 - **Death:** `EnemyDiedEvent` with `Variant` (one of `DeathVariants` clips). The kit keeps the body for the
   character's **`Corpse Seconds`** (Character asset) before the view goes; `ActorPresenter.CorpseRemoving` is the
-  hook for a fade. Any `ActorView` hears `OnKilled()` while still bound.
+  hook for a fade. Any `ActorView` hears `OnKilled()` while still bound; `HealthBarView` hides its bar then (`Hide On
+  Death`, on by default) and shows it again when the prefab is bound to the next character.
 - **Animation:** `EnemyAnimatorBridge` sets `Speed`, `MoveX`/`MoveY` (local m/s, for a strafe blend tree),
   `Notice`, `Death` + `DeathIndex`; `CombatAnimatorBridge` the attacks, `Block`, `Dodge`, `HitReact` and by tier
   `HitLight`/`HitHeavy`/`Knockdown`. Missing parameters are skipped.

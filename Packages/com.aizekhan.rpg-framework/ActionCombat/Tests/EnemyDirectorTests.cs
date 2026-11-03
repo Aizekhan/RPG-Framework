@@ -616,8 +616,136 @@ namespace RPGFramework.ActionCombat.Tests
             Assert.That(hits, Is.Empty, "outside the segment's arc");
         }
 
-        private sealed class FakeWorld : IEnemyWorld
+        // MythRunner FG-33 (KI-23): against a blocking target it picks its heavy blow
+        private EnemyBehaviour BreakerAndJab()
         {
+            var behaviour = new EnemyBehaviour { NoticeSeconds = 0f, RecoveryPause = 0f };
+            var jab = new EnemyMove(Jab, 0f, 2.5f);
+            jab.SetWeightAgainst(CombatState.Blocking, 0f);
+            var breaker = new EnemyMove(new AttackDefinition("overhead", 0.3f, 0.2f, 0.3f), 0f, 2.5f);
+            breaker.SetWeightAgainst(CombatState.Blocking, 3f);
+            behaviour.Moves.Add(jab);
+            behaviour.Moves.Add(breaker);
+            return behaviour;
+        }
+
+        private List<string> ChosenOver(float seconds)
+        {
+            var chosen = new List<string>();
+            using (_bus.Subscribe<AttackChosenEvent>(e => chosen.Add(e.AttackId)))
+                Run(seconds);
+            return chosen;
+        }
+
+        [Test]
+        public void AMovesWeight_FollowsWhatTheTargetIsDoing()
+        {
+            _world.Place(Player, new CombatVector(0f, 0f, 1.5f), Forward);
+            var behaviour = AddMonster(Monster, CombatVector.Zero, BreakerAndJab());
+            Assert.That(behaviour.Moves[1].FactorAgainst(CombatState.Blocking), Is.EqualTo(3f));
+            Assert.That(behaviour.Moves[1].FactorAgainst(CombatState.Idle), Is.EqualTo(1f));
+
+            _rules.SetBlocking(Player, true);
+            var blocked = ChosenOver(4f);
+            Assert.That(blocked, Is.Not.Empty);
+            Assert.That(blocked, Is.All.EqualTo("overhead"), "the jab weighs 0 against a block");
+
+            _rules.SetBlocking(Player, false);
+            Assert.That(ChosenOver(8f), Has.Member("jab"), "an open target gets both");
+        }
+
+        [Test]
+        public void AWorldThatKnowsTheTargetsState_IsAskedBeforeTheRules()
+        {
+            _world.Place(Player, new CombatVector(0f, 0f, 1.5f), Forward);
+            AddMonster(Monster, CombatVector.Zero, BreakerAndJab());
+            // The rules see an idle player; the game's world says it is blocking (a runner the rules do not drive)
+            _world.States[Player] = CombatState.Blocking;
+
+            var chosen = ChosenOver(4f);
+
+            Assert.That(chosen, Is.Not.Empty);
+            Assert.That(chosen, Is.All.EqualTo("overhead"));
+        }
+
+        [Test]
+        public void SettingAWeightFactorOf1_RemovesIt_AndANegativeOneIsRefused()
+        {
+            var move = new EnemyMove(Jab, 0f, 2f);
+            move.SetWeightAgainst(CombatState.Dodging, 2f);
+            move.SetWeightAgainst(CombatState.Dodging, 1f);
+            Assert.That(move.FactorAgainst(CombatState.Dodging), Is.EqualTo(1f));
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => move.SetWeightAgainst(CombatState.Blocking, -1f));
+            Assert.Throws<System.ArgumentOutOfRangeException>(() =>
+                new EnemyBehaviour { PressedSwings = EnemyBehaviour.MaxPressedSwings + 1 });
+        }
+
+        // MythRunner FG-33: a target that keeps swinging makes it guard more
+        [Test]
+        public void ATargetThatPressesIt_IsMetWithThePressedGuardChances()
+        {
+            _world.Place(Player, new CombatVector(0f, 0f, 2f), Forward);
+            AddMonster(Monster, CombatVector.Zero, new EnemyBehaviour
+            {
+                NoticeSeconds = 0f, RecoveryPause = 0f, BlockSeconds = 0.05f,
+                PressedSwings = 3, PressedSeconds = 2f, PressedBlockChance = 1f
+            });
+            // Someone else holds the only token: it circles and only defends
+            _director.Tokens.MaxPerTarget = 1;
+            _director.Tokens.Want(99, Player, 100f);
+            _director.Tokens.Grant();
+            Step();
+            var tap = new AttackDefinition("tap", 0f, 0.05f, 0f);
+
+            var blocks = new List<bool>();
+            for (int i = 0; i < 3; i++)
+            {
+                Assert.That(_rules.Attack(Player, tap), Is.True);
+                blocks.Add(_rules.StateOf(Monster) == CombatState.Blocking);
+                Run(0.3f);
+            }
+            Assert.That(blocks, Is.EqualTo(new[] { false, false, true }), "the third swing within 2 s presses it");
+
+            Run(2.5f);
+            Assert.That(_rules.Attack(Player, tap), Is.True);
+            Assert.That(_rules.StateOf(Monster), Is.Not.EqualTo(CombatState.Blocking), "the pressure wears off");
+        }
+
+        // MythRunner FG-33: a lone hunter fell straight back into arm's length; it falls back to rush again
+        [Test]
+        public void AfterAMove_ItMayFallBackToItsRushesRange_AndOpenWithTheRush()
+        {
+            _world.Place(Player, new CombatVector(0f, 0f, 1.5f), Forward);
+            var behaviour = new EnemyBehaviour { NoticeSeconds = 0f, RecoveryPause = 0.1f, RepositionChance = 1f };
+            var rush = new EnemyMove(new AttackDefinition("rush", 0.2f, 0.2f, 0.2f), 4f, 6f) { Weight = 0.01f };
+            behaviour.Moves.Add(new EnemyMove(Jab, 0f, 2.5f));
+            behaviour.Moves.Add(rush);
+            AddMonster(Monster, CombatVector.Zero, behaviour);
+            var chosen = new List<string>();
+            var states = new List<EnemyState>();
+            _bus.Subscribe<AttackChosenEvent>(e => chosen.Add(e.AttackId));
+            _bus.Subscribe<EnemyStateChangedEvent>(e => states.Add(e.To));
+
+            for (int i = 0; i < 120 && chosen.Count < 2; i++)
+            {
+                Step(0.05f);
+                // The body follows its intent, and the player stands still
+                var intent = _director.IntentOf(Monster);
+                _world.TryGetPose(Monster, out var at, out _);
+                _world.Place(Monster, at + new CombatVector(intent.Move.X * intent.Speed * 0.05f, 0f, intent.Move.Z * intent.Speed * 0.05f), Forward);
+            }
+
+            Assert.That(chosen, Is.EqualTo(new[] { "jab", "rush" }), "the jab, then the rush it fell back for");
+            Assert.That(states, Has.Member(EnemyState.BackOff));
+            Assert.That(_rules.Timeline.Entries.Any(e => e.Note == "falls back for rush"), Is.True);
+        }
+
+        private sealed class FakeWorld : IEnemyWorld, IEnemyTargetStates
+        {
+            public readonly Dictionary<int, CombatState> States = new Dictionary<int, CombatState>();
+
+            public bool TryGetState(int entityId, out CombatState state) => States.TryGetValue(entityId, out state);
+
             private readonly Dictionary<int, (CombatVector Position, CombatVector Forward)> _poses =
                 new Dictionary<int, (CombatVector, CombatVector)>();
 

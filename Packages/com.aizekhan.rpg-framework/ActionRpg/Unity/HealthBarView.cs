@@ -7,7 +7,8 @@ namespace RPGFramework.ActionRpg
     /// <summary>
     /// Health bar above a character (always facing the camera) and a short flash of the body when it is hit. The
     /// chunk a blow took stays on the bar a moment in a light colour, then drains (<see cref="HealthTrail"/>).
-    /// Without a bar of its own the prefab gets a small world-space one, placed above its renderers.
+    /// Without a bar of its own the prefab gets a small world-space one, placed above its renderers. A killed character's
+    /// bar is hidden for its corpse time and shown again when the prefab is bound to the next one.
     /// </summary>
     public sealed class HealthBarView : ActorView
     {
@@ -26,6 +27,9 @@ namespace RPGFramework.ActionRpg
         [SerializeField] private Color _trailColor = new Color(1f, 0.9f, 0.7f, 0.9f);
         [SerializeField, Min(0f)] private float _trailHold = 0.45f;
         [SerializeField, Min(0.01f)] private float _trailDrainPerSecond = 0.8f;
+
+        [Tooltip("Hide the bar when the character is killed (it would stay over the corpse at its last frame)")]
+        [SerializeField] private bool _hideOnDeath = true;
 
         [Tooltip("Flash these when hit; leave empty for every renderer of the prefab")]
         [SerializeField] private Renderer[] _body = new Renderer[0];
@@ -59,6 +63,7 @@ namespace RPGFramework.ActionRpg
         protected override void OnBound()
         {
             var actor = Actor;
+            ShowBar(true);
             _lastHealth = actor?.Health ?? 0f;
             _flash = 0f;
             ApplyFlash(false);
@@ -83,6 +88,19 @@ namespace RPGFramework.ActionRpg
         }
 
         protected override void OnUnbound() => ApplyFlash(false);
+
+        protected override void OnKilled()
+        {
+            if (_hideOnDeath)
+                ShowBar(false);
+        }
+
+        // The bar only: a bar set to the character's own transform is left alone
+        private void ShowBar(bool show)
+        {
+            if (_bar != null && _bar != transform && _bar.gameObject.activeSelf != show)
+                _bar.gameObject.SetActive(show);
+        }
 
         private void LateUpdate()
         {

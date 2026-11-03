@@ -83,6 +83,7 @@ namespace RPGFramework.ActionCombat
         private float _commitShare = 1f;
         private float _maxHold = 1.5f;
         private float _holdSpeed;
+        private List<(CombatState State, float Factor)> _against;
 
         public EnemyMove(AttackDefinition attack, float minRange, float maxRange)
         {
@@ -106,6 +107,46 @@ namespace RPGFramework.ActionCombat
         public float MaxRange { get; }
 
         public float Weight { get; set; } = 1f;
+
+        /// <summary>
+        /// It is chosen <paramref name="factor"/> times as often against a target in <paramref name="targetState"/>: 3
+        /// against <see cref="CombatState.Blocking"/> for a heavy blow, 0 never against it. Set again to change it; 1 removes it. The director reads the target's state from the
+        /// world when it is <see cref="IEnemyTargetStates"/>, otherwise from the rules; a target whose state it cannot
+        /// tell gets the plain <see cref="Weight"/>.
+        /// </summary>
+        public void SetWeightAgainst(CombatState targetState, float factor)
+        {
+            NotNegative(factor, nameof(factor));
+            if (_against == null)
+                _against = new List<(CombatState, float)>();
+            for (int i = 0; i < _against.Count; i++)
+            {
+                if (_against[i].State != targetState)
+                    continue;
+                if (factor == 1f)
+                    _against.RemoveAt(i);
+                else
+                    _against[i] = (targetState, factor);
+                return;
+            }
+            if (factor != 1f)
+                _against.Add((targetState, factor));
+        }
+
+        /// <summary>
+        /// How much more often it is chosen against a target in <paramref name="targetState"/> (1 = as often).
+        /// </summary>
+        public float FactorAgainst(CombatState targetState)
+        {
+            if (_against == null)
+                return 1f;
+            for (int i = 0; i < _against.Count; i++)
+            {
+                if (_against[i].State == targetState)
+                    return _against[i].Factor;
+            }
+            return 1f;
+        }
 
         /// <summary>
         /// Seconds before this move is chosen again.
@@ -297,7 +338,33 @@ namespace RPGFramework.ActionCombat
         /// </summary>
         public float RecoveryPause { get; set; } = 0.6f;
 
+        /// <summary>
+        /// Chance (0..1), rolled when an attack or a combo ends, that it falls back before its next turn: it gives up its
+        /// token and circles out until the target is in <see cref="RepositionMove"/>'s range (or
+        /// <see cref="RepositionSeconds"/> run out), then asks again and opens with that move when it is ready. For a
+        /// monster that rushes in again rather than staying at arm's length. 0 = never.
+        /// </summary>
+        public float RepositionChance { get; set; }
+
+        /// <summary>
+        /// The move it falls back for (one of <see cref="Moves"/>, such as a rush); null = the move with the longest
+        /// <see cref="EnemyMove.MinRange"/>.
+        /// </summary>
+        public EnemyMove RepositionMove { get; set; }
+
+        /// <summary>
+        /// The longest fall back, in seconds.
+        /// </summary>
+        public float RepositionSeconds { get; set; } = 2f;
+
         // Defence (rolled when the target starts a swing at it)
+        /// <summary>
+        /// The most swings <see cref="PressedSwings"/> may count.
+        /// </summary>
+        public const int MaxPressedSwings = 16;
+
+        private int _pressedSwings;
+
         public float BlockChance { get; set; }
 
         /// <summary>
@@ -306,6 +373,29 @@ namespace RPGFramework.ActionCombat
         public float BlockSeconds { get; set; } = 0.8f;
 
         public float DodgeChance { get; set; }
+
+        /// <summary>
+        /// Pressed: when the target has started this many swings (<see cref="AttackStartedEvent"/>, counting the one
+        /// now) within <see cref="PressedSeconds"/>, the director rolls <see cref="PressedBlockChance"/> and
+        /// <see cref="PressedDodgeChance"/> instead of <see cref="BlockChance"/> and <see cref="DodgeChance"/>. 0 = never
+        /// (up to <see cref="MaxPressedSwings"/>).
+        /// </summary>
+        public int PressedSwings
+        {
+            get => _pressedSwings;
+            set
+            {
+                if (value < 0 || value > MaxPressedSwings)
+                    throw new ArgumentOutOfRangeException(nameof(PressedSwings), value, $"0 to {MaxPressedSwings}");
+                _pressedSwings = value;
+            }
+        }
+
+        public float PressedSeconds { get; set; } = 3f;
+
+        public float PressedBlockChance { get; set; }
+
+        public float PressedDodgeChance { get; set; }
 
         /// <summary>
         /// Below this share of health (0..1) it may back off (<see cref="BackOffChance"/>, rolled each time it would
@@ -467,6 +557,17 @@ namespace RPGFramework.ActionCombat
         float HealthShare(int entityId);
 
         bool IsAlive(int entityId);
+    }
+
+    /// <summary>
+    /// A world that also tells the enemies what a fighter is doing, for targets the director's
+    /// <see cref="CombatRules"/> do not drive (a runner on a track the game resolves itself). The director asks it
+    /// before the rules (<see cref="EnemyMove.SetWeightAgainst"/>).
+    /// </summary>
+    public interface IEnemyTargetStates
+    {
+        /// <returns>False when it does not know: the director asks the rules.</returns>
+        bool TryGetState(int entityId, out CombatState state);
     }
 
     /// <summary>
