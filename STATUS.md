@@ -20,6 +20,7 @@ Each fact has one owner. Every other mention repeats it and is checked against i
 | Proof of each release (SHAs, tests, CI) | `Docs/RELEASES.md` (append-only) | nowhere else |
 | Unity Editor version | `ProjectSettings/ProjectVersion.txt` | CLAUDE.md, this file, CI workflow |
 | Unity CLI version | `CLAUDE.md` | nowhere else (`--local` compares it with `unity --version`) |
+| What the framework can do (for WhiteWrite and agents) | package `capabilities.json` (`rpgframework.capabilities/1`, by hand; every release updates it, `release.py` writes its version and refuses an unchanged one for a version that adds things) | the check: its version and date, `since`, every `api`/`data` name in the code, every `ki` still open |
 | What is open or missing | **Open issues** below (`KI-NN`) | a CHANGELOG line that fixes one names its KI; the check fails if that KI is still open |
 | Codebase counts | `git ls-files` | the Codebase line below |
 | API names in docs | the code | every backticked `Type` / `Type.Member` in current docs must exist in code |

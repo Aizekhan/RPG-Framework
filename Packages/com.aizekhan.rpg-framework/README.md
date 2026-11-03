@@ -115,6 +115,13 @@ The `Assets/ReferenceGame` project in the repository (Goblin Valley) is a comple
 
 Inside a module, engine-independent logic lives in `Runtime`, Unity-specific code in `Unity`, and tests in `Tests`.
 
+What the framework can do, for tools and agents, is in `capabilities.json` at the package root (format
+`rpgframework.capabilities/1`): modules with capabilities, each with a stable id, a status (`full`, `partial`, `planned`),
+the version it came in, short notes and the main types and assets, plus a `missing` list of known gaps. A game's
+installed copy is at `Library/PackageCache/com.aizekhan.rpg-framework@<hash>/capabilities.json` and describes the
+version the game uses. Ids are never renamed or reused; a capability that goes away moves to `missing`. The release
+notes for the same version are in `releases.json` and `CHANGELOG.md`.
+
 ## Rules of the architecture
 
 - The framework never references a game assembly or game-specific types. Architecture tests enforce this.

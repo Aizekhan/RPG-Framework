@@ -16,6 +16,10 @@ Each fact has one owner; every other mention must match it, or the check fails:
 - package README: every module folder with an .asmdef is named in its "## Modules" table.
 - release feed: Packages/<package>/releases.json is generated from the CHANGELOG (`release.py` writes it); a feed that
   differs from what the CHANGELOG gives fails. Games' Claude Code agents read it before updating.
+- capabilities manifest: Packages/<package>/capabilities.json (`rpgframework.capabilities/1`, what the framework can do,
+  read by WhiteWrite to find a game's gaps). Its version and date are the package's newest release (`release.py` writes
+  them), every "since" is a released version (or "unreleased", which `release.py` fills in), ids are unique and keep
+  their module's prefix, every "api"/"data" name exists in the code and every "ki" is still open.
 - code names: every `TypeName` or `Type.Member` written in backticks in a current document must exist in the code,
   so a renamed or removed API cannot stay in the docs. Made-up names in examples are listed in EXAMPLE_NAMES, outside APIs in EXTERNAL_NAMES.
 
@@ -64,6 +68,10 @@ FILE_LIKE = re.compile(r"\.(md|cs|json|asset|asmdef|txt|yml|py|unity|prefab|xml)
 
 
 FEED = PACKAGE + "/releases.json"
+CAPABILITIES = PACKAGE + "/capabilities.json"
+CAPABILITIES_FORMAT = "rpgframework.capabilities/1"
+CAPABILITY_STATUS = ("full", "partial", "planned")
+CAPABILITY_ID = re.compile(r"^[a-z0-9_]+(\.[a-z0-9_]+)+$")
 FEED_FORMAT = "rpgframework.releases/1"
 # A "### Breaking" section in the CHANGELOG marks a version a game must react to; before this version none was written,
 # so the feed says null (unknown: read the CHANGELOG) for older ones
@@ -105,6 +113,57 @@ def releases_feed(changelog, unity):
     out = ["{"] + ["  " + json.dumps(k) + ": " + json.dumps(v) + "," for k, v in head.items()]
     out += ['  "releases": [', ",\n".join(lines), "  ]", "}"]
     return "\n".join(out) + "\n"
+
+
+def capabilities_errors(manifest, version, changelog, names, open_ids):
+    """What is wrong with the capabilities manifest (see the module docstring)."""
+    errors = []
+    dates = dict(re.findall(r"^## \[(\d+\.\d+\.\d+)\] - (\S+)", changelog, re.MULTILINE))
+    if manifest.get("format") != CAPABILITIES_FORMAT:
+        errors.append(f"format is {manifest.get('format')!r}, expected {CAPABILITIES_FORMAT}")
+    if manifest.get("version") != version:
+        errors.append(f"version is {manifest.get('version')}, the package is {version}")
+    if manifest.get("released") != dates.get(version):
+        errors.append(f"released is {manifest.get('released')}, the CHANGELOG dates {version} {dates.get(version)}")
+    seen = set()
+
+    def check_entry(entry, where, prefix=None):
+        cid = entry.get("id", "")
+        if not CAPABILITY_ID.match(cid):
+            errors.append(f"{where}: id {cid!r} is not lower_case.dotted")
+        if prefix and not cid.startswith(prefix + "."):
+            errors.append(f"{where}: id {cid} does not start with its module {prefix}.")
+        if cid in seen:
+            errors.append(f"{where}: id {cid} appears twice")
+        seen.add(cid)
+        if not entry.get("title") or not entry.get("notes"):
+            errors.append(f"{cid}: needs a title and notes")
+        ki = entry.get("ki")
+        if ki is not None and ki not in open_ids:
+            errors.append(f"{cid}: names {ki}, which is not an open issue in STATUS.md")
+
+    for module in manifest.get("modules", []):
+        mid = module.get("id", "")
+        if not re.fullmatch(r"[a-z0-9_]+", mid) or mid in seen:
+            errors.append(f"module id {mid!r} is not lower_case or appears twice")
+        seen.add(mid)
+        for cap in module.get("capabilities", []):
+            check_entry(cap, f"module {mid}", mid)
+            cid = cap.get("id")
+            if cap.get("status") not in CAPABILITY_STATUS:
+                errors.append(f"{cid}: status {cap.get('status')!r}, expected one of {CAPABILITY_STATUS}")
+            since = cap.get("since")
+            if since != "unreleased" and since not in dates:
+                errors.append(f"{cid}: since {since} is not a released version")
+            if cap.get("status") != "planned" and not cap.get("api"):
+                errors.append(f"{cid}: lists no api")
+            for name in cap.get("api", []) + cap.get("data", []):
+                for part in name.split("."):
+                    if part not in names:
+                        errors.append(f"{cid}: {name}: {part} is not in the code")
+    for gap in manifest.get("missing", []):
+        check_entry(gap, "missing")
+    return errors
 
 
 def read(root, path):
@@ -248,6 +307,19 @@ def main(root, local):
                     if (part and not part.isupper() and part not in names and part not in EXAMPLE_NAMES
                             and part not in EXTERNAL_NAMES):
                         errors.append(f"{f}:{n}: `{ticked}`: {part} is not in the code")
+
+    # Capabilities manifest
+    if CAPABILITIES not in files:
+        errors.append(f"{CAPABILITIES} is missing")
+    else:
+        try:
+            manifest = json.loads(read(root, CAPABILITIES))
+        except ValueError as e:
+            manifest = None
+            errors.append(f"{CAPABILITIES}: not JSON: {e}")
+        if manifest is not None:
+            errors += [f"{CAPABILITIES}: {e}" for e in
+                       capabilities_errors(manifest, version, changelog, names, set(open_ids))]
 
     for e in errors:
         print("ERROR:", e)

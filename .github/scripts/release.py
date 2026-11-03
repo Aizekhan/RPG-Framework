@@ -9,11 +9,14 @@ The version's owner is package.json; this script is the only writer of its copie
 - a new top row in Docs/RELEASES.md with the proof still to fill in (CI run, test counts)
 - the STATUS.md codebase counts (module folders, asmdef, .cs files)
 - the release feed releases.json, generated from the CHANGELOG (`--feed` rewrites only the feed)
+- capabilities.json "version" and "released", and every "since": "unreleased" becomes the version. What the framework
+  can do is written there by hand; a version with "### Added" whose capabilities did not change since the last tag is
+  refused unless `--same-capabilities` says so on purpose
 
 What changed in this version (TARGET-ARCHITECTURE text, the release row's summary, STATUS open issues) is still written
 by hand in the same release commit; check_docs fails on whatever was left behind.
 
-Usage: python release.py X.Y.Z [project_root]
+Usage: python release.py X.Y.Z [project_root] [--same-capabilities]
        python release.py --feed [project_root]
 """
 import datetime
@@ -50,7 +53,23 @@ def write_feed(root):
         print("updated", check_docs.FEED)
 
 
-def main(version, root):
+def capabilities_body(text):
+    """The manifest without the fields this script writes, to see whether anyone described the version's changes."""
+    manifest = json.loads(text)
+    manifest.pop("version", None)
+    manifest.pop("released", None)
+    return json.dumps(manifest, sort_keys=True)
+
+
+def capabilities_unchanged(root, old):
+    shown = subprocess.run(["git", "-C", root, "show", f"v{old}:{check_docs.CAPABILITIES}"], capture_output=True,
+                           text=True, encoding="utf-8")
+    if shown.returncode != 0:
+        return False
+    return capabilities_body(shown.stdout) == capabilities_body(check_docs.read(root, check_docs.CAPABILITIES))
+
+
+def main(version, root, same_capabilities=False):
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         sys.exit("version must be X.Y.Z")
     today = datetime.date.today().isoformat()
@@ -64,6 +83,10 @@ def main(version, root):
         sys.exit("CHANGELOG: nothing under [Unreleased]")
     if not os.path.isfile(os.path.join(root, "Docs/RELEASES.md")):
         sys.exit("Docs/RELEASES.md is missing")
+    unreleased = check_docs.read(root, PACKAGE + "/CHANGELOG.md").split("## [Unreleased]", 1)[1].split("\n## [", 1)[0]
+    if "### Added" in unreleased and not same_capabilities and capabilities_unchanged(root, old):
+        sys.exit(f"{check_docs.CAPABILITIES}: the CHANGELOG adds things, but the capabilities are the same as in v{old}. "
+                 "Describe what this version adds there, or pass --same-capabilities if it adds no capability")
 
     edit(root, PACKAGE + "/package.json",
          lambda t: re.sub(r'("version":\s*")[^"]+(")', rf"\g<1>{version}\g<2>", t, count=1))
@@ -97,6 +120,13 @@ def main(version, root):
     edit(root, "STATUS.md", status)
     write_feed(root)
 
+    def capabilities(text):
+        text = re.sub(r'^(  "version":\s*")[^"]*(")', rf"\g<1>{version}\g<2>", text, count=1, flags=re.MULTILINE)
+        text = re.sub(r'^(  "released":\s*")[^"]*(")', rf"\g<1>{today}\g<2>", text, count=1, flags=re.MULTILINE)
+        return text.replace('"since": "unreleased"', f'"since": "{version}"')
+
+    edit(root, check_docs.CAPABILITIES, capabilities)
+
     def releases(text):
         row = (f"| **Release `v{version}`** (tag on `TODO`; TODO: who asked): TODO: what it brings. Code `TODO`. "
                f"EditMode **TODO** locally | TODO: CI run | `TODO` |\n")
@@ -116,4 +146,5 @@ if __name__ == "__main__":
     if sys.argv[1] == "--feed":
         write_feed(sys.argv[2] if len(sys.argv) > 2 else ".")
         sys.exit(0)
-    sys.exit(main(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else "."))
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    sys.exit(main(args[0], args[1] if len(args) > 1 else ".", "--same-capabilities" in sys.argv))

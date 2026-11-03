@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+- Capabilities manifest `capabilities.json` at the package root (format `rpgframework.capabilities/1`, asked by WhiteWrite): what the framework can do, by module, so a tool can compare a game's designed mechanics with the version the game really uses. Each capability has a stable id, a title, a status (`full`, `partial`, `planned`), the version it came in (`since`), short notes, the main types (`api`) and assets (`data`), and the open issue (`ki`) that limits it; `missing` lists known gaps. It ships with the package (`Library/PackageCache/com.aizekhan.rpg-framework@<hash>/capabilities.json`).
+  - Kept true by the docs check in CI: its version and date must be the package's newest release, every `api`/`data` name must exist in the code, every `ki` must still be open. `release.py` writes its version and date, fills `"since": "unreleased"`, and refuses a version that adds things while the manifest is unchanged (`--same-capabilities` when it adds no capability).
+
 ## [0.39.0] - 2026-11-03
 
 ### Added

@@ -1,0 +1,1341 @@
+{
+  "format": "rpgframework.capabilities/1",
+  "version": "0.39.0",
+  "released": "2026-11-03",
+  "modules": [
+    {
+      "id": "combat",
+      "title": "Action combat (real time)",
+      "capabilities": [
+        {
+          "id": "combat.attack_phases",
+          "title": "Attack phases (wind-up, active, recovery)",
+          "status": "full",
+          "since": "0.30.0",
+          "notes": "Engine-free rules: an attack has wind-up, active and recovery; a contact lands only in the active window, once per target per swing. Phases from seconds or from clip marks.",
+          "api": [
+            "CombatRules",
+            "AttackDefinition",
+            "AttackPhase",
+            "CombatRules.ReportContact",
+            "ContactResult"
+          ],
+          "data": [
+            "AttackAsset"
+          ]
+        },
+        {
+          "id": "combat.hitboxes",
+          "title": "Weapon hitboxes and body hurtboxes",
+          "status": "full",
+          "since": "0.30.0",
+          "notes": "Contact decides the hit: Hitbox on the weapon, Hurtbox on the body, reported to the rules.",
+          "api": [
+            "Hitbox",
+            "Hurtbox",
+            "Combatant",
+            "CombatArena"
+          ],
+          "data": []
+        },
+        {
+          "id": "combat.sweep_arcs",
+          "title": "Sweep arcs (contact without physics)",
+          "status": "full",
+          "since": "0.36.0",
+          "notes": "An attack's arcs around the attacker, timed over the active window; enemies can land blows by them.",
+          "api": [
+            "AttackDefinition.Sweep",
+            "SweepSegment",
+            "CombatRules.Sweep",
+            "CombatRules.TryGetSweepSegment",
+            "EnemyDirector.SweepAttacks"
+          ],
+          "data": [
+            "AttackAsset"
+          ]
+        },
+        {
+          "id": "combat.hit_reactions",
+          "title": "Hit reactions, poise and hit tiers",
+          "status": "full",
+          "since": "0.31.0",
+          "notes": "Poise, hyper armour on uninterruptible attacks, light/heavy/knockdown tiers by the attack's Stagger, each with its own time and knockback.",
+          "api": [
+            "CombatantSettings.Poise",
+            "CombatantSettings.HeavyStagger",
+            "CombatantSettings.KnockdownStagger",
+            "HitTier",
+            "CombatRules.HitTierOf",
+            "HitReactStartedEvent"
+          ],
+          "data": []
+        },
+        {
+          "id": "combat.dodge",
+          "title": "Dodge with invulnerability frames",
+          "status": "full",
+          "since": "0.30.0",
+          "notes": "Dodge with i-frames for its whole time or a window inside it.",
+          "api": [
+            "CombatRules.Dodge",
+            "CombatantSettings.DodgeSeconds",
+            "CombatantSettings.InvulnerableFrom",
+            "CombatantSettings.InvulnerableUntil",
+            "DodgeStartedEvent"
+          ],
+          "data": []
+        },
+        {
+          "id": "combat.block",
+          "title": "Held block with a cost",
+          "status": "full",
+          "since": "0.30.0",
+          "notes": "A held block covers a cone in front; each blow costs from a stock and the guard breaks when it cannot pay.",
+          "api": [
+            "CombatRules.SetBlocking",
+            "IBlockStock",
+            "AttackDefinition.BlockCost",
+            "BlockRaisedEvent",
+            "BlockLoweredEvent"
+          ],
+          "data": []
+        },
+        {
+          "id": "combat.parry",
+          "title": "Parry and perfect block",
+          "status": "full",
+          "since": "0.38.0",
+          "notes": "A parry window, then recovery; a frontal blow in the window is parried and a melee attacker is opened. A blow in the recovery is a failed parry. Optional perfect block on block raise; unparryable attacks. Enemies do not parry (combat.enemy_parry).",
+          "api": [
+            "CombatRules.Parry",
+            "CombatRules.IsParrying",
+            "CombatRules.IsOpened",
+            "CombatantSettings.ParryWindow",
+            "CombatantSettings.ParryRecovery",
+            "CombatantSettings.ParryOnBlockRaise",
+            "AttackDefinition.Parryable",
+            "ParriedEvent"
+          ],
+          "data": [
+            "AttackAsset",
+            "Combatant"
+          ]
+        },
+        {
+          "id": "combat.enemy_parry",
+          "title": "Enemies that parry",
+          "status": "partial",
+          "since": "0.38.0",
+          "notes": "Parry works for the player and for the game's own AI; the built-in enemy behaviour only blocks and dodges.",
+          "api": [
+            "EnemyBehaviour"
+          ],
+          "data": [],
+          "ki": "KI-24"
+        },
+        {
+          "id": "combat.stamina_cost",
+          "title": "Stamina cost of attacks",
+          "status": "full",
+          "since": "0.38.0",
+          "notes": "An attack or charge pays its cost from an attack stock when it starts; one that cannot pay is refused. The stamina policy lives in the game's stock.",
+          "api": [
+            "AttackDefinition.StaminaCost",
+            "CombatRules.AttackStock",
+            "CombatArena.UseAttackStock",
+            "IBlockStock"
+          ],
+          "data": [
+            "AttackAsset"
+          ]
+        },
+        {
+          "id": "combat.motion_warping",
+          "title": "Motion warping",
+          "status": "full",
+          "since": "0.38.0",
+          "notes": "Pulls the attacker to the target and turns it to face it during part of a phase, within distance and angle limits.",
+          "api": [
+            "AttackDefinition.Warp",
+            "AttackWarp",
+            "CombatRules.WarpOf",
+            "AttackWarpSample"
+          ],
+          "data": [
+            "AttackAsset"
+          ]
+        },
+        {
+          "id": "combat.attack_motions",
+          "title": "Moves inside attacks (approach, retreat, strafe, leap)",
+          "status": "full",
+          "since": "0.36.0",
+          "notes": "Distances over part of a phase, including a leap with a height; the enemy director moves its bodies by them.",
+          "api": [
+            "AttackDefinition.Motions",
+            "AttackMotion",
+            "AttackMotionKind",
+            "CombatRules.MotionOf"
+          ],
+          "data": [
+            "AttackAsset"
+          ]
+        },
+        {
+          "id": "combat.charge",
+          "title": "Hold-to-charge and quick attack",
+          "status": "full",
+          "since": "0.30.0",
+          "notes": "The hold is clamped to min/max and damage follows a curve; a short release is the quick attack.",
+          "api": [
+            "CombatRules.BeginCharge",
+            "CombatRules.Release",
+            "AttackDefinition.CanCharge",
+            "AttackDefinition.ChargeCurve",
+            "AttackDefinition.QuickAttack"
+          ],
+          "data": [
+            "AttackAsset"
+          ]
+        },
+        {
+          "id": "combat.held_windup",
+          "title": "Held wind-up",
+          "status": "full",
+          "since": "0.36.0",
+          "notes": "A wind-up waits at its hold point (the clip stands too) until released.",
+          "api": [
+            "CombatRules.HoldWindUp",
+            "CombatRules.IsWindUpHeld",
+            "AttackDefinition.HoldPoint",
+            "WindUpHeldEvent"
+          ],
+          "data": [
+            "AttackAsset"
+          ]
+        },
+        {
+          "id": "combat.attack_speed",
+          "title": "Attack speed",
+          "status": "full",
+          "since": "0.33.0",
+          "notes": "Per-combatant attack speed scales the phases; the animation pace follows.",
+          "api": [
+            "CombatRules.SetAttackSpeed",
+            "CombatRules.AttackSpeedOf",
+            "CombatRules.AnimationPaceOf"
+          ],
+          "data": []
+        },
+        {
+          "id": "combat.combos",
+          "title": "Combos",
+          "status": "partial",
+          "since": "0.31.0",
+          "notes": "Enemy combos: move links that continue only while they land, kept per weapon kind. A player combo chain (input buffer, cancel windows) is built by the game from single attacks.",
+          "api": [
+            "EnemyMove.Next",
+            "WeaponMoveSet",
+            "AttackChosenEvent"
+          ],
+          "data": [
+            "WeaponMoveSet",
+            "EnemyBehaviourAsset"
+          ]
+        },
+        {
+          "id": "combat.projectiles",
+          "title": "Projectiles without physics",
+          "status": "full",
+          "since": "0.35.0",
+          "notes": "Straight flights ticked with the fight: Landing (arc, area at the landing point) or Contact (first body, optional pierce); exact lead for moving targets.",
+          "api": [
+            "CombatProjectiles",
+            "ProjectileLaunch",
+            "ProjectileHitMode",
+            "CombatProjectiles.Lead",
+            "ProjectileLauncher",
+            "CombatProjectile"
+          ],
+          "data": []
+        },
+        {
+          "id": "combat.timeline",
+          "title": "Combat timeline (diagnostics)",
+          "status": "full",
+          "since": "0.30.0",
+          "notes": "Records phases, contacts, damage, dodges, blocks, refusals and AI decisions with exact times. Not analytics.",
+          "api": [
+            "CombatTimeline",
+            "TimelineEntry",
+            "TimelineKind"
+          ],
+          "data": []
+        },
+        {
+          "id": "combat.animation_bridge",
+          "title": "Animator bridges",
+          "status": "full",
+          "since": "0.30.0",
+          "notes": "Drive Animator parameters from combat and enemy state (hits by tier, parry, opened, death).",
+          "api": [
+            "CombatAnimatorBridge",
+            "EnemyAnimatorBridge"
+          ],
+          "data": []
+        },
+        {
+          "id": "combat.damage",
+          "title": "Damage, resistances and life state",
+          "status": "full",
+          "since": "0.1.0",
+          "notes": "Damage calculation by type, element resistances, health and other resources, death and resurrection.",
+          "api": [
+            "DamageCalculator",
+            "DamageType",
+            "DamageResistances",
+            "LifeStateManager",
+            "ResourceComponent",
+            "DeathEvent"
+          ],
+          "data": []
+        }
+      ]
+    },
+    {
+      "id": "ai",
+      "title": "Enemy behaviour",
+      "capabilities": [
+        {
+          "id": "ai.perception",
+          "title": "Perception (sight, hearing, memory)",
+          "status": "full",
+          "since": "0.31.0",
+          "notes": "Sight radius, view cone, line of sight, hearing and being struck; remembers a lost target; Notice state.",
+          "api": [
+            "EnemyBehaviour.SightRadius",
+            "EnemyBehaviour.ViewAngle",
+            "EnemyBehaviour.HearingRadius",
+            "EnemyBehaviour.MemorySeconds",
+            "EnemyNoticedEvent"
+          ],
+          "data": [
+            "EnemyBehaviourAsset"
+          ]
+        },
+        {
+          "id": "ai.movement_states",
+          "title": "Patrol, chase, circle, back off, leash",
+          "status": "full",
+          "since": "0.31.0",
+          "notes": "Movement states with turn limits; enemies keep apart; a leash returns them home. Steering is straight with separation (see ai.pathfinding_steering).",
+          "api": [
+            "EnemyDirector",
+            "EnemyState",
+            "EnemyBehaviour.LeashRadius",
+            "EnemyBehaviour.PatrolPoints",
+            "EnemyIntent"
+          ],
+          "data": [
+            "EnemyBehaviourAsset"
+          ]
+        },
+        {
+          "id": "ai.attack_tokens",
+          "title": "Attack tokens (N attackers per target)",
+          "status": "full",
+          "since": "0.31.0",
+          "notes": "At most N enemies attack a target at once; the others circle.",
+          "api": [
+            "AttackTokens",
+            "AttackTokenGrantedEvent"
+          ],
+          "data": []
+        },
+        {
+          "id": "ai.moves",
+          "title": "Weighted moves with ranges and cooldowns",
+          "status": "full",
+          "since": "0.31.0",
+          "notes": "Moves chosen by range, weight and cooldown; commit range so blows land (0.36.0); held swings; gap closers.",
+          "api": [
+            "EnemyMove",
+            "EnemyMove.CommitShare",
+            "EnemyMove.HoldUntilInRange"
+          ],
+          "data": [
+            "EnemyBehaviourAsset",
+            "WeaponMoveSet"
+          ]
+        },
+        {
+          "id": "ai.reactive",
+          "title": "Answers what the target does",
+          "status": "full",
+          "since": "0.39.0",
+          "notes": "Move weights by the target's state (e.g. a heavy blow against Blocking); other block/dodge chances against a pressing target; repositioning after an attack. Fixed rules, not learning.",
+          "api": [
+            "EnemyMove.SetWeightAgainst",
+            "IEnemyTargetStates",
+            "EnemyBehaviour.PressedSwings",
+            "EnemyBehaviour.RepositionChance"
+          ],
+          "data": [
+            "EnemyBehaviourAsset"
+          ]
+        },
+        {
+          "id": "ai.defense",
+          "title": "Enemy block and dodge chances, punish pause",
+          "status": "full",
+          "since": "0.31.0",
+          "notes": "Chances to block or dodge a swing, a punish window after an attack, backing off when hurt.",
+          "api": [
+            "EnemyBehaviour"
+          ],
+          "data": [
+            "EnemyBehaviourAsset"
+          ]
+        },
+        {
+          "id": "ai.unity_body",
+          "title": "Unity enemy body",
+          "status": "full",
+          "since": "0.31.0",
+          "notes": "Moves the body along the director's intent, applies knockback and leaps.",
+          "api": [
+            "CombatEnemyAI",
+            "EnemyBehaviourAsset"
+          ],
+          "data": []
+        },
+        {
+          "id": "ai.behavior_tree",
+          "title": "Behaviour tree",
+          "status": "partial",
+          "since": "0.1.0",
+          "notes": "Generic tree with selector, sequence, inverter, repeater and a blackboard; tested, but no game has shipped on it.",
+          "api": [
+            "BehaviorTree",
+            "SelectorNode",
+            "SequenceNode",
+            "Blackboard"
+          ],
+          "data": []
+        },
+        {
+          "id": "ai.pathfinding_steering",
+          "title": "Enemy pathfinding around obstacles",
+          "status": "partial",
+          "since": "0.31.0",
+          "notes": "Enemies steer straight with separation; the director has no pathfinding hook.",
+          "api": [
+            "EnemyDirector"
+          ],
+          "data": [],
+          "ki": "KI-14"
+        }
+      ]
+    },
+    {
+      "id": "stats",
+      "title": "Stats and attributes",
+      "capabilities": [
+        {
+          "id": "stats.container",
+          "title": "Stats with modifiers",
+          "status": "full",
+          "since": "0.1.0",
+          "notes": "Named stats with flat and percent modifiers by source.",
+          "api": [
+            "StatContainer",
+            "StatModifier",
+            "StatModifierType",
+            "IStatContainer"
+          ],
+          "data": []
+        },
+        {
+          "id": "stats.kit_stats",
+          "title": "Character stats in the action RPG kit",
+          "status": "full",
+          "since": "0.19.0",
+          "notes": "Crits, evasion, life steal, elements and resistances on characters, gear, effects and skills.",
+          "api": [
+            "ActorStat",
+            "CharacterData",
+            "ActionRpgSettings.ElementTags"
+          ],
+          "data": [
+            "CharacterDefinition"
+          ]
+        },
+        {
+          "id": "stats.point_allocation",
+          "title": "Attribute point allocation",
+          "status": "partial",
+          "since": "0.1.0",
+          "notes": "No attribute-point spending: the game adds StatContainer modifiers. Skill points exist (skills.trees).",
+          "api": [
+            "StatContainer"
+          ],
+          "data": []
+        }
+      ]
+    },
+    {
+      "id": "progression",
+      "title": "Levels and progression",
+      "capabilities": [
+        {
+          "id": "progression.levels",
+          "title": "Experience and levels",
+          "status": "full",
+          "since": "0.1.0",
+          "notes": "Experience, level tables and curves, level-up events, stat growth, unlocks.",
+          "api": [
+            "ProgressionTracker",
+            "LevelTable",
+            "LevelUpEvent",
+            "StatGrowthFormula",
+            "UnlockManager"
+          ],
+          "data": []
+        },
+        {
+          "id": "progression.per_player",
+          "title": "Shared or per-player progress in co-op",
+          "status": "full",
+          "since": "0.5.0",
+          "notes": "Party progress or each player's own.",
+          "api": [
+            "ProgressMode",
+            "PlayerProgress"
+          ],
+          "data": []
+        },
+        {
+          "id": "progression.enemy_levels",
+          "title": "Enemy levels and elites",
+          "status": "full",
+          "since": "0.19.0",
+          "notes": "Enemy levels and elite variants in the action RPG kit.",
+          "api": [
+            "EnemyLevelMode",
+            "EliteSpawnedEvent"
+          ],
+          "data": []
+        }
+      ]
+    },
+    {
+      "id": "skills",
+      "title": "Skills and abilities",
+      "capabilities": [
+        {
+          "id": "skills.trees",
+          "title": "Skill trees with prerequisites",
+          "status": "full",
+          "since": "0.1.0",
+          "notes": "Trees, prerequisites, skill points, bonuses; wired into both kits.",
+          "api": [
+            "SkillTree",
+            "SkillManager",
+            "SkillPrerequisite",
+            "ActorSkills",
+            "PartySkills"
+          ],
+          "data": [
+            "SkillTree"
+          ]
+        },
+        {
+          "id": "skills.abilities",
+          "title": "Abilities: costs, cooldowns, casts, channels, charges, toggles",
+          "status": "full",
+          "since": "0.1.0",
+          "notes": "Resource cost and upkeep, cooldowns, cast and channel, charges, toggles, passives; delayed and repeated impacts (0.34.0). Area by radius is chosen by the game's effect callback.",
+          "api": [
+            "AbilityExecutor",
+            "CooldownTracker",
+            "CastInfo.ImpactDelay",
+            "IAbilityImpacts",
+            "TargetType.AllEnemies",
+            "ActorAbilities.SetEffect"
+          ],
+          "data": []
+        }
+      ]
+    },
+    {
+      "id": "status_effects",
+      "title": "Status effects",
+      "capabilities": [
+        {
+          "id": "status_effects.core",
+          "title": "Buffs, debuffs, damage over time",
+          "status": "full",
+          "since": "0.1.0",
+          "notes": "Effects with duration, ticks, stacking and stat modifiers; events on apply, tick, expire.",
+          "api": [
+            "StatusEffectManager",
+            "StatusEffect",
+            "StatusEffectData",
+            "EffectModifier",
+            "EffectTickEvent",
+            "ActorEffects"
+          ],
+          "data": []
+        }
+      ]
+    },
+    {
+      "id": "items",
+      "title": "Items, inventory, equipment and loot",
+      "capabilities": [
+        {
+          "id": "items.items",
+          "title": "Items and registry",
+          "status": "full",
+          "since": "0.1.0",
+          "notes": "Item definitions, instances, quality, rarity, consumables.",
+          "api": [
+            "Item",
+            "ItemInstance",
+            "ItemRegistry",
+            "ItemRarity",
+            "Consumable"
+          ],
+          "data": []
+        },
+        {
+          "id": "items.affixes",
+          "title": "Random affixes, rarity and sets",
+          "status": "full",
+          "since": "0.18.0",
+          "notes": "Affix pools, rarity tables with luck, rolled items, item sets with bonuses.",
+          "api": [
+            "AffixPool",
+            "RarityTable",
+            "RolledItems",
+            "ItemSet",
+            "ItemSetBonus"
+          ],
+          "data": []
+        },
+        {
+          "id": "items.inventory",
+          "title": "Inventory containers",
+          "status": "full",
+          "since": "0.1.0",
+          "notes": "Containers with capacity and stacks; a party backpack or one per player.",
+          "api": [
+            "InventoryContainer",
+            "ItemStack",
+            "InventoryComponent"
+          ],
+          "data": []
+        },
+        {
+          "id": "items.equipment",
+          "title": "Equipment slots and gear",
+          "status": "full",
+          "since": "0.1.0",
+          "notes": "Equipment slots; kit gear with affixes and sets. The UI equipment panel is a thin default.",
+          "api": [
+            "EquipmentSlot",
+            "ActorGear",
+            "GearSlot",
+            "GearChangedEvent"
+          ],
+          "data": []
+        },
+        {
+          "id": "items.loot",
+          "title": "Loot tables",
+          "status": "full",
+          "since": "0.1.0",
+          "notes": "Weighted tables, no duplicates, drop events.",
+          "api": [
+            "LootTable",
+            "LootTableBuilder",
+            "LootGenerator",
+            "LootDroppedEvent"
+          ],
+          "data": []
+        },
+        {
+          "id": "items.crafting",
+          "title": "Crafting",
+          "status": "full",
+          "since": "0.1.0",
+          "notes": "Recipes, stations, tools, requirements.",
+          "api": [
+            "CraftingManager",
+            "CraftingRecipe",
+            "CraftingStation",
+            "ActorCrafting"
+          ],
+          "data": []
+        }
+      ]
+    },
+    {
+      "id": "economy",
+      "title": "Trading and factions",
+      "capabilities": [
+        {
+          "id": "economy.trading",
+          "title": "Shops and currencies",
+          "status": "full",
+          "since": "0.1.0",
+          "notes": "Offers per player, wallets, all-or-nothing item transfer, player pricing, refusal codes.",
+          "api": [
+            "TradingManager",
+            "CurrencyWallet",
+            "ITradePricing",
+            "TradeError"
+          ],
+          "data": []
+        },
+        {
+          "id": "economy.factions",
+          "title": "Factions and reputation",
+          "status": "full",
+          "since": "0.1.0",
+          "notes": "Factions, relations, reputation with spreading; kit hostility and faction traders.",
+          "api": [
+            "FactionManager",
+            "FactionReputation",
+            "ActorReputation",
+            "FactionHostility"
+          ],
+          "data": []
+        }
+      ]
+    },
+    {
+      "id": "quests",
+      "title": "Quests",
+      "capabilities": [
+        {
+          "id": "quests.core",
+          "title": "Quests, objectives, rewards",
+          "status": "full",
+          "since": "0.1.0",
+          "notes": "Objectives (kill, collect, explore, interact...), rewards, registry, accept/complete/fail events.",
+          "api": [
+            "QuestManager",
+            "Quest",
+            "QuestObjective",
+            "ObjectiveType",
+            "QuestReward",
+            "QuestCompletedEvent"
+          ],
+          "data": []
+        },
+        {
+          "id": "quests.stages",
+          "title": "Stages with branches",
+          "status": "full",
+          "since": "0.32.0",
+          "notes": "Stages with their own objectives, transitions signalled by the game, success or failure outcomes.",
+          "api": [
+            "QuestStageData",
+            "IQuestStages",
+            "QuestStageChangedEvent",
+            "QuestOutcome"
+          ],
+          "data": []
+        },
+        {
+          "id": "quests.requirements",
+          "title": "Requirements, repeat cooldowns, refusals",
+          "status": "full",
+          "since": "0.32.0",
+          "notes": "Level, faction, item and flag requirements; cooldown for repeatable quests; why a quest is refused.",
+          "api": [
+            "IQuestRequirements",
+            "QuestRequirementKinds",
+            "QuestRefusal"
+          ],
+          "data": []
+        },
+        {
+          "id": "quests.graph_check",
+          "title": "Quest graph validation",
+          "status": "full",
+          "since": "0.32.0",
+          "notes": "Checks a quest's stage graph for problems (no visual editor).",
+          "api": [
+            "QuestGraph",
+            "QuestIssue"
+          ],
+          "data": []
+        }
+      ]
+    },
+    {
+      "id": "dialogue",
+      "title": "Dialogue",
+      "capabilities": [
+        {
+          "id": "dialogue.core",
+          "title": "Branching dialogue",
+          "status": "full",
+          "since": "0.1.0",
+          "notes": "Nodes, choices, conditions (incl. the game's own), events; a line with no next ends the conversation.",
+          "api": [
+            "DialogueManager",
+            "DialogueNode",
+            "DialogueChoice",
+            "DialogueCondition",
+            "IDialogueGameContext",
+            "ActorDialogue"
+          ],
+          "data": []
+        },
+        {
+          "id": "dialogue.details",
+          "title": "Dialogue type, quest link, participants, localization keys",
+          "status": "full",
+          "since": "0.32.0",
+          "notes": "Quest and stage link, participants, a localization key per line.",
+          "api": [
+            "IDialogueDetails",
+            "DialogueText"
+          ],
+          "data": []
+        },
+        {
+          "id": "dialogue.barks",
+          "title": "Barks",
+          "status": "full",
+          "since": "0.32.0",
+          "notes": "Ambient one-liners picked by the rules.",
+          "api": [
+            "DialogueBarks"
+          ],
+          "data": []
+        },
+        {
+          "id": "dialogue.effects",
+          "title": "Dialogue effects in the kit",
+          "status": "full",
+          "since": "0.19.0",
+          "notes": "Choices that give items, start quests, change reputation, raise events.",
+          "api": [
+            "DialogueEffect",
+            "DialogueEffectKind",
+            "DialogueEventRaisedEvent"
+          ],
+          "data": []
+        },
+        {
+          "id": "dialogue.graph_check",
+          "title": "Dialogue graph validation",
+          "status": "full",
+          "since": "0.32.0",
+          "notes": "Checks a dialogue graph for problems (no visual editor).",
+          "api": [
+            "DialogueGraph",
+            "DialogueIssue"
+          ],
+          "data": []
+        }
+      ]
+    },
+    {
+      "id": "content",
+      "title": "Content import",
+      "capabilities": [
+        {
+          "id": "content.import_json",
+          "title": "Quest and dialogue import (rpgframework.content/1)",
+          "status": "full",
+          "since": "0.32.0",
+          "notes": "Imports quests and dialogues from JSON format rpgframework.content/1, into the kit or as assets, with problems reported.",
+          "api": [
+            "ContentImporter",
+            "ContentAssetImport",
+            "ContentFile",
+            "ContentProblem"
+          ],
+          "data": []
+        },
+        {
+          "id": "content.project_index",
+          "title": "Project index",
+          "status": "full",
+          "since": "0.32.0",
+          "notes": "Read-only JSON map of the project: assets with GUIDs and references, scenes, prefabs, scripts, framework modules used.",
+          "api": [
+            "ProjectIndex"
+          ],
+          "data": []
+        }
+      ]
+    },
+    {
+      "id": "interaction",
+      "title": "Interaction",
+      "capabilities": [
+        {
+          "id": "interaction.points",
+          "title": "Interaction points",
+          "status": "full",
+          "since": "0.7.0",
+          "notes": "Points with an outcome and an event; the distance policy is the game's.",
+          "api": [
+            "InteractionPoint",
+            "IInteractionService",
+            "InteractedEvent",
+            "InteractionPointView"
+          ],
+          "data": []
+        }
+      ]
+    },
+    {
+      "id": "pathfinding",
+      "title": "Pathfinding",
+      "capabilities": [
+        {
+          "id": "pathfinding.grid_astar",
+          "title": "Grid A*",
+          "status": "full",
+          "since": "0.1.0",
+          "notes": "A* over a grid navigation graph.",
+          "api": [
+            "AStarPathfinder",
+            "GridNavigationGraph",
+            "INavigationGraph"
+          ],
+          "data": []
+        },
+        {
+          "id": "pathfinding.distance_map",
+          "title": "Distance map / flow field",
+          "status": "full",
+          "since": "0.18.0",
+          "notes": "One map serves many chasers.",
+          "api": [
+            "DistanceMap"
+          ],
+          "data": []
+        }
+      ]
+    },
+    {
+      "id": "save",
+      "title": "Save and load",
+      "capabilities": [
+        {
+          "id": "save.slots",
+          "title": "Save slots with versioned sections",
+          "status": "full",
+          "since": "0.1.0",
+          "notes": "Slots, versioned sections with upgrade, backup copy, unknown sections kept, metadata and summaries.",
+          "api": [
+            "SaveGameCoordinator",
+            "SaveSlotManager",
+            "ISaveParticipant",
+            "SaveMetadata",
+            "SaveSummary"
+          ],
+          "data": []
+        },
+        {
+          "id": "save.kit",
+          "title": "Kit saves",
+          "status": "full",
+          "since": "0.2.0",
+          "notes": "The action RPG and turn-based kits save their whole state.",
+          "api": [
+            "ActionRpgSaves",
+            "TurnBasedSaves"
+          ],
+          "data": []
+        },
+        {
+          "id": "save.cloud",
+          "title": "Cloud saves",
+          "status": "partial",
+          "since": "0.1.0",
+          "notes": "Only the interface; no provider implementation.",
+          "api": [
+            "ICloudSaveProvider"
+          ],
+          "data": [],
+          "ki": "KI-19"
+        }
+      ]
+    },
+    {
+      "id": "multiplayer",
+      "title": "Multiplayer",
+      "capabilities": [
+        {
+          "id": "multiplayer.coop",
+          "title": "Action RPG co-op, 2-8 players, host-authoritative",
+          "status": "full",
+          "since": "0.2.0",
+          "notes": "Host-authoritative co-op for 2-8 players: build and content fingerprint, speed checks, rejoin (seat kept 2 min), sync of positions, hits, effects, progress, gear, interaction.",
+          "api": [
+            "CoopHost",
+            "CoopClient",
+            "RemoteWorld",
+            "CoopProtocol"
+          ],
+          "data": []
+        },
+        {
+          "id": "multiplayer.pvp",
+          "title": "PvP matches",
+          "status": "full",
+          "since": "0.3.0",
+          "notes": "Rounds, score, respawns, team hostility.",
+          "api": [
+            "PvpMatch",
+            "PvpSettings",
+            "PvpMode",
+            "TeamHostility"
+          ],
+          "data": []
+        },
+        {
+          "id": "multiplayer.lobby",
+          "title": "Lobby before the match",
+          "status": "full",
+          "since": "0.16.0",
+          "notes": "Hero choice, ready, kick, start with a countdown.",
+          "api": [
+            "CoopHost.UseLobby",
+            "CoopHost.StartMatch",
+            "CoopLobbyMessage"
+          ],
+          "data": []
+        },
+        {
+          "id": "multiplayer.lan",
+          "title": "LAN play and discovery",
+          "status": "full",
+          "since": "0.16.0",
+          "notes": "Unity Transport over UDP; LAN game discovery.",
+          "api": [
+            "UnityNetworkTransport",
+            "LanSessionProvider",
+            "LanDiscovery",
+            "LanDiscoveryResponder"
+          ],
+          "data": []
+        },
+        {
+          "id": "multiplayer.relay",
+          "title": "Internet play via Unity Relay",
+          "status": "partial",
+          "since": "0.3.0",
+          "notes": "Room code through Unity Relay (needs com.unity.services.multiplayer); proven only against a fake service, not between two real networks.",
+          "api": [
+            "UnityRelaySessionProvider",
+            "RelaySessionTransport"
+          ],
+          "data": [],
+          "ki": "KI-05"
+        },
+        {
+          "id": "multiplayer.game_messages",
+          "title": "Game's own network messages",
+          "status": "full",
+          "since": "0.5.0",
+          "notes": "Custom messages with authority; latest-state messages.",
+          "api": [
+            "CoopGameMessages",
+            "MessageAuthority"
+          ],
+          "data": []
+        },
+        {
+          "id": "multiplayer.turn_sessions",
+          "title": "Turn-based online sessions",
+          "status": "full",
+          "since": "0.14.0",
+          "notes": "Host-run turn matches for board and card games: lobby, moves checked by rules, per-seat views for hidden cards, prompts, turn clock, rejoin, hot-seat.",
+          "api": [
+            "TurnHost",
+            "TurnClient",
+            "ITurnRules",
+            "ITurnClock",
+            "TurnVisibility"
+          ],
+          "data": []
+        },
+        {
+          "id": "multiplayer.replication",
+          "title": "Generic entity replication",
+          "status": "partial",
+          "since": "0.1.0",
+          "notes": "Older generic replication; the kits do not use it.",
+          "api": [
+            "ReplicationSystem",
+            "NetworkEntity",
+            "NetworkTransform"
+          ],
+          "data": []
+        }
+      ]
+    },
+    {
+      "id": "turn_based",
+      "title": "Turn-based party battles",
+      "capabilities": [
+        {
+          "id": "turn_based.battles",
+          "title": "Party battles in turns (JRPG style)",
+          "status": "partial",
+          "since": "0.3.0",
+          "notes": "Battles with crits, elements, skill trees, quests, reputation and a battle screen built from code. No content assets (filled in code), items only in battle, no auto-battle.",
+          "api": [
+            "TurnBasedHost",
+            "Battle",
+            "BattleScreen",
+            "IBattleFormula",
+            "IBattleAi"
+          ],
+          "data": [],
+          "ki": "KI-01"
+        }
+      ]
+    },
+    {
+      "id": "game_kit",
+      "title": "Action RPG kit",
+      "capabilities": [
+        {
+          "id": "game_kit.action_rpg",
+          "title": "Action RPG from inspector assets",
+          "status": "full",
+          "since": "0.2.0",
+          "notes": "Game Setup and Character assets, host, player controls, HUD, health bars with a damage trail, waves, consumables.",
+          "api": [
+            "ActionRpgHost",
+            "GameSetup",
+            "CharacterDefinition",
+            "PlayerController",
+            "HealthBarView",
+            "WaveSystem"
+          ],
+          "data": [
+            "GameSetup",
+            "CharacterDefinition"
+          ]
+        },
+        {
+          "id": "game_kit.companions",
+          "title": "Companions",
+          "status": "partial",
+          "since": "0.1.0",
+          "notes": "A Companions module exists (rules, tests) but the action RPG kit has no companions.",
+          "api": [
+            "CompanionManager"
+          ],
+          "data": [],
+          "ki": "KI-16"
+        },
+        {
+          "id": "game_kit.achievements",
+          "title": "Achievements",
+          "status": "full",
+          "since": "0.3.0",
+          "notes": "Criteria and counters, wired into both kits.",
+          "api": [
+            "AchievementManager",
+            "AchievementTracker"
+          ],
+          "data": []
+        }
+      ]
+    },
+    {
+      "id": "audio",
+      "title": "Audio",
+      "capabilities": [
+        {
+          "id": "audio.cues_music",
+          "title": "Sound cues, music, volume channels",
+          "status": "full",
+          "since": "0.12.0",
+          "notes": "Cues with variants and voice limits, music crossfades, volume channels kept between runs; menu scenes without a game host.",
+          "api": [
+            "IAudioService",
+            "AudioCue",
+            "MusicTrack",
+            "AudioLibrary",
+            "SceneAudio"
+          ],
+          "data": [
+            "AudioLibrary"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "localization",
+      "title": "Localization and settings",
+      "capabilities": [
+        {
+          "id": "localization.tables",
+          "title": "String tables and plurals",
+          "status": "full",
+          "since": "0.17.0",
+          "notes": "Per-language tables, named values, plural forms (incl. Ukrainian), CSV for translators.",
+          "api": [
+            "LocalizationService",
+            "StringTable",
+            "PluralRules",
+            "LocalizationCsv"
+          ],
+          "data": [
+            "LocalizationLibrary",
+            "StringTableAsset"
+          ]
+        },
+        {
+          "id": "localization.settings",
+          "title": "Settings page",
+          "status": "full",
+          "since": "0.18.0",
+          "notes": "Typed options kept between runs: display, volumes, language.",
+          "api": [
+            "SettingsService",
+            "SettingsModule",
+            "SettingsRows"
+          ],
+          "data": []
+        }
+      ]
+    },
+    {
+      "id": "tabletop",
+      "title": "Dice and cards",
+      "capabilities": [
+        {
+          "id": "tabletop.dice",
+          "title": "Seeded dice with a log",
+          "status": "full",
+          "since": "0.13.0",
+          "notes": "Seeded dice, roll log, scripted dice for tests.",
+          "api": [
+            "DiceService",
+            "ScriptedDice",
+            "DieRolledEvent"
+          ],
+          "data": []
+        },
+        {
+          "id": "tabletop.cards",
+          "title": "Decks and hands",
+          "status": "full",
+          "since": "0.13.0",
+          "notes": "Generic decks, hands and deck assets.",
+          "api": [
+            "Deck",
+            "Hand",
+            "DeckAsset"
+          ],
+          "data": [
+            "DeckAsset"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "world",
+      "title": "World",
+      "capabilities": [
+        {
+          "id": "world.environment",
+          "title": "Time of day, seasons, weather",
+          "status": "partial",
+          "since": "0.1.0",
+          "notes": "Rules and events, tested; no game has shipped on it.",
+          "api": [
+            "TimeSystem",
+            "SeasonSystem",
+            "WeatherSystem"
+          ],
+          "data": []
+        },
+        {
+          "id": "world.spawning",
+          "title": "Prefab spawning and pooling",
+          "status": "full",
+          "since": "0.2.0",
+          "notes": "Prefab catalog and spawner over shared pools.",
+          "api": [
+            "PrefabSpawner",
+            "PrefabCatalog"
+          ],
+          "data": []
+        }
+      ]
+    }
+  ],
+  "missing": [
+    {
+      "id": "ai.adaptation",
+      "title": "Adaptive enemy AI (learns the player)",
+      "notes": "Not supported: enemy rules are fixed weights and chances (ai.reactive)."
+    },
+    {
+      "id": "ai.boss_phases",
+      "title": "Boss AI with phases",
+      "notes": "Not built.",
+      "ki": "KI-19"
+    },
+    {
+      "id": "combat.analytics",
+      "title": "Combat analytics",
+      "notes": "Not supported: CombatTimeline records a fight for diagnostics; nothing aggregates it."
+    },
+    {
+      "id": "combat.balancing_simulator",
+      "title": "Combat balancing simulator",
+      "notes": "Not built.",
+      "ki": "KI-18"
+    },
+    {
+      "id": "content.procedural_generation",
+      "title": "Procedural generation (dungeons, quests)",
+      "notes": "Not built.",
+      "ki": "KI-19"
+    },
+    {
+      "id": "tools.visual_graph_editors",
+      "title": "Visual graph editors for dialogue, quests, skill trees",
+      "notes": "Only graph checks exist (QuestGraph, DialogueGraph).",
+      "ki": "KI-18"
+    },
+    {
+      "id": "multiplayer.client_prediction",
+      "title": "Client-side prediction",
+      "notes": "Not supported: a guest sees its hits one round-trip later."
+    },
+    {
+      "id": "multiplayer.host_migration",
+      "title": "Host migration",
+      "notes": "Not supported, by design for now."
+    },
+    {
+      "id": "multiplayer.matchmaking",
+      "title": "Online matchmaking, Steam and EOS providers",
+      "notes": "Not supported: LAN and Unity Relay room codes only."
+    },
+    {
+      "id": "physics.kit_2d",
+      "title": "2D physics in the genre kits",
+      "notes": "The action RPG kit is 3D; a 2D look is a 3D scene with an orthographic top camera."
+    }
+  ]
+}
