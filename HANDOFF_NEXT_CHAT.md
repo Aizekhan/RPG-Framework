@@ -1,6 +1,6 @@
 # Handoff for Next Session
 
-**Date:** 2026-11-02
+**Date:** 2026-11-03
 **Project:** RPG Framework (`D:\RPG-Framework`, https://github.com/Aizekhan/RPG-Framework)
 **Read first:** `STATUS.md` (current state, single sources of truth, open issues `KI-NN`, next steps), `TARGET-ARCHITECTURE.md`, `Docs/RELEASES.md` (proof of each release). Session history: `Docs/archive/SESSION-LOG.md`
 
@@ -11,6 +11,9 @@
 This section holds only the latest session's notes; the release itself is in `STATUS.md` and `Docs/RELEASES.md`,
 older notes move to `Docs/archive/SESSION-LOG.md`.
 
+- 2026-11-03: released `v0.39.0` (MythRunner FG-32/FG-33, closes KI-23): move weights by the target's state
+  (`EnemyMove.SetWeightAgainst`, `IEnemyTargetStates`), pressed guard chances, `RepositionChance` (fall back to a
+  rush's range); `HealthBarView` hides its bar on a corpse. The game dropped its BreaksGuard ask before release.
 - 2026-11-02: released `v0.38.1`: reinstall replaced MythRunner's own CI workflow; now a workflow that fails without
   the licence secrets is kept, with a warning when it differs from the template.
 - 2026-11-02: released `v0.38.0` (WhiteWrite for UMCF, asked by the owner): ActionCombat parry, attack stamina cost,
