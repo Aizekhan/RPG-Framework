@@ -32,7 +32,7 @@ Build a **universal RPG Framework** that is reusable across any RPG game.
 
 ## Unity environment
 **Unity Editor:** 6000.0.45f1 (owner: `ProjectSettings/ProjectVersion.txt`)
-**Unity CLI:** 1.0.0-beta.15 (this line is the only place that names it; `check_docs.py --local` compares it with `unity --version`)
+**Unity CLI:** 1.0.0-beta.17 (this line is the only place that names it; `check_docs.py --local` compares it with `unity --version`)
 
 **Standard commands:**
 ```bash

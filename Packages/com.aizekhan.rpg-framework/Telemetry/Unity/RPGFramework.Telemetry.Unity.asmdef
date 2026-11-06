@@ -1,0 +1,22 @@
+{
+    "name": "RPGFramework.Telemetry.Unity",
+    "rootNamespace": "RPGFramework.Telemetry.Unity",
+    "references": [
+        "RPGFramework.Telemetry.Runtime",
+        "RPGFramework.Bootstrap.Runtime",
+        "RPGFramework.Core.Runtime",
+        "RPGFramework.DI.Runtime",
+        "RPGFramework.Systems.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Logging.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

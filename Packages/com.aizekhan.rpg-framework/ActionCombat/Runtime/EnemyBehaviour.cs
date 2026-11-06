@@ -83,7 +83,9 @@ namespace RPGFramework.ActionCombat
         private float _commitShare = 1f;
         private float _maxHold = 1.5f;
         private float _holdSpeed;
+        private float _maxAngle;
         private List<(CombatState State, float Factor)> _against;
+        private List<(PlayerHabit Habit, float Factor)> _answers;
 
         public EnemyMove(AttackDefinition attack, float minRange, float maxRange)
         {
@@ -146,6 +148,74 @@ namespace RPGFramework.ActionCombat
                     return _against[i].Factor;
             }
             return 1f;
+        }
+
+        /// <summary>
+        /// Its answer to a habit of the target (<see cref="EnemyBehaviour.Adaptation"/>): chosen up to
+        /// <paramref name="factor"/> times as often against a target that has the habit, as much as the enemy has learnt
+        /// it (1 + (factor - 1) x the habit's share of its memory x <see cref="EnemyAdaptation.Learning"/>). 3 for a
+        /// sweep against <see cref="PlayerHabit.DodgesLeft"/> that covers that side, 0.2 for a slow blow against
+        /// <see cref="PlayerHabit.Retreats"/>. Set again to change it; 1 removes it. An enemy without adaptation ignores it.
+        /// </summary>
+        public void SetAnswer(PlayerHabit habit, float factor)
+        {
+            NotNegative(factor, nameof(factor));
+            if (habit == PlayerHabit.None || (habit & (habit - 1)) != 0 || (habit & PlayerHabit.All) != habit)
+                throw new ArgumentException("One habit", nameof(habit));
+            if (_answers == null)
+                _answers = new List<(PlayerHabit, float)>();
+            for (int i = 0; i < _answers.Count; i++)
+            {
+                if (_answers[i].Habit != habit)
+                    continue;
+                if (factor == 1f)
+                    _answers.RemoveAt(i);
+                else
+                    _answers[i] = (habit, factor);
+                return;
+            }
+            if (factor != 1f)
+                _answers.Add((habit, factor));
+        }
+
+        /// <summary>
+        /// Its answer's factor to a habit (1 = none).
+        /// </summary>
+        public float AnswerTo(PlayerHabit habit)
+        {
+            if (_answers == null)
+                return 1f;
+            for (int i = 0; i < _answers.Count; i++)
+            {
+                if (_answers[i].Habit == habit)
+                    return _answers[i].Factor;
+            }
+            return 1f;
+        }
+
+        /// <summary>
+        /// The habits it has answers to.
+        /// </summary>
+        public int AnswerCount => _answers?.Count ?? 0;
+
+        /// <summary>
+        /// The <paramref name="index"/>th answer (<see cref="AnswerCount"/>).
+        /// </summary>
+        public (PlayerHabit Habit, float Factor) AnswerAt(int index) => _answers[index];
+
+        /// <summary>
+        /// It starts only when the target is within this many degrees of where it faces (0..180); 0 = from any angle.
+        /// A frontal thrust uses 30, so it turns first instead of striking at someone at its side.
+        /// </summary>
+        public float MaxAngle
+        {
+            get => _maxAngle;
+            set
+            {
+                if (float.IsNaN(value) || value < 0f || value > 180f)
+                    throw new ArgumentOutOfRangeException(nameof(MaxAngle), value, "0 to 180 degrees");
+                _maxAngle = value;
+            }
         }
 
         /// <summary>
@@ -356,6 +426,12 @@ namespace RPGFramework.ActionCombat
         /// The longest fall back, in seconds.
         /// </summary>
         public float RepositionSeconds { get; set; } = 2f;
+
+        /// <summary>
+        /// How it learns the target's habits and answers them (<see cref="EnemyMove.SetAnswer"/>); null = it does not
+        /// adapt.
+        /// </summary>
+        public EnemyAdaptation Adaptation { get; set; }
 
         // Defence (rolled when the target starts a swing at it)
         /// <summary>

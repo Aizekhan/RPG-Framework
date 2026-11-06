@@ -25,6 +25,18 @@ namespace RPGFramework.ActionCombat
             [Min(0f)] public float Factor = 1f;
         }
 
+        /// <summary>
+        /// A move is chosen up to <see cref="Factor"/> times as often against a target with <see cref="Habit"/>, as far
+        /// as the enemy has learnt it (<see cref="EnemyMove.SetAnswer"/>).
+        /// </summary>
+        [Serializable]
+        public sealed class Answer
+        {
+            public PlayerHabit Habit = PlayerHabit.Blocks;
+
+            [Min(0f)] public float Factor = 1f;
+        }
+
         [Serializable]
         public sealed class Move
         {
@@ -40,6 +52,12 @@ namespace RPGFramework.ActionCombat
 
             [Tooltip("Weight x Factor against a target doing this: 3 against Blocking for a heavy blow, 0: never against it")]
             public List<WeightAgainst> Against = new List<WeightAgainst>();
+
+            [Tooltip("Up to Weight x Factor against a target with this habit, as far as it has learnt it (Adaptation below)")]
+            public List<Answer> Answers = new List<Answer>();
+
+            [Tooltip("Starts only when the target is within this many degrees of where it faces; 0: from any angle")]
+            [Range(0f, 180f)] public float MaxAngle;
 
             [Tooltip("Seconds before it is chosen again")]
             [Min(0f)] public float Cooldown;
@@ -127,6 +145,14 @@ namespace RPGFramework.ActionCombat
         [SerializeField, Range(0f, 1f)] private float _backOffChance = 0.3f;
         [SerializeField, Min(0f)] private float _backOffSeconds = 1f;
 
+        [Header("Adaptation (learns the target's habits; the moves' Answers use it)")]
+        [Tooltip("How far a learnt habit moves its choices; 0: it does not adapt (a zombie)")]
+        [SerializeField, Range(0f, 1f)] private float _learning;
+        [Tooltip("How many of the target's last actions it remembers")]
+        [SerializeField, Range(1, EnemyAdaptation.MaxMemory)] private int _memory = 5;
+        [Tooltip("The habits it pays attention to")]
+        [SerializeField] private PlayerHabit _notices = PlayerHabit.All;
+
         [Header("Death")]
         [Tooltip("How many death clips the animator has (DeathIndex 0..n-1)")]
         [SerializeField, Min(1)] private int _deathVariants = 1;
@@ -177,11 +203,16 @@ namespace RPGFramework.ActionCombat
                     problems.Add($"{label} {i}: Max Range is below Min Range");
                 if (move.Against != null && move.Against.Exists(a => a != null && a.Factor < 0f))
                     problems.Add($"{label} {i}: a weight factor below 0");
+                if (move.Answers != null && move.Answers.Exists(a => a != null && !IsOneHabit(a.Habit)))
+                    problems.Add($"{label} {i}: an answer names no habit or several (pick one)");
                 if (move.HoldUntilInRange && move.MaxHold <= 0f)
                     problems.Add($"{label} {i}: holds until in range but Max Hold is 0 (it never holds)");
             }
             return problems;
         }
+
+        private static bool IsOneHabit(PlayerHabit habit) =>
+            habit != PlayerHabit.None && (habit & (habit - 1)) == 0 && (habit & PlayerHabit.All) == habit;
 
         private static bool HasOpener(IReadOnlyList<Move> moves)
         {
@@ -240,7 +271,15 @@ namespace RPGFramework.ActionCombat
                 BackOffHealthShare = _backOffHealthShare,
                 BackOffChance = _backOffChance,
                 BackOffSeconds = _backOffSeconds,
-                DeathVariants = _deathVariants
+                DeathVariants = _deathVariants,
+                Adaptation = _learning > 0f
+                    ? new EnemyAdaptation
+                    {
+                        Learning = Mathf.Clamp01(_learning),
+                        Memory = Mathf.Clamp(_memory, 1, EnemyAdaptation.MaxMemory),
+                        Notices = _notices
+                    }
+                    : null
             };
 
             if (_weapon != null)
@@ -271,8 +310,17 @@ namespace RPGFramework.ActionCombat
                     CommitShare = move.CommitShare > 0f ? Mathf.Min(1f, move.CommitShare) : 1f,
                     HoldUntilInRange = move.HoldUntilInRange,
                     MaxHold = Mathf.Max(0f, move.MaxHold),
-                    HoldSpeed = Mathf.Max(0f, move.HoldSpeed)
+                    HoldSpeed = Mathf.Max(0f, move.HoldSpeed),
+                    MaxAngle = Mathf.Clamp(move.MaxAngle, 0f, 180f)
                 };
+                if (move.Answers != null)
+                {
+                    foreach (var answer in move.Answers)
+                    {
+                        if (answer != null && IsOneHabit(answer.Habit))
+                            built[i].SetAnswer(answer.Habit, Mathf.Max(0f, answer.Factor));
+                    }
+                }
                 if (move.Against != null)
                 {
                     foreach (var against in move.Against)

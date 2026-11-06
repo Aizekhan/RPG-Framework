@@ -14,7 +14,9 @@ namespace RPGFramework.ActionCombat
     /// chains combos while they land, then pauses (the player's punish window). It may block or dodge a swing aimed at
     /// it, more readily when the target presses it (<see cref="EnemyBehaviour.PressedSwings"/>); its moves may be weighed
     /// by what the target is doing (<see cref="EnemyMove.SetWeightAgainst"/>), and after a move it may fall back to the
-    /// range of its rush (<see cref="EnemyBehaviour.RepositionChance"/>). With <see cref="SweepAttacks"/> its blows land by their sweep segments, without physics. The body follows its
+    /// range of its rush (<see cref="EnemyBehaviour.RepositionChance"/>); with <see cref="EnemyBehaviour.Adaptation"/> it
+    /// learns its target's habits (dodging to one side, blocking, retreating, pressing) and favours the moves that answer
+    /// them (<see cref="EnemyMove.SetAnswer"/>). With <see cref="SweepAttacks"/> its blows land by their sweep segments, without physics. The body follows its
     /// <see cref="EnemyIntent"/>; the attacks, stagger and dodges go through <see cref="CombatRules"/>. Every decision is
     /// an event and a timeline entry, so a panel can show why a monster did what it did.
     /// </summary>
@@ -47,6 +49,7 @@ namespace RPGFramework.ActionCombat
             {
                 _subscriptions.Add(events.Subscribe<ContactResolvedEvent>(OnContact));
                 _subscriptions.Add(events.Subscribe<AttackStartedEvent>(OnSwingStarted));
+                _subscriptions.Add(events.Subscribe<DodgeStartedEvent>(OnDodge));
             }
         }
 
@@ -229,7 +232,11 @@ namespace RPGFramework.ActionCombat
                 }
                 brain.Attacking = false;
                 var next = brain.Move.Next;
-                if (next != null && brain.ComboLanded && TargetDistance(brain, position, out float distance) &&
+                bool knownDistance = TargetDistance(brain, position, out float distance);
+                // Its blow found nobody and the target is out of its reach: the target stepped back
+                if (!brain.Touched && knownDistance && distance > brain.Move.MaxRange)
+                    Learn(brain, PlayerHabit.Retreats);
+                if (next != null && brain.ComboLanded && knownDistance &&
                     next.CanStart(distance) && Ready(brain, next) && StartMove(brain, next, distance, combo: true))
                     return;
                 EndAttacks(brain, next != null && !brain.ComboLanded ? "combo missed" : "attack over", pause: true);
@@ -308,9 +315,16 @@ namespace RPGFramework.ActionCombat
 
             if (Tokens.Holds(id))
             {
-                var move = Choose(brain, d);
+                var move = Choose(brain, d, AngleTo(brain, position, forward), out bool turning);
                 if (move != null && StartMove(brain, move, d, combo: false))
                     return;
+                if (turning)
+                {
+                    // A move is in reach and ready, but the target is beyond its angle: turn to face it first
+                    Set(brain, EnemyState.Approach, "turning to strike");
+                    brain.Intent = new EnemyIntent(EnemyState.Approach, brain.Target, CombatVector.Zero, 0f, face, behaviour.TurnSpeed);
+                    return;
+                }
                 float reach = Reach(brain);
                 if (reach > 0f && d > reach)
                 {
@@ -506,6 +520,7 @@ namespace RPGFramework.ActionCombat
             ReleaseToken(brain, reason);
             brain.Target = -1;
             brain.WantSince = -1f;
+            brain.Habits?.Clear(-1);
             Set(brain, EnemyState.Returning, reason);
         }
 
@@ -610,29 +625,46 @@ namespace RPGFramework.ActionCombat
             return push.Length > 0f ? Unit(way + push) : way;
         }
 
-        private EnemyMove Choose(Brain brain, float distance)
+        // angle: degrees between where it faces and the target; turning: a move could start but for its angle
+        private EnemyMove Choose(Brain brain, float distance, float angle, out bool turning)
         {
+            turning = false;
             // It fell back for this one
             if (brain.Opener != null && brain.Opener.CanStart(distance) && Ready(brain, brain.Opener))
-                return brain.Opener;
+            {
+                if (Faces(brain.Opener, angle))
+                    return brain.Opener;
+                turning = true;
+                return null;
+            }
             bool known = TryGetTargetState(brain.Target, out var against);
             float total = 0f;
             var moves = brain.Behaviour.Moves;
             for (int i = 0; i < moves.Count; i++)
             {
                 var move = moves[i];
-                if (move.CanStart(distance) && Ready(brain, move))
-                    total += WeightOf(move, known, against);
+                if (!move.CanStart(distance) || !Ready(brain, move))
+                    continue;
+                float weight = WeightOf(brain, move, known, against);
+                if (!Faces(move, angle))
+                {
+                    turning |= weight > 0f;
+                    continue;
+                }
+                total += weight;
             }
             if (total <= 0f)
                 return null;
+            turning = false;
             double roll = _random.NextDouble() * total;
             EnemyMove last = null;
             for (int i = 0; i < moves.Count; i++)
             {
                 var move = moves[i];
-                float weight = WeightOf(move, known, against);
-                if (!move.CanStart(distance) || !Ready(brain, move) || weight <= 0f)
+                if (!move.CanStart(distance) || !Ready(brain, move) || !Faces(move, angle))
+                    continue;
+                float weight = WeightOf(brain, move, known, against);
+                if (weight <= 0f)
                     continue;
                 last = move;
                 roll -= weight;
@@ -642,8 +674,78 @@ namespace RPGFramework.ActionCombat
             return last;
         }
 
-        private static float WeightOf(EnemyMove move, bool known, CombatState against) =>
-            Math.Max(0f, move.Weight) * (known ? move.FactorAgainst(against) : 1f);
+        private static float WeightOf(Brain brain, EnemyMove move, bool known, CombatState against) =>
+            Math.Max(0f, move.Weight) * (known ? move.FactorAgainst(against) : 1f) * Adapted(brain, move);
+
+        private static bool Faces(EnemyMove move, float angle) => move.MaxAngle <= 0f || angle <= move.MaxAngle;
+
+        // Degrees between where it faces and its target (0 when either is unknown)
+        private float AngleTo(Brain brain, CombatVector position, CombatVector forward)
+        {
+            if (brain.Target < 0 || !_world.TryGetPose(brain.Target, out var where, out _))
+                return 0f;
+            return CombatVector.Angle(forward.Flat, (where - position).Flat);
+        }
+
+        // Its answers to the habits it has learnt of its target: 1 + (factor - 1) x share x learning, for each
+        private static float Adapted(Brain brain, EnemyMove move)
+        {
+            var adaptation = brain.Behaviour.Adaptation;
+            if (adaptation == null || move.AnswerCount == 0 || brain.Habits == null || brain.Habits.Target != brain.Target)
+                return 1f;
+            float factor = 1f;
+            for (int i = 0; i < move.AnswerCount; i++)
+            {
+                var (habit, answer) = move.AnswerAt(i);
+                if ((adaptation.Notices & habit) == 0)
+                    continue;
+                float learnt = brain.Habits.Share(habit, adaptation.Memory) * adaptation.Learning;
+                factor *= 1f + (answer - 1f) * learnt;
+            }
+            return Math.Max(0f, factor);
+        }
+
+        // It saw its target do something: remembered when it pays attention to that habit
+        private void Learn(Brain brain, PlayerHabit habit)
+        {
+            var adaptation = brain.Behaviour.Adaptation;
+            if (adaptation == null || adaptation.Learning <= 0f || (adaptation.Notices & habit) == 0 || brain.Target < 0)
+                return;
+            if (brain.Habits == null)
+                brain.Habits = new HabitMemory();
+            if (brain.Habits.Target != brain.Target)
+                brain.Habits.Clear(brain.Target);
+            brain.Habits.Add(habit, adaptation.Memory);
+            float share = brain.Habits.Share(habit, adaptation.Memory);
+            if (_rules.Timeline != null)
+                Note(brain.Id, brain.Target, $"notices {habit} ({share:P0} of what it remembers)");
+            _events?.Publish(new PlayerHabitNoticedEvent(brain.Id, brain.Target, habit, share, Time));
+        }
+
+        // The target dodged: a dodge back is a retreat, otherwise to its left or right as it faces the enemy
+        private void OnDodge(DodgeStartedEvent dodge)
+        {
+            var way = dodge.Direction.Flat;
+            if (way.Length < 1e-4f || !_world.TryGetPose(dodge.EntityId, out var where, out _))
+                return;
+            foreach (var brain in _order)
+            {
+                if (brain.Target != dodge.EntityId || brain.State == EnemyState.Dead || brain.Behaviour.Adaptation == null ||
+                    !_world.TryGetPose(brain.Id, out var position, out _))
+                    continue;
+                var toEnemy = (position - where).Flat;
+                float distance = toEnemy.Length;
+                if (distance < 1e-4f || distance > brain.Behaviour.EngageDistance)
+                    continue;
+                float ahead = (way.X * toEnemy.X + way.Z * toEnemy.Z) / (way.Length * distance);
+                // Right of a target facing the enemy is (forward.Z, -forward.X) on the ground
+                float right = (way.X * toEnemy.Z - way.Z * toEnemy.X) / (way.Length * distance);
+                if (ahead < -0.7f)
+                    Learn(brain, PlayerHabit.Retreats);
+                else
+                    Learn(brain, right >= 0f ? PlayerHabit.DodgesRight : PlayerHabit.DodgesLeft);
+            }
+        }
 
         // What the target is doing: the world says first (a target outside the rules), then the rules
         private bool TryGetTargetState(int target, out CombatState state)
@@ -668,6 +770,7 @@ namespace RPGFramework.ActionCombat
             brain.Opener = null;
             brain.Swing = _rules.SwingOf(brain.Id);
             brain.ComboLanded = false;
+            brain.Touched = false;
             brain.ReadyAt[move] = Time + move.Cooldown;
             Set(brain, EnemyState.Attacking, combo ? "combo: " + move.Attack.Id : move.Attack.Id);
             if (_rules.Timeline != null)
@@ -714,9 +817,16 @@ namespace RPGFramework.ActionCombat
             if (contact.Result == ContactResult.Ignored)
                 return;
             var attacker = Find(contact.AttackerId);
-            if (attacker != null && attacker.Attacking && contact.SwingId == attacker.Swing &&
-                (contact.Result == ContactResult.Hit || contact.Result == ContactResult.Blocked))
-                attacker.ComboLanded = true;
+            if (attacker != null && attacker.Attacking && contact.SwingId == attacker.Swing)
+            {
+                attacker.Touched = true;
+                if (contact.Result == ContactResult.Hit || contact.Result == ContactResult.Blocked)
+                    attacker.ComboLanded = true;
+                if (contact.TargetId == attacker.Target && contact.Result == ContactResult.Blocked && !contact.GuardBroken)
+                    Learn(attacker, PlayerHabit.Blocks);
+                else if (contact.TargetId == attacker.Target && contact.Result == ContactResult.Parried)
+                    Learn(attacker, PlayerHabit.Parries);
+            }
             if (Find(contact.TargetId) != null)
                 Alert(contact.TargetId, contact.AttackerId);
         }
@@ -727,6 +837,10 @@ namespace RPGFramework.ActionCombat
             SwingLog swings = null;
             foreach (var brain in _order)
             {
+                if (brain.Target == started.EntityId && brain.State != EnemyState.Dead && brain.Behaviour.Adaptation != null &&
+                    _world.TryGetPose(brain.Id, out var at, out _) && TargetDistance(brain, at, out float near) &&
+                    near <= brain.Behaviour.EngageDistance)
+                    Learn(brain, PlayerHabit.Presses);
                 if (brain.Target != started.EntityId || brain.State == EnemyState.Dead || brain.Attacking || brain.Blocking)
                     continue;
                 var combat = _rules.StateOf(brain.Id);
@@ -934,6 +1048,8 @@ namespace RPGFramework.ActionCombat
             public EnemyMove Move;
             public int Swing;
             public bool ComboLanded;
+            public bool Touched;
+            public HabitMemory Habits;
             public float HoldUntil;
             public EnemyMove RepositionFor;
             public float RepositionUntil;

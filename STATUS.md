@@ -31,7 +31,7 @@ A version bump goes through `python .github/scripts/release.py X.Y.Z`, which wri
 ## Codebase (committed, from `git ls-files`)
 
 - The framework is the embedded UPM package `Packages/com.aizekhan.rpg-framework`; install in other projects by git URL (see its README).
-- **60 module folders**, **179 asmdef**, **1075 .cs files** in the package
+- **61 module folders**, **184 asmdef**, **1088 .cs files** in the package
 - `Assets/ReferenceGame`: sample game (Goblin Valley) built only on framework assemblies
 - `Assets/_Tests/Editor/FrameworkArchitectureTests.cs`: framework-wide rules (no game references, no editor code in player builds, no assembly cycles, `RPGFramework.*` namespaces, every MonoBehaviour/ScriptableObject in a file of its own name)
 - No AI, Economy or Objectives modules exist (enemy AI lives in `ActionCombat`, plus the `BehaviorTree` module).
@@ -41,7 +41,7 @@ A version bump goes through `python .github/scripts/release.py X.Y.Z`, which wri
 
 The register of everything known to be open, missing or limited. One `KI-NN` per bullet; ids are never reused.
 When a change closes one, its CHANGELOG line names the KI and the bullet is deleted here in the same commit.
-Next id: **KI-25**.
+Next id: **KI-26**.
 
 **Medium**
 - **KI-01** TurnBased: no content assets (the game fills `ConfigureGame` in code); items only in battle; no auto-battle setting for the party
@@ -69,6 +69,7 @@ Next id: **KI-25**.
 - **KI-21** Assets imported outside `Assets/ThirdParty/<Source>/<Asset>/` are not detected by GA15
 - **KI-22** MythHunter's parallel system registry is not ported (Unity API is main-thread only; no proven need)
 - **KI-24** ActionCombat: enemies do not parry (`EnemyBehaviour` has only `BlockChance` and `DodgeChance`; parry is for the player and the game's own AI)
+- **KI-25** Telemetry: the queue lives in memory (events not yet sent are lost if the game crashes); `HttpTelemetryTransport` uses .NET `HttpClient`, so a WebGL build cannot send (it needs a transport of its own)
 
 ## Next steps
 

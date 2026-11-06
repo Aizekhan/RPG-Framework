@@ -274,6 +274,21 @@
           "data": []
         },
         {
+          "id": "combat.analytics",
+          "title": "Combat analytics",
+          "status": "full",
+          "since": "unreleased",
+          "notes": "Counts per attack and in total: uses, hit, miss and interrupt rates, damage, the distance enemies chose it from; failed approaches (an attack token given up without an attack); enemy chains ranked best and worst. Each finished swing is an outcome for telemetry (combat_hit, combat_miss... through Integration.ActionCombatTelemetry).",
+          "api": [
+            "CombatAnalytics",
+            "AttackStats",
+            "ComboStats",
+            "SwingOutcome",
+            "CombatTelemetry"
+          ],
+          "data": []
+        },
+        {
           "id": "combat.animation_bridge",
           "title": "Animator bridges",
           "status": "full",
@@ -358,11 +373,12 @@
           "title": "Weighted moves with ranges and cooldowns",
           "status": "full",
           "since": "0.31.0",
-          "notes": "Moves chosen by range, weight and cooldown; commit range so blows land (0.36.0); held swings; gap closers.",
+          "notes": "Moves chosen by range, weight and cooldown; commit range so blows land (0.36.0); held swings; gap closers; a move may need the enemy to face its target first (MaxAngle).",
           "api": [
             "EnemyMove",
             "EnemyMove.CommitShare",
-            "EnemyMove.HoldUntilInRange"
+            "EnemyMove.HoldUntilInRange",
+            "EnemyMove.MaxAngle"
           ],
           "data": [
             "EnemyBehaviourAsset",
@@ -380,6 +396,23 @@
             "IEnemyTargetStates",
             "EnemyBehaviour.PressedSwings",
             "EnemyBehaviour.RepositionChance"
+          ],
+          "data": [
+            "EnemyBehaviourAsset"
+          ]
+        },
+        {
+          "id": "ai.adaptation",
+          "title": "Adaptive enemy AI (learns the player)",
+          "status": "full",
+          "since": "unreleased",
+          "notes": "An enemy remembers its target's last N actions (dodge side, block, parry, retreat, pressing) and chooses the moves that answer a habit more often, as far as it has learnt it (learning 0..1 per kind of monster; 0 = a zombie). The memory is per target and forgotten when the target is lost.",
+          "api": [
+            "EnemyAdaptation",
+            "PlayerHabit",
+            "EnemyMove.SetAnswer",
+            "EnemyBehaviour.Adaptation",
+            "PlayerHabitNoticedEvent"
           ],
           "data": [
             "EnemyBehaviourAsset"
@@ -1181,6 +1214,55 @@
       ]
     },
     {
+      "id": "telemetry",
+      "title": "Telemetry (playtests and balancing)",
+      "capabilities": [
+        {
+          "id": "telemetry.events",
+          "title": "Telemetry events in batches",
+          "status": "full",
+          "since": "unreleased",
+          "notes": "Events with level, zone, entity, mechanic and quest ids, position and up to 20 properties; build, session, pseudonymous player and context (platform, mode, cohort, A/B variant) added. Batches of up to 500 as { \"events\": [...] } every 30 s and on pause or session end, sent off the game thread, retried with a growing pause; position samples at most every 5 s; survey answers. The queue lives in memory; HttpClient, so not WebGL.",
+          "ki": "KI-25",
+          "api": [
+            "TelemetryClient",
+            "ITelemetry",
+            "TelemetryEvent",
+            "TelemetryOptions",
+            "TelemetryJson",
+            "TelemetryIds.Pseudonymous"
+          ],
+          "data": []
+        },
+        {
+          "id": "telemetry.consent",
+          "title": "Opt-in consent",
+          "status": "full",
+          "since": "unreleased",
+          "notes": "Nothing is kept or sent until the player agrees; withdrawing drops the queue. Kept in PlayerPrefs by the Unity module.",
+          "api": [
+            "ITelemetry.Consent",
+            "TelemetryModule.ConsentKey"
+          ],
+          "data": []
+        },
+        {
+          "id": "telemetry.http",
+          "title": "Sending to the game's collector",
+          "status": "full",
+          "since": "unreleased",
+          "notes": "Posts JSON with a bearer key; or a transport of the game. The Unity module drives it in real time and sends on pause and quit.",
+          "api": [
+            "HttpTelemetryTransport",
+            "ITelemetryTransport",
+            "TelemetryModule",
+            "TelemetryDriver"
+          ],
+          "data": []
+        }
+      ]
+    },
+    {
       "id": "localization",
       "title": "Localization and settings",
       "capabilities": [
@@ -1284,20 +1366,10 @@
   ],
   "missing": [
     {
-      "id": "ai.adaptation",
-      "title": "Adaptive enemy AI (learns the player)",
-      "notes": "Not supported: enemy rules are fixed weights and chances (ai.reactive)."
-    },
-    {
       "id": "ai.boss_phases",
       "title": "Boss AI with phases",
       "notes": "Not built.",
       "ki": "KI-19"
-    },
-    {
-      "id": "combat.analytics",
-      "title": "Combat analytics",
-      "notes": "Not supported: CombatTimeline records a fight for diagnostics; nothing aggregates it."
     },
     {
       "id": "combat.balancing_simulator",

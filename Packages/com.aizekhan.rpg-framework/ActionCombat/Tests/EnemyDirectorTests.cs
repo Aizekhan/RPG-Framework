@@ -740,6 +740,143 @@ namespace RPGFramework.ActionCombat.Tests
             Assert.That(_rules.Timeline.Entries.Any(e => e.Note == "falls back for rush"), Is.True);
         }
 
+        // WhiteWrite UMCF "Combat adaptation": it learns the player's favourite dodge side and favours the move that covers it
+        private EnemyBehaviour Learner(float learning)
+        {
+            var behaviour = new EnemyBehaviour
+            {
+                NoticeSeconds = 0f, RecoveryPause = 0f,
+                Adaptation = new EnemyAdaptation { Learning = learning, Memory = 4 }
+            };
+            var sweep = new EnemyMove(new AttackDefinition("sweep left", 0.3f, 0.2f, 0.3f), 0f, 2.5f) { Weight = 0.01f };
+            sweep.SetAnswer(PlayerHabit.DodgesLeft, 1000f);
+            behaviour.Moves.Add(new EnemyMove(Jab, 0f, 2.5f));
+            behaviour.Moves.Add(sweep);
+            return behaviour;
+        }
+
+        // Someone else holds the only token: the monster circles and only watches
+        private void HoldTheToken()
+        {
+            _director.Tokens.MaxPerTarget = 1;
+            _director.Tokens.Want(99, Player, 100f);
+            _director.Tokens.Grant();
+            Step();
+        }
+
+        [Test]
+        public void AnAdaptingEnemy_LearnsTheTargetsDodgeSide_AndAnswersIt()
+        {
+            // The player stands in front of it, facing it: a dodge to +x is to the player's left
+            _world.Place(Player, new CombatVector(0f, 0f, 1.5f), new CombatVector(0f, 0f, -1f));
+            AddMonster(Monster, CombatVector.Zero, Learner(1f));
+            var noticed = new List<PlayerHabitNoticedEvent>();
+            _bus.Subscribe<PlayerHabitNoticedEvent>(e => noticed.Add(e));
+            HoldTheToken();
+            Assert.That(ChosenOver(0.1f), Is.Empty);
+
+            for (int i = 0; i < 4; i++)
+            {
+                Assert.That(_rules.Dodge(Player, new CombatVector(1f, 0f, 0f)), Is.True);
+                Run(1f);
+            }
+
+            Assert.That(noticed.Select(e => e.Habit), Is.All.EqualTo(PlayerHabit.DodgesLeft));
+            Assert.That(noticed.Select(e => e.Share), Is.EqualTo(new[] { 0.25f, 0.5f, 0.75f, 1f }), "a few dodges teach little");
+            Assert.That(_rules.Timeline.Entries.Any(e => e.Note != null && e.Note.StartsWith("notices DodgesLeft")), Is.True);
+
+            _director.Tokens.Release(99);
+            var chosen = ChosenOver(6f);
+            Assert.That(chosen.Count(c => c == "sweep left"), Is.GreaterThan(chosen.Count / 2), "the answer outweighs the jab now");
+        }
+
+        [Test]
+        public void AnEnemyThatDoesNotAdapt_NoticesNothing_AndKeepsItsWeights()
+        {
+            _world.Place(Player, new CombatVector(0f, 0f, 1.5f), new CombatVector(0f, 0f, -1f));
+            AddMonster(Monster, CombatVector.Zero, Learner(0f));
+            var noticed = new List<PlayerHabitNoticedEvent>();
+            _bus.Subscribe<PlayerHabitNoticedEvent>(e => noticed.Add(e));
+            HoldTheToken();
+            for (int i = 0; i < 4; i++)
+            {
+                _rules.Dodge(Player, new CombatVector(1f, 0f, 0f));
+                Run(1f);
+            }
+
+            _director.Tokens.Release(99);
+            var chosen = ChosenOver(6f);
+            Assert.That(noticed, Is.Empty);
+            Assert.That(chosen.Count(c => c == "sweep left"), Is.LessThan(chosen.Count / 2));
+        }
+
+        [Test]
+        public void SwingsAndBackDodges_AreRemembered_AndForgottenWithTheTarget()
+        {
+            _world.Place(Player, new CombatVector(0f, 0f, 1.5f), new CombatVector(0f, 0f, -1f));
+            var behaviour = Learner(1f);
+            behaviour.Adaptation.Notices = PlayerHabit.Presses | PlayerHabit.Retreats;
+            AddMonster(Monster, CombatVector.Zero, behaviour);
+            var noticed = new List<PlayerHabitNoticedEvent>();
+            _bus.Subscribe<PlayerHabitNoticedEvent>(e => noticed.Add(e));
+            HoldTheToken();
+
+            Assert.That(_rules.Attack(Player, new AttackDefinition("tap", 0f, 0.05f, 0f)), Is.True);
+            Run(0.5f);
+            Assert.That(_rules.Dodge(Player, new CombatVector(0f, 0f, 1f)), Is.True, "away from the monster");
+            Run(1f);
+            Assert.That(_rules.Dodge(Player, new CombatVector(1f, 0f, 0f)), Is.True, "a side it does not watch");
+            Run(1f);
+            Assert.That(noticed.Select(e => e.Habit), Is.EqualTo(new[] { PlayerHabit.Presses, PlayerHabit.Retreats }));
+
+            // Lost and found again: it starts learning anew
+            _world.Walls = true;
+            _world.Place(Player, new CombatVector(0f, 0f, 9f), Forward);
+            Run(5f);
+            Assert.That(_director.TargetOf(Monster), Is.EqualTo(-1));
+            _world.Walls = false;
+            _world.Place(Player, new CombatVector(0f, 0f, 1.5f), new CombatVector(0f, 0f, -1f));
+            Run(0.2f);
+            Assert.That(_rules.Dodge(Player, new CombatVector(0f, 0f, 1f)), Is.True);
+            Run(1f);
+            Assert.That(noticed.Last().Share, Is.EqualTo(0.25f));
+        }
+
+        [Test]
+        public void AnAnswer_NamesOneHabit_AndAFactorOf1RemovesIt()
+        {
+            var move = new EnemyMove(Jab, 0f, 2f);
+            move.SetAnswer(PlayerHabit.Blocks, 3f);
+            Assert.That(move.AnswerTo(PlayerHabit.Blocks), Is.EqualTo(3f));
+            move.SetAnswer(PlayerHabit.Blocks, 1f);
+            Assert.That(move.AnswerCount, Is.Zero);
+            Assert.Throws<System.ArgumentException>(() => move.SetAnswer(PlayerHabit.Blocks | PlayerHabit.Retreats, 2f));
+            Assert.Throws<System.ArgumentException>(() => move.SetAnswer(PlayerHabit.None, 2f));
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => move.SetAnswer(PlayerHabit.Blocks, -1f));
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => new EnemyAdaptation { Memory = EnemyAdaptation.MaxMemory + 1 });
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => new EnemyAdaptation { Learning = 1.5f });
+        }
+
+        // WhiteWrite UMCF "Attack feasibility": a frontal blow waits until it faces the target
+        [Test]
+        public void AMoveWithAMaxAngle_TurnsToTheTargetFirst()
+        {
+            var behaviour = new EnemyBehaviour { NoticeSeconds = 0f, ViewAngle = 360f };
+            behaviour.Moves.Add(new EnemyMove(Jab, 0f, 2.5f) { MaxAngle = 30f });
+            _world.Place(Player, new CombatVector(1.5f, 0f, 0f), Forward);
+            AddMonster(Monster, CombatVector.Zero, behaviour);
+
+            Assert.That(ChosenOver(1f), Is.Empty, "the target is at its side");
+            var intent = _director.IntentOf(Monster);
+            Assert.That(intent.State, Is.EqualTo(EnemyState.Approach));
+            Assert.That(intent.Face.X, Is.GreaterThan(0.9f), "it turns to the target");
+            Assert.That(intent.Speed, Is.Zero);
+
+            _world.Place(Monster, CombatVector.Zero, new CombatVector(1f, 0f, 0.2f));
+            Assert.That(ChosenOver(0.2f), Is.EqualTo(new[] { "jab" }), "faced: it strikes");
+            Assert.Throws<System.ArgumentOutOfRangeException>(() => new EnemyMove(Jab, 0f, 1f) { MaxAngle = 200f });
+        }
+
         private sealed class FakeWorld : IEnemyWorld, IEnemyTargetStates
         {
             public readonly Dictionary<int, CombatState> States = new Dictionary<int, CombatState>();
