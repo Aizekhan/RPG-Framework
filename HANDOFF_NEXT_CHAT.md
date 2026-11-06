@@ -1,6 +1,6 @@
 # Handoff for Next Session
 
-**Date:** 2026-11-04
+**Date:** 2026-11-06
 **Project:** RPG Framework (`D:\RPG-Framework`, https://github.com/Aizekhan/RPG-Framework)
 **Read first:** `STATUS.md` (current state, single sources of truth, open issues `KI-NN`, next steps), `TARGET-ARCHITECTURE.md`, `Docs/RELEASES.md` (proof of each release). Session history: `Docs/archive/SESSION-LOG.md`
 
@@ -11,6 +11,12 @@
 This section holds only the latest session's notes; the release itself is in `STATUS.md` and `Docs/RELEASES.md`,
 older notes move to `Docs/archive/SESSION-LOG.md`.
 
+- 2026-11-06: released `v0.41.0` (the owner asked to act on WhiteWrite's notes: `functions/mechanics.js` FRAMEWORK
+  notes and `docs/EXPERIENCE_TELEMETRY_CONTRACT.md` in `E:\WhiteWrite`): `Telemetry` module (contract envelope, opt-in
+  consent, batches with retries, `TelemetryModule`), `CombatAnalytics`, `EnemyAdaptation` / `EnemyMove.SetAnswer`,
+  `EnemyMove.MaxAngle`, `Integration.ActionCombatTelemetry`; KI-25 opened. Also the uncommitted Unity Relay fix for
+  The Bloodline Hunt (`aba36fa`, included on the owner's yes, untested without UGS). Capability ids sent to
+  whitewrite-4c. Not done: WhiteWrite's world-generation audit needs its MCP spec tools, not reachable from here.
 - 2026-11-04: released `v0.40.0` (WhiteWrite whitewrite-fc, approved by the owner): capabilities manifest
   `capabilities.json` (`rpgframework.capabilities/1`, 81 capabilities, 10 missing) for WhiteWrite's gap check;
   `check_docs.py` checks it, `release.py` writes its version. Every release now updates it by hand. The path, schema
@@ -26,9 +32,6 @@ older notes move to `Docs/archive/SESSION-LOG.md`.
   `releases.json` from the CHANGELOG, SessionStart hook `framework-update-check.sh` merged into the game's settings,
   `### Breaking` CHANGELOG sections. Checked live against the GitHub tag from a fake game. WhiteWrite (whitewrite-67)
   will not import combat data; its notes on 0.36.0 combat were confirmed with three refinements.
-- 2026-11-02: released `v0.36.0` (MythRunner FG-31: commit range, held wind-up, attack motions, timed sweep,
-  `WeaponMoveSet`; see `Docs/RELEASES.md`). The first release through `release.py`. KI-23 is the later part (player
-  moves against monster moves).
 
 ## Conventions for new work
 

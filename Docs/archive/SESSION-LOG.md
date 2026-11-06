@@ -5,6 +5,9 @@ state when they were written. The current state is in `STATUS.md`, releases and 
 
 ## Sessions
 
+- 2026-11-02: released `v0.36.0` (MythRunner FG-31: commit range, held wind-up, attack motions, timed sweep,
+  `WeaponMoveSet`; see `Docs/RELEASES.md`). The first release through `release.py`. KI-23 is the later part (player
+  moves against monster moves).
 - 2026-11-02: docs made single-source. The release history moved from STATUS to `Docs/RELEASES.md`, the session log
   from here to `Docs/archive/SESSION-LOG.md`; STATUS open issues became a `KI-NN` register; `check_docs.py` runs in CI
   and `release.py` writes every copy of a new version. MythRunner is on v0.35.0 (`1e9d21f`); its next step is
