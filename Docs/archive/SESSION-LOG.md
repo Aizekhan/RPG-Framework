@@ -5,6 +5,10 @@ state when they were written. The current state is in `STATUS.md`, releases and 
 
 ## Sessions
 
+- 2026-11-04: released `v0.40.0` (WhiteWrite whitewrite-fc, approved by the owner): capabilities manifest
+  `capabilities.json` (`rpgframework.capabilities/1`, 81 capabilities, 10 missing) for WhiteWrite's gap check;
+  `check_docs.py` checks it, `release.py` writes its version. Every release now updates it by hand. The path, schema
+  and ids were sent to whitewrite-fc. Its ask for a CLAUDE.md line was left to the owner.
 - 2026-11-03: released `v0.39.0` (MythRunner FG-32/FG-33, closes KI-23): move weights by the target's state
   (`EnemyMove.SetWeightAgainst`, `IEnemyTargetStates`), pressed guard chances, `RepositionChance` (fall back to a
   rush's range); `HealthBarView` hides its bar on a corpse. The game dropped its BreaksGuard ask before release.

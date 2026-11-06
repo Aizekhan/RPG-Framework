@@ -11,6 +11,10 @@
 This section holds only the latest session's notes; the release itself is in `STATUS.md` and `Docs/RELEASES.md`,
 older notes move to `Docs/archive/SESSION-LOG.md`.
 
+- 2026-11-06: released `v0.42.1` (The Bloodline Hunt BH-10): `RenderSection` counted a statically batched
+  renderer's whole Combined Mesh once per part (3.1 M triangles instead of 0.41 M) and named every such model
+  "Combined Mesh"; now each part counts its own sub-meshes and is named by its object (`RenderSection.ModelOfBatched`).
+  GPU counters still need the Editor or a development build (Unity does not count them in batch mode).
 - 2026-11-06: released `v0.42.0` (the owner, after The Bloodline Hunt's agent offered to write a render stats tool
   the framework has had since v0.21): `RenderBudget` presets per device class (`RenderPlatform`), recipe 21 of every
   measuring, debugging and checking tool, a CLAUDE.md block section pointing there, `capabilities.json` module `tools`.
@@ -21,10 +25,6 @@ older notes move to `Docs/archive/SESSION-LOG.md`.
   `EnemyMove.MaxAngle`, `Integration.ActionCombatTelemetry`; KI-25 opened. Also the uncommitted Unity Relay fix for
   The Bloodline Hunt (`aba36fa`, included on the owner's yes, untested without UGS). Capability ids sent to
   whitewrite-4c. Not done: WhiteWrite's world-generation audit needs its MCP spec tools, not reachable from here.
-- 2026-11-04: released `v0.40.0` (WhiteWrite whitewrite-fc, approved by the owner): capabilities manifest
-  `capabilities.json` (`rpgframework.capabilities/1`, 81 capabilities, 10 missing) for WhiteWrite's gap check;
-  `check_docs.py` checks it, `release.py` writes its version. Every release now updates it by hand. The path, schema
-  and ids were sent to whitewrite-fc. Its ask for a CLAUDE.md line was left to the owner.
 
 ## Conventions for new work
 
