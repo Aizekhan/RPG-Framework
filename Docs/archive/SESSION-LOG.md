@@ -5,6 +5,10 @@ state when they were written. The current state is in `STATUS.md`, releases and 
 
 ## Sessions
 
+- 2026-11-06: released `v0.42.0` (the owner, after The Bloodline Hunt's agent offered to write a render stats tool
+  the framework has had since v0.21): `RenderBudget` presets per device class (`RenderPlatform`), recipe 21 of every
+  measuring, debugging and checking tool, a CLAUDE.md block section pointing there, `capabilities.json` module `tools`.
+  Games see it after the update and the AI guidance reinstall.
 - 2026-11-06: released `v0.41.0` (the owner asked to act on WhiteWrite's notes: `functions/mechanics.js` FRAMEWORK
   notes and `docs/EXPERIENCE_TELEMETRY_CONTRACT.md` in `E:\WhiteWrite`): `Telemetry` module (contract envelope, opt-in
   consent, batches with retries, `TelemetryModule`), `CombatAnalytics`, `EnemyAdaptation` / `EnemyMove.SetAnswer`,

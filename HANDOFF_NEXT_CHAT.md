@@ -11,6 +11,11 @@
 This section holds only the latest session's notes; the release itself is in `STATUS.md` and `Docs/RELEASES.md`,
 older notes move to `Docs/archive/SESSION-LOG.md`.
 
+- 2026-11-06: released `v0.44.0` (MythRunner FG-34, FG-35, read from its `FRAMEWORK-GAPS.md`; no MythRunner
+  session was running to tell): a start menu names how to play together (`GameStart.Host.Via`,
+  `GameStart.Join(code, provider)`, `NetworkSessionProviders.IsAvailable`); new `WorldMap` module (`WorldGraph`,
+  `IWorldTravel`, `WorldTravelSave`, `WorldMapModule`). KI-26 opened (co-op world-map message and place-grouped
+  interaction points are the game's).
 - 2026-11-06: released `v0.43.0`: the owner wanted the render numbers on screen while the hero runs, so the
   diagnostics panel can be a small see-through one refreshed every frame (`DiagnosticsPanelLayout` `Compact`; in the
   kit `ActionRpgHost` Diagnostics Panel → Compact, Diagnostics Shown). The Bloodline Hunt BH-09: who may pause the
@@ -19,10 +24,6 @@ older notes move to `Docs/archive/SESSION-LOG.md`.
   renderer's whole Combined Mesh once per part (3.1 M triangles instead of 0.41 M) and named every such model
   "Combined Mesh"; now each part counts its own sub-meshes and is named by its object (`RenderSection.ModelOfBatched`).
   GPU counters still need the Editor or a development build (Unity does not count them in batch mode).
-- 2026-11-06: released `v0.42.0` (the owner, after The Bloodline Hunt's agent offered to write a render stats tool
-  the framework has had since v0.21): `RenderBudget` presets per device class (`RenderPlatform`), recipe 21 of every
-  measuring, debugging and checking tool, a CLAUDE.md block section pointing there, `capabilities.json` module `tools`.
-  Games see it after the update and the AI guidance reinstall.
 
 ## Conventions for new work
 
