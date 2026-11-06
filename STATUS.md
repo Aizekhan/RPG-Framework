@@ -1,7 +1,7 @@
 # RPG Framework - Project Status
 
 **Last Updated:** 2026-11-06
-**Release:** `v0.41.0` (2026-11-06; proof in `Docs/RELEASES.md`)
+**Release:** `v0.42.0` (2026-11-06; proof in `Docs/RELEASES.md`)
 **Repository:** https://github.com/Aizekhan/RPG-Framework (public, MIT)
 **Branch:** main (force-push and deletion blocked)
 **Unity:** 6000.0.45f1 (`ProjectSettings/ProjectVersion.txt`; the Unity CLI version is kept in `CLAUDE.md` only)

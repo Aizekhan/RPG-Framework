@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.42.0] - 2026-11-06
+
 ### Added
 - Diagnostics: render budgets per device class, not only phones (The Bloodline Hunt asked what a phone may draw). `RenderBudget.Platform` (`RenderPlatform`): `LowEndMobile` (150k triangles in view / 100 draw calls / 60 set-pass), `Mobile` (300k / 150 / 100), `HighEndMobile` (800k / 300 / 150), `StandaloneVR` (500k / 150 / 80), `WebGL` (500k / 300 / 120), `Handheld` (Switch, Steam Deck; 600k / 500 / 150), `Desktop` (the old defaults, 1.5M / 1500 / 250), `HighEndDesktop` (PS5, Xbox Series, RTX 3060+; 5M / 3000 / 500), each limiting one model's mesh to a tenth; `Auto` takes the platform the game runs on (`RenderBudget.PlatformOf`); `Custom` (the default) keeps the typed numbers. `RenderBudget.For`, `Resolved`; the Render block names the preset. Starting points to tune on the weakest target device.
 - AI guidance: recipe 21 "the framework's tools" lists, by question, every tool for measuring, debugging and checking (render budget, frame time, the diagnostics panel, the combat timeline and analytics, content validation, graph checks, the project index, architecture rules, telemetry, test doubles, designer windows). The game's CLAUDE.md block gets a "Tools the framework already has" section that sends the agent there before it builds or answers from memory; recipe 14 points to it; recipe 18 now covers enemy adaptation, `MaxAngle` and combat analytics from 0.41.0. Games get it with the AI guidance reinstall after the update.

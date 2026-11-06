@@ -2,8 +2,9 @@
   "format": "rpgframework.releases/1",
   "package": "com.aizekhan.rpg-framework",
   "unity": "6000.0",
-  "newest": "0.41.0",
+  "newest": "0.42.0",
   "releases": [
+    {"version": "0.42.0", "date": "2026-11-06", "breaking": false, "refs": [], "upgrade": [], "summary": "Diagnostics: render budgets per device class, not only phones (The Bloodline Hunt asked what a phone may draw). `RenderBudget.Platform` (`RenderPlatform`): `LowEndMobile` (150k triangles in view / 100 draw calls / 60 set-pass), `Mobile` (300k / 150 / 100), `HighEndMobile` (800k / 300 / 150), `Sta..."},
     {"version": "0.41.0", "date": "2026-11-06", "breaking": false, "refs": [], "upgrade": [], "summary": "Telemetry module (`Telemetry`, WhiteWrite's player-experience contract, asked by the owner): events for playtests and balancing, sent to the game's own collector."},
     {"version": "0.40.0", "date": "2026-11-04", "breaking": false, "refs": [], "upgrade": [], "summary": "Capabilities manifest `capabilities.json` at the package root (format `rpgframework.capabilities/1`, asked by WhiteWrite): what the framework can do, by module, so a tool can compare a game's designed mechanics with the version the game really uses. Each capability has a stable id, a title, a sta..."},
     {"version": "0.39.0", "date": "2026-11-03", "breaking": false, "refs": ["FG-32", "FG-33", "KI-23"], "upgrade": [], "summary": "ActionCombat: enemies that answer what their target does (MythRunner FG-33; closes KI-23)."},
