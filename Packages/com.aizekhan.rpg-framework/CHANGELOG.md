@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.42.1] - 2026-11-06
+
 ### Fixed
 - Diagnostics: `RenderSection` counted a statically batched renderer's whole "Combined Mesh" once for each of its parts, so a scene with batched scenery read many times its triangles (The Bloodline Hunt BH-10: 3.1 M instead of 0.41 M) and every such model was called "Combined Mesh". A batched renderer now counts only its own sub-meshes (`RenderSection.TrianglesOf(renderer, mesh)`) and is named by its object without the " (N)" copy suffix; `RenderSection.ModelOfBatched` names it otherwise. Measure without turning static batching off.
 

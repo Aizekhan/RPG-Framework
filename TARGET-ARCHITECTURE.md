@@ -1,8 +1,8 @@
-# RPG Framework — архітектура (фактичний стан v0.42.0)
+# RPG Framework — архітектура (фактичний стан v0.42.1)
 
-> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.42.0**
-> (тег `v0.42.0`; SHA і докази — у `Docs/RELEASES.md`; Unity 6000.0), звірений із кодом пакета 2026-11-06: збірки (`.asmdef`), їхні
-> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.42.0), `Documentation~/networking.md`, рецепти
+> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.42.1**
+> (тег `v0.42.1`; SHA і докази — у `Docs/RELEASES.md`; Unity 6000.0), звірений із кодом пакета 2026-11-06: збірки (`.asmdef`), їхні
+> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.42.1), `Documentation~/networking.md`, рецепти
 > AI-guidance 01–21.
 > Попередня редакція (стан v0.5.0/v0.5.1) у git не потрапляла; цей файл замінює її повністю. Історію змін між
 > версіями дає `CHANGELOG.md` пакета.
@@ -29,7 +29,7 @@
   правила, стати, прогресія, квести, предмети, лут, збереження, ассети, спавн, сцени, UI-навігація, звук, локалізація,
   налаштування, діагностика, мережа.
 - Гра володіє **контентом, поданням і правилами, які роблять її унікальною**.
-- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.42.0`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
+- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.42.1`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
   1.11.2, Unity Transport 2.5.3, uGUI, вбудованого модуля Audio. Гра живе в окремому репозиторії/проєкті і не редагує
   пакет (`Library/PackageCache` перезаписується).
 - **Конвеєр рендерингу — будь-який.** Пакет не залежить від URP/HDRP і не має шейдерів під конкретний конвеєр:
@@ -278,6 +278,8 @@ GameHost.Start(configure)                               // Bootstrap.Runtime, б
   по моделях від найважчої (`Heaviest`, `RenderModel`, `ModelOf`), і там, де працюють лічильники профайлера (Editor,
   development build), — GPU-трикутники, draw calls, set-pass, batches. `Measure()` → `RenderSample` для тестів бюджету;
   `RenderBudget` (`Triangles`, `DrawCalls`, `SetPassCalls`, `ModelTriangles`; 0 — без ліміту) — перевищення позначено OVER.
+  Статично об'єднаний (static batching) рендерер рахує лише свою частину спільного «Combined Mesh» і називається за
+  своїм об'єктом (`RenderSection.ModelOfBatched` — інша назва; з v0.42.1), тож вимірювати можна з увімкненим batching.
 - **Бюджети за класом пристрою** (з v0.42): `RenderBudget.Platform` (`RenderPlatform`) — пресети `LowEndMobile`
   (150 тис. трикутників у кадрі / 100 draw calls / 60 set-pass), `Mobile` (300 тис. / 150 / 100), `HighEndMobile`
   (800 тис. / 300 / 150), `StandaloneVR` (500 тис. / 150 / 80), `WebGL` (500 тис. / 300 / 120), `Handheld` (Switch,
@@ -700,7 +702,7 @@ New Game також виставляє Player Settings (Run In Background, Linea
 | `.meta` з валідним GUID для кожного файлу | CI-крок «Unity .meta integrity» |
 | Тексти на екрані — ключі, не рядки | тексти кітів через `ILocalization`; `LocalizationChecks` для таблиць гри |
 
-Тестова база: v0.42.0 (код `97f509f`) — EditMode **2173/2173** локально; PlayMode — у CI (докази в `Docs/RELEASES.md`).
+Тестова база: v0.42.1 (код `8d825b5`) — EditMode **2174/2174** локально; PlayMode — у CI (докази в `Docs/RELEASES.md`).
 
 ---
 
