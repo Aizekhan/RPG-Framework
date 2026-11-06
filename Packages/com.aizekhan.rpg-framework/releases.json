@@ -2,8 +2,9 @@
   "format": "rpgframework.releases/1",
   "package": "com.aizekhan.rpg-framework",
   "unity": "6000.0",
-  "newest": "0.43.0",
+  "newest": "0.44.0",
   "releases": [
+    {"version": "0.44.0", "date": "2026-11-06", "breaking": false, "refs": ["FG-34", "FG-35"], "upgrade": [], "summary": "ActionRpg: a start menu can host or join over the internet (MythRunner FG-34). `GameStart.Provider`: `GameStart.Host.Via(providerId)`, `GameStart.Join(code, providerId)`; `ActionRpgHost.StartGame` (and so `Launch` from a menu scene) applies it with `UseSessionProvider` before hosting or joining,..."},
     {"version": "0.43.0", "date": "2026-11-06", "breaking": true, "refs": ["BH-09"], "upgrade": ["Turns: turn protocol 4 (the clock tells who may pause). Host and players update together; players on 3 are refused with the reason.", "Turns: `ITurnSession` has `CanPause(int seat)`. A class of the game that implements `ITurnSession` (a test double) adds it."], "summary": "Turns: turn protocol 4 (the clock tells who may pause). Host and players update together; players on 3 are refused with the reason."},
     {"version": "0.42.1", "date": "2026-11-06", "breaking": false, "refs": ["BH-10"], "upgrade": [], "summary": "Diagnostics: `RenderSection` counted a statically batched renderer's whole \"Combined Mesh\" once for each of its parts, so a scene with batched scenery read many times its triangles (The Bloodline Hunt BH-10: 3.1 M instead of 0.41 M) and every such model was called \"Combined Mesh\". A batched rende..."},
     {"version": "0.42.0", "date": "2026-11-06", "breaking": false, "refs": [], "upgrade": [], "summary": "Diagnostics: render budgets per device class, not only phones (The Bloodline Hunt asked what a phone may draw). `RenderBudget.Platform` (`RenderPlatform`): `LowEndMobile` (150k triangles in view / 100 draw calls / 60 set-pass), `Mobile` (300k / 150 / 100), `HighEndMobile` (800k / 300 / 150), `Sta..."},

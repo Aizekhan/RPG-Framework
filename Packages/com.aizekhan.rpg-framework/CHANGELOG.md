@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.44.0] - 2026-11-06
+
 ### Added
 - ActionRpg: a start menu can host or join over the internet (MythRunner FG-34). `GameStart.Provider`: `GameStart.Host.Via(providerId)`, `GameStart.Join(code, providerId)`; `ActionRpgHost.StartGame` (and so `Launch` from a menu scene) applies it with `UseSessionProvider` before hosting or joining, and returns false with `CoopStatus` saying so when that provider is not installed. `NetworkSessionProviders.Lan`, `NetworkSessionProviders.UnityRelay` (outside the conditionally compiled relay module) and `NetworkSessionProviders.IsAvailable(id)` to show "over the internet" only where it works. Recipe 11.
 - WorldMap module (MythRunner FG-35): a world of places joined by routes. `WorldGraph` (`WorldPlace` with a map position, `WorldRoute` one way from a place to another or a loop back, `Start`, `RoutesFrom`); `IWorldTravel` / `WorldTravel` per player: `LocationOf`, `DiscoveredBy`, `RoutesHere`, `Arrive(player, route)` at the end of a route that leaves where the player stands, `Travel(player, place)` to a discovered place, `TravelRule` for the game's say, refusals as `TravelRefusal`, `PlaceAt` without the rules, `TravelTogether` for a party that moves as one, `PlaceEnteredEvent` (`WorldMove`) and `PlaceDiscoveredEvent` on the bus and as C# events. `WorldTravelRecord` (`Capture` / `Restore`) is what a save keeps (`WorldTravelSave`, section "world-map", restored onto the player's id of the new session) and what a co-op host sends its guests in a game message. `WorldMapModule(map)` registers both. Recipe 16.

@@ -1,6 +1,6 @@
 {
   "format": "rpgframework.capabilities/1",
-  "version": "0.43.0",
+  "version": "0.44.0",
   "released": "2026-11-06",
   "modules": [
     {
@@ -1121,7 +1121,7 @@
           "id": "multiplayer.start_menu_provider",
           "title": "Host or join over the internet from a start menu",
           "status": "full",
-          "since": "unreleased",
+          "since": "0.44.0",
           "notes": "A menu's start names how to play together (local network, Unity Relay); the game scene's host applies it before hosting or joining. IsAvailable hides a provider that is not installed.",
           "api": [
             "GameStart.Via",
@@ -1379,7 +1379,7 @@
           "id": "world.map_travel",
           "title": "World map: places, routes, discovery, fast travel",
           "status": "full",
-          "since": "unreleased",
+          "since": "0.44.0",
           "notes": "Places joined by one-way routes (roads, tracks, levels); where each player stands, places discovered, arriving at a route's end, fast travel with the game's rule, a party that moves as one; saved per player. Co-op sync is the game's message carrying WorldTravelRecord; interaction points are not grouped by place (KI-26).",
           "api": [
             "WorldGraph",

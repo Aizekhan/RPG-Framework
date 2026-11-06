@@ -1,8 +1,8 @@
-# RPG Framework — архітектура (фактичний стан v0.43.0)
+# RPG Framework — архітектура (фактичний стан v0.44.0)
 
-> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.43.0**
-> (тег `v0.43.0`; SHA і докази — у `Docs/RELEASES.md`; Unity 6000.0), звірений із кодом пакета 2026-11-06: збірки (`.asmdef`), їхні
-> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.43.0), `Documentation~/networking.md`, рецепти
+> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.44.0**
+> (тег `v0.44.0`; SHA і докази — у `Docs/RELEASES.md`; Unity 6000.0), звірений із кодом пакета 2026-11-06: збірки (`.asmdef`), їхні
+> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.44.0), `Documentation~/networking.md`, рецепти
 > AI-guidance 01–21.
 > Попередня редакція (стан v0.5.0/v0.5.1) у git не потрапляла; цей файл замінює її повністю. Історію змін між
 > версіями дає `CHANGELOG.md` пакета.
@@ -29,7 +29,7 @@
   правила, стати, прогресія, квести, предмети, лут, збереження, ассети, спавн, сцени, UI-навігація, звук, локалізація,
   налаштування, діагностика, мережа.
 - Гра володіє **контентом, поданням і правилами, які роблять її унікальною**.
-- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.43.0`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
+- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.44.0`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
   1.11.2, Unity Transport 2.5.3, uGUI, вбудованого модуля Audio. Гра живе в окремому репозиторії/проєкті і не редагує
   пакет (`Library/PackageCache` перезаписується).
 - **Конвеєр рендерингу — будь-який.** Пакет не залежить від URP/HDRP і не має шейдерів під конкретний конвеєр:
@@ -70,7 +70,8 @@
 │   Items · Inventory · Loot · Persistence · Dialogue · Crafting · Skills ·│
 │   Trading · Factions · Achievements · Interaction · Pathfinding ·        │
 │   BehaviorTree · Characters · Dice · Cards · Guilds · Housing ·          │
-│   Companions · DynamicEvents · Environment · ContentImport (з v0.32)     │
+│   Companions · DynamicEvents · Environment · ContentImport (з v0.32) ·   │
+│   WorldMap (з v0.44)                                                     │
 ├──────────────────────────────────────────────────────────────────────────┤
 │ NETWORKING:  Networking (pure C#) · Networking.UnityTransport ·          │
 │              Networking.UnityRelay (опційно) · DeltaCompression          │
@@ -344,6 +345,7 @@ GameHost.Start(configure)                               // Bootstrap.Runtime, б
 | **Achievements** | критерії, `AchievementTracker` (лічильники, `Capture`/`Restore` як профіль) | — | ActionRpg, TurnBased | — |
 | **Interaction** | `InteractionPoint`, `IInteractionService` (відстань — гри), `InteractedEvent` (з v0.7) | `InteractionModule` | ActionRpg | — |
 | **Pathfinding** | `GridNavigationGraph`, `AStarPathfinder`, `DistanceMap` (карта відстаней / flow field для багатьох переслідувачів, з v0.18) | — | — | — |
+| **WorldMap** | `WorldGraph` (місця й односторонні маршрути, петля), `IWorldTravel` / `WorldTravel` (де стоїть кожен гравець, відкриті місця, `Arrive`, `Travel` з `TravelRule`, `TravelTogether`), `PlaceEnteredEvent`, `WorldTravelSave` (з v0.44) | `WorldMapModule` | — | — |
 | **Dice** | `IDiceService`, `DiceService` (сід, лог), `ScriptedDice` (з v0.13) | у ядрі | The Bloodline Hunt | — |
 | **Cards** | `Deck<T>`, `Hand<T>`, `DeckAsset<TCard>` (з v0.13) | — | The Bloodline Hunt | DeckAsset |
 | **BehaviorTree** | `BehaviorTree` і вузли | — | — | — |
@@ -363,6 +365,7 @@ GameHost.Start(configure)                               // Bootstrap.Runtime, б
 | Здібність по області (AoE) | [частково]: `TargetType.AllEnemies/AllAllies`; по радіусу — у колбеку ефекту (`ActorAbilities.SetEffect`) гра сама обирає цілі; в ActionCombat снаряд `Landing` б'є всіх у радіусі (з v0.35) |
 | Розподіл очок характеристик | [немає], належить грі (модифікатори `StatContainer`); очки навичок — [є] (Skills) |
 | Карта відстаней / flow field | [є] з v0.18: `DistanceMap` |
+| Карта світу: міста й дороги між ними, відкриті місця, швидка подорож | [частково] з v0.44: `WorldMap` (розд. 4); синхронізацію в коопі гра шле своїм повідомленням (`WorldTravelRecord`), точки взаємодії не групуються за місцем (KI-26) |
 | Фізика 2D (Rigidbody2D, Tilemap) у жанровому кіті | [немає]; ActionRpg — 3D. 2D-вигляд = 3D-сцена з ортографічною камерою зверху |
 | Екран бою для TurnBased | [є] з v0.19: `BattleScreen`, `BattleMenu`, `TurnBasedHost`; свій view — на `ITurnBasedWorld` |
 | Тексти кількома мовами | [є] з v0.17 (розд. 4.2) |
@@ -581,6 +584,7 @@ Unity: `EnemyBehaviourAsset`, `CombatEnemyAI` (замість `EnemyBrain`), `En
 | `UnityNetworkTransport` (Unity Transport 2.5.3+, reliable-ordered + unreliable, фрагментація до 64 КБ, Relay) | [є], тести по реальному UDP |
 | `LoopbackNetwork` / `LoopbackTransport` (у пам'яті, `GoSilent()` для тестів розриву) | [є] |
 | Сесії: `LanSessionProvider` (IP; `LocalAddresses()` — домашня мережа, далі Tailscale / Radmin / ZeroTier), `LoopbackSessionProvider`, `UnityRelaySessionProvider` (код кімнати; лише з `com.unity.services.multiplayer` 2.4.1+) | LAN [є]; Relay [частково]: **між двома реальними мережами не перевірено** |
+| Вибір способу гри з меню: `GameStart.Host.Via(id)`, `GameStart.Join(code, id)`, `NetworkSessionProviders.IsAvailable` (`Lan`, `UnityRelay`) | [є] з v0.44 |
 | Пошук ігор у локальній мережі: `LanDiscovery`, `LanDiscoveryResponder` (UDP 47777), `ActionRpgHost.SearchLanGames` | [є] з v0.16 |
 | Кооп ActionRpg (`CoopHost`, `CoopClient`, `RemoteWorld`): хост авторитетний, 2–8 гравців, відбиток білду і контенту, перевірка швидкості, перепідключення (місце тримається 2 хв), таймаут 10 с; **протокол версії 17** (з v0.32: етап квесту в прогресі й статусі партії) | [є], EditMode (loopback) + PlayMode (UDP) |
 | **Лобі перед грою** (`CoopHost.UseLobby`: вибір героя, готовність, `Kick`, `StartMatch(countdown)`) | [є] з v0.16 |
@@ -711,7 +715,7 @@ New Game також виставляє Player Settings (Run In Background, Linea
 | `.meta` з валідним GUID для кожного файлу | CI-крок «Unity .meta integrity» |
 | Тексти на екрані — ключі, не рядки | тексти кітів через `ILocalization`; `LocalizationChecks` для таблиць гри |
 
-Тестова база: v0.43.0 (код `fa337d1`) — EditMode **2178/2178** локально; PlayMode — у CI (докази в `Docs/RELEASES.md`).
+Тестова база: v0.44.0 (код `a9ab26a`) — EditMode **2190/2190** і PlayMode **22/22** локально; PlayMode — у CI (докази в `Docs/RELEASES.md`).
 
 ---
 
