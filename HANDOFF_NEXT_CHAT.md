@@ -11,6 +11,10 @@
 This section holds only the latest session's notes; the release itself is in `STATUS.md` and `Docs/RELEASES.md`,
 older notes move to `Docs/archive/SESSION-LOG.md`.
 
+- 2026-11-06: released `v0.43.0`: the owner wanted the render numbers on screen while the hero runs, so the
+  diagnostics panel can be a small see-through one refreshed every frame (`DiagnosticsPanelLayout` `Compact`; in the
+  kit `ActionRpgHost` Diagnostics Panel → Compact, Diagnostics Shown). The Bloodline Hunt BH-09: who may pause the
+  turn clock (`TurnHostOptions.PauseBy`, `TurnPauseRule.TurnOrAsked`, `CanPause`), turn protocol 4 (breaking).
 - 2026-11-06: released `v0.42.1` (The Bloodline Hunt BH-10): `RenderSection` counted a statically batched
   renderer's whole Combined Mesh once per part (3.1 M triangles instead of 0.41 M) and named every such model
   "Combined Mesh"; now each part counts its own sub-meshes and is named by its object (`RenderSection.ModelOfBatched`).
@@ -19,12 +23,6 @@ older notes move to `Docs/archive/SESSION-LOG.md`.
   the framework has had since v0.21): `RenderBudget` presets per device class (`RenderPlatform`), recipe 21 of every
   measuring, debugging and checking tool, a CLAUDE.md block section pointing there, `capabilities.json` module `tools`.
   Games see it after the update and the AI guidance reinstall.
-- 2026-11-06: released `v0.41.0` (the owner asked to act on WhiteWrite's notes: `functions/mechanics.js` FRAMEWORK
-  notes and `docs/EXPERIENCE_TELEMETRY_CONTRACT.md` in `E:\WhiteWrite`): `Telemetry` module (contract envelope, opt-in
-  consent, batches with retries, `TelemetryModule`), `CombatAnalytics`, `EnemyAdaptation` / `EnemyMove.SetAnswer`,
-  `EnemyMove.MaxAngle`, `Integration.ActionCombatTelemetry`; KI-25 opened. Also the uncommitted Unity Relay fix for
-  The Bloodline Hunt (`aba36fa`, included on the owner's yes, untested without UGS). Capability ids sent to
-  whitewrite-4c. Not done: WhiteWrite's world-generation audit needs its MCP spec tools, not reachable from here.
 
 ## Conventions for new work
 

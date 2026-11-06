@@ -5,6 +5,12 @@ state when they were written. The current state is in `STATUS.md`, releases and 
 
 ## Sessions
 
+- 2026-11-06: released `v0.41.0` (the owner asked to act on WhiteWrite's notes: `functions/mechanics.js` FRAMEWORK
+  notes and `docs/EXPERIENCE_TELEMETRY_CONTRACT.md` in `E:\WhiteWrite`): `Telemetry` module (contract envelope, opt-in
+  consent, batches with retries, `TelemetryModule`), `CombatAnalytics`, `EnemyAdaptation` / `EnemyMove.SetAnswer`,
+  `EnemyMove.MaxAngle`, `Integration.ActionCombatTelemetry`; KI-25 opened. Also the uncommitted Unity Relay fix for
+  The Bloodline Hunt (`aba36fa`, included on the owner's yes, untested without UGS). Capability ids sent to
+  whitewrite-4c. Not done: WhiteWrite's world-generation audit needs its MCP spec tools, not reachable from here.
 - 2026-11-04: released `v0.40.0` (WhiteWrite whitewrite-fc, approved by the owner): capabilities manifest
   `capabilities.json` (`rpgframework.capabilities/1`, 81 capabilities, 10 missing) for WhiteWrite's gap check;
   `check_docs.py` checks it, `release.py` writes its version. Every release now updates it by hand. The path, schema
