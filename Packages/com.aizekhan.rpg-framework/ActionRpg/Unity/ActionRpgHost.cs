@@ -93,6 +93,12 @@ namespace RPGFramework.ActionRpg
         [Tooltip("What a frame may draw: the diagnostics panel's Render block marks values above it OVER (0 = no limit)")]
         [SerializeField] private RenderBudget _renderBudget = new RenderBudget();
 
+        [Tooltip("The diagnostics panel's place and look: Full (every section), Compact (a small see-through panel of frame rate and what the frame draws, refreshed every frame, for watching while playing) or Custom")]
+        [SerializeField] private DiagnosticsPanelLayout _diagnosticsPanel = new DiagnosticsPanelLayout();
+
+        [Tooltip("Show the diagnostics panel as the game starts (the key still hides it)")]
+        [SerializeField] private bool _diagnosticsShown;
+
         [Tooltip("Wait for StartGame (a start menu: continue, new game, host, join) instead of starting at once; the world does not run until then")]
         [SerializeField] private bool _startOnRequest;
 
@@ -1316,12 +1322,13 @@ namespace RPGFramework.ActionRpg
             if (_overlay == null)
             {
                 _overlay = gameObject.AddComponent<DiagnosticsOverlay>();
-                _overlay.Visible = false;
+                _overlay.Visible = _diagnosticsShown;
             }
             _overlay.ToggleKey = _diagnosticsKey;
             if (_render == null)
                 _render = new RenderSection(FrameCamera, _renderBudget, gameObject);
             _overlay.Hub = Host.Container.Resolve<DiagnosticsHub>().Add(_render);
+            (_diagnosticsPanel ?? new DiagnosticsPanelLayout()).ApplyTo(_overlay);
         }
 
         private void StartSaving()

@@ -272,6 +272,12 @@ namespace RPGFramework.Diagnostics.Unity
         }
 
         /// <summary>
+        /// One line of what the frame draws against the budget (triangles, draw calls, set-pass), then the
+        /// <see cref="TopModels"/> heaviest models: for a small panel over the game.
+        /// </summary>
+        public bool Compact { get; set; }
+
+        /// <summary>
         /// Models listed in the section (heaviest first).
         /// </summary>
         public int TopModels { get; set; } = 6;
@@ -311,6 +317,11 @@ namespace RPGFramework.Diagnostics.Unity
         {
             var sample = Measure();
             var budget = (Budget ?? new RenderBudget()).Resolved();
+            if (Compact)
+            {
+                WriteCompact(output, sample, budget);
+                return;
+            }
             if (budget.Platform != RenderPlatform.Custom)
                 output.AppendLine($"Budget: {budget.Platform}");
             output.AppendLine($"In view {sample.Triangles:N0} triangles, {sample.Meshes} meshes{Over(sample.Triangles, budget.Triangles)}");
@@ -373,6 +384,33 @@ namespace RPGFramework.Diagnostics.Unity
             _setPassCalls.Dispose();
             _batches.Dispose();
         }
+
+        private void WriteCompact(StringBuilder output, RenderSample sample, RenderBudget budget)
+        {
+            if (budget.Platform != RenderPlatform.Custom)
+                output.Append(budget.Platform).Append(" · ");
+            output.Append("tris ").Append(Short(sample.Triangles)).Append(Limit(sample.Triangles, budget.Triangles));
+            if (sample.HasGpu)
+            {
+                output.Append(" · DC ").Append(sample.DrawCalls).Append(Limit(sample.DrawCalls, budget.DrawCalls));
+                output.Append(" · SP ").Append(sample.SetPassCalls).Append(Limit(sample.SetPassCalls, budget.SetPassCalls));
+            }
+            output.AppendLine();
+            for (int i = 0; i < _heaviest.Count && i < TopModels; i++)
+            {
+                var model = _heaviest[i];
+                output.Append("  ").Append(model.Name).Append(" x").Append(model.Count).Append(' ').Append(Short(model.Triangles));
+                if (RenderBudget.IsOver(model.MeshTriangles, budget.ModelTriangles))
+                    output.Append(" OVER");
+                output.AppendLine();
+            }
+        }
+
+        private static string Limit(long value, long limit) =>
+            limit <= 0 ? "" : $"/{Short(limit)}" + (RenderBudget.IsOver(value, limit) ? " OVER" : "");
+
+        private static string Short(long value) =>
+            value >= 1000000 ? $"{value / 1000000f:0.##}M" : value >= 10000 ? $"{value / 1000f:0}k" : value.ToString();
 
         private static string Over(long value, long limit) => RenderBudget.IsOver(value, limit) ? $"  OVER (budget {limit:N0})" : "";
 

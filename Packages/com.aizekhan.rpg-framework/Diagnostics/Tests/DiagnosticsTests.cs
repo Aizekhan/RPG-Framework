@@ -165,5 +165,81 @@ namespace RPGFramework.Diagnostics.Tests
                 Object.DestroyImmediate(go);
             }
         }
+
+        [Test]
+        public void Overlay_ShowsOnlyTheChosenSections_WithOrWithoutHeaders()
+        {
+            var go = new GameObject("Diagnostics");
+            try
+            {
+                var overlay = go.AddComponent<DiagnosticsOverlay>();
+                overlay.Hub = new DiagnosticsHub()
+                    .Add(new FixedSection("A", "alpha"))
+                    .Add(new FixedSection("B", "beta"))
+                    .Add(new FixedSection("C", "gamma"));
+
+                overlay.Sections = new[] { "C", "A" };
+                overlay.Refresh();
+                StringAssert.Contains("== A ==", overlay.Text);
+                StringAssert.Contains("gamma", overlay.Text);
+                StringAssert.DoesNotContain("beta", overlay.Text);
+                Assert.That(overlay.Text.IndexOf("alpha", StringComparison.Ordinal),
+                    Is.LessThan(overlay.Text.IndexOf("gamma", StringComparison.Ordinal)), "in the hub's order");
+
+                overlay.Headers = false;
+                overlay.Refresh();
+                Assert.That(overlay.Text, Is.EqualTo("alpha" + Environment.NewLine + "gamma"));
+
+                overlay.Sections = null;
+                overlay.Refresh();
+                StringAssert.Contains("beta", overlay.Text);
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void TheCompactLayout_IsASmallSeeThroughPanel_OfShortLines_RefreshedEveryFrame()
+        {
+            var go = new GameObject("Diagnostics");
+            var camera = new GameObject("DiagnosticsCamera").AddComponent<Camera>();
+            camera.aspect = 1f;
+            var render = new RenderSection(() => camera, RenderBudget.For(RenderPlatform.Mobile));
+            try
+            {
+                var overlay = go.AddComponent<DiagnosticsOverlay>();
+                var performance = new PerformanceSection(new PerformanceMonitor(windowFrames: 2));
+                overlay.Hub = new DiagnosticsHub().Add(performance).Add(new FixedSection("Systems", "many lines")).Add(render);
+
+                DiagnosticsPanelLayout.For(DiagnosticsPanelStyle.Compact).ApplyTo(overlay);
+
+                Assert.That(overlay.Corner, Is.EqualTo(DiagnosticsCorner.TopRight));
+                Assert.That(overlay.RefreshInterval, Is.EqualTo(0f), "every frame");
+                Assert.That(overlay.Size, Is.EqualTo(Vector2.zero), "fitted to the text");
+                Assert.That(overlay.Opacity, Is.LessThan(1f));
+                Assert.That(performance.Compact && render.Compact, "short lines");
+                Assert.That(render.TopModels, Is.EqualTo(3));
+                overlay.Refresh();
+                StringAssert.StartsWith("FPS ", overlay.Text);
+                StringAssert.Contains("Mobile · tris ", overlay.Text);
+                StringAssert.DoesNotContain("many lines", overlay.Text);
+                StringAssert.DoesNotContain("==", overlay.Text);
+
+                new DiagnosticsPanelLayout().ApplyTo(overlay);
+                Assert.That(overlay.Corner, Is.EqualTo(DiagnosticsCorner.TopLeft), "Full is the old panel");
+                Assert.That(overlay.Sections, Is.Empty);
+                Assert.That(performance.Compact, Is.False);
+                var custom = new DiagnosticsPanelLayout { Style = DiagnosticsPanelStyle.Custom, Opacity = 0f };
+                Assert.That(custom.Resolved(), Is.SameAs(custom));
+            }
+            finally
+            {
+                render.Dispose();
+                Object.DestroyImmediate(camera.gameObject);
+                Object.DestroyImmediate(go);
+            }
+        }
     }
 }

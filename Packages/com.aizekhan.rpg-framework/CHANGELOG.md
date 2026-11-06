@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- Diagnostics: a small see-through panel over the running game, refreshed every frame (the owner wanted to watch the render numbers while the hero runs). `DiagnosticsOverlay`: `Corner` (`DiagnosticsCorner`), `Opacity` (0 = only the text, with a shadow), `Size` (0 = fit the text), `RefreshInterval` (0 = every frame), `Sections` (titles shown; empty = all), `Headers`, `FontSize`. `DiagnosticsPanelLayout` sets them at once: `Style` `Full` (the old panel, the default), `Compact` (top right, 35 % background, fitted, every frame, Performance and Render in short lines with the three heaviest models) or `Custom`; `ApplyTo(overlay)`. `PerformanceSection.Compact` and `RenderSection.Compact`: one short line each (`FPS 58 (worst 41) · 17.2 ms · 312 MB`, `Mobile · tris 284k/300k · DC 142/150 · SP 88/100`). `DiagnosticsHub.Render(titles, headers)`. `ActionRpgHost`: Diagnostics Panel and Diagnostics Shown fields. Recipe 21.
+
 ## [0.42.1] - 2026-11-06
 
 ### Fixed

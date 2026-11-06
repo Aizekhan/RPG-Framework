@@ -18,8 +18,19 @@ namespace RPGFramework.Diagnostics
 
         public string Title => "Performance";
 
+        /// <summary>
+        /// One short line: frame rate, worst frame rate, frame time, managed memory.
+        /// </summary>
+        public bool Compact { get; set; }
+
         public void Write(StringBuilder output)
         {
+            if (Compact)
+            {
+                output.AppendLine($"FPS {_monitor.AverageFps:F0} (worst {_monitor.WorstFps:F0}) · {_monitor.AverageFrameMs:F1} ms · " +
+                                  $"{_monitor.ManagedMemoryBytes / (1024f * 1024f):F0} MB");
+                return;
+            }
             output.AppendLine($"FPS {_monitor.AverageFps:F0} avg / {_monitor.WorstFps:F0} worst " +
                               $"(frame {_monitor.AverageFrameMs:F1} ms avg, {_monitor.MaxFrameMs:F1} ms max, {_monitor.SampleCount} frames)");
             output.AppendLine($"Managed memory {_monitor.ManagedMemoryBytes / (1024f * 1024f):F1} MB, GC gen0 {_monitor.GcCollections}");

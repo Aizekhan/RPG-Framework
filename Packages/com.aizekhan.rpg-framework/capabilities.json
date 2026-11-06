@@ -1388,12 +1388,15 @@
           "title": "In-game diagnostics panel",
           "status": "full",
           "since": "0.2.0",
-          "notes": "Systems, events, timers, pools and frame times in an overlay; sections of the game's own.",
+          "notes": "Systems, events, timers, pools and frame times in an overlay; sections of the game's own. A small see-through panel over the game refreshed every frame (DiagnosticsPanelLayout Compact: frame rate and the render budget in short lines), corner, opacity, fit-to-text size, chosen sections from the version that lists this note.",
           "api": [
             "DiagnosticsModule",
             "DiagnosticsOverlay",
             "DiagnosticsHub",
-            "IDiagnosticsSection"
+            "IDiagnosticsSection",
+            "DiagnosticsPanelLayout",
+            "DiagnosticsPanelStyle",
+            "DiagnosticsCorner"
           ],
           "data": []
         },
