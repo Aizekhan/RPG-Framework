@@ -1,8 +1,8 @@
-# RPG Framework — архітектура (фактичний стан v0.40.0)
+# RPG Framework — архітектура (фактичний стан v0.41.0)
 
-> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.40.0**
-> (тег `v0.40.0`; SHA і докази — у `Docs/RELEASES.md`; Unity 6000.0), звірений із кодом пакета 2026-11-02: збірки (`.asmdef`), їхні
-> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.40.0), `Documentation~/networking.md`, рецепти
+> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.41.0**
+> (тег `v0.41.0`; SHA і докази — у `Docs/RELEASES.md`; Unity 6000.0), звірений із кодом пакета 2026-11-06: збірки (`.asmdef`), їхні
+> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.41.0), `Documentation~/networking.md`, рецепти
 > AI-guidance 01–20.
 > Попередня редакція (стан v0.5.0/v0.5.1) у git не потрапляла; цей файл замінює її повністю. Історію змін між
 > версіями дає `CHANGELOG.md` пакета.
@@ -29,7 +29,7 @@
   правила, стати, прогресія, квести, предмети, лут, збереження, ассети, спавн, сцени, UI-навігація, звук, локалізація,
   налаштування, діагностика, мережа.
 - Гра володіє **контентом, поданням і правилами, які роблять її унікальною**.
-- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.40.0`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
+- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.41.0`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
   1.11.2, Unity Transport 2.5.3, uGUI, вбудованого модуля Audio. Гра живе в окремому репозиторії/проєкті і не редагує
   пакет (`Library/PackageCache` перезаписується).
 - **Конвеєр рендерингу — будь-який.** Пакет не залежить від URP/HDRP і не має шейдерів під конкретний конвеєр:
@@ -282,6 +282,23 @@ GameHost.Start(configure)                               // Bootstrap.Runtime, б
   клавіші), Render Budget, `ActionRpgHost.Render`. Камера, що стежить за гравцем, наближається плавно: тест після
   телепорту чекає, поки вона доїде, інакше рахує старий вид.
 
+### 4.5 Telemetry (з v0.41)
+
+[є] Запит WhiteWrite (контракт «Досвід гравців»). `Telemetry.Runtime` без рушія: `TelemetryEvent` — назва, id рівня,
+зони, сутності, механіки й квесту, позиція, ігровий час і до 20 простих властивостей; після відстеження не змінюється.
+`TelemetryClient` (`ITelemetry`) додає id події, час (Unix ms), білд, версію схеми, сесію, псевдонімний id гравця
+(`TelemetryIds.Pseudonymous`, SHA-256 із сіллю гри) і контекст (платформа, режим, когорта, A/B-варіант).
+- Згода — opt-in: без `Consent` нічого не зберігається й не надсилається; відкликання скидає чергу.
+- Пакети до 500 подій `{ "events": [...] }` кожні `BatchSeconds` (30 с), одразу на `Flush`, `EndSession` і коли
+  застосунок іде у фон; надсилання на робочому потоці через `ITelemetryTransport`, ніколи на ігровому. Пакет, який
+  колектор не прийняв (немає мережі, 408, 429, 5xx), іде знову з паузою, що подвоюється; відмова (інший 4xx) — пакет
+  відкинуто. Список `rejected` відповіді рахується (`Rejected`, `LastError`). Черга до `MaxQueue`, найстаріші йдуть першими.
+- `SamplePosition` не частіше `PositionSampleSeconds` (5 с), `AnswerSurvey`, `StartSession` / `EndSession`.
+- `HttpTelemetryTransport` — JSON POST з bearer-ключем (.NET `HttpClient`). Unity: `TelemetryModule(endpoint, key)`
+  реєструє `ITelemetry`, тримає згоду в PlayerPrefs `RPGFramework.Telemetry.Consent` (типово вимкнена), `TelemetryDriver`
+  веде клієнт у реальному часі, надсилає на паузі й закриває сесію при виході.
+- [частково] (KI-25): черга лише в пам'яті (падіння гри втрачає ненадіслане); у WebGL HTTP-транспорт не працює.
+
 ---
 
 ## 5. Ігрові модулі (L2)
@@ -335,6 +352,7 @@ GameHost.Start(configure)                               // Bootstrap.Runtime, б
 | Екран бою для TurnBased | [є] з v0.19: `BattleScreen`, `BattleMenu`, `TurnBasedHost`; свій view — на `ITurnBasedWorld` |
 | Тексти кількома мовами | [є] з v0.17 (розд. 4.2) |
 | Звук у сцені без хоста гри (меню) | [є] з v0.22: `SceneAudio` |
+| Телеметрія плейтестів і балансу | [є] з v0.41: `Telemetry` (розд. 4.5), бойова — `CombatTelemetry` |
 | Налаштування URP / HDRP у New Game | [немає] (розд. 1) |
 
 ### 5.3 Прямі залежності між модулями (з `.asmdef`)
@@ -375,6 +393,7 @@ Feature-модулі для підключення одним рядком ле�
 |---|---|---|
 | `Integration.CombatQuests` (`KillObjectiveBridge`; модуль `CombatQuestsModule` — у `Bootstrap.Gameplay`) | смерть → прогрес цілі «вбити» | [є] |
 | `Integration.StatusEffectsStats` (`StatContainerEffectTarget<TStatType>`) | модифікатори ефектів → `StatContainer` (з v0.18 — `UseStatContainers<T>()` без ручного з'єднання) | [є] |
+| `Integration.ActionCombatTelemetry` (`CombatTelemetry`, з v0.41) | бойова аналітика ActionCombat → телеметрія: кожен удар (`combat_hit`, `combat_miss`, `combat_blocked`, `combat_parried`, `combat_dodged`), вивчена звичка, смерть ворога, підсумок `combat_summary` | [є] |
 
 Інших мостів окремими збірками **немає**. У кітах досвід, лут, квести, досягнення, репутацію за вбивство роздає сам
 світ кіта (`ActorWorld`, `TurnBasedWorld`); гра без кіта з'єднує модулі своїм модулем на подіях.
@@ -513,6 +532,20 @@ rules)`, тік після руху тіл) — без колайдерів, т�
 `AttackDefinition.Warp` (`AttackWarp`: фаза, частина фази, `MaxDistance`, `MaxAngle`, `StopDistance`) з
 `CombatRules.WarpOf` підтягує атакувальника до цілі й повертає його до неї в межах лімітів; режисер ворогів
 застосовує це сам. Парирування ворогами [немає] (KI-24): `EnemyBehaviour` уміє лише блок і ухилення.
+
+**Вороги вчаться звичок гравця** (з v0.41, запит WhiteWrite, UMCF «Адаптація AI») [є]: `EnemyBehaviour.Adaptation`
+(`EnemyAdaptation`: `Learning` 0..1, `Memory` — останні 1..16 дій цілі, `Notices`) — ворог пам'ятає звички цілі
+(`PlayerHabit`: ухилення вліво чи вправо, як ціль дивиться на ворога; блок; парирування; відступ за межу удару; натиск)
+і частіше обирає хід із відповіддю на звичку (`EnemyMove.SetAnswer(habit, factor)`): до factor разів, наскільки звичка
+заповнює пам'ять, помножено на `Learning`. Кожна помічена звичка — `PlayerHabitNoticedEvent` і запис у таймлайні;
+пам'ять забувається, коли ворог втрачає ціль. Зомбі — `Learning` 0 (без адаптації). `EnemyMove.MaxAngle`: хід
+починається, лише коли ціль у межах кута від погляду ворога; інакше ворог стоїть і повертається до неї.
+
+**Бойова аналітика** (з v0.41, UMCF «Бойова аналітика») [є]: `CombatAnalytics` слухає шину бою й рахує по кожній атаці
+(`AttackStats`) і загалом: використання, влучання, блоки, парирування, ухилення, промахи, переривання, шкоду, частки
+влучань / промахів / переривань і середню дистанцію, з якої її обрали вороги; токени атаки, віддані без атаки
+(`FailedApproaches`); ланцюжки ворогів — відкривач і його комбо (`ComboStats`, `Best` / `Worst`). `SwingFinished` дає
+кожен завершений удар (`SwingOutcome`) — для телеметрії гри (розд. 4.5, міст у розд. 6).
 
 Unity: `EnemyBehaviourAsset`, `CombatEnemyAI` (замість `EnemyBrain`), `EnemyAnimatorBridge`. Кіт отримав
 час трупа (`CharacterDefinition.CorpseSeconds`, `ActorView.OnKilled`, `ActorPresenter.CorpseRemoving`);
@@ -659,7 +692,7 @@ New Game також виставляє Player Settings (Run In Background, Linea
 | `.meta` з валідним GUID для кожного файлу | CI-крок «Unity .meta integrity» |
 | Тексти на екрані — ключі, не рядки | тексти кітів через `ILocalization`; `LocalizationChecks` для таблиць гри |
 
-Тестова база: v0.40.0 (код `579b08f`) — EditMode **2153/2153** локально; PlayMode — у CI (докази в `Docs/RELEASES.md`).
+Тестова база: v0.41.0 (код `e0ae933`) — EditMode **2172/2172** локально; PlayMode — у CI (докази в `Docs/RELEASES.md`).
 
 ---
 

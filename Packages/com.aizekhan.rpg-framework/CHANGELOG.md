@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.41.0] - 2026-11-06
+
 ### Added
 - Telemetry module (`Telemetry`, WhiteWrite's player-experience contract, asked by the owner): events for playtests and balancing, sent to the game's own collector.
   - `TelemetryEvent`: a name, the level, zone, entity, mechanic and quest ids, a position, the game time and up to 20 plain properties; it cannot change once tracked. `TelemetryClient` (`ITelemetry`) adds the event id, Unix-ms time, build, schema version, session, pseudonymous player (`TelemetryIds.Pseudonymous`: salted SHA-256) and context (platform, mode, cohort, A/B variant).

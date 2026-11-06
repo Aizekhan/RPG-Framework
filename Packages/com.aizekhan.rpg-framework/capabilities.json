@@ -1,7 +1,7 @@
 {
   "format": "rpgframework.capabilities/1",
-  "version": "0.40.0",
-  "released": "2026-11-04",
+  "version": "0.41.0",
+  "released": "2026-11-06",
   "modules": [
     {
       "id": "combat",
@@ -277,7 +277,7 @@
           "id": "combat.analytics",
           "title": "Combat analytics",
           "status": "full",
-          "since": "unreleased",
+          "since": "0.41.0",
           "notes": "Counts per attack and in total: uses, hit, miss and interrupt rates, damage, the distance enemies chose it from; failed approaches (an attack token given up without an attack); enemy chains ranked best and worst. Each finished swing is an outcome for telemetry (combat_hit, combat_miss... through Integration.ActionCombatTelemetry).",
           "api": [
             "CombatAnalytics",
@@ -405,7 +405,7 @@
           "id": "ai.adaptation",
           "title": "Adaptive enemy AI (learns the player)",
           "status": "full",
-          "since": "unreleased",
+          "since": "0.41.0",
           "notes": "An enemy remembers its target's last N actions (dodge side, block, parry, retreat, pressing) and chooses the moves that answer a habit more often, as far as it has learnt it (learning 0..1 per kind of monster; 0 = a zombie). The memory is per target and forgotten when the target is lost.",
           "api": [
             "EnemyAdaptation",
@@ -1221,7 +1221,7 @@
           "id": "telemetry.events",
           "title": "Telemetry events in batches",
           "status": "full",
-          "since": "unreleased",
+          "since": "0.41.0",
           "notes": "Events with level, zone, entity, mechanic and quest ids, position and up to 20 properties; build, session, pseudonymous player and context (platform, mode, cohort, A/B variant) added. Batches of up to 500 as { \"events\": [...] } every 30 s and on pause or session end, sent off the game thread, retried with a growing pause; position samples at most every 5 s; survey answers. The queue lives in memory; HttpClient, so not WebGL.",
           "ki": "KI-25",
           "api": [
@@ -1238,7 +1238,7 @@
           "id": "telemetry.consent",
           "title": "Opt-in consent",
           "status": "full",
-          "since": "unreleased",
+          "since": "0.41.0",
           "notes": "Nothing is kept or sent until the player agrees; withdrawing drops the queue. Kept in PlayerPrefs by the Unity module.",
           "api": [
             "ITelemetry.Consent",
@@ -1250,7 +1250,7 @@
           "id": "telemetry.http",
           "title": "Sending to the game's collector",
           "status": "full",
-          "since": "unreleased",
+          "since": "0.41.0",
           "notes": "Posts JSON with a bearer key; or a transport of the game. The Unity module drives it in real time and sends on pause and quit.",
           "api": [
             "HttpTelemetryTransport",
