@@ -11,6 +11,10 @@
 This section holds only the latest session's notes; the release itself is in `STATUS.md` and `Docs/RELEASES.md`,
 older notes move to `Docs/archive/SESSION-LOG.md`.
 
+- 2026-11-06: released `v0.42.0` (the owner, after The Bloodline Hunt's agent offered to write a render stats tool
+  the framework has had since v0.21): `RenderBudget` presets per device class (`RenderPlatform`), recipe 21 of every
+  measuring, debugging and checking tool, a CLAUDE.md block section pointing there, `capabilities.json` module `tools`.
+  Games see it after the update and the AI guidance reinstall.
 - 2026-11-06: released `v0.41.0` (the owner asked to act on WhiteWrite's notes: `functions/mechanics.js` FRAMEWORK
   notes and `docs/EXPERIENCE_TELEMETRY_CONTRACT.md` in `E:\WhiteWrite`): `Telemetry` module (contract envelope, opt-in
   consent, batches with retries, `TelemetryModule`), `CombatAnalytics`, `EnemyAdaptation` / `EnemyMove.SetAnswer`,
@@ -21,17 +25,6 @@ older notes move to `Docs/archive/SESSION-LOG.md`.
   `capabilities.json` (`rpgframework.capabilities/1`, 81 capabilities, 10 missing) for WhiteWrite's gap check;
   `check_docs.py` checks it, `release.py` writes its version. Every release now updates it by hand. The path, schema
   and ids were sent to whitewrite-fc. Its ask for a CLAUDE.md line was left to the owner.
-- 2026-11-03: released `v0.39.0` (MythRunner FG-32/FG-33, closes KI-23): move weights by the target's state
-  (`EnemyMove.SetWeightAgainst`, `IEnemyTargetStates`), pressed guard chances, `RepositionChance` (fall back to a
-  rush's range); `HealthBarView` hides its bar on a corpse. The game dropped its BreaksGuard ask before release.
-- 2026-11-02: released `v0.38.1`: reinstall replaced MythRunner's own CI workflow; now a workflow that fails without
-  the licence secrets is kept, with a warning when it differs from the template.
-- 2026-11-02: released `v0.38.0` (WhiteWrite for UMCF, asked by the owner): ActionCombat parry, attack stamina cost,
-  motion warping; KI-24 (enemies do not parry) opened. Field names sent to whitewrite-67.
-- 2026-11-02: released `v0.37.0` (the owner: games' agents must hear about framework updates): release feed
-  `releases.json` from the CHANGELOG, SessionStart hook `framework-update-check.sh` merged into the game's settings,
-  `### Breaking` CHANGELOG sections. Checked live against the GitHub tag from a fake game. WhiteWrite (whitewrite-67)
-  will not import combat data; its notes on 0.36.0 combat were confirmed with three refinements.
 
 ## Conventions for new work
 

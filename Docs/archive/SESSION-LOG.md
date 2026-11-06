@@ -5,6 +5,17 @@ state when they were written. The current state is in `STATUS.md`, releases and 
 
 ## Sessions
 
+- 2026-11-03: released `v0.39.0` (MythRunner FG-32/FG-33, closes KI-23): move weights by the target's state
+  (`EnemyMove.SetWeightAgainst`, `IEnemyTargetStates`), pressed guard chances, `RepositionChance` (fall back to a
+  rush's range); `HealthBarView` hides its bar on a corpse. The game dropped its BreaksGuard ask before release.
+- 2026-11-02: released `v0.38.1`: reinstall replaced MythRunner's own CI workflow; now a workflow that fails without
+  the licence secrets is kept, with a warning when it differs from the template.
+- 2026-11-02: released `v0.38.0` (WhiteWrite for UMCF, asked by the owner): ActionCombat parry, attack stamina cost,
+  motion warping; KI-24 (enemies do not parry) opened. Field names sent to whitewrite-67.
+- 2026-11-02: released `v0.37.0` (the owner: games' agents must hear about framework updates): release feed
+  `releases.json` from the CHANGELOG, SessionStart hook `framework-update-check.sh` merged into the game's settings,
+  `### Breaking` CHANGELOG sections. Checked live against the GitHub tag from a fake game. WhiteWrite (whitewrite-67)
+  will not import combat data; its notes on 0.36.0 combat were confirmed with three refinements.
 - 2026-11-02: released `v0.36.0` (MythRunner FG-31: commit range, held wind-up, attack motions, timed sweep,
   `WeaponMoveSet`; see `Docs/RELEASES.md`). The first release through `release.py`. KI-23 is the later part (player
   moves against monster moves).
