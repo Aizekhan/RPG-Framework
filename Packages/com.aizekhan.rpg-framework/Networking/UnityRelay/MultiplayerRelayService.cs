@@ -7,7 +7,6 @@ using Unity.Services.Authentication;
 using Unity.Services.Core;
 using Unity.Services.Multiplayer;
 using UnityEngine;
-using MpsRole = Unity.Services.Multiplayer.NetworkRole;
 using MpsSessionOptions = Unity.Services.Multiplayer.SessionOptions;
 
 namespace RPGFramework.Networking.UnityRelay
@@ -133,9 +132,10 @@ namespace RPGFramework.Networking.UnityRelay
 
             public Task StartAsync(NetworkConfiguration configuration) => StartAsync(configuration, CancellationToken.None);
 
+            // The SDK puts a joining player's allocation in RelayServerData too; RelayClientData is filled only with
+            // Netcode for Entities, so reading it left a joining player with an empty endpoint
             public Task StartAsync(NetworkConfiguration configuration, CancellationToken cancellationToken) =>
-                _startNetwork(configuration.Role == MpsRole.Client ? configuration.RelayClientData : configuration.RelayServerData)
-                    .AsTask();
+                _startNetwork(configuration.RelayServerData).AsTask();
 
             // The game owns the transport and closes it itself
             public Task StopAsync() => Task.CompletedTask;

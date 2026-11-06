@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- Unity Relay: a player joining by code never connected ("ServerData.Endpoint value (invalid)", "Can't connect to endpoint with invalid address family"; The Bloodline Hunt). The network handler gave a joining player `NetworkConfiguration.RelayClientData`, which Multiplayer Services fills only with Netcode for Entities; the join allocation is in `RelayServerData`, which both roles now get.
+
 ## [0.40.0] - 2026-11-04
 
 ### Added
