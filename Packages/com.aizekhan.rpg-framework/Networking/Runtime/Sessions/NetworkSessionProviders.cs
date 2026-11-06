@@ -10,6 +10,16 @@ namespace RPGFramework.Networking
     /// </summary>
     public static class NetworkSessionProviders
     {
+        /// <summary>
+        /// The local network, always there (no module registers it).
+        /// </summary>
+        public const string Lan = "lan";
+
+        /// <summary>
+        /// The Unity Relay module's id; it is available only when the Multiplayer Services SDK is installed.
+        /// </summary>
+        public const string UnityRelay = "unity-relay";
+
         private static readonly List<Entry> _entries = new List<Entry>();
 
         public sealed class Entry
@@ -52,5 +62,13 @@ namespace RPGFramework.Networking
         public static bool Unregister(string id) => _entries.RemoveAll(entry => entry.Id == id) > 0;
 
         public static Entry Find(string id) => _entries.Find(entry => entry.Id == id);
+
+        /// <summary>
+        /// Whether a game can play together this way here: <see cref="Lan"/> always, a module's id when it is
+        /// installed (a menu hides "over the internet" when <see cref="UnityRelay"/> is not). Letter case is ignored.
+        /// </summary>
+        public static bool IsAvailable(string id) =>
+            string.Equals(id, Lan, StringComparison.OrdinalIgnoreCase)
+            || _entries.Exists(entry => string.Equals(entry.Id, id, StringComparison.OrdinalIgnoreCase));
     }
 }

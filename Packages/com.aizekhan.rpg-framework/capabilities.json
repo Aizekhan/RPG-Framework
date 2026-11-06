@@ -1116,6 +1116,20 @@
             "NetworkTransform"
           ],
           "data": []
+        },
+        {
+          "id": "multiplayer.start_menu_provider",
+          "title": "Host or join over the internet from a start menu",
+          "status": "full",
+          "since": "unreleased",
+          "notes": "A menu's start names how to play together (local network, Unity Relay); the game scene's host applies it before hosting or joining. IsAvailable hides a provider that is not installed.",
+          "api": [
+            "GameStart.Via",
+            "GameStart.Provider",
+            "NetworkSessionProviders.IsAvailable",
+            "NetworkSessionProviders.UnityRelay"
+          ],
+          "data": []
         }
       ]
     },
@@ -1360,6 +1374,24 @@
             "PrefabCatalog"
           ],
           "data": []
+        },
+        {
+          "id": "world.map_travel",
+          "title": "World map: places, routes, discovery, fast travel",
+          "status": "full",
+          "since": "unreleased",
+          "notes": "Places joined by one-way routes (roads, tracks, levels); where each player stands, places discovered, arriving at a route's end, fast travel with the game's rule, a party that moves as one; saved per player. Co-op sync is the game's message carrying WorldTravelRecord; interaction points are not grouped by place (KI-26).",
+          "api": [
+            "WorldGraph",
+            "IWorldTravel",
+            "WorldTravel",
+            "WorldTravelSave",
+            "WorldMapModule",
+            "PlaceEnteredEvent",
+            "TravelRefusal"
+          ],
+          "data": [],
+          "ki": "KI-26"
         }
       ]
     },

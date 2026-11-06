@@ -149,5 +149,24 @@ namespace RPGFramework.Networking.Tests
             Assert.That(() => new LanSessionProvider(port).HostAsync(new SessionOptions()).GetAwaiter().GetResult(),
                 Throws.TypeOf<NetworkSessionException>().With.Message.Contains(port.ToString()));
         }
+
+        [Test]
+        public void IsAvailable_TheLocalNetworkAlways_AModuleOnlyWhenRegistered()
+        {
+            Assert.That(NetworkSessionProviders.IsAvailable(NetworkSessionProviders.Lan), Is.True);
+            Assert.That(NetworkSessionProviders.IsAvailable("LAN"), Is.True, "letter case is ignored");
+            Assert.That(NetworkSessionProviders.IsAvailable("test-available"), Is.False);
+            Assert.That(NetworkSessionProviders.IsAvailable(null), Is.False);
+            NetworkSessionProviders.Register("test-available", "Test", () => new LoopbackSessionProvider(new LoopbackNetwork(), 5200));
+            try
+            {
+                Assert.That(NetworkSessionProviders.IsAvailable("Test-Available"), Is.True);
+            }
+            finally
+            {
+                NetworkSessionProviders.Unregister("test-available");
+            }
+            Assert.That(NetworkSessionProviders.IsAvailable("test-available"), Is.False);
+        }
     }
 }

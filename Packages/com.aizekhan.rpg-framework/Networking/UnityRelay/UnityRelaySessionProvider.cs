@@ -17,7 +17,7 @@ namespace RPGFramework.Networking.UnityRelay
     /// </summary>
     public sealed class UnityRelaySessionProvider : INetworkSessionProvider
     {
-        public const string Id = "unity-relay";
+        public const string Id = NetworkSessionProviders.UnityRelay;
         public const string Name = "Internet (Unity Relay)";
 
         /// <summary>

@@ -370,7 +370,7 @@ namespace RPGFramework.ActionRpg
         /// <returns>False when no such provider is installed (the choice stays as it was).</returns>
         public bool UseSessionProvider(string id)
         {
-            if (string.Equals(id, "lan", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(id, NetworkSessionProviders.Lan, StringComparison.OrdinalIgnoreCase))
             {
                 SessionProvider = Lan;
                 return true;
@@ -746,7 +746,8 @@ namespace RPGFramework.ActionRpg
         /// Starts the game as the player chose in a start menu: on from the save, a new game (the save is deleted),
         /// hosting, or joining a friend. Once per host; without 'Start On Request' the host starts by itself.
         /// </summary>
-        /// <returns>False when it already started, failed to start, or co-op is off for Host / Join (or no code).</returns>
+        /// <returns>False when it already started, failed to start, or co-op is off for Host / Join (or no code, or
+        /// <see cref="GameStart.Provider"/> is not installed: check <see cref="NetworkSessionProviders.IsAvailable"/>).</returns>
         public bool StartGame(GameStart start)
         {
             if (_started || Host?.Container == null || !enabled)
@@ -756,6 +757,12 @@ namespace RPGFramework.ActionRpg
                 return false;
             if (start.Kind == GameStartKind.Join && string.IsNullOrEmpty(start.JoinCode))
                 return false;
+            if (together && start.Provider.Length > 0 && !UseSessionProvider(start.Provider))
+            {
+                CoopStatus = $"'{start.Provider}' is not an installed way to play together.";
+                Host.Logger.LogWarning(CoopStatus, Category);
+                return false;
+            }
             _started = true;
             if (start.Kind == GameStartKind.NewGame && World != null)
                 new ActionRpgSaves(World, SaveDirectory, Application.version).Delete();

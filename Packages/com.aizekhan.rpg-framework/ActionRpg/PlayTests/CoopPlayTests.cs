@@ -239,6 +239,39 @@ namespace RPGFramework.ActionRpg.PlayTests
             }
         }
 
+        [UnityTest]
+        public IEnumerator AMenusStart_NamesTheProvider_AndTheGameHostsAndJoinsThroughIt()
+        {
+            // A menu's "over the internet": GameStart carries the provider, the host applies it before hosting / joining
+            var network = new Networking.LoopbackNetwork();
+            Networking.NetworkSessionProviders.Register("test-menu-rooms", "Test rooms", () => new Networking.LoopbackSessionProvider(network, 5300));
+            try
+            {
+                var first = StartGame("Host from the menu");
+                var second = StartGame("Friend from the menu");
+                var third = StartGame("Friend without the module");
+                _more.AddRange(new[] { first, second, third });
+                foreach (var game in _more)
+                    game.UseStartOnRequest(true);
+                yield return null;
+
+                Assert.That(third.StartGame(GameStart.Host.Via("not-installed")), Is.False, "no such way to play together");
+                Assert.That(third.CoopStatus, Does.Contain("not-installed"));
+                Assert.That(third.IsStarted, Is.False, "it may start again with another choice");
+
+                Assert.That(first.StartGame(GameStart.Host.Via("test-menu-rooms")), Is.True, first.CoopStatus);
+                Assert.That(first.SessionProvider, Is.TypeOf<Networking.LoopbackSessionProvider>());
+                yield return WaitUntil(() => first.Role == CoopRole.Hosting && first.JoinCode != "", "hosting through the menu's pick");
+                Assert.That(second.StartGame(GameStart.Join(first.JoinCode, "test-menu-rooms")), Is.True, second.CoopStatus);
+                yield return WaitUntil(() => second.CoopClient?.State == Coop.CoopClientState.Playing, () => "joining with the room code: " + second.CoopStatus);
+                Assert.That(first.World.Players, Has.Count.EqualTo(2));
+            }
+            finally
+            {
+                Networking.NetworkSessionProviders.Unregister("test-menu-rooms");
+            }
+        }
+
         /// <summary>
         /// In-process rooms whose joined links can be cut, as a pulled cable would.
         /// </summary>
