@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.43.0] - 2026-11-06
+
 ### Breaking
 - Turns: turn protocol 4 (the clock tells who may pause). Host and players update together; players on 3 are refused with the reason.
 - Turns: `ITurnSession` has `CanPause(int seat)`. A class of the game that implements `ITurnSession` (a test double) adds it.

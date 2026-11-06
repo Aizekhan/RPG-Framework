@@ -1,8 +1,8 @@
-# RPG Framework — архітектура (фактичний стан v0.42.1)
+# RPG Framework — архітектура (фактичний стан v0.43.0)
 
-> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.42.1**
-> (тег `v0.42.1`; SHA і докази — у `Docs/RELEASES.md`; Unity 6000.0), звірений із кодом пакета 2026-11-06: збірки (`.asmdef`), їхні
-> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.42.1), `Documentation~/networking.md`, рецепти
+> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.43.0**
+> (тег `v0.43.0`; SHA і докази — у `Docs/RELEASES.md`; Unity 6000.0), звірений із кодом пакета 2026-11-06: збірки (`.asmdef`), їхні
+> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.43.0), `Documentation~/networking.md`, рецепти
 > AI-guidance 01–21.
 > Попередня редакція (стан v0.5.0/v0.5.1) у git не потрапляла; цей файл замінює її повністю. Історію змін між
 > версіями дає `CHANGELOG.md` пакета.
@@ -29,7 +29,7 @@
   правила, стати, прогресія, квести, предмети, лут, збереження, ассети, спавн, сцени, UI-навігація, звук, локалізація,
   налаштування, діагностика, мережа.
 - Гра володіє **контентом, поданням і правилами, які роблять її унікальною**.
-- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.42.1`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
+- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.43.0`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
   1.11.2, Unity Transport 2.5.3, uGUI, вбудованого модуля Audio. Гра живе в окремому репозиторії/проєкті і не редагує
   пакет (`Library/PackageCache` перезаписується).
 - **Конвеєр рендерингу — будь-який.** Пакет не залежить від URP/HDRP і не має шейдерів під конкретний конвеєр:
@@ -291,6 +291,11 @@ GameHost.Start(configure)                               // Bootstrap.Runtime, б
 - `DiagnosticsOverlay.ToggleKey` (з v0.21) — клавіша з коду; `ActionRpgHost`: поле Diagnostics Key (F3, None — без
   клавіші), Render Budget, `ActionRpgHost.Render`. Камера, що стежить за гравцем, наближається плавно: тест після
   телепорту чекає, поки вона доїде, інакше рахує старий вид.
+- **Мала прозора панель поверх гри** (з v0.43) [є]: `DiagnosticsOverlay` має `Corner` (`DiagnosticsCorner`), `Opacity`
+  (0 — лише текст із тінню), `Size` (0 — під текст), `RefreshInterval` (0 — щокадру), `Sections` (які секції), `Headers`;
+  `DiagnosticsPanelLayout` ставить усе разом: `Full` (стара панель, типово), `Compact` (правий верхній кут, 35 % фону,
+  щокадру, Performance і Render короткими рядками з трьома найважчими моделями), `Custom`. `ActionRpgHost`: поля
+  Diagnostics Panel і Diagnostics Shown.
 
 ### 4.5 Telemetry (з v0.41)
 
@@ -461,6 +466,10 @@ Feature-модулі для підключення одним рядком ле�
 З v0.24: `TurnHost.HoldClock(reason)` / `ReleaseClock(reason)` притримують час ходу без витрати запасу паузи, поки
 екрани ще показують наслідок ходу (кубики, карта); `TurnHostOptions.EndPauseWithTurn` знімає паузу, коли хід
 переходить до іншого місця.
+**Хто може ставити паузу** (з v0.43, BH-09) [є]: `TurnHostOptions.PauseBy` (`TurnPauseRule.AnySeat` — типово, або
+`TurnOrAsked` — лише місце, чий хід, і місце, на чию відповідь чекає питання) і `TurnHostOptions.CanPause` (останнє
+слово гри); хост перевіряє і локальну, і мережеву паузу й знімає її, щойно місце втратило право. `ITurnSession.CanPause(seat)`
+є і в гравця (з годинника хоста), відмова приходить як `Replied` з `TurnProtocol.PauseRequestId`. Протокол ходу — **версія 4**.
 
 ### 7.4 ActionCombat — бій у реальному часі, де влучання вирішує контакт (з v0.30)
 
@@ -702,7 +711,7 @@ New Game також виставляє Player Settings (Run In Background, Linea
 | `.meta` з валідним GUID для кожного файлу | CI-крок «Unity .meta integrity» |
 | Тексти на екрані — ключі, не рядки | тексти кітів через `ILocalization`; `LocalizationChecks` для таблиць гри |
 
-Тестова база: v0.42.1 (код `8d825b5`) — EditMode **2174/2174** локально; PlayMode — у CI (докази в `Docs/RELEASES.md`).
+Тестова база: v0.43.0 (код `fa337d1`) — EditMode **2178/2178** локально; PlayMode — у CI (докази в `Docs/RELEASES.md`).
 
 ---
 
