@@ -142,6 +142,38 @@ namespace RPGFramework.Diagnostics.Tests
         }
 
         [Test]
+        public void AStaticallyBatchedRenderer_CountsItsOwnPart_AndIsNamedByItsObject()
+        {
+            // BH-10: a batched renderer's mesh is the scene's whole "Combined Mesh"; counted once per part, a scene read
+            // eight times its triangles and every model was called "Combined Mesh"
+            var root = Make(new GameObject("BatchRoot"));
+            for (int i = 0; i < 3; i++)
+            {
+                var cube = Cube(new Vector3(i - 1f, 0f, 6f));
+                cube.name = i == 0 ? "BatchedCube" : $"BatchedCube ({i})";
+                cube.transform.SetParent(root.transform, true);
+            }
+            StaticBatchingUtility.Combine(root);
+            var parts = root.GetComponentsInChildren<MeshRenderer>();
+            var combined = parts[0].GetComponent<MeshFilter>().sharedMesh;
+            Make(combined);
+            Assert.That(parts.All(part => part.isPartOfStaticBatch), "the cubes are batched");
+            Assert.That(RenderSection.TrianglesOf(combined), Is.EqualTo(36), "the combined mesh holds all three");
+
+            _section.Measure();
+
+            var cubes = _section.Heaviest.Single(m => m.Name == "BatchedCube");
+            Assert.That(cubes.Count, Is.EqualTo(3));
+            Assert.That(cubes.Triangles, Is.EqualTo(36), "each part counts its own 12, not the whole 36");
+            Assert.That(cubes.MeshTriangles, Is.EqualTo(12));
+            Assert.That(_section.Heaviest.Any(m => m.Name.StartsWith("Combined Mesh")), Is.False);
+
+            _section.ModelOfBatched = renderer => "Crate";
+            _section.Measure();
+            Assert.That(_section.Heaviest.Single(m => m.Name == "Crate").Triangles, Is.EqualTo(36));
+        }
+
+        [Test]
         public void ADisabledRenderer_IsNotCounted()
         {
             Cube(new Vector3(0f, 0f, 5f)).GetComponent<Renderer>().enabled = false;

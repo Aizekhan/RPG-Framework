@@ -1378,7 +1378,8 @@
             "RenderBudget",
             "RenderPlatform",
             "RenderSample",
-            "RenderBudget.For"
+            "RenderBudget.For",
+            "RenderSection.ModelOfBatched"
           ],
           "data": []
         },

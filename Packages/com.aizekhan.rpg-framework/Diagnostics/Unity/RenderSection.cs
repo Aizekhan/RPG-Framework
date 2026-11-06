@@ -214,6 +214,7 @@ namespace RPGFramework.Diagnostics.Unity
     /// and, where the profiler's render counters run, the GPU's triangles, draw calls, set-pass calls and batches;
     /// values over the <see cref="Budget"/> are marked OVER. Counts mesh renderers and skinned mesh renderers of every
     /// loaded scene and of the anchor's scene (DontDestroyOnLoad). Dispose it to stop the profiler recorders.
+    /// A statically batched renderer counts only its own part of the combined mesh (<see cref="ModelOfBatched"/> names it).
     /// </summary>
     public sealed class RenderSection : IDiagnosticsSection, IDisposable
     {
@@ -227,6 +228,7 @@ namespace RPGFramework.Diagnostics.Unity
         private readonly List<RenderModel> _heaviest = new List<RenderModel>();
         private ProfilerRecorder _gpuTriangles, _drawCalls, _setPassCalls, _batches;
         private Func<Mesh, string> _modelOf;
+        private Func<Renderer, string> _modelOfBatched;
 
         /// <param name="camera">The camera whose view is counted (null or returning null: <c>Camera.main</c>).</param>
         /// <param name="budget">The limits marked OVER (null: the defaults).</param>
@@ -238,6 +240,7 @@ namespace RPGFramework.Diagnostics.Unity
             Budget = budget ?? new RenderBudget();
             _anchor = anchor;
             ModelOf = modelOf;
+            ModelOfBatched = null;
             _gpuTriangles = ProfilerRecorder.StartNew(ProfilerCategory.Render, "Triangles Count");
             _drawCalls = ProfilerRecorder.StartNew(ProfilerCategory.Render, "Draw Calls Count");
             _setPassCalls = ProfilerRecorder.StartNew(ProfilerCategory.Render, "SetPass Calls Count");
@@ -256,6 +259,16 @@ namespace RPGFramework.Diagnostics.Unity
         {
             get => _modelOf;
             set => _modelOf = value ?? (mesh => mesh.name);
+        }
+
+        /// <summary>
+        /// The model a statically batched renderer belongs to. Its mesh at run time is the scene's "Combined Mesh", so
+        /// <see cref="ModelOf"/> cannot name it (null: the renderer's object name without Unity's " (N)" copy suffix).
+        /// </summary>
+        public Func<Renderer, string> ModelOfBatched
+        {
+            get => _modelOfBatched;
+            set => _modelOfBatched = value ?? ObjectName;
         }
 
         /// <summary>
@@ -332,6 +345,27 @@ namespace RPGFramework.Diagnostics.Unity
             return (int)Math.Min(count, int.MaxValue);
         }
 
+        /// <summary>
+        /// Triangles a renderer draws of its mesh. A statically batched renderer draws only its own sub-meshes of the
+        /// scene's combined mesh (from <c>MeshRenderer.subMeshStartIndex</c>, one per material), not the whole of it.
+        /// </summary>
+        public static int TrianglesOf(Renderer renderer, Mesh mesh)
+        {
+            if (mesh == null)
+                return 0;
+            if (!(renderer is MeshRenderer batched) || !batched.isPartOfStaticBatch)
+                return TrianglesOf(mesh);
+            int first = batched.subMeshStartIndex;
+            int end = Math.Min(mesh.subMeshCount, first + Math.Max(1, batched.sharedMaterials.Length));
+            long count = 0;
+            for (int sub = Math.Max(0, first); sub < end; sub++)
+            {
+                if (mesh.GetTopology(sub) == MeshTopology.Triangles)
+                    count += mesh.GetIndexCount(sub) / 3;
+            }
+            return (int)Math.Min(count, int.MaxValue);
+        }
+
         public void Dispose()
         {
             _gpuTriangles.Dispose();
@@ -367,11 +401,15 @@ namespace RPGFramework.Diagnostics.Unity
                     var mesh = MeshOf(renderer);
                     if (mesh == null || !GeometryUtility.TestPlanesAABB(_planes, renderer.bounds))
                         continue;
-                    if (!_meshTriangles.TryGetValue(mesh, out int count))
+                    bool batched = renderer.isPartOfStaticBatch;
+                    int count;
+                    if (batched)
+                        count = TrianglesOf(renderer, mesh);
+                    else if (!_meshTriangles.TryGetValue(mesh, out count))
                         _meshTriangles[mesh] = count = TrianglesOf(mesh);
                     triangles += count;
                     meshes++;
-                    string name = _modelOf(mesh) ?? mesh.name;
+                    string name = (batched ? _modelOfBatched(renderer) : _modelOf(mesh)) ?? mesh.name;
                     if (!_models.TryGetValue(name, out var model))
                         _models[name] = model = new RenderModel { Name = name };
                     model.Triangles += count;
@@ -379,6 +417,23 @@ namespace RPGFramework.Diagnostics.Unity
                     model.MeshTriangles = Math.Max(model.MeshTriangles, count);
                 }
             }
+        }
+
+        private static string ObjectName(Renderer renderer)
+        {
+            string name = renderer.gameObject.name;
+            int copy = name.LastIndexOf(" (", StringComparison.Ordinal);
+            if (copy > 0 && name.EndsWith(")", StringComparison.Ordinal))
+            {
+                for (int i = copy + 2; i < name.Length - 1; i++)
+                {
+                    if (!char.IsDigit(name[i]))
+                        return name;
+                }
+                if (copy + 2 < name.Length - 1)
+                    return name.Substring(0, copy);
+            }
+            return name;
         }
 
         private static Mesh MeshOf(Renderer renderer)
