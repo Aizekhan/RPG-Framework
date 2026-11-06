@@ -172,6 +172,22 @@ the `Combat` damage calculator); use `ActionCombat` when the timing of a blow ma
   `AttackTokenGrantedEvent`/`AttackTokenReleasedEvent`, `AttackChosenEvent`, `EnemyDiedEvent`, and `Decision`
   entries in the timeline ("Circle -> Attacking: slash", "token released: combo missed").
 
+- **Learning the player** (`EnemyBehaviour.Adaptation`, the asset's Adaptation section; Learning 0 = none, a
+  zombie): `EnemyAdaptation` remembers the target's last `Memory` actions it pays attention to (`Notices`): a dodge to
+  the target's left or right (as it faces the enemy), a block, a parry, a retreat out of reach (a back dodge, or a
+  blow that found nobody), a swing at it. A move with an answer (`EnemyMove.SetAnswer(PlayerHabit.DodgesLeft, 3)`, the
+  asset move's Answers) is chosen up to that many times as often, as far as the habit fills the memory times
+  `Learning`: a sweep that covers the favourite dodge side, a heavy blow against a blocker, a lunge against one who
+  backs off. Each habit seen is a `PlayerHabitNoticedEvent` and a timeline note ("notices Blocks (60% of what it
+  remembers)"); the memory goes when it loses the target.
+- **Facing first:** `EnemyMove.MaxAngle` (the asset move's Max Angle, 0 = any angle): a frontal thrust waits until
+  the target is within that many degrees of where the enemy faces; it stands and turns ("turning to strike").
+- **Balancing numbers:** `new CombatAnalytics(arena bus)` counts per attack and in total (hit, miss and interrupt
+  rates, damage, the average distance enemies chose it from), the attack tokens given up without an attack
+  (`FailedApproaches`) and each enemy chain (`Best`, `Worst`). `CombatTelemetry` (Integration.ActionCombatTelemetry)
+  sends them to the game's telemetry (`TelemetryModule`): `combat_hit`, `combat_miss`, ..., `TrackSummary()` at the
+  end of a level.
+
 Outside the kit (a training dummy), `arena.AddEnemyTarget(id)` makes something a target; `CombatEnemyAI.UseBehaviour`
 sets a behaviour from code. Path finding is not built in: the enemies steer straight (with separation); a level with
 walls between them and the player needs a pathfinding layer under `CombatEnemyAI` (NavMesh, or `DistanceMap`).

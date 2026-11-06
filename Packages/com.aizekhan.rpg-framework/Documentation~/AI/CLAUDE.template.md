@@ -35,6 +35,20 @@ GA13 fails on `Resources.Load`, `SceneManager.LoadScene`, `Debug.Log`, `Invoke`,
 `Destroy` and hand-made pools in game code. A line that truly needs the Unity call ends with
 `// framework-ok: <reason>`.
 
+## Tools the framework already has — look before you measure, debug or check
+`Docs/RPGFramework/recipes/21-tools-and-checks.md` lists them by question; read it before writing a profiler, a
+debug view, a data check, an asset scan or a telemetry client, and before answering "how heavy / how fast / why did it"
+questions from memory. The main ones:
+- what a scene draws against a device budget: `RenderSection` + `RenderBudget` (presets per device class:
+  `RenderPlatform.Mobile`, `LowEndMobile`, `StandaloneVR`, `WebGL`, `Handheld`, `Desktop`, ...); frame time and memory:
+  `PerformanceMonitor`; the in-game panel: `DiagnosticsOverlay` (F3 in the kit)
+- why a blow missed or a monster did not attack: `CombatTimeline`; balancing numbers: `CombatAnalytics`
+- broken content: `FrameworkValidation.ValidateFromCommandLine`, `QuestGraph.Check`, `DialogueGraph.Check`; the
+  project's assets and references: the project index (recipe 19); the architecture: `<Game>ArchitectureTests`
+- what players do in playtests: `Telemetry` (`TelemetryModule`, opt-in consent)
+Everything the installed version can do, tools included, is in the package's `capabilities.json`
+(`Library/PackageCache/com.aizekhan.rpg-framework@<hash>/capabilities.json`).
+
 ## The shape of the game
 ```
 Assets/<Game>/

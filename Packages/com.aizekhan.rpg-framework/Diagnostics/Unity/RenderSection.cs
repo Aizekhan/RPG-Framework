@@ -8,12 +8,75 @@ using UnityEngine.SceneManagement;
 namespace RPGFramework.Diagnostics.Unity
 {
     /// <summary>
+    /// The kind of device a <see cref="RenderBudget"/> is for. Each preset is a starting point for 30-60 FPS on that
+    /// class of device in URP (<see cref="RenderBudget.For"/>); measure the game on its weakest target device and
+    /// tune from there.
+    /// </summary>
+    public enum RenderPlatform
+    {
+        /// <summary>
+        /// The budget's own numbers.
+        /// </summary>
+        Custom = 0,
+
+        /// <summary>
+        /// The preset of the platform the game runs on (<see cref="RenderBudget.PlatformOf"/>): a phone gets
+        /// <see cref="Mobile"/>, WebGL <see cref="WebGL"/>, a console its class, the rest <see cref="Desktop"/>.
+        /// </summary>
+        Auto = 1,
+
+        /// <summary>
+        /// Weak Android phones (Mali-G52, Adreno 610, 2-3 GB): 150k triangles, 100 draw calls, 60 set-pass.
+        /// </summary>
+        LowEndMobile = 2,
+
+        /// <summary>
+        /// Mid-range phones (Snapdragon 7xx, iPhone 11-12): 300k triangles, 150 draw calls, 100 set-pass.
+        /// </summary>
+        Mobile = 3,
+
+        /// <summary>
+        /// Flagship phones and tablets (Snapdragon 8 Gen 2+, iPhone 14+, iPad Pro): 800k, 300, 150.
+        /// </summary>
+        HighEndMobile = 4,
+
+        /// <summary>
+        /// Standalone VR (Quest 2/3), both eyes with single-pass instanced: 500k, 150, 80.
+        /// </summary>
+        StandaloneVR = 5,
+
+        /// <summary>
+        /// A browser (WebGL 2 / WebGPU on an average laptop): 500k, 300, 120.
+        /// </summary>
+        WebGL = 6,
+
+        /// <summary>
+        /// Handheld consoles and PCs (Switch, Steam Deck): 600k, 500, 150.
+        /// </summary>
+        Handheld = 7,
+
+        /// <summary>
+        /// A mid-range PC (GTX 1060 / RX 580 class): 1.5M, 1500, 250 (the default numbers).
+        /// </summary>
+        Desktop = 8,
+
+        /// <summary>
+        /// Current consoles and gaming PCs (PS5, Xbox Series X, RTX 3060+): 5M, 3000, 500.
+        /// </summary>
+        HighEndDesktop = 9
+    }
+
+    /// <summary>
     /// How much a frame may draw. Values above it are marked OVER in the "Render" section; a game's tests can assert
-    /// a scene against it with <see cref="RenderSection.Measure"/>. 0 turns a limit off.
+    /// a scene against it with <see cref="RenderSection.Measure"/>. 0 turns a limit off. <see cref="Platform"/> picks a
+    /// preset instead of the numbers (<see cref="For"/>, <see cref="Resolved"/>).
     /// </summary>
     [Serializable]
     public sealed class RenderBudget
     {
+        [Tooltip("A device class preset (Auto: the platform the game runs on); Custom: the numbers below")]
+        public RenderPlatform Platform = RenderPlatform.Custom;
+
         [Tooltip("Triangles of the meshes in the camera's view (shadows not counted; 0 = no limit)")]
         [Min(0)] public long Triangles = 1500000;
 
@@ -30,6 +93,68 @@ namespace RPGFramework.Diagnostics.Unity
         /// The value is over a limit (a limit of 0 is no limit).
         /// </summary>
         public static bool IsOver(long value, long limit) => limit > 0 && value > limit;
+
+        /// <summary>
+        /// The budget a frame is measured against: this one for <see cref="RenderPlatform.Custom"/>, otherwise the
+        /// platform's preset (<see cref="For"/>).
+        /// </summary>
+        public RenderBudget Resolved() => Platform == RenderPlatform.Custom ? this : For(Platform);
+
+        /// <summary>
+        /// The preset of a device class (<see cref="RenderPlatform.Auto"/>: of the platform the game runs on). A preset
+        /// limits one model's mesh to a tenth of the frame (<see cref="ModelTriangles"/>).
+        /// </summary>
+        public static RenderBudget For(RenderPlatform platform)
+        {
+            if (platform == RenderPlatform.Auto)
+                platform = PlatformOf(Application.platform);
+            switch (platform)
+            {
+                case RenderPlatform.LowEndMobile: return Preset(platform, 150000, 100, 60);
+                case RenderPlatform.Mobile: return Preset(platform, 300000, 150, 100);
+                case RenderPlatform.HighEndMobile: return Preset(platform, 800000, 300, 150);
+                case RenderPlatform.StandaloneVR: return Preset(platform, 500000, 150, 80);
+                case RenderPlatform.WebGL: return Preset(platform, 500000, 300, 120);
+                case RenderPlatform.Handheld: return Preset(platform, 600000, 500, 150);
+                case RenderPlatform.HighEndDesktop: return Preset(platform, 5000000, 3000, 500);
+                case RenderPlatform.Custom: return new RenderBudget();
+                default: return Preset(RenderPlatform.Desktop, 1500000, 1500, 250);
+            }
+        }
+
+        /// <summary>
+        /// The device class of a Unity platform: phones <see cref="RenderPlatform.Mobile"/> (a game for weak phones
+        /// picks <see cref="RenderPlatform.LowEndMobile"/> itself), WebGL, Switch <see cref="RenderPlatform.Handheld"/>,
+        /// PS5 and Xbox <see cref="RenderPlatform.HighEndDesktop"/>, the rest <see cref="RenderPlatform.Desktop"/>.
+        /// </summary>
+        public static RenderPlatform PlatformOf(RuntimePlatform platform)
+        {
+            switch (platform)
+            {
+                case RuntimePlatform.Android:
+                case RuntimePlatform.IPhonePlayer:
+                    return RenderPlatform.Mobile;
+                case RuntimePlatform.WebGLPlayer:
+                    return RenderPlatform.WebGL;
+                case RuntimePlatform.Switch:
+                    return RenderPlatform.Handheld;
+                case RuntimePlatform.PS5:
+                case RuntimePlatform.GameCoreXboxSeries:
+                    return RenderPlatform.HighEndDesktop;
+                default:
+                    return RenderPlatform.Desktop;
+            }
+        }
+
+        private static RenderBudget Preset(RenderPlatform platform, long triangles, long drawCalls, long setPassCalls) =>
+            new RenderBudget
+            {
+                Platform = platform,
+                Triangles = triangles,
+                DrawCalls = drawCalls,
+                SetPassCalls = setPassCalls,
+                ModelTriangles = triangles / 10
+            };
     }
 
     /// <summary>
@@ -172,7 +297,9 @@ namespace RPGFramework.Diagnostics.Unity
         public void Write(StringBuilder output)
         {
             var sample = Measure();
-            var budget = Budget ?? new RenderBudget();
+            var budget = (Budget ?? new RenderBudget()).Resolved();
+            if (budget.Platform != RenderPlatform.Custom)
+                output.AppendLine($"Budget: {budget.Platform}");
             output.AppendLine($"In view {sample.Triangles:N0} triangles, {sample.Meshes} meshes{Over(sample.Triangles, budget.Triangles)}");
             if (sample.HasGpu)
                 output.AppendLine($"GPU {sample.GpuTriangles:N0} triangles with shadows, {sample.DrawCalls} draw calls" +

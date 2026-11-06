@@ -1362,6 +1362,138 @@
           "data": []
         }
       ]
+    },
+    {
+      "id": "tools",
+      "title": "Tools: measure, debug, check (recipe 21)",
+      "capabilities": [
+        {
+          "id": "tools.render_budget",
+          "title": "Render budget per device class",
+          "status": "full",
+          "since": "0.21.0",
+          "notes": "Triangles in view by model, draw calls, set-pass calls, batches against a budget; presets per device class (RenderPlatform from 0.42.0: low-end, mid and high-end phones, standalone VR, WebGL, handhelds, PC, current consoles); Measure() for budget tests. GPU counters in the Editor and development builds only.",
+          "api": [
+            "RenderSection",
+            "RenderBudget",
+            "RenderPlatform",
+            "RenderSample",
+            "RenderBudget.For"
+          ],
+          "data": []
+        },
+        {
+          "id": "tools.diagnostics_panel",
+          "title": "In-game diagnostics panel",
+          "status": "full",
+          "since": "0.2.0",
+          "notes": "Systems, events, timers, pools and frame times in an overlay; sections of the game's own.",
+          "api": [
+            "DiagnosticsModule",
+            "DiagnosticsOverlay",
+            "DiagnosticsHub",
+            "IDiagnosticsSection"
+          ],
+          "data": []
+        },
+        {
+          "id": "tools.performance_monitor",
+          "title": "Frame time and memory",
+          "status": "full",
+          "since": "0.1.0",
+          "notes": "Average and worst FPS, managed memory, garbage collections.",
+          "api": [
+            "PerformanceMonitor"
+          ],
+          "data": []
+        },
+        {
+          "id": "tools.debug_draw",
+          "title": "Debug shapes in the Scene view",
+          "status": "full",
+          "since": "0.1.0",
+          "notes": "Circles, spheres, boxes, crosses, arrows.",
+          "api": [
+            "DebugDraw"
+          ],
+          "data": []
+        },
+        {
+          "id": "tools.data_validation",
+          "title": "Content validation with an exit code",
+          "status": "full",
+          "since": "0.32.0",
+          "notes": "Quests, dialogues, factions, recipes, items and loot checked in batch mode (exit 0 clean, 1 errors, 2 the check failed); quest and dialogue graph checks.",
+          "api": [
+            "FrameworkValidation.ValidateFromCommandLine",
+            "QuestGraph.Check",
+            "DialogueGraph.Check"
+          ],
+          "data": []
+        },
+        {
+          "id": "tools.project_index",
+          "title": "Project index",
+          "status": "full",
+          "since": "0.32.0",
+          "notes": "A read-only JSON map of the project: assets with GUIDs and references, scenes, prefabs, scripts, framework modules used.",
+          "api": [
+            "ProjectIndexCommand.ExportFromCommandLine"
+          ],
+          "data": []
+        },
+        {
+          "id": "tools.architecture_rules",
+          "title": "Architecture rules for games (GA01-GA15)",
+          "status": "full",
+          "since": "0.2.0",
+          "notes": "Tests a game derives to keep its rules engine-free, its services in modules and its code off hand-made framework copies.",
+          "api": [
+            "GameArchitectureTests",
+            "GameArchitectureRules"
+          ],
+          "data": []
+        },
+        {
+          "id": "tools.ai_guidance",
+          "title": "AI guidance for games",
+          "status": "full",
+          "since": "0.6.0",
+          "notes": "CLAUDE.md block, recipes, process files and commands installed into a game; a session-start check for newer framework versions (releases.json).",
+          "api": [
+            "AIGuidance"
+          ],
+          "data": []
+        },
+        {
+          "id": "tools.designer_windows",
+          "title": "Designer windows and wizards",
+          "status": "partial",
+          "since": "0.1.0",
+          "notes": "Framework Manager, item database, item, loot table and quest wizards, loot table editor, create menus for every module asset. No visual graph editors (tools.visual_graph_editors).",
+          "api": [
+            "FrameworkManagerWindow",
+            "ItemDatabaseWindow",
+            "LootTableEditorWindow",
+            "QuestCreationWizard"
+          ],
+          "data": [],
+          "ki": "KI-18"
+        },
+        {
+          "id": "tools.test_doubles",
+          "title": "Test doubles",
+          "status": "full",
+          "since": "0.2.0",
+          "notes": "Two players on one machine without sockets, sound recorded instead of played, test helpers for characters and UI.",
+          "api": [
+            "LoopbackNetwork",
+            "LoopbackTransport",
+            "RecordingAudioOutput"
+          ],
+          "data": []
+        }
+      ]
     }
   ],
   "missing": [

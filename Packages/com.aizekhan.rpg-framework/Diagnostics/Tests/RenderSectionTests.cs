@@ -105,6 +105,42 @@ namespace RPGFramework.Diagnostics.Tests
             Assert.That(RenderBudget.IsOver(13, 12), Is.True);
         }
 
+        // A budget per device class, not only phones (The Bloodline Hunt asked what a phone may draw)
+        [Test]
+        public void APlatformPreset_ReplacesTheNumbers_AndEachClassHasOne()
+        {
+            Cube(new Vector3(0f, 0f, 5f));
+            _section.Budget = new RenderBudget { Platform = RenderPlatform.Mobile, Triangles = 1 };
+
+            string text = Write();
+
+            StringAssert.StartsWith("Budget: Mobile", text);
+            Assert.That(text, Does.Not.Contain("OVER"), "the preset, not Triangles = 1");
+            var mobile = RenderBudget.For(RenderPlatform.Mobile);
+            Assert.That((mobile.Triangles, mobile.DrawCalls, mobile.SetPassCalls, mobile.ModelTriangles), Is.EqualTo((300000L, 150L, 100L, 30000L)));
+            Assert.That(RenderBudget.For(RenderPlatform.Desktop).Triangles, Is.EqualTo(new RenderBudget().Triangles), "Desktop = the defaults");
+
+            var classes = new[]
+            {
+                RenderPlatform.LowEndMobile, RenderPlatform.Mobile, RenderPlatform.HighEndMobile, RenderPlatform.StandaloneVR,
+                RenderPlatform.WebGL, RenderPlatform.Handheld, RenderPlatform.Desktop, RenderPlatform.HighEndDesktop
+            };
+            foreach (var platform in classes)
+            {
+                var budget = RenderBudget.For(platform);
+                Assert.That(budget.Platform, Is.EqualTo(platform));
+                Assert.That(budget.Triangles, Is.GreaterThan(0));
+                Assert.That(budget.Resolved(), Is.Not.Null);
+            }
+            Assert.That(RenderBudget.For(RenderPlatform.LowEndMobile).Triangles, Is.LessThan(RenderBudget.For(RenderPlatform.HighEndDesktop).Triangles));
+            Assert.That(RenderBudget.PlatformOf(RuntimePlatform.Android), Is.EqualTo(RenderPlatform.Mobile));
+            Assert.That(RenderBudget.PlatformOf(RuntimePlatform.WebGLPlayer), Is.EqualTo(RenderPlatform.WebGL));
+            Assert.That(RenderBudget.PlatformOf(RuntimePlatform.WindowsPlayer), Is.EqualTo(RenderPlatform.Desktop));
+            Assert.That(RenderBudget.For(RenderPlatform.Auto).Platform, Is.EqualTo(RenderBudget.PlatformOf(Application.platform)));
+            var custom = new RenderBudget { Triangles = 7 };
+            Assert.That(custom.Resolved(), Is.SameAs(custom));
+        }
+
         [Test]
         public void ADisabledRenderer_IsNotCounted()
         {
