@@ -37,6 +37,7 @@ namespace RPGFramework.Turns
         private string _address = "";
         private string _pendingEnd;
         private int _nextRequest;
+        private readonly List<int> _pauseSeats = new List<int>();
         private int _viewNumber = int.MinValue;
         private readonly Dictionary<int, float> _banks = new Dictionary<int, float>();
 
@@ -105,6 +106,11 @@ namespace RPGFramework.Turns
         /// </summary>
         public float BankOf(int seat) => _banks.TryGetValue(seat, out float bank) ? bank : 0f;
 
+        /// <summary>
+        /// Whether a seat may pause now, as the host's last clock said.
+        /// </summary>
+        public bool CanPause(int seat) => IsStarted && PausedBy < 0 && _pauseSeats.Contains(seat);
+
         public event Action ClockChanged;
 
         /// <summary>
@@ -151,12 +157,13 @@ namespace RPGFramework.Turns
         }
 
         /// <summary>
-        /// Asks the host to pause the turn with this seat's bank; <see cref="ClockChanged"/> tells when it did.
+        /// Asks the host to pause the turn with this seat's bank; <see cref="ClockChanged"/> tells when it did, and
+        /// <see cref="Replied"/> with <see cref="TurnProtocol.PauseRequestId"/> when it refused.
         /// </summary>
-        /// <returns>False when it cannot be asked (not in a started match, already paused).</returns>
+        /// <returns>False when it cannot be asked (not seated, or <see cref="CanPause"/> is false for this seat).</returns>
         public bool PauseTurn()
         {
-            if (State != TurnClientState.Seated || !IsStarted || !_network.IsConnected || PausedBy >= 0)
+            if (State != TurnClientState.Seated || !_network.IsConnected || !CanPause(LocalSeat))
                 return false;
             _network.SendToServer(new TurnPauseMessage { Pause = true });
             return true;
@@ -346,6 +353,8 @@ namespace RPGFramework.Turns
             _banks.Clear();
             for (int i = 0; i < message.BankSeats.Count && i < message.Banks.Count; i++)
                 _banks[message.BankSeats[i]] = message.Banks[i];
+            _pauseSeats.Clear();
+            _pauseSeats.AddRange(message.PauseSeats);
             ClockChanged?.Invoke();
         }
 

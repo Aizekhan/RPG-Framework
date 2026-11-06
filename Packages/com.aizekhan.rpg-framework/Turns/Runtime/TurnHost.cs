@@ -36,7 +36,35 @@ namespace RPGFramework.Turns
         /// </summary>
         public bool EndPauseWithTurn { get; set; }
 
+        /// <summary>
+        /// Who may pause (<see cref="TurnPauseRule"/>); a pause ends as soon as its seat no longer may.
+        /// </summary>
+        public TurnPauseRule PauseBy { get; set; } = TurnPauseRule.AnySeat;
+
+        /// <summary>
+        /// The game's own say on who may pause now, after <see cref="PauseBy"/> (null: no more checks); asked every
+        /// update. A pause ends as soon as it says no for the pausing seat.
+        /// </summary>
+        public Func<int, bool> CanPause { get; set; }
+
         public float RejoinWindow { get; set; } = TurnProtocol.RejoinWindow;
+    }
+
+    /// <summary>
+    /// Who may pause a match's clock (<see cref="TurnHostOptions.PauseBy"/>).
+    /// </summary>
+    public enum TurnPauseRule
+    {
+        /// <summary>
+        /// Any seat with bank left, also while a rival is on turn.
+        /// </summary>
+        AnySeat = 0,
+
+        /// <summary>
+        /// Only the seat on turn and a seat an open question waits for (<see cref="TurnHost.OpenPrompt(string, IReadOnlyList{string}, IEnumerable{int}, float, Action{IReadOnlyDictionary{int, int}}, byte[], string)"/>):
+        /// nobody stops a rival's turn.
+        /// </summary>
+        TurnOrAsked = 1
     }
 
     /// <summary>
@@ -59,6 +87,7 @@ namespace RPGFramework.Turns
         public const string RefusedNotStarted = "The match has not started";
         public const string RefusedBusy = "Another move is being made";
         public const string RefusedNotYourMove = "Not your move now";
+        public const string RefusedNoPause = "You cannot pause now";
 
         private sealed class Place
         {
@@ -81,6 +110,8 @@ namespace RPGFramework.Turns
         private readonly TurnHostOptions _options;
         private readonly ILogger _logger;
         private readonly List<Place> _places = new List<Place>();
+        private readonly List<int> _pauseSeats = new List<int>();
+        private readonly List<int> _sentPauseSeats = new List<int>();
         private readonly Dictionary<int, Place> _byConnection = new Dictionary<int, Place>();
         private readonly Dictionary<int, Window> _windows = new Dictionary<int, Window>();
         private readonly List<IDisposable> _handlers = new List<IDisposable>();
@@ -333,14 +364,17 @@ namespace RPGFramework.Turns
 
         public bool PauseTurn() => PauseTurn(0);
 
+        public bool CanPause(int seat) => IsStarted && PausedBy < 0 && BankOf(seat) > 0f && MayPause(seat);
+
         /// <summary>
         /// Stops the turn's time and the questions' time with a seat's pause bank (any seat the rules know, also one
-        /// played at this machine in hot-seat) until <see cref="ResumeTurn"/> or the bank runs out.
+        /// played at this machine in hot-seat) until <see cref="ResumeTurn"/>, the bank runs out, or the seat no longer
+        /// may pause (<see cref="TurnHostOptions.PauseBy"/>, <see cref="TurnHostOptions.CanPause"/>).
         /// </summary>
-        /// <returns>False when it cannot (not started, already paused, no bank left).</returns>
+        /// <returns>False when it cannot (<see cref="CanPause"/>).</returns>
         public bool PauseTurn(int seat)
         {
-            if (!IsStarted || PausedBy >= 0 || BankOf(seat) <= 0f)
+            if (!CanPause(seat))
                 return false;
             _banks[seat] = BankOf(seat);
             PausedBy = seat;
@@ -393,6 +427,10 @@ namespace RPGFramework.Turns
             }
             if (PausedBy >= 0 && IsStarted && _rules.CurrentSeat != _turnSeat)
                 ResetTurnTimer();
+            if (PausedBy >= 0 && !MayPause(PausedBy))
+                ResumeTurn();
+            if (IsStarted && PauseSeatsChanged())
+                SendClock();
             if (PausedBy >= 0)
             {
                 float bank = BankOf(PausedBy) - deltaTime;
@@ -558,7 +596,10 @@ namespace RPGFramework.Turns
             if (!_byConnection.TryGetValue(connectionId, out var place))
                 return;
             if (message.Pause)
-                PauseTurn(place.Seat.Seat);
+            {
+                if (!PauseTurn(place.Seat.Seat))
+                    _network.Send(connectionId, new TurnReplyMessage { RequestId = TurnProtocol.PauseRequestId, Reason = RefusedNoPause });
+            }
             else if (PausedBy == place.Seat.Seat)
                 ResumeTurn();
         }
@@ -664,7 +705,62 @@ namespace RPGFramework.Turns
                 message.BankSeats.Add(bank.Key);
                 message.Banks.Add(bank.Value);
             }
+            FillPauseSeats(_sentPauseSeats);
+            message.PauseSeats.AddRange(_sentPauseSeats);
             return message;
+        }
+
+        // The rule and the game's say only: bank and an existing pause are checked by CanPause
+        private bool MayPause(int seat)
+        {
+            if (seat < 0 || !IsStarted)
+                return false;
+            if (_options.PauseBy == TurnPauseRule.TurnOrAsked && seat != _rules.CurrentSeat && !IsAsked(seat))
+                return false;
+            if (_options.CanPause == null)
+                return true;
+            try
+            {
+                return _options.CanPause(seat);
+            }
+            catch (Exception e)
+            {
+                _logger?.LogError($"CanPause for seat {seat} failed: {e.Message}", Category);
+                return false;
+            }
+        }
+
+        private bool IsAsked(int seat)
+        {
+            foreach (var window in _windows.Values)
+            {
+                if (window.Seats.Contains(seat) && !window.Answers.ContainsKey(seat))
+                    return true;
+            }
+            return false;
+        }
+
+        private void FillPauseSeats(List<int> seats)
+        {
+            seats.Clear();
+            foreach (var place in _places)
+            {
+                if (CanPause(place.Seat.Seat))
+                    seats.Add(place.Seat.Seat);
+            }
+        }
+
+        private bool PauseSeatsChanged()
+        {
+            FillPauseSeats(_pauseSeats);
+            if (_pauseSeats.Count != _sentPauseSeats.Count)
+                return true;
+            for (int i = 0; i < _pauseSeats.Count; i++)
+            {
+                if (_pauseSeats[i] != _sentPauseSeats[i])
+                    return true;
+            }
+            return false;
         }
 
         private void SendClock()

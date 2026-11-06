@@ -423,6 +423,75 @@ namespace RPGFramework.Turns.Tests
         }
 
         [Test]
+        public void WithTurnOrAsked_OnlyTheSeatOnTurnOrAsked_MayPause_AndThePauseEndsWhenItNoLongerMay()
+        {
+            // BH-09: nobody stops a rival's turn
+            Host(new TurnHostOptions { TurnSeconds = 10f, PauseBankSeconds = 10f, PauseBy = TurnPauseRule.TurnOrAsked });
+            var bob = Join("Bob");
+            var rules = StartRace(bob);
+
+            Assert.IsTrue(_host.CanPause(0), "the host's seat is on turn");
+            Assert.IsFalse(_host.CanPause(1));
+            Assert.IsFalse(bob.CanPause(1), "the player knows it from the clock, to grey out the button");
+            Assert.IsFalse(bob.PauseTurn());
+            Assert.IsFalse(_host.PauseTurn(1));
+
+            int prompt = _host.OpenPrompt("block", new[] { "Block" }, new[] { 1 }, 0f, _ => { });
+            Pump();
+            Assert.IsTrue(bob.CanPause(1), "a question waits for Bob");
+            Assert.IsTrue(bob.PauseTurn());
+            Pump();
+            Assert.AreEqual(1, _host.PausedBy);
+            Assert.IsFalse(bob.CanPause(1), "one pause at a time");
+            bob.Answer(prompt, 0);
+            Pump();
+            Assert.AreEqual(-1, _host.PausedBy, "answered: Bob no longer may pause, so the pause ended");
+
+            rules.CurrentSeat = 1;
+            Pump();
+            Assert.IsTrue(bob.CanPause(1));
+            Assert.IsFalse(_host.CanPause(0), "now the host's seat waits");
+            Assert.IsTrue(bob.PauseTurn());
+            Pump();
+            rules.CurrentSeat = 0;
+            Pump();
+            Assert.AreEqual(-1, _host.PausedBy, "the turn passed");
+            Assert.AreEqual(-1, bob.PausedBy);
+        }
+
+        [Test]
+        public void TheGamesCanPause_HasTheLastSay_AndARefusedPauseIsAnswered()
+        {
+            bool allowed = true;
+            Host(new TurnHostOptions { TurnSeconds = 10f, PauseBankSeconds = 10f, CanPause = seat => allowed });
+            var bob = Join("Bob");
+            StartRace(bob);
+            var replies = new List<TurnOutcome>();
+            bob.Replied += (id, outcome) =>
+            {
+                if (id == TurnProtocol.PauseRequestId)
+                    replies.Add(outcome);
+            };
+
+            Assert.IsTrue(bob.CanPause(1));
+            Assert.IsTrue(bob.PauseTurn());
+            allowed = false; // changes before the host reads the ask
+            Pump();
+            Assert.AreEqual(-1, _host.PausedBy);
+            Assert.AreEqual(1, replies.Count, "the player is told");
+            Assert.IsFalse(replies[0].Accepted);
+            Assert.AreEqual(TurnHost.RefusedNoPause, replies[0].Reason);
+            Assert.IsFalse(bob.CanPause(1), "and the clock says so");
+
+            allowed = true;
+            Pump();
+            Assert.IsTrue(_host.PauseTurn(1));
+            allowed = false;
+            Pump();
+            Assert.AreEqual(-1, _host.PausedBy, "a pause ends as soon as the game says no");
+        }
+
+        [Test]
         public void HotSeat_RunsTheSameClock_WithoutAnyoneJoining()
         {
             // Every player at this machine: a host on an in-memory network nobody joins, rules for three seats

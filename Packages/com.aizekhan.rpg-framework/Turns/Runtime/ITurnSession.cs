@@ -59,9 +59,15 @@ namespace RPGFramework.Turns
         float BankOf(int seat);
 
         /// <summary>
+        /// Whether a seat may pause now: the match runs, nobody has paused, it has bank left, and the host's
+        /// <c>TurnHostOptions.PauseBy</c> and <c>CanPause</c> let it (a player knows it from the host's clock).
+        /// </summary>
+        bool CanPause(int seat);
+
+        /// <summary>
         /// Stops the turn's time (and the questions' time) with this seat's pause bank, until <see cref="ResumeTurn"/> or the bank runs out.
         /// </summary>
-        /// <returns>False when it cannot (not started, already paused, no bank left).</returns>
+        /// <returns>False when it cannot (<see cref="CanPause"/> is false for this seat).</returns>
         bool PauseTurn();
 
         /// <summary>
@@ -87,7 +93,8 @@ namespace RPGFramework.Turns
         event Action<int> PromptClosed;
 
         /// <summary>
-        /// The host's answer to one of this machine's moves (request id, outcome).
+        /// The host's answer to one of this machine's moves (request id, outcome); request id
+        /// <see cref="TurnProtocol.PauseRequestId"/> is a pause the host refused.
         /// </summary>
         event Action<int, TurnOutcome> Replied;
 

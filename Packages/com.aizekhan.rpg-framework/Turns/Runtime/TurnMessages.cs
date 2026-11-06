@@ -26,7 +26,12 @@ namespace RPGFramework.Turns
         public const int ClockId = 1312;
         public const int PauseId = 1313;
 
-        public const int Version = 3;
+        public const int Version = 4;
+
+        /// <summary>
+        /// The request id of the host's answer to a pause (<c>ITurnSession.Replied</c>): moves count from 1.
+        /// </summary>
+        public const int PauseRequestId = 0;
         public const int DefaultPort = 7788;
         public const int DefaultMaxSeats = 6;
         public const float ConnectionTimeout = 10f;
@@ -384,6 +389,7 @@ namespace RPGFramework.Turns
         public int PausedBy = -1;
         public List<int> BankSeats = new List<int>();
         public List<float> Banks = new List<float>();
+        public List<int> PauseSeats = new List<int>();
 
         public void Write(BinaryWriter writer)
         {
@@ -397,6 +403,9 @@ namespace RPGFramework.Turns
                 writer.Write(BankSeats[i]);
                 writer.Write(i < Banks.Count ? Banks[i] : 0f);
             }
+            writer.Write(PauseSeats.Count);
+            foreach (int seat in PauseSeats)
+                writer.Write(seat);
         }
 
         public void Read(BinaryReader reader)
@@ -413,6 +422,10 @@ namespace RPGFramework.Turns
                 BankSeats.Add(reader.ReadInt32());
                 Banks.Add(reader.ReadSingle());
             }
+            count = TurnProtocol.ReadCount(reader);
+            PauseSeats = new List<int>(count);
+            for (int i = 0; i < count; i++)
+                PauseSeats.Add(reader.ReadInt32());
         }
     }
 
