@@ -1,8 +1,8 @@
-# RPG Framework — архітектура (фактичний стан v0.44.0)
+# RPG Framework — архітектура (фактичний стан v0.45.0)
 
-> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.44.0**
-> (тег `v0.44.0`; SHA і докази — у `Docs/RELEASES.md`; Unity 6000.0), звірений із кодом пакета 2026-11-06: збірки (`.asmdef`), їхні
-> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.44.0), `Documentation~/networking.md`, рецепти
+> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.45.0**
+> (тег `v0.45.0`; SHA і докази — у `Docs/RELEASES.md`; Unity 6000.0), звірений із кодом пакета 2026-11-06: збірки (`.asmdef`), їхні
+> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.45.0), `Documentation~/networking.md`, рецепти
 > AI-guidance 01–21.
 > Попередня редакція (стан v0.5.0/v0.5.1) у git не потрапляла; цей файл замінює її повністю. Історію змін між
 > версіями дає `CHANGELOG.md` пакета.
@@ -29,8 +29,8 @@
   правила, стати, прогресія, квести, предмети, лут, збереження, ассети, спавн, сцени, UI-навігація, звук, локалізація,
   налаштування, діагностика, мережа.
 - Гра володіє **контентом, поданням і правилами, які роблять її унікальною**.
-- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.44.0`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
-  1.11.2, Unity Transport 2.5.3, uGUI, вбудованого модуля Audio. Гра живе в окремому репозиторії/проєкті і не редагує
+- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.45.0`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
+  1.11.2, Unity Transport 2.5.3, uGUI, вбудованих модулів Audio і AI (NavMesh, з v0.45). Гра живе в окремому репозиторії/проєкті і не редагує
   пакет (`Library/PackageCache` перезаписується).
 - **Конвеєр рендерингу — будь-який.** Пакет не залежить від URP/HDRP і не має шейдерів під конкретний конвеєр:
   `StarterContent` (New Game) бере шейдер з `GraphicsSettings.currentRenderPipeline.defaultMaterial`, без конвеєра —
@@ -365,6 +365,7 @@ GameHost.Start(configure)                               // Bootstrap.Runtime, б
 | Здібність по області (AoE) | [частково]: `TargetType.AllEnemies/AllAllies`; по радіусу — у колбеку ефекту (`ActorAbilities.SetEffect`) гра сама обирає цілі; в ActionCombat снаряд `Landing` б'є всіх у радіусі (з v0.35) |
 | Розподіл очок характеристик | [немає], належить грі (модифікатори `StatContainer`); очки навичок — [є] (Skills) |
 | Карта відстаней / flow field | [є] з v0.18: `DistanceMap` |
+| Рух гравця кліком (як у Diablo): клік по землі — іти туди, по ворогу — підійти й бити | [є] з v0.45: `PlayerController.ClickToMove`, обхід перешкод по NavMesh сцени (`GroundPath`; без NavMesh — напряму); WASD і стік лишаються |
 | Карта світу: міста й дороги між ними, відкриті місця, швидка подорож | [частково] з v0.44: `WorldMap` (розд. 4); синхронізацію в коопі гра шле своїм повідомленням (`WorldTravelRecord`), точки взаємодії не групуються за місцем (KI-26) |
 | Фізика 2D (Rigidbody2D, Tilemap) у жанровому кіті | [немає]; ActionRpg — 3D. 2D-вигляд = 3D-сцена з ортографічною камерою зверху |
 | Екран бою для TurnBased | [є] з v0.19: `BattleScreen`, `BattleMenu`, `TurnBasedHost`; свій view — на `ITurnBasedWorld` |
@@ -436,7 +437,9 @@ Feature-модулі для підключення одним рядком ле�
   `OnSceneChanged` / `TeleportPlayer`; старт на запит (`UseStartOnRequest`, `StartGame(GameStart)`, `Launch` з меню),
   `EndGame(sceneName)` (з v0.16.1); `Navigation`, `Localization`, `Settings`, Audio, `Render`; `AbilityDistance`,
   `InteractionDistance` (раннер чи сітка міряє по-своєму). `GameSetup` і `CharacterDefinition` (ассети дизайнера),
-  `ActorPresenter`, `ActorView`, `PlayerController` (Input System), `EnemyBrain`, `StrikeAnimator`, `HealthBarView` (зі
+  `ActorPresenter`, `ActorView`, `PlayerController` (Input System; з v0.45 рух кліком — `ClickToMove`, `MoveTo`,
+  `MoveToAttack`, `Stop`, віртуальні `MoveInput` і `TryPick`; шлях в обхід перешкод по NavMesh сцени — `GroundPath`),
+  `EnemyBrain`, `StrikeAnimator`, `HealthBarView` (зі
   слідом удару), `ActionRpgHud`, `CoopPanel` (F2, лобі), `InteractionPointView`, `KitRows` (сторінки навичок, рецептів,
   витратних, репутації, досягнень, діалогу на `ActionListPanel`).
 - **Важливо для дизайну:** **рух і позиції живуть у view** (Unity), правила — у `ActorWorld`; AI ворогів —
@@ -715,7 +718,7 @@ New Game також виставляє Player Settings (Run In Background, Linea
 | `.meta` з валідним GUID для кожного файлу | CI-крок «Unity .meta integrity» |
 | Тексти на екрані — ключі, не рядки | тексти кітів через `ILocalization`; `LocalizationChecks` для таблиць гри |
 
-Тестова база: v0.44.0 (код `a9ab26a`) — EditMode **2190/2190** і PlayMode **22/22** локально; PlayMode — у CI (докази в `Docs/RELEASES.md`).
+Тестова база: v0.45.0 (код `fdb2bb3`) — EditMode **2190/2190** і PlayMode **25/25** локально; PlayMode — у CI (докази в `Docs/RELEASES.md`).
 
 ---
 

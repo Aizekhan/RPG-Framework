@@ -1,7 +1,7 @@
 {
   "format": "rpgframework.capabilities/1",
-  "version": "0.44.0",
-  "released": "2026-11-06",
+  "version": "0.45.0",
+  "released": "2026-11-09",
   "modules": [
     {
       "id": "combat",
@@ -1182,7 +1182,7 @@
           "id": "game_kit.click_to_move",
           "title": "Click to move",
           "status": "full",
-          "since": "unreleased",
+          "since": "0.45.0",
           "notes": "A click on the ground walks the player there around obstacles on the scene's NavMesh (straight without one), a click on an enemy walks up to it and attacks; holding follows the pointer; the keys still move. Games can feed their own direction or pick.",
           "api": [
             "PlayerController.ClickToMove",
