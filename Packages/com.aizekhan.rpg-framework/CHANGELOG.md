@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- ActionRpg: click to move, as in Diablo (The Bloodline Hunt BH-11). `PlayerController.ClickToMove` (inspector: Click To Move, Move Button, Click Layers, Pick Radius, Arrive Distance): a click on the ground walks the player there, a click on an enemy walks up to it and attacks it whenever the attack is ready, holding the button follows the pointer, a click on a screen's button is not a walk; WASD and the stick still move and take over. `MoveButton` (`ClickButton`: `Left`, the default, then the left button no longer attacks the nearest enemy; or `Right`). `MoveTo(point)`, `MoveToAttack(target)`, `Stop()`, `HasDestination`, `Destination`, `ChasedTarget` for the game's own input; `MoveInput()` and `TryPick(screen position)` are virtual so a game feeds its own direction or pick without copying the controller. The way goes round obstacles on the scene's NavMesh (`GroundPath.Find`; straight when the scene has none; a walk pressed against a wall the NavMesh does not know gives up). The package now depends on the built-in AI module (`com.unity.modules.ai`), which Unity adds by itself. Recipe 05.
+
 ## [0.44.0] - 2026-11-06
 
 ### Added

@@ -1179,6 +1179,21 @@
           ]
         },
         {
+          "id": "game_kit.click_to_move",
+          "title": "Click to move",
+          "status": "full",
+          "since": "unreleased",
+          "notes": "A click on the ground walks the player there around obstacles on the scene's NavMesh (straight without one), a click on an enemy walks up to it and attacks; holding follows the pointer; the keys still move. Games can feed their own direction or pick.",
+          "api": [
+            "PlayerController.ClickToMove",
+            "PlayerController.MoveTo",
+            "PlayerController.MoveToAttack",
+            "PlayerController.Stop",
+            "GroundPath"
+          ],
+          "data": []
+        },
+        {
           "id": "game_kit.companions",
           "title": "Companions",
           "status": "partial",

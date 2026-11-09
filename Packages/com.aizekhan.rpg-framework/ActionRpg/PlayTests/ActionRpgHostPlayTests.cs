@@ -131,6 +131,47 @@ namespace RPGFramework.ActionRpg.PlayTests
                 .SetValue(target, value);
 
         [UnityTest]
+        public IEnumerator ClickToMove_WalksToAPoint_AndUpToAnEnemyToStrikeIt()
+        {
+            var world = _host.World;
+            yield return WaitUntil(() => _host.Views != null && _host.Views.TryGetView(world.PlayerId, out _), "player view");
+            yield return WaitUntil(() => world.LivingEnemies.Count() == 2 && world.LivingEnemies.All(id => _host.Views.TryGetView(id, out _)),
+                "first wave with views");
+            _host.Views.TryGetView(world.PlayerId, out var playerView);
+            var player = playerView.GetComponent<PlayerController>();
+            player.ClickToMove = true;
+            // Enemies far away, so none stands in the way
+            foreach (int id in world.LivingEnemies)
+                if (_host.Views.TryGetView(id, out var view))
+                    view.transform.position = playerView.transform.position + new Vector3(-40f, 0f, -40f);
+
+            // A point on the ground (the test scene has no NavMesh: straight there)
+            var point = playerView.transform.position + new Vector3(3f, 0f, 2f);
+            Assert.That(player.MoveTo(point), Is.True);
+            Assert.That(player.HasDestination, Is.True);
+            Assert.That(Vector3.Distance(player.Destination, point), Is.LessThan(0.01f));
+            yield return WaitUntil(() => !player.HasDestination, "the walk to end");
+            var flat = playerView.transform.position - point;
+            flat.y = 0f;
+            Assert.That(flat.magnitude, Is.LessThan(0.3f), "the player stands on the clicked point");
+
+            // Stop ends a walk at once
+            Assert.That(player.MoveTo(point + new Vector3(-10f, 0f, 0f)), Is.True);
+            player.Stop();
+            Assert.That(player.HasDestination, Is.False);
+
+            // An enemy: walk up to it and strike it
+            int enemy = world.LivingEnemies.First();
+            _host.Views.TryGetView(enemy, out var enemyView);
+            enemyView.transform.position = playerView.transform.position + new Vector3(0f, 0f, 5f);
+            float health = world.Get(enemy).Health;
+            Assert.That(player.MoveToAttack(enemy), Is.True);
+            Assert.That(player.ChasedTarget, Is.EqualTo(enemy));
+            yield return WaitUntil(() => world.Get(enemy) == null || world.Get(enemy).Health < health, "the strike");
+            Assert.That(player.MoveToAttack(world.PlayerId), Is.False, "the player is not an enemy of themselves");
+        }
+
+        [UnityTest]
         public IEnumerator AKilledEnemysBody_StaysForItsCorpseTime()
         {
             _setup.Characters.First(c => c.Id == "goblin").SetCorpseSeconds(0.6f);
