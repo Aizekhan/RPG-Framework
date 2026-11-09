@@ -11,6 +11,12 @@
 This section holds only the latest session's notes; the release itself is in `STATUS.md` and `Docs/RELEASES.md`,
 older notes move to `Docs/archive/SESSION-LOG.md`.
 
+- 2026-11-09: released `v0.45.0` (The Bloodline Hunt BH-11, its agent's note relayed by the owner): click to move
+  in the action RPG kit. `PlayerController.ClickToMove` (off by default): a click on the ground walks there, on an
+  enemy walks up and attacks, holding follows the pointer, WASD takes over; `MoveTo`, `MoveToAttack`, `Stop`,
+  virtual `MoveInput` / `TryPick`. The way goes round obstacles on the scene's NavMesh (`GroundPath`), so the game
+  bakes one; the package now depends on `com.unity.modules.ai`. Earlier the owner asked about GLB import: the
+  framework has none (MythRunner uses glTFast 6.20.0 itself), which is the game's choice.
 - 2026-11-06: released `v0.44.0` (MythRunner FG-34, FG-35, read from its `FRAMEWORK-GAPS.md`; no MythRunner
   session was running to tell): a start menu names how to play together (`GameStart.Host.Via`,
   `GameStart.Join(code, provider)`, `NetworkSessionProviders.IsAvailable`); new `WorldMap` module (`WorldGraph`,
@@ -20,10 +26,6 @@ older notes move to `Docs/archive/SESSION-LOG.md`.
   diagnostics panel can be a small see-through one refreshed every frame (`DiagnosticsPanelLayout` `Compact`; in the
   kit `ActionRpgHost` Diagnostics Panel → Compact, Diagnostics Shown). The Bloodline Hunt BH-09: who may pause the
   turn clock (`TurnHostOptions.PauseBy`, `TurnPauseRule.TurnOrAsked`, `CanPause`), turn protocol 4 (breaking).
-- 2026-11-06: released `v0.42.1` (The Bloodline Hunt BH-10): `RenderSection` counted a statically batched
-  renderer's whole Combined Mesh once per part (3.1 M triangles instead of 0.41 M) and named every such model
-  "Combined Mesh"; now each part counts its own sub-meshes and is named by its object (`RenderSection.ModelOfBatched`).
-  GPU counters still need the Editor or a development build (Unity does not count them in batch mode).
 
 ## Conventions for new work
 

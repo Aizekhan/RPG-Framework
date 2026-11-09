@@ -5,6 +5,10 @@ state when they were written. The current state is in `STATUS.md`, releases and 
 
 ## Sessions
 
+- 2026-11-06: released `v0.42.1` (The Bloodline Hunt BH-10): `RenderSection` counted a statically batched
+  renderer's whole Combined Mesh once per part (3.1 M triangles instead of 0.41 M) and named every such model
+  "Combined Mesh"; now each part counts its own sub-meshes and is named by its object (`RenderSection.ModelOfBatched`).
+  GPU counters still need the Editor or a development build (Unity does not count them in batch mode).
 - 2026-11-06: released `v0.42.0` (the owner, after The Bloodline Hunt's agent offered to write a render stats tool
   the framework has had since v0.21): `RenderBudget` presets per device class (`RenderPlatform`), recipe 21 of every
   measuring, debugging and checking tool, a CLAUDE.md block section pointing there, `capabilities.json` module `tools`.
