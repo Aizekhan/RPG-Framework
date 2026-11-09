@@ -1,0 +1,21 @@
+{
+    "name": "RPGFramework.FogOfWar.Runtime",
+    "rootNamespace": "RPGFramework.FogOfWar",
+    "references": [
+        "RPGFramework.Bootstrap.Runtime",
+        "RPGFramework.Core.Runtime",
+        "RPGFramework.DI.Runtime",
+        "RPGFramework.Events.Runtime",
+        "RPGFramework.Persistence.Runtime",
+        "RPGFramework.Systems.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

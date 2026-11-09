@@ -41,7 +41,7 @@ A version bump goes through `python .github/scripts/release.py X.Y.Z`, which wri
 
 The register of everything known to be open, missing or limited. One `KI-NN` per bullet; ids are never reused.
 When a change closes one, its CHANGELOG line names the KI and the bullet is deleted here in the same commit.
-Next id: **KI-27**.
+Next id: **KI-28**.
 
 **Medium**
 - **KI-01** TurnBased: no content assets (the game fills `ConfigureGame` in code); items only in battle; no auto-battle setting for the party
@@ -71,6 +71,7 @@ Next id: **KI-27**.
 - **KI-24** ActionCombat: enemies do not parry (`EnemyBehaviour` has only `BlockChance` and `DodgeChance`; parry is for the player and the game's own AI)
 - **KI-25** Telemetry: the queue lives in memory (events not yet sent are lost if the game crashes); `HttpTelemetryTransport` uses .NET `HttpClient`, so a WebGL build cannot send (it needs a transport of its own)
 - **KI-26** WorldMap: interaction points are not grouped by place (the game opens and closes them on `PlaceEnteredEvent`); co-op has no built-in world-map message (the host sends `WorldTravelRecord` in a game message)
+- **KI-27** FogOfWar: square grids only (no hex grids, no height levels of its own: an eye's own `FogSight.Blockers` stands in for high ground); co-op has no built-in fog message (the host sends `FogOfWarRecord` in a game message, or each player computes the fog from the units it sees)
 
 ## Next steps
 

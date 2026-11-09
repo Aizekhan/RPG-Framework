@@ -1407,6 +1407,30 @@
           ],
           "data": [],
           "ki": "KI-26"
+        },
+        {
+          "id": "world.fog_of_war",
+          "title": "Fog of war and line of sight on a grid",
+          "status": "full",
+          "since": "unreleased",
+          "notes": "Per team (up to 32) each cell is unexplored, explored or visible; eyes with a radius, a shape and walls (symmetric shadowcasting), counted per cell so a move costs only that eye's cells; allies share sight one way; map scrolls explore; doors that open; saved per team. A 3D world lays the grid over its ground (FogGridSpace) and draws the fog texture with its own shader. Square grids only (KI-27).",
+          "api": [
+            "FogOfWarMap",
+            "FogSight",
+            "FogState",
+            "FieldOfView",
+            "GridSight",
+            "SightBlockers",
+            "ISightBlockers",
+            "FogGridSpace",
+            "FogExploredEvent",
+            "FogOfWarSave",
+            "FogOfWarModule",
+            "FogOfWarTexture",
+            "FogOfWarEye"
+          ],
+          "data": [],
+          "ki": "KI-27"
         }
       ]
     },

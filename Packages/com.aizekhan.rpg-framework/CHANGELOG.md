@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Added
+- FogOfWar module (Stepdeep SD-03, asked by the owner as a standard for any game): fog of war and line of sight on a square grid, as strategy, tactics and roguelike games have it.
+  - Per team (up to 32: players, factions, the monsters' side) each cell is `FogState.Unexplored`, `Explored` (seen before: the ground is remembered, what moves on it is not) or `Visible`. `FogOfWarMap(width, height, blockers, teams, events)`: `StateOf`, `IsVisible`, `IsExplored`, `ExploredCount`, `ExploredFraction`.
+  - Eyes (units, torches, towers, a scan): `AddEye(team, cell, FogSight)` with a radius, a `SightShape` (`Circle`, `Square`, `Diamond`), `ThroughWalls` and the eye's own blockers (high ground, true sight); `MoveEye` (nothing done while it stays in its cell), `SetSight`, `RemoveEye`, `RemoveAllEyes`, `SeenBy(eye)` for whom a sentry spotted. A cell stays visible while any eye of the team sees it, so a move costs that eye's cells, not the map; no garbage once lists have grown.
+  - Walls: `ISightBlockers` (`SightBlockers` grid, `SightBlockers.From(rule)`, `SightBlockers.None`), kept apart from walking (windows, chasms); a door that opens is `BlockersChanged(cell)`.
+  - `FieldOfView`: symmetric shadowcasting (A. Ford's algorithm, the roguelike standard): a floor cell seen from another sees it back, walls in view are seen, nothing behind them, no gaps in open rooms or by pillars. `GridSight`: `Line` (Bresenham), `HasLine` (the same both ways; an archer's shot), `CanSee`, `InShape`, `Visible`.
+  - Allies: `ShareVision(from, to)` (one way; sight and explored map), `SharesVision`. Map scrolls and scouts: `Explore(team, cell, radius)`, `ExploreAll`; `ForgetExplored`. `FogExploredEvent` (new cells, total) on the bus and as `FogOfWarMap.Explored`.
+  - Drawing: `ViewVersion(team)` grows on any change of what the team's view shows; `WriteStates(team, bytes)` gives a byte a cell. Unity: `FogOfWarTexture` (one-channel, bilinear, redrawn only on change, `ExploredFog`, `SetGlobals` sets `_FogOfWarTex` and `_FogOfWarArea` for the game's shader), `FogOfWarEye` (an object that is an eye: follows its transform cell by cell, radius in world units, x/z or x/y ground; `Bind(map, space)`, `Unbind`).
+  - Continuous worlds: `FogGridSpace` (corner, cell size; `CellAt`, `CenterOf`, `CellsIn`, `Covering`) lays the grid over the ground.
+  - Saves: `FogOfWarRecord` (`Capture` / `Restore`, explored cells per team; another map size is skipped) and `FogOfWarSave` (section "fog-of-war", a key per level's map); a co-op host can send the record in a game message. `FogOfWarModule(width, height, blockers, teams)` registers one map for a game with one map. Recipe 16. Square grids only (no hex grids).
+
 ## [0.45.0] - 2026-11-09
 
 ### Added
