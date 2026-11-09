@@ -11,6 +11,13 @@
 This section holds only the latest session's notes; the release itself is in `STATUS.md` and `Docs/RELEASES.md`,
 older notes move to `Docs/archive/SESSION-LOG.md`.
 
+- 2026-11-09: released `v0.46.0` (the owner asked for a standard fog of war module for any game, not only ours;
+  Stepdeep SD-03 asked for it): `FogOfWar` (`FogOfWarMap` per team with eyes counted per cell, `FieldOfView`
+  symmetric shadowcasting, `GridSight`, `SightBlockers`, `FogGridSpace` for 3D worlds, `FogOfWarSave`,
+  `FogOfWarModule`; Unity `FogOfWarTexture`, `FogOfWarEye`). KI-27 opened (square grids only; co-op fog message is
+  the game's). The machine was short of memory (The Bloodline Hunt batch jobs ran alongside): one local run hit
+  the 1800 s timeout while compiling, one was stopped by Claude Code; use `--timeout 5400` when other Unity jobs run.
+  Stepdeep can replace its `Sight.cs` stand-in after updating.
 - 2026-11-09: released `v0.45.0` (The Bloodline Hunt BH-11, its agent's note relayed by the owner): click to move
   in the action RPG kit. `PlayerController.ClickToMove` (off by default): a click on the ground walks there, on an
   enemy walks up and attacks, holding follows the pointer, WASD takes over; `MoveTo`, `MoveToAttack`, `Stop`,
@@ -22,10 +29,6 @@ older notes move to `Docs/archive/SESSION-LOG.md`.
   `GameStart.Join(code, provider)`, `NetworkSessionProviders.IsAvailable`); new `WorldMap` module (`WorldGraph`,
   `IWorldTravel`, `WorldTravelSave`, `WorldMapModule`). KI-26 opened (co-op world-map message and place-grouped
   interaction points are the game's).
-- 2026-11-06: released `v0.43.0`: the owner wanted the render numbers on screen while the hero runs, so the
-  diagnostics panel can be a small see-through one refreshed every frame (`DiagnosticsPanelLayout` `Compact`; in the
-  kit `ActionRpgHost` Diagnostics Panel → Compact, Diagnostics Shown). The Bloodline Hunt BH-09: who may pause the
-  turn clock (`TurnHostOptions.PauseBy`, `TurnPauseRule.TurnOrAsked`, `CanPause`), turn protocol 4 (breaking).
 
 ## Conventions for new work
 

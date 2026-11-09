@@ -5,6 +5,10 @@ state when they were written. The current state is in `STATUS.md`, releases and 
 
 ## Sessions
 
+- 2026-11-06: released `v0.43.0`: the owner wanted the render numbers on screen while the hero runs, so the
+  diagnostics panel can be a small see-through one refreshed every frame (`DiagnosticsPanelLayout` `Compact`; in the
+  kit `ActionRpgHost` Diagnostics Panel → Compact, Diagnostics Shown). The Bloodline Hunt BH-09: who may pause the
+  turn clock (`TurnHostOptions.PauseBy`, `TurnPauseRule.TurnOrAsked`, `CanPause`), turn protocol 4 (breaking).
 - 2026-11-06: released `v0.42.1` (The Bloodline Hunt BH-10): `RenderSection` counted a statically batched
   renderer's whole Combined Mesh once per part (3.1 M triangles instead of 0.41 M) and named every such model
   "Combined Mesh"; now each part counts its own sub-meshes and is named by its object (`RenderSection.ModelOfBatched`).
