@@ -24,7 +24,7 @@ core services (pooling, assets, spawning, scenes, timers, logging) are used inst
 
    ```json
    "com.cysharp.unitask": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask#2.5.10",
-   "com.aizekhan.rpg-framework": "https://github.com/Aizekhan/RPG-Framework.git?path=/Packages/com.aizekhan.rpg-framework#v0.45.0"
+   "com.aizekhan.rpg-framework": "https://github.com/Aizekhan/RPG-Framework.git?path=/Packages/com.aizekhan.rpg-framework#v0.46.0"
    ```
 
 3. In Unity: **RPG Framework > Game Kit > New Game or Feature...**, type a name, **New Game**, then **Play**.

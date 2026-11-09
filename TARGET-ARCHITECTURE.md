@@ -1,8 +1,8 @@
-# RPG Framework — архітектура (фактичний стан v0.45.0)
+# RPG Framework — архітектура (фактичний стан v0.46.0)
 
-> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.45.0**
-> (тег `v0.45.0`; SHA і докази — у `Docs/RELEASES.md`; Unity 6000.0), звірений із кодом пакета 2026-11-06: збірки (`.asmdef`), їхні
-> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.45.0), `Documentation~/networking.md`, рецепти
+> **Що це за документ.** Опис фреймворку таким, яким він **є** у версії `com.aizekhan.rpg-framework` **v0.46.0**
+> (тег `v0.46.0`; SHA і докази — у `Docs/RELEASES.md`; Unity 6000.0), звірений із кодом пакета 2026-11-06: збірки (`.asmdef`), їхні
+> посилання, публічні контракти, `README.md`, `CHANGELOG.md` (0.5.1 → 0.46.0), `Documentation~/networking.md`, рецепти
 > AI-guidance 01–21.
 > Попередня редакція (стан v0.5.0/v0.5.1) у git не потрапляла; цей файл замінює її повністю. Історію змін між
 > версіями дає `CHANGELOG.md` пакета.
@@ -29,7 +29,7 @@
   правила, стати, прогресія, квести, предмети, лут, збереження, ассети, спавн, сцени, UI-навігація, звук, локалізація,
   налаштування, діагностика, мережа.
 - Гра володіє **контентом, поданням і правилами, які роблять її унікальною**.
-- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.45.0`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
+- Розповсюджується як **UPM-пакет із git-тегом** (`#v0.46.0`), ліцензія MIT; залежить від UniTask 2.5.10, Input System
   1.11.2, Unity Transport 2.5.3, uGUI, вбудованих модулів Audio і AI (NavMesh, з v0.45). Гра живе в окремому репозиторії/проєкті і не редагує
   пакет (`Library/PackageCache` перезаписується).
 - **Конвеєр рендерингу — будь-який.** Пакет не залежить від URP/HDRP і не має шейдерів під конкретний конвеєр:
@@ -71,7 +71,7 @@
 │   Trading · Factions · Achievements · Interaction · Pathfinding ·        │
 │   BehaviorTree · Characters · Dice · Cards · Guilds · Housing ·          │
 │   Companions · DynamicEvents · Environment · ContentImport (з v0.32) ·   │
-│   WorldMap (з v0.44)                                                     │
+│   WorldMap (з v0.44) · FogOfWar (.Runtime + .Unity, з v0.46)             │
 ├──────────────────────────────────────────────────────────────────────────┤
 │ NETWORKING:  Networking (pure C#) · Networking.UnityTransport ·          │
 │              Networking.UnityRelay (опційно) · DeltaCompression          │
@@ -345,6 +345,7 @@ GameHost.Start(configure)                               // Bootstrap.Runtime, б
 | **Achievements** | критерії, `AchievementTracker` (лічильники, `Capture`/`Restore` як профіль) | — | ActionRpg, TurnBased | — |
 | **Interaction** | `InteractionPoint`, `IInteractionService` (відстань — гри), `InteractedEvent` (з v0.7) | `InteractionModule` | ActionRpg | — |
 | **Pathfinding** | `GridNavigationGraph`, `AStarPathfinder`, `DistanceMap` (карта відстаней / flow field для багатьох переслідувачів, з v0.18) | — | — | — |
+| **FogOfWar** | туман війни і лінія видимості на квадратній сітці по командах (до 32): `FogOfWarMap` (клітинка `FogState.Unexplored` / `Explored` / `Visible`; очі `AddEye` / `MoveEye` / `RemoveEye` з `FogSight`: радіус, `SightShape`, крізь стіни, власні перепони для висоти; лічильник очей на клітинку, тож рух коштує лише клітинок цього ока; `ShareVision` для союзників, `Explore` для мапи-сувою, `BlockersChanged` для дверей; `FogExploredEvent`), `FieldOfView` (симетричний shadowcasting), `GridSight` (`Line`, `HasLine`, `CanSee`), `SightBlockers` окремо від ходьби, `FogGridSpace` для 3D-світу, `FogOfWarRecord` / `FogOfWarSave`; Unity: `FogOfWarTexture` (текстура для шейдера гри), `FogOfWarEye` (з v0.46) | `FogOfWarModule` | — | — |
 | **WorldMap** | `WorldGraph` (місця й односторонні маршрути, петля), `IWorldTravel` / `WorldTravel` (де стоїть кожен гравець, відкриті місця, `Arrive`, `Travel` з `TravelRule`, `TravelTogether`), `PlaceEnteredEvent`, `WorldTravelSave` (з v0.44) | `WorldMapModule` | — | — |
 | **Dice** | `IDiceService`, `DiceService` (сід, лог), `ScriptedDice` (з v0.13) | у ядрі | The Bloodline Hunt | — |
 | **Cards** | `Deck<T>`, `Hand<T>`, `DeckAsset<TCard>` (з v0.13) | — | The Bloodline Hunt | DeckAsset |
@@ -367,6 +368,7 @@ GameHost.Start(configure)                               // Bootstrap.Runtime, б
 | Карта відстаней / flow field | [є] з v0.18: `DistanceMap` |
 | Рух гравця кліком (як у Diablo): клік по землі — іти туди, по ворогу — підійти й бити | [є] з v0.45: `PlayerController.ClickToMove`, обхід перешкод по NavMesh сцени (`GroundPath`; без NavMesh — напряму); WASD і стік лишаються |
 | Карта світу: міста й дороги між ними, відкриті місця, швидка подорож | [частково] з v0.44: `WorldMap` (розд. 4); синхронізацію в коопі гра шле своїм повідомленням (`WorldTravelRecord`), точки взаємодії не групуються за місцем (KI-26) |
+| Туман війни: чорне — де не був ніхто, тьмяне — де команда була, ясне — що бачить зараз; лінія пострілу; спільний зір союзників | [частково] з v0.46: `FogOfWar` (розд. 5.1); лише квадратна сітка, без гексів і власних рівнів висоти; синхронізацію туману в коопі гра шле своїм повідомленням (KI-27). Шейдер туману — гри |
 | Фізика 2D (Rigidbody2D, Tilemap) у жанровому кіті | [немає]; ActionRpg — 3D. 2D-вигляд = 3D-сцена з ортографічною камерою зверху |
 | Екран бою для TurnBased | [є] з v0.19: `BattleScreen`, `BattleMenu`, `TurnBasedHost`; свій view — на `ITurnBasedWorld` |
 | Тексти кількома мовами | [є] з v0.17 (розд. 4.2) |
@@ -382,7 +384,7 @@ ECS ← Combat, StatusEffects, Inventory, Quests, Dialogue, Crafting, Skills, Fa
 Factions ← Guilds          Inventory ← Housing          Events ← майже всі
 Localization ← Turns, TurnBased (з v0.19/v0.20)
 Abilities, Loot, Progression, Trading — лише Events (без ECS)
-Pathfinding, BehaviorTree, Dice — без залежностей від інших L2; Dice ← Cards (`Deck<T>.Shuffle(IDiceService)`)
+Pathfinding, BehaviorTree, Dice, FogOfWar — без залежностей від інших L2; Dice ← Cards (`Deck<T>.Shuffle(IDiceService)`)
 Combat ← ActionCombat (з v0.30; `AttackContext`)
 Quests, Dialogue, Persistence ← ContentImport (з v0.32)
 ```
@@ -718,7 +720,7 @@ New Game також виставляє Player Settings (Run In Background, Linea
 | `.meta` з валідним GUID для кожного файлу | CI-крок «Unity .meta integrity» |
 | Тексти на екрані — ключі, не рядки | тексти кітів через `ILocalization`; `LocalizationChecks` для таблиць гри |
 
-Тестова база: v0.45.0 (код `fdb2bb3`) — EditMode **2190/2190** і PlayMode **25/25** локально; PlayMode — у CI (докази в `Docs/RELEASES.md`).
+Тестова база: v0.46.0 (код `f4863a7`) — EditMode **2223/2223** і PlayMode **25/25** локально; PlayMode — у CI (докази в `Docs/RELEASES.md`).
 
 ---
 

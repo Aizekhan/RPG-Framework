@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.46.0] - 2026-11-09
+
 ### Added
 - FogOfWar module (Stepdeep SD-03, asked by the owner as a standard for any game): fog of war and line of sight on a square grid, as strategy, tactics and roguelike games have it.
   - Per team (up to 32: players, factions, the monsters' side) each cell is `FogState.Unexplored`, `Explored` (seen before: the ground is remembered, what moves on it is not) or `Visible`. `FogOfWarMap(width, height, blockers, teams, events)`: `StateOf`, `IsVisible`, `IsExplored`, `ExploredCount`, `ExploredFraction`.

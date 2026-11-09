@@ -1,6 +1,6 @@
 {
   "format": "rpgframework.capabilities/1",
-  "version": "0.45.0",
+  "version": "0.46.0",
   "released": "2026-11-09",
   "modules": [
     {
@@ -1412,7 +1412,7 @@
           "id": "world.fog_of_war",
           "title": "Fog of war and line of sight on a grid",
           "status": "full",
-          "since": "unreleased",
+          "since": "0.46.0",
           "notes": "Per team (up to 32) each cell is unexplored, explored or visible; eyes with a radius, a shape and walls (symmetric shadowcasting), counted per cell so a move costs only that eye's cells; allies share sight one way; map scrolls explore; doors that open; saved per team. A 3D world lays the grid over its ground (FogGridSpace) and draws the fog texture with its own shader. Square grids only (KI-27).",
           "api": [
             "FogOfWarMap",
